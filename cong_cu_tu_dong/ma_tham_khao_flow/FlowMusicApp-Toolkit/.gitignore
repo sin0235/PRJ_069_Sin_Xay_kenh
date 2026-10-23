@@ -1,0 +1,102 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Output directories
+output/*
+!output/.gitkeep
+output-test/
+output-test-covers/
+output-test-single/
+downloads-temp/
+.temp-profile/
+.browser-profile/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Checkpoints and sessions
+checkpoints/
+*.checkpoint.json
+
+# Authentication
+cookies.json
+config/cookies.json
+playlists.json
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor directories and files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Screenshots
+screenshots/
+
+# Backup files
+*.backup
+*.bak
+
+# Cache directories
+.cache/
+.playwright/
+
+# Build outputs
+dist/
+build/
+
+# Agent platform directories
+# Keep only shareable command/prompt/skill packs in-repo; ignore local runtime state.
+.agents/*
+!.agents/skills/
+!.agents/skills/**
+
+.codex/*
+!.codex/prompts/
+!.codex/prompts/**
+!.codex/skills/
+!.codex/skills/**
+
+.claude/*
+!.claude/commands/
+!.claude/commands/**
+!.claude/skills/
+!.claude/skills/**
+
+.gemini/*
+!.gemini/commands/
+!.gemini/commands/**
+!.gemini/skills/
+!.gemini/skills/**
+
+.opencode/*
+!.opencode/commands/
+!.opencode/commands/**
+!.opencode/skills/
+!.opencode/skills/**

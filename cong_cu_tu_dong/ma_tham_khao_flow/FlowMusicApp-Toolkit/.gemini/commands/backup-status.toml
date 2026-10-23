@@ -1,0 +1,15 @@
+description = "Show backup progress status"
+prompt = """
+Use the `flowmusic-backup-operator` skill.
+Goal: show current backup status.
+
+Input output path (default `./output` when empty):
+{{args}}
+
+Steps:
+1. If args are empty, run:
+   `node cli.js status --output ./output`
+2. Otherwise run:
+   `node cli.js status --output "{{args}}"`
+3. Summarize key metrics and failed count.
+"""

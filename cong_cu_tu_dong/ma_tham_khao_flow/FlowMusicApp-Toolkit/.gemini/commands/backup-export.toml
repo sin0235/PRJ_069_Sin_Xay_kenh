@@ -1,0 +1,22 @@
+description = "Export metadata JSON to CSV"
+prompt = """
+Use the `flowmusic-backup-operator` skill.
+Goal: export metadata to CSV.
+
+Input arguments:
+{{args}}
+
+Argument handling:
+- If empty: output `./output`, auto CSV path.
+- If one argument: treat as output path.
+- If two arguments: first is output path, second is csv path.
+
+Steps:
+1. Parse arguments.
+2. Resolve `OUTPUT_PATH` and optional `CSV_PATH`.
+3. Run one of:
+   - `node cli.js export --output ./output`
+   - `node cli.js export --output \"$OUTPUT_PATH\"`
+   - `node cli.js export --output \"$OUTPUT_PATH\" --csv-path \"$CSV_PATH\"`
+4. Report CSV path and row/song count.
+"""

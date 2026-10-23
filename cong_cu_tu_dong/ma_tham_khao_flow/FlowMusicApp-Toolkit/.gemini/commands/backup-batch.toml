@@ -1,0 +1,20 @@
+description = "Back up multiple playlists from JSON"
+prompt = """
+Use the `flowmusic-backup-operator` skill.
+Goal: run playlist batch backup.
+
+Input JSON path (default `playlists.json` when empty):
+{{args}}
+
+Steps:
+1. If args are empty, use `playlists.json`.
+2. Validate file exists and contains a JSON array.
+3. Run one of:
+   - `node cli.js playlist-batch playlists.json --format mp3`
+   - `node cli.js playlist-batch "{{args}}" --format mp3`
+4. Run `node cli.js status`.
+
+Rules:
+- Do not use `--reset` unless I ask.
+- Report invalid entries skipped and per-playlist totals.
+"""

@@ -1,0 +1,4 @@
+interface:
+  display_name: "FlowMusic Backup Troubleshooter"
+  short_description: "Diagnose and fix backup/download failures"
+  default_prompt: "Use $flowmusic-backup-troubleshooter to diagnose why my FlowMusic backup command is failing and fix it."

@@ -1,0 +1,15 @@
+---
+description: Sync skills to local user-level agent folders
+---
+Goal: sync toolkit skills from this repo to local home directories.
+
+Steps:
+1. Run dry-run first:
+   `./scripts/sync-skills.sh --dry-run`
+2. If dry-run looks correct, run:
+   `./scripts/sync-skills.sh`
+3. Report which targets were synced.
+
+Optional:
+- For selected targets, use:
+  `./scripts/sync-skills.sh --only codex,claude`

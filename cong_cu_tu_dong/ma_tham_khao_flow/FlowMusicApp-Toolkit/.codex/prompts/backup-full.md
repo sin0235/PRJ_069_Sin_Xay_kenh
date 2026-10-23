@@ -1,0 +1,15 @@
+---
+description: Run full-library backup and export
+---
+Use the `flowmusic-backup-operator` skill.
+Goal: perform a full backup and export metadata.
+
+Steps:
+1. Confirm login/session readiness.
+2. Run `node cli.js download --all --format mp3`.
+3. Run `node cli.js export`.
+4. Run `node cli.js status`.
+
+Rules:
+- Do not use `--reset` unless I explicitly ask.
+- Report output path, totals, and CSV path.

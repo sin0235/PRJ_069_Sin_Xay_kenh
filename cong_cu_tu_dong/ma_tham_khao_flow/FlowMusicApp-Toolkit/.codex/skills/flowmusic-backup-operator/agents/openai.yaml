@@ -1,0 +1,4 @@
+interface:
+  display_name: "FlowMusic Backup Operator"
+  short_description: "Run full FlowMusic backup workflows fast"
+  default_prompt: "Use $flowmusic-backup-operator to guide and execute a complete backup of my FlowMusic library."

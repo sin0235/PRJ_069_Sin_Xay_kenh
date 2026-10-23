@@ -29,7 +29,7 @@ media_assets/
 **/user_data/
 **/profile/
 
-# Repo phụ và phụ thuộc tải về
+# Bản clone tham chiếu tại chỗ; bản mã được quản lý nằm trong ma_tham_khao_flow
 cong_cu_tu_dong/flow_repos/
 
 # Tệp nhị phân lớn hoặc có thể tái tạo

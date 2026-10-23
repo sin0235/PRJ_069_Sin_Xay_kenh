@@ -1,0 +1,68 @@
+{
+  "name": "flowmusic-app-scraper",
+  "version": "1.0.0",
+  "description": "Automated scraper for FlowMusic music library - downloads songs, metadata, lyrics, and cover art",
+  "main": "src/main.js",
+  "type": "module",
+  "bin": {
+    "flowmusic-scraper": "./cli.js"
+  },
+  "scripts": {
+    "start": "node cli.js",
+    "scrape": "node cli.js download --all",
+    "scrape:playlist": "node cli.js playlist",
+    "test": "node scripts/test.js",
+    "setup": "node scripts/setup.js",
+    "login": "node cli.js login",
+    "download": "node cli.js download",
+    "export": "node cli.js export",
+    "status": "node cli.js status",
+    "cli": "node cli.js"
+  },
+  "keywords": [
+    "flowmusic.app",
+    "riffusion",
+    "music",
+    "backup",
+    "download",
+    "music-backup",
+    "scraper",
+    "automation",
+    "playwright",
+    "browser-automation"
+  ],
+  "author": "Skquark",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Skquark/FlowMusicApp-Toolkit.git"
+  },
+  "homepage": "https://github.com/Skquark/FlowMusicApp-Toolkit#readme",
+  "bugs": {
+    "url": "https://github.com/Skquark/FlowMusicApp-Toolkit/issues"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "cheerio": "^1.0.0",
+    "commander": "^14.0.2",
+    "csv-writer": "^1.6.0",
+    "dotenv": "^16.4.5",
+    "fs-extra": "^11.2.0",
+    "json2csv": "^6.0.0-alpha.2",
+    "music-metadata": "^11.12.3",
+    "node-id3": "^0.2.9",
+    "ora": "^8.1.1",
+    "p-queue": "^8.0.1",
+    "playwright": "^1.48.0",
+    "sanitize-filename": "^1.6.3",
+    "winston": "^3.15.0",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "eslint": "^9.14.0",
+    "prettier": "^3.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
