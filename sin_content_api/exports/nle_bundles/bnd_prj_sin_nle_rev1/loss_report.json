@@ -1,0 +1,24 @@
+{
+  "bundle_id": "bnd_prj_sin_nle_rev1",
+  "timeline_hash": "095ff8ab77f289bea84b199cf75065014b462c08ced7ee35be7d9e1e5d7ccdf6",
+  "loss_report": {
+    "SUPPORTED": [
+      "cuts",
+      "duration",
+      "gain_db",
+      "captions",
+      "speed_ratio"
+    ],
+    "BAKED_WITH_APPROVAL": [
+      "transitions",
+      "transform_easing"
+    ],
+    "HUMAN_REQUIRED": [
+      "advanced_color_grading",
+      "3d_tracking",
+      "rotoscoping"
+    ],
+    "UNSUPPORTED": []
+  },
+  "adapter_id": "FINAL_CUT_XML"
+}

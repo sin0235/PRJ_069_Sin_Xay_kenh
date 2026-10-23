@@ -1,0 +1,71 @@
+{
+  "model": "gpt-6-luna",
+  "models_available": 35,
+  "latency_ms": 3813,
+  "usage": {
+    "prompt_tokens": 3141,
+    "completion_tokens": 120
+  },
+  "visual_summary": "Ba khung hình liên tiếp hiển thị bảng màu kiểm tra với các sọc dọc, vòng tròn lớn và dải màu ngang chuyển sắc. Một biểu tượng chữ nhật đen trắng nằm bên phải.",
+  "captions": [
+    "Dải màu ngang dịch chuyển qua bảng kiểm tra.",
+    "Biểu tượng đen trắng giữ nguyên vị trí bên phải.",
+    "Các sọc màu dọc và vòng tròn không đổi."
+  ],
+  "edit_note": "Ba khung hình nối tiếp, bố cục ổn định; dải màu ngang thay đổi sắc độ.",
+  "source": "data\\media_storage\\test_expand\\flow_sample_16_9.mp4",
+  "output": "data\\media_storage\\video_thu_nghiem_9router\\video_thu_nghiem_9router.mp4",
+  "source_metadata": {
+    "duration_seconds": 6.0,
+    "width": 1280,
+    "height": 720,
+    "fps": 30,
+    "audio_stream": true
+  },
+  "expansion": {
+    "width": 1080,
+    "height": 1920,
+    "duration_seconds": 6.0,
+    "codec_name": "h264",
+    "aspect_ratio": "9:16",
+    "is_vertical_9_16": true,
+    "bitrate_bps": 615357,
+    "safe_zone_tiktok": {
+      "top_margin_px": 150,
+      "bottom_margin_px": 320,
+      "right_margin_px": 120,
+      "is_compliant": true
+    },
+    "watermark_removed": false
+  },
+  "render": {
+    "width": 1080,
+    "height": 1920,
+    "duration_seconds": 6.0,
+    "codec_name": "h264",
+    "aspect_ratio": "9:16",
+    "is_vertical_9_16": true,
+    "bitrate_bps": 828409,
+    "safe_zone_tiktok": {
+      "top_margin_px": 150,
+      "bottom_margin_px": 320,
+      "right_margin_px": 120,
+      "is_compliant": true
+    },
+    "audio_loudness_lufs": -13.93,
+    "audio_true_peak_dbtp": -1.47,
+    "audio_lra_lu": 0.3
+  },
+  "output_bytes": 621307,
+  "backend_test_suite": {
+    "passed": 317,
+    "failed": 0,
+    "warnings": 10
+  },
+  "api_runtime_check": {
+    "test_port": 8001,
+    "status": "ready",
+    "temporary_instance_stopped": true,
+    "default_port_8000_restarted": false
+  }
+}

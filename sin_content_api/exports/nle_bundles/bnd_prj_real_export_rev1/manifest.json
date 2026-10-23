@@ -1,0 +1,24 @@
+{
+  "bundle_id": "bnd_prj_real_export_rev1",
+  "project_id": "prj_real_export",
+  "workspace_id": "ws_real_export",
+  "revision": 1,
+  "timeline_hash": "79ba7cbf03f7e6af9cf1513373b7da4feddb615445594aea21c5430b5f81b10c",
+  "export_format": "FINAL_CUT_XML",
+  "tracks_count": 1,
+  "captions_count": 1,
+  "clips": [
+    {
+      "clip_id": "c_main_1",
+      "asset_id": "asset_video_01",
+      "track_id": "trk_v1",
+      "start_frame": 0,
+      "duration_frames": 90,
+      "source_in_ticks": 0,
+      "source_out_ticks": 3000,
+      "relink_path": "media/ws_real_export/asset_video_01.mp4",
+      "lut_asset_id": null,
+      "speed_ratio": 1.0
+    }
+  ]
+}

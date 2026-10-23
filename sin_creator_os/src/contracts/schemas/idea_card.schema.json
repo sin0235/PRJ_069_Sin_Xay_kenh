@@ -1,0 +1,250 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "workspace_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "idea_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "idea_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "research_run_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "brief_version_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "target_audience_segment_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "target_need": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "creative_angle": {
+      "type": "string",
+      "minLength": 1
+    },
+    "hook_suggestion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "format": {
+      "type": "string",
+      "enum": [
+        "EXPLAINER",
+        "DEMO",
+        "FAQ",
+        "COMPARISON",
+        "STORY",
+        "MYTH_CHECK",
+        "OTHER"
+      ]
+    },
+    "evidence_level": {
+      "type": "string",
+      "enum": [
+        "EVIDENCE_BACKED",
+        "LIMITED_SIGNAL",
+        "HYPOTHESIS"
+      ]
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "source_record_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "evidence_excerpt_id": {
+            "oneOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "relevance_explanation": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "source_record_id",
+          "relevance_explanation"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "known_unknowns": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "sampling_limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "brand_connection": {
+      "type": "string",
+      "minLength": 1
+    },
+    "differentiator": {
+      "type": "string",
+      "minLength": 1
+    },
+    "production_requirements": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "kpi_hypothesis": {
+      "type": "string",
+      "minLength": 1
+    },
+    "priority_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "score_components": {
+      "type": "object",
+      "properties": {
+        "audience_fit": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "observed_evidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "brand_goal_fit": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "differentiation": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "production_feasibility": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        }
+      },
+      "required": [
+        "audience_fit",
+        "observed_evidence",
+        "brand_goal_fit",
+        "differentiation",
+        "production_feasibility"
+      ],
+      "additionalProperties": false
+    },
+    "review_state": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "NEEDS_EVIDENCE",
+        "READY_FOR_REVIEW",
+        "APPROVED",
+        "REJECTED",
+        "CHANGES_REQUESTED",
+        "ARCHIVED"
+      ]
+    },
+    "synthetic": {
+      "type": "boolean"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "schema_version",
+    "workspace_id",
+    "idea_id",
+    "idea_version",
+    "research_run_id",
+    "brief_version_id",
+    "target_audience_segment_id",
+    "target_need",
+    "title",
+    "creative_angle",
+    "hook_suggestion",
+    "format",
+    "evidence_level",
+    "evidence_refs",
+    "known_unknowns",
+    "sampling_limitations",
+    "brand_connection",
+    "differentiator",
+    "production_requirements",
+    "kpi_hypothesis",
+    "priority_score",
+    "score_components",
+    "review_state",
+    "synthetic",
+    "generated_at"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "evidence_level": {
+            "const": "EVIDENCE_BACKED"
+          }
+        },
+        "required": [
+          "evidence_level"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidence_refs": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://baha.example.invalid/schemas/idea_card.schema.json"
+}

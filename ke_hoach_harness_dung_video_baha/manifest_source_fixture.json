@@ -1,0 +1,56 @@
+{
+  "schema_version": "1.0",
+  "created_at": "2026-10-23T11:15:00+07:00",
+  "project_id": "PRJ_069_Sin_Xay_kenh",
+  "standard": "BAHA_PROJECT_OS_STANDARD_TEMPLATE_V2",
+  "fixtures": {
+    "F01": {
+      "code": "F01",
+      "name": "Footage tieng Viet co loi ~3 phut, nhieu ten/so/gia san pham, nhac roi",
+      "description": "Footage mau cho ASR tieng Viet co word timestamps, audio ducking, audio stems",
+      "synthetic_source": "synthetic_f01_speech_dialogue.mp4",
+      "expected_duration_s": 45,
+      "labels": ["transcript_human_verified", "token_timestamps", "safe_zone_captions"]
+    },
+    "F02": {
+      "code": "F02",
+      "name": "Footage san pham/hanh dong khong loi, co chi tiet xuat hien 200ms",
+      "description": "Visual evidence retrieval, rapid scene detection, no hallucinated speech",
+      "synthetic_source": "synthetic_f02_silent_product.mp4",
+      "expected_duration_s": 30,
+      "labels": ["visual_roi", "scene_cut_200ms", "no_speech_hallucination"]
+    },
+    "F03": {
+      "code": "F03",
+      "name": "5 video nguon, 3 B-roll, 2 file audio roi, anh logo; 3 video layers, 4 audio layers",
+      "description": "Multi-track compositing, layer order, transition handles, J/L cuts",
+      "synthetic_source": "synthetic_f03_multitrack_bundle",
+      "expected_duration_s": 60,
+      "labels": ["multi_track_3v_4a", "b_roll_pip", "transitions_handles", "j_l_cuts"]
+    },
+    "F04": {
+      "code": "F04",
+      "name": "FPS da dang 24/25/30/VFR, 2 camera + audio roi sync 10 phut",
+      "description": "Retime, freeze, reverse, multicam audio sync, source time PTS mapping",
+      "synthetic_source": "synthetic_f04_multicam_retime_bundle",
+      "expected_duration_s": 60,
+      "labels": ["pts_timebase_v2", "multicam_angle_switch", "retime_speed_freeze", "color_lut"]
+    },
+    "F05": {
+      "code": "F05",
+      "name": "Anh va video sua qua Flow/API, co preserve list",
+      "description": "Scene repair, image to video, preserve list assertions, provenance links",
+      "synthetic_source": "synthetic_f05_flow_repair_bundle",
+      "expected_duration_s": 15,
+      "labels": ["preserve_product_identity", "flow_assisted_receipt", "api_direct_repair"]
+    },
+    "F06": {
+      "code": "F06",
+      "name": "Tep hong, MIME gia, thieu font/LUT, path escape, grant het han, cross-tenant attack",
+      "description": "Deterministic negative tests, security boundary, safe rejection without crash",
+      "synthetic_source": "synthetic_f06_negative_injection_bundle",
+      "expected_duration_s": 0,
+      "labels": ["security_guardrails", "fail_closed_validation", "cross_tenant_isolation"]
+    }
+  }
+}

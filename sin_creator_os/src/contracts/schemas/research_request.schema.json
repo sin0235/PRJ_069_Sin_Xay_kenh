@@ -1,0 +1,128 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "workspace_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "brief_version_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "intent_groups": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "PROBLEMS",
+          "CONTEXTS",
+          "COMPARISONS",
+          "OBJECTIONS",
+          "QUESTIONS",
+          "TRENDS"
+        ]
+      },
+      "minItems": 1
+    },
+    "lookback_days": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 365
+    },
+    "provider_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1
+    },
+    "max_results": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000
+    },
+    "max_cost_usd": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10000
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "OFFLINE",
+        "APPROVED_LIVE"
+      ]
+    },
+    "synthetic": {
+      "type": "boolean"
+    },
+    "allow_hypotheses": {
+      "type": "boolean",
+      "default": false
+    },
+    "query_seed": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "negative_keywords": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 0
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "request_id": {
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "schema_version",
+    "workspace_id",
+    "brief_version_id",
+    "intent_groups",
+    "lookback_days",
+    "provider_ids",
+    "max_results",
+    "max_cost_usd",
+    "mode",
+    "synthetic"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "APPROVED_LIVE"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "then": {
+        "properties": {
+          "synthetic": {
+            "const": false
+          }
+        }
+      }
+    }
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://baha.example.invalid/schemas/research_request.schema.json"
+}

@@ -1,0 +1,286 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "workspace_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "source_record_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "platform": {
+      "type": "string",
+      "enum": [
+        "TIKTOK",
+        "WEB",
+        "CUSTOMER_DATA",
+        "OTHER"
+      ]
+    },
+    "record_type": {
+      "type": "string",
+      "enum": [
+        "POST",
+        "COMMENT",
+        "PROFILE",
+        "DOCUMENT",
+        "SEARCH_SIGNAL"
+      ]
+    },
+    "provider_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_external_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "canonical_url": {
+      "oneOf": [
+        {
+          "type": "string",
+          "format": "uri"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "published_at": {
+      "oneOf": [
+        {
+          "type": "string",
+          "format": "date-time"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "retrieval_method": {
+      "type": "string",
+      "enum": [
+        "API",
+        "LICENSED_PROVIDER",
+        "APPROVED_CRAWLER",
+        "CUSTOMER_IMPORT",
+        "FIXTURE"
+      ]
+    },
+    "discovery_query": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "text_excerpt": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 5000
+    },
+    "language": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 16
+    },
+    "organic_status": {
+      "type": "string",
+      "enum": [
+        "ORGANIC",
+        "PAID",
+        "UNKNOWN",
+        "NOT_APPLICABLE"
+      ]
+    },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "metric_name": {
+            "type": "string",
+            "enum": [
+              "VIEW_COUNT",
+              "LIKE_COUNT",
+              "COMMENT_COUNT",
+              "SHARE_COUNT",
+              "FOLLOWER_COUNT"
+            ]
+          },
+          "value": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "precision": {
+            "type": "string",
+            "enum": [
+              "EXACT",
+              "ROUNDED",
+              "ESTIMATED"
+            ]
+          },
+          "source_reference": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "metric_name",
+          "value",
+          "observed_at",
+          "precision"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "rights": {
+      "type": "object",
+      "properties": {
+        "access_basis": {
+          "type": "string",
+          "enum": [
+            "OFFICIAL_AUTHORIZATION",
+            "CUSTOMER_SUPPLIED",
+            "APPROVED_PROVIDER",
+            "PERMITTED_PUBLIC_WEB",
+            "TEST_ONLY"
+          ]
+        },
+        "approval_reference": {
+          "type": "string",
+          "minLength": 1
+        },
+        "allowed_uses": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "ANALYSIS",
+              "REFERENCE_ONLY",
+              "TRANSCRIPTION",
+              "QUOTATION"
+            ]
+          },
+          "minItems": 1
+        },
+        "expiry_at": {
+          "oneOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retention_days": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "access_basis",
+        "approval_reference",
+        "allowed_uses",
+        "retention_days"
+      ],
+      "additionalProperties": false
+    },
+    "synthetic": {
+      "type": "boolean"
+    },
+    "quality_status": {
+      "type": "string",
+      "enum": [
+        "VALID",
+        "PARTIAL",
+        "QUARANTINED"
+      ]
+    }
+  },
+  "required": [
+    "schema_version",
+    "workspace_id",
+    "source_record_id",
+    "platform",
+    "record_type",
+    "provider_id",
+    "source_external_id",
+    "canonical_url",
+    "observed_at",
+    "retrieval_method",
+    "metrics",
+    "rights",
+    "synthetic",
+    "quality_status"
+  ],
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "synthetic": {
+            "const": true
+          }
+        },
+        "required": [
+          "synthetic"
+        ]
+      },
+      "then": {
+        "properties": {
+          "provider_id": {
+            "const": "test_fixture"
+          },
+          "retrieval_method": {
+            "const": "FIXTURE"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "synthetic": {
+            "const": false
+          }
+        },
+        "required": [
+          "synthetic"
+        ]
+      },
+      "then": {
+        "not": {
+          "properties": {
+            "provider_id": {
+              "const": "test_fixture"
+            }
+          },
+          "required": [
+            "provider_id"
+          ]
+        }
+      }
+    }
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://baha.example.invalid/schemas/source_record.schema.json"
+}

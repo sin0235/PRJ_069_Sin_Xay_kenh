@@ -1,0 +1,197 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "workspace_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "script_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "idea_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "idea_version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "language": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_duration_seconds": {
+      "type": "integer",
+      "minimum": 10,
+      "maximum": 180
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "hook_variants": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 2
+    },
+    "segments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "sequence": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "start_second": {
+            "type": "number",
+            "minimum": 0
+          },
+          "end_second": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "narration": {
+            "type": "string"
+          },
+          "on_screen_text": {
+            "type": "string"
+          },
+          "visual_direction": {
+            "type": "string"
+          },
+          "asset_rights_note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "sequence",
+          "start_second",
+          "end_second",
+          "narration",
+          "on_screen_text",
+          "visual_direction"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "call_to_action": {
+      "type": "string",
+      "minLength": 1
+    },
+    "caption_draft": {
+      "type": "string"
+    },
+    "claims": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "claim_text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "claim_type": {
+            "type": "string",
+            "enum": [
+              "PRODUCT",
+              "NUMERIC",
+              "COMPARISON",
+              "TESTIMONIAL",
+              "OTHER"
+            ]
+          },
+          "check_status": {
+            "type": "string",
+            "enum": [
+              "VERIFIED",
+              "NEEDS_REVIEW",
+              "BLOCKED"
+            ]
+          },
+          "approved_source_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 0
+          },
+          "review_reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "claim_text",
+          "claim_type",
+          "check_status",
+          "approved_source_ids"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "fact_check_state": {
+      "type": "string",
+      "enum": [
+        "CLEAR",
+        "NEEDS_FACT_CHECK",
+        "BLOCKED"
+      ]
+    },
+    "review_state": {
+      "type": "string",
+      "enum": [
+        "DRAFT",
+        "NEEDS_FACT_CHECK",
+        "READY_FOR_REVIEW",
+        "APPROVED",
+        "REJECTED",
+        "CHANGES_REQUESTED",
+        "ARCHIVED"
+      ]
+    },
+    "synthetic": {
+      "type": "boolean"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "schema_version",
+    "workspace_id",
+    "script_id",
+    "version",
+    "idea_id",
+    "idea_version",
+    "language",
+    "target_duration_seconds",
+    "title",
+    "hook_variants",
+    "segments",
+    "call_to_action",
+    "caption_draft",
+    "claims",
+    "fact_check_state",
+    "review_state",
+    "synthetic",
+    "generated_at"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://baha.example.invalid/schemas/script_draft.schema.json"
+}

@@ -1,0 +1,46 @@
+﻿# Bí mật và cấu hình cục bộ
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*credentials*.json
+
+# Môi trường và sản phẩm sinh tự động
+node_modules/
+.next/
+.turbo/
+dist/
+build/
+coverage/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Dữ liệu runtime, hồ sơ trình duyệt và media
+*.db
+*.sqlite
+*.sqlite3
+media_assets/
+**/browser_profile/
+**/user_data/
+**/profile/
+
+# Repo phụ và phụ thuộc tải về
+cong_cu_tu_dong/flow_repos/
+
+# Tệp nhị phân lớn hoặc có thể tái tạo
+*.mp4
+*.mov
+*.mkv
+*.mp3
+*.wav
+*.flac
+*.zip
+*.7z
+*.exe
+*.dll
+*.pyd

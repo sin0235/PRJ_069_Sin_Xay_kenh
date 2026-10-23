@@ -1,0 +1,11 @@
+project_id,nhom_du_an,ten_du_an,nguon_tu_lieu,brief_muc_tieu,do_phuc_tap,thoi_luong_dich_s,so_layers_v_a,thoi_gian_editor_hien_tai_phut,ghi_chu
+PRJ_BASE_01,footage_co_loi,Review Tra Sua Sin - Co Thoai,1 video 4K 180s + 2 audio wav,Clip ngan 45s cat cup diem nhan kem phu de tieng Viet va nhac nen,Trung binh,45,2V/3A,55,F01
+PRJ_BASE_02,footage_co_loi,Phong Van Khach Hang Sin,2 video 1080p 300s + mic thu am,Trich doan 60s nhan manh phan hoi tich cuc kem B-roll san pham,Cao,60,3V/4A,75,F01
+PRJ_BASE_03,san_pham_khong_loi,Can Canh Dong Goi San Pham Sin,5 video ngan 10-15s khong loi,Video 30s nhip nhanh dung theo beat nhac gioi thieu bao bi moi,Trung binh,30,2V/2A,40,F02
+PRJ_BASE_04,san_pham_khong_loi,Kham Pha Khong Gian Quan Sin,8 footage B-roll slow-motion khong thoai,Clip 35s thu hut khach den check-in kem mau cinematic,Trung binh,35,3V/2A,45,F02
+PRJ_BASE_05,dung_tu_anh,Bo Su Tap Thuc Don Mua He,12 anh chup san pham phan giai cao,Dung video 30s keyframe chuyen dong kem hieu ung chu va nhac vui tuoi,Thap,30,2V/2A,35,F03
+PRJ_BASE_06,dung_tu_anh,Flash Sale Cuoi Tuan Sin,6 anh poster khuyen mai + logo PNG,Video 15s thuc giuc hanh dong CTA mua hang gap tren TikTok,Thap,15,2V/2A,30,F03
+PRJ_BASE_07,da_camera,Talkshow Livestream 2 Goc May,2 goc camera A-B 10 phut + audio roi,Dung ban highlight 60s chuyen goc muot ma theo nguoi noi khong lech tieng,Rat cao,60,3V/3A,90,F04
+PRJ_BASE_08,da_camera,Huong Dan Pha Che 2 Camera,Goc mat va goc can canh tay pha che,Clip 45s xen ke goc rong va can theo thao tac dung,Cao,45,2V/3A,65,F04
+PRJ_BASE_09,sua_canh_flow,Thay The Background Canh Mo Dau,1 clip 15s can doi boi canh quan sang ngoai troi,Sua visual canh 5s dau bang Flow giu nguyen nguoi va giong doc,Cao,15,2V/2A,50,F05
+PRJ_BASE_10,sua_canh_flow,Sua Chi Tiet Chai Nuoc Trong Footage,1 clip 10s can sua nhan mac san pham,Sua chi tiet nhan chai nuoc giu nguyen cu dong va chuyen canh,Cao,10,2V/2A,60,F05

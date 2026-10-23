@@ -1,0 +1,24 @@
+{
+  "bundle_id": "bnd_prj_sin_nle_rev1",
+  "project_id": "prj_sin_nle",
+  "workspace_id": "ws_default",
+  "revision": 1,
+  "timeline_hash": "095ff8ab77f289bea84b199cf75065014b462c08ced7ee35be7d9e1e5d7ccdf6",
+  "export_format": "FINAL_CUT_XML",
+  "tracks_count": 1,
+  "captions_count": 1,
+  "clips": [
+    {
+      "clip_id": "c_nle_1",
+      "asset_id": "asset_source_video_01",
+      "track_id": "V1",
+      "start_frame": 0,
+      "duration_frames": 90,
+      "source_in_ticks": 0,
+      "source_out_ticks": 3000,
+      "relink_path": "media/ws_default/asset_source_video_01.mp4",
+      "lut_asset_id": null,
+      "speed_ratio": 1.0
+    }
+  ]
+}

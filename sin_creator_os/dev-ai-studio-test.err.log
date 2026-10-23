@@ -1,0 +1,12 @@
+$ next dev --hostname 127.0.0.1
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead.
+
+  To migrate automatically, run:
+  npx @next/codemod@canary middleware-to-proxy .
+
+  Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+[browser] Không thể tải tư liệu từ API: Failed to fetch (file://C:/PRJ_069_Sin_Xay_kenh/03_ban_lam_viec/sin_creator_os/.next/dev/static/chunks/src_0fs2hr9wmudrf._.js:132:25)
+[browser] Không thể tải timeline từ API: Failed to fetch (file://C:/PRJ_069_Sin_Xay_kenh/03_ban_lam_viec/sin_creator_os/.next/dev/static/chunks/src_0fs2hr9wmudrf._.js:171:25)
+[browser] Không thể tải tư liệu từ API: Failed to fetch (file://C:/PRJ_069_Sin_Xay_kenh/03_ban_lam_viec/sin_creator_os/.next/dev/static/chunks/src_0fs2hr9wmudrf._.js:132:25)
+[browser] Không thể tải timeline từ API: Failed to fetch (file://C:/PRJ_069_Sin_Xay_kenh/03_ban_lam_viec/sin_creator_os/.next/dev/static/chunks/src_0fs2hr9wmudrf._.js:171:25)
+[ELIFECYCLE] Command failed with exit code -1.

@@ -1,0 +1,49 @@
+version: "3.8"
+
+services:
+  sin-content-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sin_content_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=production
+      - DATABASE_URL=postgresql://sin_user:sin_secure_pass@db:5432/sin_content_db
+      - OFFLINE_MODE=false
+      - LOG_LEVEL=INFO
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - sin_network
+
+  db:
+    image: postgres:16-alpine
+    container_name: sin_postgres_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sin_user
+      POSTGRES_PASSWORD: sin_secure_pass
+      POSTGRES_DB: sin_content_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sin_user -d sin_content_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sin_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  sin_network:
+    driver: bridge

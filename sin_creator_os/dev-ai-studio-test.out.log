@@ -1,0 +1,30 @@
+▲ Next.js 16.4.2 (Turbopack)
+- Local:         http://127.0.0.1:3000
+- Network:       http://127.0.0.1:3000
+✓ Ready in 979ms
+✓ Running next.config.mjs took 34ms
+
+○ Compiling /settings/integrations ...
+ GET /discover 200 in 15.8s (next.js: 15.7s, proxy.ts: 5ms, application-code: 104ms)
+ GET /settings/integrations 200 in 16.5s (next.js: 15.0s, proxy.ts: 108ms, application-code: 1334ms)
+ GET /ai-studio 200 in 9.7s (next.js: 9.5s, proxy.ts: 4ms, application-code: 171ms)
+ GET /ai-studio 200 in 327ms (next.js: 104ms, proxy.ts: 29ms, application-code: 195ms)
+ GET /auth/v1/login 200 in 975ms (next.js: 758ms, proxy.ts: 8ms, application-code: 209ms)
+ GET /auth/v1/login 200 in 158ms (next.js: 58ms, proxy.ts: 6ms, application-code: 94ms)
+ GET / 307 in 1039ms (next.js: 696ms, proxy.ts: 83ms, application-code: 260ms)
+ GET /dashboard 200 in 818ms (next.js: 360ms, proxy.ts: 7ms, application-code: 451ms)
+✓ Compiled in 1774ms
+✓ Compiled in 1615ms
+✓ Compiled in 532ms
+ GET /ai-studio 200 in 3.8s (next.js: 2.3s, proxy.ts: 232ms, application-code: 1267ms)
+ GET /ai-studio 200 in 14.8s (next.js: 6.6s, proxy.ts: 1948ms, application-code: 6.2s)
+○ Compiling /video-studio ...
+ GET /video-studio 200 in 11.8s (next.js: 8.3s, proxy.ts: 1088ms, application-code: 2.4s)
+ GET /video-studio/27bda639-db53-4eb5-a5dd-8cdfc79693c2 200 in 11.6s (next.js: 11.3s, proxy.ts: 18ms, application-code: 221ms)
+ GET /video-studio 200 in 397ms (next.js: 45ms, proxy.ts: 101ms, application-code: 251ms)
+ GET /video-studio/27bda639-db53-4eb5-a5dd-8cdfc79693c2 200 in 6.9s (next.js: 3.7s, proxy.ts: 64ms, application-code: 3.2s)
+ GET /video-studio/27bda639-db53-4eb5-a5dd-8cdfc79693c2 200 in 7.0s (next.js: 402ms, proxy.ts: 66ms, application-code: 6.5s)
+ GET /ai-studio 200 in 1846ms (next.js: 270ms, proxy.ts: 16ms, application-code: 1560ms)
+○ Compiling /media ...
+ GET /media 200 in 127ms (next.js: 58ms, proxy.ts: 9ms, application-code: 60ms)
+[?25h
