@@ -897,6 +897,37 @@ def test_timeline_render_video_only(video_fixture, tmp_path):
     assert 1.4 <= meta["duration_seconds"] <= 1.7
 
 
+def test_timeline_crossfade_keeps_requested_duration_and_decodes(video_fixture, tmp_path):
+    timeline_doc = TimelineDocument(
+        width=1080,
+        height=1920,
+        fps=30,
+        clips=[
+            TimelineClip(clip_id="first", asset_id="first", media_type=TimelineMediaType.VIDEO, start_ms=0, duration_ms=1500, trim_out_ms=1500),
+            TimelineClip(clip_id="second", asset_id="second", media_type=TimelineMediaType.VIDEO, start_ms=1500, duration_ms=1500, trim_out_ms=1500),
+            TimelineClip(clip_id="third", asset_id="first", media_type=TimelineMediaType.VIDEO, start_ms=3000, duration_ms=1500, trim_out_ms=1500),
+        ],
+        voice_track=TimelineAudioTrack(asset_id="voice", duration_ms=4500),
+    )
+    output = tmp_path / "crossfade.mp4"
+    meta = video_processor.render_timeline_document(
+        timeline_doc,
+        lambda aid: video_fixture["audio_file"] if aid == "voice" else video_fixture["clip_1"] if aid == "first" else video_fixture["clip_2"],
+        output,
+        transition_seconds=0.3,
+    )
+
+    decode = subprocess.run(
+        [video_processor.ffmpeg_bin, "-v", "error", "-i", str(output), "-f", "null", "-"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert 4.4 <= meta["duration_seconds"] <= 4.6
+    assert decode.returncode == 0 and not decode.stderr.strip()
+    assert audio_processor.probe_audio(output)["codec_name"] == "aac"
+
+
 def test_timeline_render_mixed_order_and_durations(video_fixture, tmp_path):
     """M-P5: Render kết hợp ảnh và video theo thứ tự tùy biến, tổng thời lượng chính xác."""
     img_file = tmp_path / "photo_mixed.png"
@@ -1463,5 +1494,386 @@ def test_timeline_renderer_wraps_long_captions(video_fixture, tmp_path):
     lines = (render_dir / "caption_0.txt").read_text(encoding="utf-8").splitlines()
     assert len(lines) > 1
     assert max(map(len, lines)) <= 32
+
+
+def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_fixture, monkeypatch, tmp_path):
+    from datetime import datetime, timedelta, timezone
+    from types import SimpleNamespace
+    from src.modules.llm.client import LLMClient
+
+    storyboard = {
+        "title": "Giới thiệu RAG",
+        "narration": "RAG giúp truy xuất thông tin trước khi trả lời.",
+        "continuity_anchor": "Một chuyên gia công nghệ mặc áo xanh navy giải thích trong studio tối giản cùng bảng màu navy và teal.",
+        "shots": [
+            {"shot_id": "s1", "scene": "Vấn đề", "narration": "Thông tin rời rạc.", "prompt": "Tư liệu rời rạc trên bàn làm việc", "duration_seconds": 10},
+            {"shot_id": "s2", "scene": "Cách làm", "narration": "RAG tìm nguồn liên quan.", "prompt": "Tìm kiếm tài liệu theo câu hỏi", "duration_seconds": 10},
+            {"shot_id": "s3", "scene": "Kết quả", "narration": "Câu trả lời có căn cứ.", "prompt": "Trình bày câu trả lời cùng nguồn", "duration_seconds": 10},
+        ],
+    }
+
+    class FakeLLM:
+        is_enabled = True
+        max_output_tokens = 6000
+
+        def complete(self, messages, max_tokens=None):
+            return SimpleNamespace(content=json.dumps(storyboard, ensure_ascii=False), model="test-storyboard")
+
+    monkeypatch.setattr(LLMClient, "from_db", classmethod(lambda cls, db: FakeLLM()))
+    from src.models.entities import ProductionProject
+    from src.modules.tao_video_noi_dung.contracts import CreatePlanRequest, CreateRunRequest
+    from src.modules.tao_video_noi_dung.service import approve_plan, create_plan, create_run
+
+    project_id = f"project-plan-{uuid.uuid4().hex[:8]}"
+    with SessionLocal() as db:
+        db.add(ProductionProject(
+            id=project_id,
+            workspace_id=video_fixture["ws_id"],
+            title="RAG video",
+            created_by=video_fixture["user_id"],
+        ))
+        voice_path = video_fixture["audio_file"]
+        voice_asset = MediaAsset(
+            id=f"voice-{uuid.uuid4().hex[:8]}", workspace_id=video_fixture["ws_id"], project_id=project_id,
+            storage_key=f"tests/{voice_path.name}", sha256=hashlib.sha256(voice_path.read_bytes()).hexdigest(),
+            byte_size=voice_path.stat().st_size, mime_detected="audio/mpeg", source_product="TEST_UPLOAD",
+            original_filename=voice_path.name, created_by=video_fixture["user_id"], duration_ms=4000,
+            approval_state="UNREVIEWED",
+        )
+        db.add(voice_asset)
+        db.commit()
+        voice_asset_id = voice_asset.id
+        response = create_plan(
+            db,
+            project_id,
+            video_fixture["ws_id"],
+            video_fixture["user_id"],
+            CreatePlanRequest.model_validate({
+            "content": "RAG truy xuất tài liệu liên quan trước khi tạo câu trả lời có căn cứ.",
+            "target_duration_seconds": 30,
+            }),
+        )
+        second_plan = create_plan(
+            db,
+            project_id,
+            video_fixture["ws_id"],
+            video_fixture["user_id"],
+            CreatePlanRequest.model_validate({
+                "content": "RAG tìm tài liệu đáng tin trước rồi mới tạo câu trả lời cho người dùng.",
+                "target_duration_seconds": 30,
+            }),
+        )
+        assert response.style_snapshot_sha256 == second_plan.style_snapshot_sha256
+
+    assert response.status == "DRAFT"
+    assert len(response.storyboard.shots) == 3
+    assert response.storyboard.shots[0].shot_id == "s1"
+    assert response.style_snapshot.style_name.startswith("Origami")
+    assert "Mọi vật thể" in response.style_snapshot.visual_rules
+
+    with SessionLocal() as db:
+        with pytest.raises(Exception) as self_approval:
+            approve_plan(db, project_id, response.id, video_fixture["ws_id"], video_fixture["user_id"])
+        assert getattr(self_approval.value, "status_code", None) == 403
+
+        approved = approve_plan(db, project_id, response.id, video_fixture["ws_id"], "independent-reviewer")
+        assert approved.status == "APPROVED"
+        request = CreateRunRequest(plan_id=approved.id, voice_asset_id=voice_asset_id, idempotency_key=f"run-{uuid.uuid4().hex}")
+        run = create_run(db, project_id, video_fixture["ws_id"], "independent-reviewer", request)
+        duplicate = create_run(db, project_id, video_fixture["ws_id"], "independent-reviewer", request)
+        native_request = CreateRunRequest(plan_id=approved.id, idempotency_key=f"native-{uuid.uuid4().hex}")
+        native_run = create_run(db, project_id, video_fixture["ws_id"], "independent-reviewer", native_request)
+
+        from src.models.entities import ContentVideoRun
+        from src.modules.tao_video_noi_dung.contracts import ReconcileShotRequest
+        from src.modules.tao_video_noi_dung import runner
+        from src.modules.tao_video_noi_dung.runner import reconcile_shot
+
+        uncertain_run = create_run(
+            db,
+            project_id,
+            video_fixture["ws_id"],
+            "independent-reviewer",
+            CreateRunRequest(plan_id=approved.id, idempotency_key=f"reconcile-{uuid.uuid4().hex}"),
+        )
+        persisted_run = db.query(ContentVideoRun).filter_by(id=uncertain_run.id).one()
+        uncertain_steps = json.loads(persisted_run.steps_json)
+        uncertain_steps[0]["state"] = "NEEDS_RECONCILIATION"
+        persisted_run.steps_json = json.dumps(uncertain_steps)
+        persisted_run.status = "NEEDS_RECONCILIATION"
+        persisted_run.started_at = datetime.now(timezone.utc)
+        db.commit()
+
+        reconciled_path = tmp_path / "workspaces" / video_fixture["ws_id"] / "media" / "recovered.mp4"
+        reconciled_path.parent.mkdir(parents=True, exist_ok=True)
+        reconciled_path.write_bytes(video_fixture["clip_1"].read_bytes())
+        reconciled_asset = MediaAsset(
+            id=f"recovered-{uuid.uuid4().hex[:8]}",
+            workspace_id=video_fixture["ws_id"],
+            project_id=project_id,
+            storage_key=f"workspaces/{video_fixture['ws_id']}/media/recovered.mp4",
+            sha256=hashlib.sha256(reconciled_path.read_bytes()).hexdigest(),
+            byte_size=reconciled_path.stat().st_size,
+            mime_detected="video/mp4",
+            source_product="UPLOAD",
+            original_filename="recovered.mp4",
+            created_by="independent-reviewer",
+            duration_ms=10000,
+            approval_state="UNREVIEWED",
+        )
+        db.add(reconciled_asset)
+        db.commit()
+        monkeypatch.setattr(runner, "MEDIA_ROOT_DIR", tmp_path)
+        monkeypatch.setattr(runner.video_processor, "probe_video", lambda _: {
+            "width": 1080, "height": 1920, "codec_name": "h264", "duration_seconds": 10.0, "frame_rate": 30.0,
+        })
+        monkeypatch.setattr(runner.audio_processor, "probe_audio", lambda _: {"codec_name": "aac"})
+        reconcile_request = ReconcileShotRequest(
+            shot_id="s1", asset_id=reconciled_asset.id, reason="Đã đối chiếu clip Flow với shot s1."
+        )
+        persisted_run.lease_token = "worker-still-active"
+        persisted_run.lease_expires_at = None
+        db.commit()
+        with pytest.raises(Exception) as unknown_lease:
+            reconcile_shot(
+                db, project_id, uncertain_run.id, video_fixture["ws_id"], "independent-reviewer", reconcile_request
+            )
+        assert getattr(unknown_lease.value, "status_code", None) == 409
+
+        persisted_run.lease_expires_at = datetime.now(timezone.utc) + timedelta(seconds=30)
+        db.commit()
+        with pytest.raises(Exception) as active_worker:
+            reconcile_shot(
+                db, project_id, uncertain_run.id, video_fixture["ws_id"], "independent-reviewer", reconcile_request
+            )
+        assert getattr(active_worker.value, "status_code", None) == 409
+        db.refresh(persisted_run)
+        assert persisted_run.status == "NEEDS_RECONCILIATION"
+        persisted_run.lease_token = None
+        persisted_run.lease_expires_at = None
+        db.commit()
+        def race_update_run(_):
+            with SessionLocal() as competing_db:
+                competing_db.query(ContentVideoRun).filter_by(id=uncertain_run.id).update({"status": "QUEUED"})
+                competing_db.commit()
+            return {"width": 1080, "height": 1920, "codec_name": "h264", "duration_seconds": 10.0, "frame_rate": 30.0}
+
+        monkeypatch.setattr(runner.video_processor, "probe_video", race_update_run)
+        with pytest.raises(Exception) as reconcile_conflict:
+            reconcile_shot(
+                db, project_id, uncertain_run.id, video_fixture["ws_id"],
+                "independent-reviewer", reconcile_request,
+            )
+        assert getattr(reconcile_conflict.value, "status_code", None) == 409
+        db.rollback()
+        db.refresh(persisted_run)
+        assert persisted_run.status == "QUEUED"
+        persisted_run.status = "NEEDS_RECONCILIATION"
+        db.commit()
+        monkeypatch.setattr(runner.video_processor, "probe_video", lambda _: {
+            "width": 1080, "height": 1920, "codec_name": "h264", "duration_seconds": 10.0, "frame_rate": 30.0,
+        })
+
+        reconcile_shot(
+            db,
+            project_id,
+            uncertain_run.id,
+            video_fixture["ws_id"],
+            "independent-reviewer",
+            reconcile_request,
+        )
+        db.refresh(persisted_run)
+        reconciled_steps = json.loads(persisted_run.steps_json)
+        assert persisted_run.status == "QUEUED"
+        assert reconciled_steps[0]["state"] == "SUCCEEDED"
+        assert reconciled_steps[0]["asset_id"] == reconciled_asset.id
+        assert reconciled_steps[0]["reconciled_by"] == "independent-reviewer"
+
+    assert run.id == duplicate.id
+    assert run.status == "QUEUED"
+    assert len(run.steps) == 3
+    assert all(step["state"] == "READY" and step["command_sha256"] for step in run.steps)
+    assert all(response.storyboard.continuity_anchor in step["prompt"] for step in run.steps)
+    assert native_run.voice_asset_id is None
+    assert all(step["voice_asset_id"] is None for step in native_run.steps)
+
+
+def test_content_video_worker_generates_ordered_shots_with_previous_frame_reference(video_fixture, monkeypatch, tmp_path):
+    from datetime import timezone
+    from types import SimpleNamespace
+    from src.modules.llm.client import LLMClient
+    from src.models.entities import ContentVideoRun, ContentVideoWorkerLease
+    from src.modules.tao_video_noi_dung import cong_harness
+    from src.modules.tao_video_noi_dung import runner
+    from src.modules.tao_video_noi_dung.contracts import CreatePlanRequest, CreateRunRequest
+    from src.modules.tao_video_noi_dung.runner import _acquire_lease, _claim_next_run, _heartbeat, process_run
+    from src.modules.tao_video_noi_dung.service import approve_plan, create_plan, create_run
+
+    storyboard = {
+        "title": "Giới thiệu RAG",
+        "narration": "RAG truy xuất tài liệu rồi mới tạo câu trả lời.",
+        "continuity_anchor": "Một chuyên gia công nghệ mặc áo xanh navy giải thích trong studio tối giản, ánh sáng mềm.",
+        "shots": [
+            {"shot_id": f"shot-{i}", "scene": f"Cảnh {i}", "narration": f"Lời dẫn {i}", "prompt": f"Minh họa bước {i} trong quy trình truy xuất tài liệu", "duration_seconds": 10}
+            for i in range(1, 4)
+        ],
+    }
+
+    class FakeLLM:
+        is_enabled = True
+        max_output_tokens = 6000
+
+        def complete(self, messages, max_tokens=None):
+            return SimpleNamespace(content=json.dumps(storyboard, ensure_ascii=False), model="worker-test")
+
+    monkeypatch.setattr(LLMClient, "from_db", classmethod(lambda cls, db: FakeLLM()))
+    monkeypatch.setattr(runner, "MEDIA_ROOT_DIR", tmp_path)
+    monkeypatch.setattr(runner.audio_processor, "probe_audio", lambda path: {"duration_seconds": 30, "codec_name": "mp3"})
+    monkeypatch.setattr(runner, "LEASE_SECONDS", 0.4)
+    monkeypatch.setattr(runner.video_processor, "probe_video", lambda path: {
+        "width": 1080, "height": 1920, "codec_name": "h264", "duration_seconds": 10.0, "frame_rate": 30.0,
+    })
+    monkeypatch.setattr(runner, "_render_and_qc", lambda db, run, plan, storyboard, asset_ids: setattr(run, "status", "COMPLETED") or db.commit())
+
+    calls = []
+
+    def generate_video_scene(*, db, workspace_id, user_id, project_id, prompt, aspect_ratio, start_image_path=None, start_image_asset_id=None, remove_watermark=False):
+        index = len(calls)
+        if index == 0:
+            time.sleep(0.55)
+            with SessionLocal() as contender_db:
+                assert not _acquire_lease(contender_db, str(uuid.uuid4()))
+            with SessionLocal() as heartbeat_db:
+                active = heartbeat_db.query(ContentVideoRun).filter(ContentVideoRun.id == active_run_id).one()
+                assert active.lease_expires_at.replace(tzinfo=timezone.utc).timestamp() > time.time()
+        if index:
+            assert start_image_path and start_image_path.is_file()
+            assert start_image_asset_id == calls[-1]["asset_id"]
+        else:
+            assert start_image_path is None and start_image_asset_id is None
+        asset_id = f"asset-worker-{index}"
+        storage_key = f"workspaces/{workspace_id}/media/{asset_id}.mp4"
+        output_path = tmp_path / storage_key
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(video_fixture["clip_1"].read_bytes())
+        asset = MediaAsset(
+            id=asset_id,
+            workspace_id=workspace_id,
+            project_id=project_id,
+            storage_key=storage_key,
+            sha256=hashlib.sha256(output_path.read_bytes()).hexdigest(),
+            byte_size=output_path.stat().st_size,
+            mime_detected="video/mp4",
+            source_product="TEST_FLOW",
+            original_filename=f"{asset_id}.mp4",
+            created_by=user_id,
+            duration_ms=10000,
+            approval_state="UNREVIEWED",
+            parent_asset_id=start_image_asset_id,
+        )
+        db.add(asset)
+        db.commit()
+        calls.append({"asset_id": asset.id, "prompt": prompt, "start_image_asset_id": start_image_asset_id})
+        return asset
+
+    monkeypatch.setattr(cong_harness.video_orchestrator, "generate_video_scene", generate_video_scene)
+    project_id = f"project-worker-{uuid.uuid4().hex[:8]}"
+    with SessionLocal() as db:
+        db.query(ContentVideoRun).filter(ContentVideoRun.status == "QUEUED").update(
+            {"status": "FAILED"}, synchronize_session=False
+        )
+        db.add(ProductionProject(id=project_id, workspace_id=video_fixture["ws_id"], title="Worker test", created_by=video_fixture["user_id"]))
+        voice_path = video_fixture["audio_file"]
+        voice_storage_key = f"workspaces/{video_fixture['ws_id']}/media/{voice_path.name}"
+        stored_voice_path = tmp_path / voice_storage_key
+        stored_voice_path.parent.mkdir(parents=True, exist_ok=True)
+        stored_voice_path.write_bytes(voice_path.read_bytes())
+        voice_asset = MediaAsset(
+            id=f"voice-{uuid.uuid4().hex[:8]}", workspace_id=video_fixture["ws_id"], project_id=project_id,
+            storage_key=voice_storage_key, sha256=hashlib.sha256(stored_voice_path.read_bytes()).hexdigest(),
+            byte_size=stored_voice_path.stat().st_size, mime_detected="audio/mpeg", source_product="TEST_UPLOAD",
+            original_filename=voice_path.name, created_by=video_fixture["user_id"], duration_ms=30000,
+            approval_state="UNREVIEWED",
+        )
+        db.add(voice_asset)
+        db.commit()
+        plan = create_plan(db, project_id, video_fixture["ws_id"], video_fixture["user_id"], CreatePlanRequest.model_validate({
+            "content": "RAG truy xuất nguồn tài liệu liên quan trước khi xây dựng câu trả lời có căn cứ.",
+            "target_duration_seconds": 30,
+        }))
+        approve_plan(db, project_id, plan.id, video_fixture["ws_id"], "reviewer-worker-test")
+        queued = create_run(db, project_id, video_fixture["ws_id"], "reviewer-worker-test", CreateRunRequest(plan_id=plan.id, voice_asset_id=voice_asset.id, idempotency_key=f"worker-test-{uuid.uuid4().hex}"))
+        active_run_id = queued.id
+        token = str(uuid.uuid4())
+        assert _acquire_lease(db, token)
+        claimed = _claim_next_run(db, token)
+        assert claimed and claimed.id == queued.id
+
+    with SessionLocal() as db:
+        assert db.get(ContentVideoWorkerLease, "content-video-flow").token == token
+        assert _heartbeat(db, token)
+
+    process_run(queued.id, token)
+
+    with SessionLocal() as db:
+        completed = db.get(ContentVideoRun, queued.id)
+        steps = json.loads(completed.steps_json)
+    assert completed.status == "COMPLETED", (completed.error_code, completed.error_message, completed.steps_json)
+    assert completed.lease_token is None and completed.lease_expires_at is None
+    assert [step["state"] for step in steps] == ["SUCCEEDED"] * 3
+    assert len(calls) == 3
+    assert [call["start_image_asset_id"] for call in calls] == [None, "asset-worker-0", "asset-worker-1"]
+
+
+def test_flow_native_audio_is_stitched_and_registered(video_fixture, monkeypatch, tmp_path):
+    from types import SimpleNamespace
+    from src.modules.tao_video_noi_dung import runner
+
+    media_root = tmp_path / "media"
+    monkeypatch.setattr(runner, "MEDIA_ROOT_DIR", media_root)
+    monkeypatch.setattr(runner, "get_workspace_storage_dir", lambda workspace_id: media_root / "workspaces" / workspace_id / "media")
+    monkeypatch.setattr(runner, "_save_run", lambda db, run, steps: setattr(run, "steps_json", json.dumps(steps)))
+    project_id = f"project-native-audio-{uuid.uuid4().hex[:8]}"
+    workspace_id = video_fixture["ws_id"]
+    run_id = f"run-native-audio-{uuid.uuid4().hex[:8]}"
+    storyboard = {
+        "title": "Native audio",
+        "narration": "Lời đọc do Flow tạo.",
+        "continuity_anchor": "Mô hình giấy origami cùng bảng màu xuyên suốt video.",
+        "shots": [
+            {"shot_id": f"shot-{i}", "scene": f"Cảnh {i}", "narration": "Lời đọc", "prompt": "Cảnh origami", "duration_seconds": 2}
+            for i in range(3)
+        ],
+    }
+    plan = SimpleNamespace(storyboard_json=json.dumps(storyboard, ensure_ascii=False), target_duration_seconds=6)
+    run = SimpleNamespace(id=run_id, workspace_id=workspace_id, project_id=project_id, voice_asset_id=None, created_by=video_fixture["user_id"], steps_json="[{}]")
+    ids = []
+    with SessionLocal() as db:
+        db.add(ProductionProject(id=project_id, workspace_id=workspace_id, title="Native audio", created_by=video_fixture["user_id"]))
+        storage_dir = media_root / "workspaces" / workspace_id / "media"
+        storage_dir.mkdir(parents=True)
+        for index in range(3):
+            clip_path = storage_dir / f"clip-{index}.mp4"
+            subprocess.run([
+                video_processor.ffmpeg_bin, "-y", "-f", "lavfi", "-i", f"color=c=navy:s=160x240:d=2",
+                "-f", "lavfi", "-i", f"sine=frequency={440 + index * 80}:duration=2", "-shortest",
+                "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-t", "2", str(clip_path),
+            ], check=True, capture_output=True)
+            asset_id = f"flow-clip-{uuid.uuid4().hex[:8]}"
+            payload = clip_path.read_bytes()
+            db.add(MediaAsset(
+                id=asset_id, workspace_id=workspace_id, project_id=project_id,
+                storage_key=f"workspaces/{workspace_id}/media/{clip_path.name}",
+                sha256=hashlib.sha256(payload).hexdigest(), byte_size=len(payload), mime_detected="video/mp4",
+                source_product="TEST_FLOW", original_filename=clip_path.name, created_by=video_fixture["user_id"],
+                duration_ms=2000, approval_state="UNREVIEWED",
+            ))
+            ids.append(asset_id)
+        db.commit()
+        voice = runner._flow_voice_asset(db, run, plan, ids)
+        voice_path = runner._verified_asset_path(voice, "FLOW_VOICE_ASSET")
+        assert voice.source_product == "FLOW_NATIVE_VOICE"
+        assert abs(runner.audio_processor.probe_audio(voice_path)["duration_seconds"] - 6) <= 0.5
+        assert json.loads(run.steps_json)[0]["flow_audio_asset_id"] == voice.id
 
 

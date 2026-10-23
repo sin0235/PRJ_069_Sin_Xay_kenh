@@ -36,7 +36,7 @@ from src.models.entities import MediaAsset, AIGenerationJob
 from src.modules.media_studio.video_processor import video_processor
 from src.modules.media_studio.security import MEDIA_ROOT_DIR
 from src.modules.media_studio.prompt_compiler import video_prompt_compiler
-from session_manager import FlowLoginRequired
+from session_manager import FlowLoginRequired, FlowSubmissionNotSent
 
 class GoogleFlowZeroCostProvider:
     """Luồng sản xuất video nội bộ 0đ chi phí sử dụng Google Flow AI Pro (Omni Flash 10s)."""
@@ -85,7 +85,7 @@ class GoogleFlowZeroCostProvider:
             )
             raw_16_9_path = pathlib.Path(flow_res["storage_path"])
         except Exception as flow_err:
-            if isinstance(flow_err, FlowLoginRequired):
+            if isinstance(flow_err, (FlowLoginRequired, FlowSubmissionNotSent)):
                 raise
             raise RuntimeError(
                 f"Google Flow: {flow_err}. "
@@ -151,7 +151,7 @@ class GoogleFlowZeroCostProvider:
                 blur_strength=25,
                 remove_watermark=False,
             )
-        except FlowLoginRequired:
+        except (FlowLoginRequired, FlowSubmissionNotSent):
             raise
         except Exception as ex:
             raise RuntimeError(f"Google Flow không tạo được video từ ảnh: {ex}") from ex

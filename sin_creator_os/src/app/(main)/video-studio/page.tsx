@@ -127,9 +127,10 @@ export default function VideoStudioIndexPage() {
                   <p className="truncate font-medium">{project.title}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{project.status}</p>
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/video-studio/${project.id}`)}>
-                  Mở
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => router.push(`/video-studio/${project.id}`)}>Studio</Button>
+                  <Button type="button" size="sm" onClick={() => router.push(`/video-studio/${project.id}/production`)}>Tạo từ nội dung</Button>
+                </div>
               </Card>
             ))}
           </div>

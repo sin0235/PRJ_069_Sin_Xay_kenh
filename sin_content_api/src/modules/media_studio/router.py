@@ -5,6 +5,7 @@ Các route: /v1/media và /v1/ai-jobs
 """
 
 import os
+import subprocess
 import sys
 from pathlib import Path
 import uuid
@@ -46,7 +47,7 @@ from src.modules.media_studio.service import media_service
 from src.modules.media_studio.job_engine import job_engine
 from src.modules.media_studio.music_provider import music_orchestrator
 from src.modules.media_studio.video_provider import video_orchestrator
-from session_manager import FlowLoginRequired
+from session_manager import FlowLoginRequired, LOCAL_BROWSER_PROFILE_DIR
 from src.modules.media_studio.audio_processor import audio_processor
 from src.modules.media_studio.video_processor import video_processor
 from src.modules.media_studio.security import (
@@ -56,6 +57,22 @@ from src.modules.media_studio.security import (
 
 media_router = APIRouter(prefix="/v1/media", tags=["Media Studio"])
 jobs_router = APIRouter(prefix="/v1/ai-jobs", tags=["AI Generation Jobs"])
+FLOW_SESSION_MANAGER = Path(__file__).resolve().parents[4] / "cong_cu_tu_dong" / "flow_bridge" / "session_manager.py"
+
+
+def _flow_login_session_running() -> bool:
+    if sys.platform != "linux" or not Path("/proc").is_dir():
+        return False
+    profile_arg = b"--user-data-dir=" + os.fsencode(LOCAL_BROWSER_PROFILE_DIR)
+    for process in Path("/proc").iterdir():
+        if not process.name.isdigit() or int(process.name) == os.getpid():
+            continue
+        try:
+            if any(profile_arg in arg for arg in (process / "cmdline").read_bytes().split(b"\0")):
+                return True
+        except OSError:
+            continue
+    return False
 
 
 @media_router.post("/projects", response_model=ProductionProjectOut, status_code=status.HTTP_201_CREATED)
@@ -80,20 +97,35 @@ def open_google_flow_login(
     tenant: TenantContext = Depends(require_action("media.upload")),
 ):
     """Mở tiện ích đăng nhập Flow trên máy chủ đang chạy ứng dụng."""
-    if not any(
+    if not tenant.dev_auth_bypass and not any(
         role.get("role_code") == "WORKSPACE_OWNER" and role.get("scope_type") == "WORKSPACE"
         for role in tenant.actor.roles
     ):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Chỉ chủ workspace được mở phiên Google Flow.")
-    if sys.platform != "win32":
-        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Đăng nhập Flow qua Edge chỉ hỗ trợ trên Windows.")
+    if sys.platform == "win32":
+        login_script = Path(__file__).resolve().parents[5] / "00_DANG_NHAP_GOOGLE_FLOW.cmd"
+        if not login_script.is_file():
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Không tìm thấy tiện ích đăng nhập Google Flow.")
+        os.startfile(str(login_script))
+        return {"success": True, "message": "Đã mở Edge để đăng nhập Google Flow trên máy chạy dịch vụ."}
 
-    login_script = Path(__file__).resolve().parents[5] / "00_DANG_NHAP_GOOGLE_FLOW.cmd"
-    if not login_script.is_file():
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Không tìm thấy tiện ích đăng nhập Google Flow.")
+    if sys.platform != "linux":
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Đăng nhập Flow chỉ hỗ trợ trên Windows và Linux.")
+    if not FLOW_SESSION_MANAGER.is_file():
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Không tìm thấy session manager của Google Flow.")
+    if _flow_login_session_running():
+        return {"success": True, "already_running": True, "message": "Cửa sổ đăng nhập Flow đã được mở."}
 
-    os.startfile(str(login_script))
-    return {"success": True, "message": "Đã mở Edge để đăng nhập Google Flow trên máy chạy dịch vụ."}
+    try:
+        subprocess.Popen(
+            [sys.executable, str(FLOW_SESSION_MANAGER), "--background"],
+            cwd=FLOW_SESSION_MANAGER.parent,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except OSError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Không thể mở cửa sổ đăng nhập Flow.") from exc
+    return {"success": True, "message": "Đã mở Edge. Đăng nhập Google rồi đóng cửa sổ để lưu phiên Flow."}
 
 # ==============================================================================
 # 1. Media Assets Endpoints

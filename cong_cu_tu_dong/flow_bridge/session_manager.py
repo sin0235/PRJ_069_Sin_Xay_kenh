@@ -30,14 +30,17 @@ from config import (
     sync_browser_profile,
     sync_local_to_nas,
 )
-from profile_guard import ensure_profile_free
 
 
 class FlowLoginRequired(RuntimeError):
     """Yêu cầu đăng nhập tài khoản Google vào hồ sơ Flow dùng chung."""
 
 
-def open_login_session():
+class FlowSubmissionNotSent(RuntimeError):
+    """Flow UI failed before the generation request was submitted."""
+
+
+def open_login_session(wait_for_close: bool = False):
     """Mở cửa sổ Chrome có giao diện để người dùng đăng nhập tài khoản Google AI Pro."""
     print("=" * 70)
     print("KHỞI TẠO ĐĂNG NHẬP GOOGLE AI PRO (FLOW & FLOW MUSIC)")
@@ -47,7 +50,6 @@ def open_login_session():
 
     # Đồng bộ từ NAS về cục bộ và giải phóng khóa
     sync_browser_profile(BROWSER_PROFILE_DIR, LOCAL_BROWSER_PROFILE_DIR)
-    ensure_profile_free(LOCAL_BROWSER_PROFILE_DIR)
 
     with sync_playwright() as p:
         context = p.chromium.launch_persistent_context(
@@ -77,14 +79,15 @@ def open_login_session():
         print("3. Sau khi đăng nhập thành công vào cả hai trang, hãy quay lại terminal này và nhấn ENTER để hoàn tất lưu phiên.")
         print("-" * 70)
 
-        try:
-            input("Nhấn phím [ENTER] sau khi bạn đã hoàn tất đăng nhập trên trình duyệt...")
-        except EOFError:
-            time.sleep(30)
-
-        # Chờ đồng bộ cookie và đóng trình duyệt
-        context.close()
-        ensure_profile_free(LOCAL_BROWSER_PROFILE_DIR)
+        if wait_for_close:
+            print("Sau khi đăng nhập, đóng cửa sổ Edge để lưu phiên.")
+            context.wait_for_event("close", timeout=0)
+        else:
+            try:
+                input("Nhấn phím [ENTER] sau khi bạn đã hoàn tất đăng nhập trên trình duyệt...")
+            except EOFError:
+                time.sleep(30)
+            context.close()
 
         # Đồng bộ ngược từ cục bộ lên NAS để lưu trữ bền vững
         sync_local_to_nas(LOCAL_BROWSER_PROFILE_DIR, BROWSER_PROFILE_DIR)
@@ -105,8 +108,6 @@ def check_login_status() -> dict:
 
     if not status_result["profile_exists"]:
         return status_result
-
-    ensure_profile_free(LOCAL_BROWSER_PROFILE_DIR)
 
     try:
         with sync_playwright() as p:
@@ -143,5 +144,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "--check":
         res = check_login_status()
         print(f"Trạng thái phiên đăng nhập: {res}")
+    elif len(sys.argv) > 1 and sys.argv[1] == "--background":
+        open_login_session(wait_for_close=True)
     else:
         open_login_session()

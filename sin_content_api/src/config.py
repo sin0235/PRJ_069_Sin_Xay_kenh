@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     llm_enabled: bool = Field(default=False, validation_alias=AliasChoices("llm_enabled", "LLM_ENABLED"))
     llm_base_url: str = Field(default="http://127.0.0.1:20128/v1", validation_alias=AliasChoices("llm_base_url", "LLM_BASE_URL"))
     llm_api_key: str = Field(default="", validation_alias=AliasChoices("llm_api_key", "LLM_API_KEY"))
-    llm_api_key_file: Path = Field(default=API_ROOT.parent.parent / "9router.env", validation_alias=AliasChoices("llm_api_key_file", "LLM_API_KEY_FILE"))
+    llm_api_key_file: Path = Field(default=API_ROOT.parent / "9router.env", validation_alias=AliasChoices("llm_api_key_file", "LLM_API_KEY_FILE"))
     llm_model: str = Field(default="", validation_alias=AliasChoices("llm_model", "LLM_MODEL", "llm_default_model", "LLM_DEFAULT_MODEL"))
     llm_timeout_seconds: float = Field(default=30.0, validation_alias=AliasChoices("llm_timeout_seconds", "LLM_TIMEOUT_SECONDS"))
     llm_max_input_bytes: int = Field(default=20000, validation_alias=AliasChoices("llm_max_input_bytes", "LLM_MAX_INPUT_BYTES"))

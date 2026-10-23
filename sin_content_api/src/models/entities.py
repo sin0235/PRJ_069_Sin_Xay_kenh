@@ -691,6 +691,69 @@ class ProductionProject(Base):
     created_by = Column(String(36), nullable=False)
     created_at = Column(DateTime, default=utc_now, nullable=False)
 
+
+class ContentVideoPlan(Base):
+    __tablename__ = "content_video_plans"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    workspace_id = Column(String(36), ForeignKey("workspaces.id"), nullable=False, index=True)
+    project_id = Column(String(36), ForeignKey("production_projects.id"), nullable=False, index=True)
+    revision = Column(Integer, nullable=False)
+    status = Column(String(32), nullable=False, default="DRAFT")
+    source_content = Column(Text, nullable=False)
+    content_sha256 = Column(String(64), nullable=False)
+    target_duration_seconds = Column(Integer, nullable=False)
+    style_snapshot_json = Column(Text, nullable=False)
+    style_snapshot_sha256 = Column(String(64), nullable=False)
+    storyboard_json = Column(Text, nullable=False)
+    storyboard_sha256 = Column(String(64), nullable=False)
+    llm_model = Column(String(100), nullable=False)
+    created_by = Column(String(36), nullable=False)
+    approved_by = Column(String(36), nullable=True)
+    approved_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("project_id", "revision", name="uq_content_video_plan_revision"),
+    )
+
+
+class ContentVideoRun(Base):
+    __tablename__ = "content_video_runs"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    workspace_id = Column(String(36), ForeignKey("workspaces.id"), nullable=False, index=True)
+    project_id = Column(String(36), ForeignKey("production_projects.id"), nullable=False, index=True)
+    plan_id = Column(String(36), ForeignKey("content_video_plans.id"), nullable=False, index=True)
+    voice_asset_id = Column(String(36), ForeignKey("media_assets.id"), nullable=True)
+    plan_revision = Column(Integer, nullable=False)
+    storyboard_sha256 = Column(String(64), nullable=False)
+    style_snapshot_sha256 = Column(String(64), nullable=False)
+    approval_sha256 = Column(String(64), nullable=False)
+    idempotency_key = Column(String(128), nullable=False, unique=True)
+    status = Column(String(40), nullable=False, default="QUEUED")
+    current_step = Column(String(64), nullable=True)
+    steps_json = Column(Text, nullable=False, default="[]")
+    output_asset_ids_json = Column(Text, nullable=False, default="[]")
+    final_asset_id = Column(String(36), ForeignKey("media_assets.id"), nullable=True)
+    qc_report_json = Column(Text, nullable=True)
+    error_code = Column(String(100), nullable=True)
+    error_message = Column(Text, nullable=True)
+    lease_token = Column(String(36), nullable=True)
+    lease_expires_at = Column(DateTime, nullable=True)
+    created_by = Column(String(36), nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    started_at = Column(DateTime, nullable=True)
+    finished_at = Column(DateTime, nullable=True)
+
+
+class ContentVideoWorkerLease(Base):
+    __tablename__ = "content_video_worker_leases"
+
+    name = Column(String(64), primary_key=True)
+    token = Column(String(36), nullable=True)
+    expires_at = Column(DateTime, nullable=True)
+
 class ProductionTask(Base):
     __tablename__ = "production_tasks"
 

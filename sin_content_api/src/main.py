@@ -1,4 +1,5 @@
 # Ứng dụng chính FastAPI cho SIN Content Intelligence API
+import os
 import uuid
 from dotenv import load_dotenv
 load_dotenv()
@@ -7,7 +8,8 @@ from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from src.config import settings
-from src.database import check_db_ready, engine, Base
+from src.database import check_db_ready
+from src.migrations.runner import migration_up
 from src.schemas.contracts import HealthResponse, ReadyResponse, ErrorPayload
 from src.modules.workspaces.router import router as workspaces_router
 from src.modules.briefs.router import router as briefs_router
@@ -25,6 +27,8 @@ from src.modules.media_studio.router import media_router, jobs_router
 from src.modules.auth.router import auth_router
 from src.modules.platform_config.router import router as platform_config_router
 from src.modules.dieu_phoi_dung.bo_dinh_tuyen import router as dieu_phoi_router
+from src.modules.tao_video_noi_dung.router import router as content_video_router
+from src.modules.tao_video_noi_dung.runner import content_video_worker
 
 # Exception handler chuẩn hóa theo ErrorPayload
 def _auto_start_9router_if_needed():
@@ -48,9 +52,14 @@ def _auto_start_9router_if_needed():
 
 async def lifespan(app: FastAPI):
     # Khởi tạo bảng trong chế độ offline nếu chưa có
-    Base.metadata.create_all(bind=engine)
+    migration_up()
     _auto_start_9router_if_needed()
-    yield
+    if settings.app_env.lower() not in {"test", "testing"} and os.getenv("TESTING") != "1":
+        content_video_worker.start()
+    try:
+        yield
+    finally:
+        content_video_worker.stop()
 
 app = FastAPI(
     title=settings.app_name,
@@ -144,3 +153,4 @@ app.include_router(jobs_router)
 app.include_router(auth_router)
 app.include_router(platform_config_router)
 app.include_router(dieu_phoi_router)
+app.include_router(content_video_router)

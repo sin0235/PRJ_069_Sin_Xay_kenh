@@ -26,7 +26,7 @@ if str(CONG_CU_TU_DONG) not in sys.path:
 
 try:
     from veo_watermark_remover import veo_remover
-except ImportError:
+except (ImportError, FileNotFoundError):
     veo_remover = None
 
 class VideoProcessor:
@@ -63,6 +63,12 @@ class VideoProcessor:
         width = int(v_stream.get("width", 0))
         height = int(v_stream.get("height", 0))
         duration = float(data.get("format", {}).get("duration", 0.0))
+        rate = v_stream.get("avg_frame_rate") or v_stream.get("r_frame_rate") or "0/1"
+        try:
+            rate_num, rate_den = rate.split("/", 1)
+            frame_rate = int(rate_num) / int(rate_den) if int(rate_den) else 0.0
+        except (ValueError, ZeroDivisionError):
+            frame_rate = 0.0
 
         # Tính tỷ lệ khung hình
         aspect_ratio = f"{width}:{height}"
@@ -78,6 +84,7 @@ class VideoProcessor:
             "height": height,
             "duration_seconds": duration,
             "codec_name": v_stream.get("codec_name"),
+            "frame_rate": frame_rate,
             "aspect_ratio": "9:16" if is_vertical_9_16 else aspect_ratio,
             "is_vertical_9_16": is_vertical_9_16,
             "bitrate_bps": int(data.get("format", {}).get("bit_rate", 0)),
@@ -245,7 +252,8 @@ class VideoProcessor:
         timeline: Any,
         asset_path_resolver: Any,
         output_path: pathlib.Path,
-        temp_dir: Optional[pathlib.Path] = None
+        temp_dir: Optional[pathlib.Path] = None,
+        transition_seconds: float = 0.0,
     ) -> Dict[str, Any]:
         """
         Render toàn diện video MP4 từ timeline document (M-P5):
@@ -277,6 +285,7 @@ class VideoProcessor:
             try:
                 # 1. Render từng phân cảnh thành clip tạm chuẩn hóa
                 seg_files = []
+                seg_durations = []
                 total_duration_sec = 0.0
 
                 for idx, clip in enumerate(clips):
@@ -325,6 +334,7 @@ class VideoProcessor:
                         if res.returncode != 0:
                             raise RuntimeError(f"Lỗi render phân cảnh ảnh {clip_id}: {res.stderr}")
                         seg_files.append(seg_out)
+                        seg_durations.append(dur_s)
                         total_duration_sec += dur_s
                     else:
                         in_s = trim_in_ms / 1000.0
@@ -362,27 +372,56 @@ class VideoProcessor:
                         if res.returncode != 0:
                             raise RuntimeError(f"Lỗi render phân cảnh video {clip_id}: {res.stderr}")
                         seg_files.append(seg_out)
+                        seg_durations.append(dur_s)
                         total_duration_sec += dur_s
 
-                # 2. Ghép các phân cảnh video
-                concat_list = work_dir / "concat_list.txt"
-                with open(concat_list, "w", encoding="utf-8") as f:
-                    for s in seg_files:
-                        p_str = str(s.resolve()).replace("\\", "/")
-                        f.write(f"file '{p_str}'\n")
+                # 2. Ghép các phân cảnh video; tail freeze keeps the timeline duration during crossfade.
+                if transition_seconds > 0 and len(seg_files) > 1:
+                    transition = min(transition_seconds, 0.5)
+                    filter_parts = []
+                    previous = "0:v"
+                    offset = 0.0
+                    for idx, duration in enumerate(seg_durations[:-1]):
+                        padded = f"p{idx}"
+                        filter_parts.append(
+                            f"[{previous}]tpad=stop_mode=clone:stop_duration={transition:.3f}[{padded}]"
+                        )
+                        output = f"x{idx}"
+                        filter_parts.append(
+                            f"[{padded}][{idx + 1}:v]xfade=transition=fade:duration={transition:.3f}:offset={offset + duration:.3f}[{output}]"
+                        )
+                        previous = output
+                        offset += duration
+                    concat_video = work_dir / "concat_video.mp4"
+                    cmd_transition = [self.ffmpeg_bin, "-y"]
+                    for seg_file in seg_files:
+                        cmd_transition.extend(["-i", str(seg_file)])
+                    cmd_transition.extend([
+                        "-filter_complex", ";".join(filter_parts), "-map", f"[{previous}]",
+                        "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(fps), str(concat_video),
+                    ])
+                    res_concat = subprocess.run(cmd_transition, capture_output=True, text=True)
+                    if res_concat.returncode != 0:
+                        raise RuntimeError(f"Lỗi chuyển cảnh mềm: {res_concat.stderr}")
+                else:
+                    concat_list = work_dir / "concat_list.txt"
+                    with open(concat_list, "w", encoding="utf-8") as f:
+                        for s in seg_files:
+                            p_str = str(s.resolve()).replace("\\", "/")
+                            f.write(f"file '{p_str}'\n")
 
-                concat_video = work_dir / "concat_video.mp4"
-                cmd_concat = [
-                    self.ffmpeg_bin, "-y",
-                    "-f", "concat",
-                    "-safe", "0",
-                    "-i", str(concat_list),
-                    "-c", "copy",
-                    str(concat_video)
-                ]
-                res_concat = subprocess.run(cmd_concat, capture_output=True, text=True)
-                if res_concat.returncode != 0:
-                    raise RuntimeError(f"Lỗi ghép phân cảnh: {res_concat.stderr}")
+                    concat_video = work_dir / "concat_video.mp4"
+                    cmd_concat = [
+                        self.ffmpeg_bin, "-y",
+                        "-f", "concat",
+                        "-safe", "0",
+                        "-i", str(concat_list),
+                        "-c", "copy",
+                        str(concat_video)
+                    ]
+                    res_concat = subprocess.run(cmd_concat, capture_output=True, text=True)
+                    if res_concat.returncode != 0:
+                        raise RuntimeError(f"Lỗi ghép phân cảnh: {res_concat.stderr}")
 
                 # 3. Phụ đề Captions (Burn-in text vào Safe Zone)
                 captions = getattr(timeline, "captions", [])

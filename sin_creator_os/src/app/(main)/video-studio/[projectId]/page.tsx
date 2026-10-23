@@ -118,7 +118,13 @@ export default function VideoStudioPage() {
   const [copiedPrompt, setCopiedPrompt] = React.useState(false);
 
   // State Quick AI
-  const [quickPrompt, setQuickPrompt] = React.useState("");
+  const [quickPrompt, setQuickPrompt] = React.useState(
+    "A single cobalt-blue and vermilion washi sheet folds crease by crease into a crisp origami hummingbird. " +
+      "Show every fold forming; the bird opens its sharply creased paper wings and glides above a mirror-silver bowl, " +
+      "sending ripples across the water. Distinctive Japanese craft-editorial art direction, pearlescent paper fibers, " +
+      "midnight-blue backdrop, warm copper rim light, graceful tactile stop-motion folding animation, cinematic macro " +
+      "camera orbit. No hands, text, logos, or plastic look.",
+  );
   const [quickGenType, setQuickGenType] = React.useState<"video" | "music">("video");
   const [isGeneratingAi, setIsGeneratingAi] = React.useState(false);
   const [aiGenMessage, setAiGenMessage] = React.useState<string | null>(null);
