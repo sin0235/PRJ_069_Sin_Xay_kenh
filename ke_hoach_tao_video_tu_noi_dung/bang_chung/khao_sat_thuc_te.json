@@ -1,0 +1,82 @@
+{
+  "thoi_diem": "2026-10-23",
+  "runtime": {
+    "http://127.0.0.1:8000/healthz": {
+      "http": 200,
+      "noi_dung": {
+        "status": "ok",
+        "version": "1.0.0",
+        "environment": "offline"
+      }
+    },
+    "http://127.0.0.1:8000/readyz": {
+      "http": 200,
+      "noi_dung": {
+        "status": "ready",
+        "database_connected": true,
+        "offline_mode": true,
+        "version": "1.0.0"
+      }
+    },
+    "http://127.0.0.1:3000/video-studio": {
+      "http": 200,
+      "noi_dung": "Trang HTML có phản hồi; chưa xác minh thao tác đăng nhập."
+    }
+  },
+  "tep_nguon": [
+    {
+      "duong_dan": "03_ban_lam_viec/sin_creator_os/src/app/(main)/video-studio/[projectId]/page.tsx",
+      "sha256": "481f78d423aae5d9d677b6582f9236f5ce157d9fb6b978a07cac887e1c37c78a",
+      "dong": 1420
+    },
+    {
+      "duong_dan": "03_ban_lam_viec/sin_content_api/src/modules/media_studio/router.py",
+      "sha256": "1833b868fb939c406cb7384af0d28b80d6701ceb9001c33408ba8fb303cccb56",
+      "dong": 1333
+    },
+    {
+      "duong_dan": "03_ban_lam_viec/sin_content_api/src/modules/media_studio/prompt_compiler.py",
+      "sha256": "2f115e6815f4a8cf23833fbf620b729c712ea2e05320272b961f7cddbba40c41",
+      "dong": 76
+    },
+    {
+      "duong_dan": "03_ban_lam_viec/sin_content_api/src/modules/media_studio/video_provider.py",
+      "sha256": "f6b824350931de297f1e5d9bf63f13d0d8ef8a83694e0ba5ba13d7fe6e90db44",
+      "dong": 260
+    },
+    {
+      "duong_dan": "03_ban_lam_viec/sin_content_api/src/modules/media_studio/video_processor.py",
+      "sha256": "59950fac265efedc66b1c6227f1bb7d30218272220b92b2ed6ab798b7a06dd06",
+      "dong": 569
+    },
+    {
+      "duong_dan": "03_ban_lam_viec/sin_content_api/src/modules/dieu_phoi_dung/dao_dien.py",
+      "sha256": "d7e0e3fce54cd7ef177a2d915ea6e10209f0a22eae7eaac9a56a4150744f2512",
+      "dong": 226
+    },
+    {
+      "duong_dan": "03_ban_lam_viec/sin_content_workers/worker.py",
+      "sha256": "183163abca72e0f995d1a6e61a6b660ff3117efd5d4016f4678b1890f699ab86",
+      "dong": 222
+    },
+    {
+      "duong_dan": "03_ban_lam_viec/sin_content_api/src/modules/scripts/script_service.py",
+      "sha256": "ae0793fc717ee4e45ba760263bd5827fe6f23bffd45eb5367181870fdb961a2f",
+      "dong": 467
+    }
+  ],
+  "csdl": [
+    {
+      "tep": "03_ban_lam_viec\\sin_content_offline.db",
+      "bang": {}
+    },
+    {
+      "tep": "03_ban_lam_viec\\sin_content.db",
+      "bang": {}
+    }
+  ],
+  "dac_ta_goc": {
+    "duong_dan": "C:\\Users\\Baha Group\\Downloads\\BAHA_CREATOR_STUDIO_MASTER_TRANSFORMATION_SPEC.md",
+    "sha256": "ef7ec1121bea12d3be2572f5e001960c137ef08977ce5f06784908ac015d153d"
+  }
+}

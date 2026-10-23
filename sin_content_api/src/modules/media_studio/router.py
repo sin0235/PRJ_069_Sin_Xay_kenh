@@ -872,7 +872,7 @@ def generate_video_scene(
     use_official_omni: bool = Form(False),
     project_id: Optional[str] = Form(None),
     start_image_asset_id: Optional[str] = Form(None),
-    remove_watermark: bool = Form(True),
+    remove_watermark: bool = Form(False),
     db: Session = Depends(get_db),
     tenant: TenantContext = Depends(require_action("media.upload"))
 ):

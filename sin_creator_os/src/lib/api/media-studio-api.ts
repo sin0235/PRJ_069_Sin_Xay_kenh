@@ -394,7 +394,7 @@ export const mediaStudioApi = {
     formData.append("aspect_ratio", params.aspect_ratio || "9:16");
     formData.append("use_official_omni", String(!!params.use_official_omni));
     if (params.start_image_asset_id) formData.append("start_image_asset_id", params.start_image_asset_id);
-    formData.append("remove_watermark", String(params.remove_watermark !== false));
+    formData.append("remove_watermark", String(params.remove_watermark === true));
     if (params.project_id) formData.append("project_id", params.project_id);
 
     const authToken = params.token || AuthApi.getAuthToken();

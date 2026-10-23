@@ -128,7 +128,7 @@ export default function VideoStudioPage() {
   // State Khử Watermark Veo AI
   const [isCleaningWatermark, setIsCleaningWatermark] = React.useState(false);
   const [cleanWatermarkMessage, setCleanWatermarkMessage] = React.useState<string | null>(null);
-  const [autoCleanWatermark, setAutoCleanWatermark] = React.useState(true);
+  const [autoCleanWatermark, setAutoCleanWatermark] = React.useState(false);
 
   // Tải danh sách tư liệu từ Backend
   const loadAssets = React.useCallback(async () => {

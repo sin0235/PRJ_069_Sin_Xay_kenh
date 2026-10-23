@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { FileVideo2, Plus, RefreshCw } from "lucide-react";
+import { FileVideo2, Plus, RefreshCw, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -54,6 +54,35 @@ export default function VideoStudioIndexPage() {
           Tạo dự án để sinh video bằng Flow, dựng timeline và xuất bản MP4 dọc.
         </p>
       </header>
+
+      {/* Banner Điểm Vào Prototype Tạo Video Từ Nội Dung (Bản 2.0) */}
+      <Card className="border-primary/30 bg-primary/5 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl bg-primary/10 p-2.5 text-primary">
+            <Sparkles className="size-6" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-base">Bộ Tạo Video Hoàn Chỉnh Từ Nội Dung (Bản 2.0)</span>
+              <span className="text-[11px] font-mono bg-primary/10 text-primary font-semibold px-2 py-0.5 rounded">
+                Prototype Cổng G1
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Nhập nội dung & thời lượng (mẫu 60s & 120s), duyệt storyboard, theo dõi Harness DAG và kiểm định QC.
+            </p>
+          </div>
+        </div>
+
+        <Button
+          type="button"
+          onClick={() => router.push("/video-studio/prototype")}
+          className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium shrink-0"
+        >
+          Mở Prototype 2.0
+          <ArrowRight className="ml-1.5 size-4" />
+        </Button>
+      </Card>
 
       <Card className="max-w-2xl p-5">
         <form onSubmit={createProject} className="flex flex-col gap-3 sm:flex-row">

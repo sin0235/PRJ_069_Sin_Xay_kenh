@@ -1,0 +1,54 @@
+{
+  "phien_ban_ke_hoach": "2.0",
+  "tep": [
+    {
+      "ten": "nghien_cuu_hien_trang_va_phuong_an.md",
+      "sha256": "61b48db8cf13e75fda8e8227f11346c39aead737cdda52fb021f3a82c2b05771"
+    },
+    {
+      "ten": "dac_ta_bo_tao_video_hoan_chinh.md",
+      "sha256": "aeab520bbcd48b92b1bfb06fed3ec6cb8957fad8b620f9600b7d67267bc2a66a"
+    },
+    {
+      "ten": "ke_hoach_trien_khai_va_checklist.md",
+      "sha256": "46d2460b78730447e1d1f06b9275aee30104a1c689c66d4cd4ae5c203f7897aa"
+    },
+    {
+      "ten": "ma_tran_nghiem_thu.md",
+      "sha256": "3251626323dc4078c43b74c23e337f6639b1d4da801872282712a44ec072e244"
+    },
+    {
+      "ten": "hop_dong_harness_llm_truoc_flow.md",
+      "sha256": "bbedd3ac64797f17035dc9227c977f8d26c2e7a7609e731463e833fd536e42cd"
+    },
+    {
+      "ten": "quy_chuan_phong_cach_kenh.md",
+      "sha256": "1097d8ebbc98dc2f5cd706c578269c09f2e39317de224aac0e8ad79b71c5dd6a"
+    },
+    {
+      "ten": "quy_uoc_thi_cong_song_song.md",
+      "sha256": "28aaf7bc99dd883f97bcf47747e82b681ebccb843c58b83f0b4e739318818c5b"
+    }
+  ],
+  "so_gate": 10,
+  "so_o_checklist_chua_thi_cong": 77,
+  "so_ca_nghiem_thu": 42,
+  "storyboard_mau": {
+    "so_canh": 12,
+    "giay": 120,
+    "frame_30_fps": 3600
+  },
+  "tep_nguon_khac_baseline_khao_sat": [],
+  "gioi_han_hash": "Đối chiếu baseline khảo sát, không suy ai đã sửa và không ghi đè thay đổi hiện hữu.",
+  "ban_sao_dac_ta_goc_khop_hash": true,
+  "ra_soat_doc_lap_v1": "Xem biên bản phiên 1.0; không thay nghiệm thu runtime.",
+  "ra_soat_tai_lieu_v2": "Không phát hiện lỗi quan trọng về owner, contract/style mapping, dependency waves và Harness gate; chưa kiểm runtime.",
+  "kiem_tra_bo_sung_v2": "Đủ liên kết phụ lục, hợp đồng Harness/style và ownership/checklist song song; đây là kiểm tài liệu.",
+  "kiem_thu_co_so": {
+    "lenh": "python -m pytest tests/test_video_prompt_compiler.py tests/test_media_studio_video.py tests/test_harness_dao_dien.py -q -p no:cacheprovider",
+    "cwd": "03_ban_lam_viec/sin_content_api",
+    "ket_qua_phien_khao_sat_v1": "45 đạt, 1 cảnh báo deprecation, mã thoát 0; không chạy lại backend trong phiên chỉ sửa kế hoạch v2",
+    "gioi_han": "Có mô phỏng provider; không chứng minh dây chuyền AUTO 120 giây đã hoạt động."
+  },
+  "ket_qua": "Đạt kiểm tra hồ sơ; chưa nghiệm thu sản phẩm mới."
+}

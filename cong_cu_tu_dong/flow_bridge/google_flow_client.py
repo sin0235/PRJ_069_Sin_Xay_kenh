@@ -201,23 +201,29 @@ class GoogleFlowClient:
                         self._attach_start_image(page, start_image_path, timeout_sec)
 
                     # 2. Nhập bộ lệnh video vào ProseMirror editor (ô hiển thị đầu tiên)
-                    input_box = page.locator('div.ProseMirror[contenteditable="true"]').first
-                    if input_box.count() > 0:
-                        input_box.click()
-                        page.wait_for_timeout(500)
-                        input_box.fill(clean_prompt)
-                        page.wait_for_timeout(1000)
+                    input_box = page.locator(
+                        'div[role="textbox"][data-slate-editor="true"], '
+                        'div.ProseMirror[contenteditable="true"]'
+                    ).first
+                    try:
+                        input_box.wait_for(state="visible", timeout=20000)
+                    except Exception as editor_err:
+                        raise RuntimeError(
+                            f"Không tìm thấy khung soạn thảo văn bản trên giao diện Google Flow (URL: {page.url})."
+                        ) from editor_err
+                    input_box.click()
+                    page.wait_for_timeout(500)
+                    input_box.fill(clean_prompt)
+                    page.wait_for_timeout(1000)
 
-                        # Bấm nút Bắt đầu tạo (Submit button)
-                        gen_btn = page.locator('button[aria-label="Bắt đầu tạo"], button[type="submit"]:has(i:text("arrow_forward")), button[type="submit"]:has(mat-icon:has-text("arrow_forward"))').last
-                        if gen_btn.count() > 0 and gen_btn.is_enabled():
-                            gen_btn.click()
-                            print("[GOOGLE FLOW] Đã gửi bộ lệnh sang Google Flow AI qua nút 'Bắt đầu tạo'.", flush=True)
-                        else:
-                            input_box.press("Enter")
-                            print("[GOOGLE FLOW] Đã gửi bộ lệnh sang Google Flow AI qua phím Enter.", flush=True)
+                    # Bấm nút Bắt đầu tạo (Submit button)
+                    gen_btn = page.locator('button[aria-label="Bắt đầu tạo"], button[type="submit"]:has(i:text("arrow_forward")), button[type="submit"]:has(mat-icon:has-text("arrow_forward"))').last
+                    if gen_btn.count() > 0 and gen_btn.is_enabled():
+                        gen_btn.click()
+                        print("[GOOGLE FLOW] Đã gửi bộ lệnh sang Google Flow AI qua nút 'Bắt đầu tạo'.", flush=True)
                     else:
-                        raise RuntimeError("Không tìm thấy khung soạn thảo văn bản trên giao diện Google Flow.")
+                        input_box.press("Enter")
+                        print("[GOOGLE FLOW] Đã gửi bộ lệnh sang Google Flow AI qua phím Enter.", flush=True)
 
                     # 3. Theo dõi tiến trình render và tải video 10s
                     print(f"[GOOGLE FLOW] Đang theo dõi máy chủ Google render video 10s (timeout={timeout_sec}s)...", flush=True)

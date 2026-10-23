@@ -1,0 +1,973 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prototype Cổng G1 — Bộ Tạo Video Hoàn Chỉnh Từ Nội Dung (Bản 2.0)</title>
+<link rel="icon" type="image/png" href="../sin_creator_os/public/icon.png">
+<style>
+:root {
+  --bg: #090d14;
+  --card: #111724;
+  --card-sub: #172033;
+  --border: #232f48;
+  --ink: #f1f5f9;
+  --mut: #8e9db3;
+  --brand: #2563eb;
+  --brand-light: #3b82f6;
+  --brand-bg: rgba(37, 99, 235, 0.12);
+  --ok: #10b981;
+  --ok-bg: rgba(16, 185, 129, 0.12);
+  --warn: #f59e0b;
+  --warn-bg: rgba(245, 158, 11, 0.12);
+  --err: #ef4444;
+  --err-bg: rgba(239, 68, 68, 0.12);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, sans-serif; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: 24px 20px 80px; }
+.header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 18px; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+.brand-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--brand-bg); color: var(--brand-light); padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+h1 { font-size: 1.5rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+.sub { color: var(--mut); margin: 0; font-size: 0.85rem; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid transparent; transition: all 0.15s ease; background: var(--card-sub); color: var(--ink); text-decoration: none; }
+.btn:hover { background: #1e2b45; }
+.btn-primary { background: var(--brand); color: #fff; }
+.btn-primary:hover { background: var(--brand-light); }
+.btn-success { background: var(--ok); color: #fff; }
+.btn-success:hover { background: #059669; }
+.btn-outline { background: transparent; border-color: var(--border); }
+.btn-outline:hover { background: var(--card-sub); }
+.btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 6px; }
+.badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 600; font-family: monospace; }
+.badge-ok { background: var(--ok-bg); color: var(--ok); border: 1px solid rgba(16,185,129,0.3); }
+.badge-warn { background: var(--warn-bg); color: var(--warn); border: 1px solid rgba(245,158,11,0.3); }
+.badge-brand { background: var(--brand-bg); color: var(--brand-light); border: 1px solid rgba(37,99,235,0.3); }
+.tabs { display: flex; gap: 6px; background: var(--card); padding: 4px; border-radius: 10px; border: 1px solid var(--border); }
+.tab-btn { padding: 6px 14px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; background: transparent; color: var(--mut); transition: all 0.15s; }
+.tab-btn.active { background: var(--brand); color: #fff; }
+.steps-nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 24px; }
+.step-item { padding: 12px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; text-align: center; font-size: 12px; font-weight: 600; cursor: pointer; color: var(--mut); transition: all 0.15s; }
+.step-item.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+.grid-cols-12 { display: grid; grid-template-columns: repeat(12, 1fr); gap: 20px; }
+.col-5 { grid-column: span 5; }
+.col-7 { grid-column: span 7; }
+.col-6 { grid-column: span 6; }
+.col-12 { grid-column: span 12; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+.card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 14px; }
+.card-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin: 0; display: flex; align-items: center; gap: 8px; color: var(--ink); }
+.metric-box { background: var(--card-sub); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.metric-num { font-size: 18px; font-weight: 800; font-family: monospace; color: var(--ink); margin: 4px 0 2px; }
+.metric-sub { font-size: 11px; color: var(--mut); }
+textarea, input[type="text"] { width: 100%; background: var(--card-sub); border: 1px solid var(--border); border-radius: 8px; color: var(--ink); padding: 10px; font-size: 13px; font-family: inherit; }
+textarea:focus, input[type="text"]:focus { outline: none; border-color: var(--brand); }
+.scene-item { padding: 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--card-sub); margin-bottom: 8px; cursor: pointer; transition: all 0.15s; }
+.scene-item:hover { border-color: rgba(37,99,235,0.4); }
+.scene-item.active { border-color: var(--brand); background: rgba(37,99,235,0.08); box-shadow: 0 0 0 1px var(--brand); }
+.player-wrap { position: relative; width: 100%; max-width: 320px; aspect-ratio: 9/16; background: #000; border-radius: 18px; border: 2px solid var(--border); overflow: hidden; margin: 0 auto; box-shadow: 0 12px 36px rgba(0,0,0,0.6); display: flex; flex-direction: column; justify-content: space-between; padding: 16px; }
+.safe-zone { position: absolute; inset: 12px; border: 1px dashed rgba(245,158,11,0.6); pointer-events: none; border-radius: 8px; display: flex; flex-direction: column; justify-content: space-between; }
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 100; padding: 20px; }
+.modal-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 520px; padding: 22px; box-shadow: 0 20px 40px rgba(0,0,0,0.8); }
+.svg-icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: middle; }
+@media(max-width: 860px) {
+  .col-5, .col-7, .col-6 { grid-column: span 12; }
+  .steps-nav { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <!-- HEADER -->
+  <header class="header">
+    <div>
+      <div class="brand-badge">
+        <svg class="svg-icon" viewBox="0 0 24 24"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+        BẢN 2.0 &bull; PROTOTYPE CỔNG G1 &bull; BAHA CREATOR STUDIO
+      </div>
+      <h1>Hệ Thống Tạo Video Hoàn Chỉnh Từ Nội Dung</h1>
+      <p class="sub">Harness kiểm soát phiên &bull; LLM biên dịch prompt &bull; Khóa nhận diện công ty &bull; Dựng phim dọc 9:16 chuẩn TikTok</p>
+    </div>
+
+    <div class="tabs">
+      <button type="button" class="tab-btn active" id="tab-btn-flow" onclick="switchMainTab('flow')">Quy Trình Tạo Video</button>
+      <button type="button" class="tab-btn" id="tab-btn-style" onclick="switchMainTab('style')">Hồ Sơ Phong Cách Kênh</button>
+    </div>
+  </header>
+
+  <!-- ĐIỀU HƯỚNG 4 BƯỚC -->
+  <div class="steps-nav" id="steps-nav-bar">
+    <div class="step-item active" id="step-nav-1" onclick="gotoStep(1)">1. Nhập Nội Dung & Kênh</div>
+    <div class="step-item" id="step-nav-2" onclick="gotoStep(2)">2. Duyệt Storyboard & Prompt</div>
+    <div class="step-item" id="step-nav-3" onclick="gotoStep(3)">3. Theo Dõi Sản Xuất DAG</div>
+    <div class="step-item" id="step-nav-4" onclick="gotoStep(4)">4. Xem Trước, QC & Gói Tải</div>
+  </div>
+
+  <!-- NỘI DUNG TAB 1: QUY TRÌNH TẠO VIDEO -->
+  <div id="tab-content-flow">
+    <!-- BƯỚC 1: NHẬP NỘI DUNG -->
+    <div id="view-step-1">
+      <!-- BANNER STYLE LOCK -->
+      <div class="card" style="margin-bottom: 20px; background: rgba(37,99,235,0.06); border-color: rgba(37,99,235,0.25);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="background: rgba(37,99,235,0.15); padding: 8px; border-radius: 8px; color: var(--brand-light);">
+              <svg class="svg-icon" style="width:20px;height:20px;" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-weight:700;">Phong Cách Kênh Đã Khóa:</span>
+                <span class="badge badge-brand">baha_giai_thich_cong_nghe_v1</span>
+                <span class="badge badge-ok">SNAPSHOT DUYỆT BẤT BIẾN</span>
+              </div>
+              <div style="font-size:11px; color:var(--mut); font-family:monospace; margin-top:2px;">
+                Kênh TikTok: tiktok_tiktok &bull; Snapshot Hash: sha256:7f8e3d2a1b9c4f5e6a0b8c7d6e5f4a3b...
+              </div>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="btn btn-sm btn-outline" onclick="loadPreset('60s')">Nạp Mẫu 60 Giây (Agent vs Bot)</button>
+            <button type="button" class="btn btn-sm btn-primary" onclick="loadPreset('120s')">Nạp Mẫu 120 Giây (RAG vs FT)</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-cols-12">
+        <div class="col-7">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Nội Dung Hoặc Đề Cương Video</h3>
+              <span class="badge badge-brand" id="char-counter">312 ký tự</span>
+            </div>
+            <textarea id="input-script" rows="9" placeholder="Nhập nội dung, kịch bản hoặc đề cương bài chia sẻ công nghệ..."></textarea>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-top:14px;">
+              <div>
+                <label style="font-size:11px; color:var(--mut); font-weight:600; display:block; margin-bottom:4px;">Đối tượng người xem:</label>
+                <input type="text" id="input-audience" value="Doanh nghiệp & Quản lý công nghệ">
+              </div>
+              <div>
+                <label style="font-size:11px; color:var(--mut); font-weight:600; display:block; margin-bottom:4px;">Mục tiêu chuyển đổi:</label>
+                <input type="text" id="input-goal" value="Giải thích bản chất & Giới thiệu giải pháp AI BAHA">
+              </div>
+            </div>
+
+            <div style="margin-top:18px; text-align:right;">
+              <button type="button" class="btn btn-primary" onclick="gotoStep(2)">
+                Tiếp Tục: Lập Kịch Bản & Phân Cảnh (Harness + LLM)
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-5">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Ràng Buộc Kỹ Thuật (Pilot Spec)</h3>
+              <span class="badge badge-brand">CFR 30 FPS</span>
+            </div>
+
+            <div style="margin-bottom:14px;">
+              <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:6px;">
+                <span style="color:var(--mut);">Thời lượng mục tiêu:</span>
+                <span style="font-family:monospace; font-weight:800; color:var(--brand-light);" id="target-duration-display">120 Giây (3.600 Frames)</span>
+              </div>
+              <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:6px;">
+                <button type="button" class="btn btn-sm btn-outline" id="btn-sec-60" onclick="setDuration(60)">60s (Demo)</button>
+                <button type="button" class="btn btn-sm btn-outline" id="btn-sec-90" onclick="setDuration(90)">90s</button>
+                <button type="button" class="btn btn-sm btn-primary" id="btn-sec-120" onclick="setDuration(120)">120s (Chuẩn)</button>
+              </div>
+            </div>
+
+            <div style="margin-bottom:14px; border-top:1px solid var(--border); padding-top:12px;">
+              <label style="font-size:12px; font-weight:600; display:block; margin-bottom:6px;">Chế độ xử lý lời thoại:</label>
+              <div style="display:flex; flex-direction:column; gap:6px;">
+                <label style="display:flex; gap:8px; font-size:12px; cursor:pointer;">
+                  <input type="radio" name="mode" value="BIEN_SOAN" checked>
+                  <div>
+                    <b>Biên Soạn Có Cấu Trúc (Khuyên dùng)</b>
+                    <div style="color:var(--mut); font-size:11px;">LLM tối ưu hóa nhịp đọc vừa khít thời lượng đích</div>
+                  </div>
+                </label>
+                <label style="display:flex; gap:8px; font-size:12px; cursor:pointer;">
+                  <input type="radio" name="mode" value="GIU_NGUYEN_LOI">
+                  <div>
+                    <b>Giữ Nguyên Lời Đọc</b>
+                    <div style="color:var(--mut); font-size:11px;">Không thay đổi câu chữ; dừng nếu audio đo thực tế lệch chuẩn</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div style="border-top:1px solid var(--border); padding-top:12px;">
+              <label style="font-size:12px; font-weight:600; display:block; margin-bottom:6px;">Mẫu Brand Outro BAHA (5s cuối):</label>
+              <select style="width:100%; background:var(--card-sub); border:1px solid var(--border); color:var(--ink); padding:8px; border-radius:6px; font-size:12px;" id="select-outro">
+                <option value="O1">O1: Nhận diện thương hiệu thuần túy (Logo + Slogan)</option>
+                <option value="O2">O2: Kêu gọi theo dõi chuỗi bài công nghệ</option>
+                <option value="O3">O3: Lời mời khám phá giải pháp doanh nghiệp</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BƯỚC 2: DUYỆT STORYBOARD & PROMPT -->
+    <div id="view-step-2" style="display:none;">
+      <!-- CHỈ SỐ KẾ HOẠCH -->
+      <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:14px; margin-bottom:20px;">
+        <div class="metric-box">
+          <div class="metric-sub">TỔNG FRAME DÍCH</div>
+          <div class="metric-num" id="stat-total-frames">3.600 F</div>
+          <div class="metric-sub" id="stat-total-sec">120 giây &bull; 30 fps CFR</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-sub">QUY MÔ PHÂN CẢNH</div>
+          <div class="metric-num" id="stat-scene-count">12 Cảnh / 12 Shot</div>
+          <div class="metric-sub">Phân bổ đều luận điểm</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-sub">ƯỚC TÍNH CHI PHÍ AI</div>
+          <div class="metric-num" style="color:var(--ok);" id="stat-cost">$0.85 USD</div>
+          <div class="metric-sub">Hạn ngạch token đã cấp</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-sub">PHIÊN BẢN KẾ HOẠCH</div>
+          <div class="metric-num" style="display:flex; align-items:center; gap:6px;">
+            Rev #1 <span class="badge badge-brand">CAS-LOCKED</span>
+          </div>
+          <div class="metric-sub">Hash: sha256:7f8e3d2a...</div>
+        </div>
+      </div>
+
+      <div class="grid-cols-12">
+        <!-- CỘT DANH SÁCH CẢNH -->
+        <div class="col-5">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Danh Sách Phân Cảnh (Storyboard)</h3>
+              <span class="badge badge-brand" id="badge-total-scenes">12 Cảnh</span>
+            </div>
+            <div id="scenes-list-container" style="max-height: 520px; overflow-y:auto; padding-right:4px;">
+              <!-- Javascript render danh sách cảnh -->
+            </div>
+          </div>
+        </div>
+
+        <!-- CỘT CHI TIẾT PROMPT & LỜI ĐỌC -->
+        <div class="col-7">
+          <div class="card">
+            <div class="card-header">
+              <div>
+                <h3 class="card-title" id="detail-scene-title">Cảnh c01: Hook Mở Đầu</h3>
+                <div style="font-size:11px; color:var(--mut); margin-top:2px;" id="detail-scene-meta">0 - 3s (90 frames) &bull; Loại: HOOK</div>
+              </div>
+              <button type="button" class="btn btn-sm btn-outline" onclick="alert('Đã lưu thay đổi vào bản nháp revision hiện tại!')">Lưu Nháp Cảnh</button>
+            </div>
+
+            <div style="margin-bottom:14px;">
+              <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Lời thoại đọc (Căn phụ đề & Giọng đọc Vi-VN):</label>
+              <textarea id="detail-scene-voice" rows="3"></textarea>
+            </div>
+
+            <div style="margin-bottom:14px;">
+              <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Chữ hiển thị trên màn hình (Safe Zone):</label>
+              <input type="text" id="detail-scene-caption">
+            </div>
+
+            <div style="border-top:1px solid var(--border); padding-top:12px;">
+              <label style="font-size:12px; font-weight:600; display:block; margin-bottom:4px;">Prompt kỹ thuật gửi Flow/Adapter (Harness Verified):</label>
+              <textarea id="detail-scene-prompt" rows="3" style="font-family:monospace; font-size:12px;"></textarea>
+              <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--mut); margin-top:4px;">
+                <span>Tư liệu nguồn: <b id="detail-scene-asset">Đồ họa vector SVG nội bộ</b></span>
+                <span>Trạng thái: <b style="color:var(--ok);" id="detail-scene-status">SAN_SANG</b></span>
+              </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; border-top:1px solid var(--border); padding-top:14px;">
+              <button type="button" class="btn btn-outline" onclick="gotoStep(1)">Quay Lại Nhập Nội Dung</button>
+              <button type="button" class="btn btn-primary" onclick="gotoStep(3)">
+                Duyệt Kế Hoạch & Bắt Đầu Sản Xuất Video
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BƯỚC 3: THEO DÕI TIẾN ĐỘ DAG -->
+    <div id="view-step-3" style="display:none;">
+      <div class="card" style="margin-bottom:20px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-weight:700; font-size:15px;">Dây Chuyền Sản Xuất Tự Động (Durable DAG)</span>
+              <span class="badge badge-brand" id="run-id-badge">run_20261023_g1</span>
+              <span class="badge badge-ok" id="run-state-badge">ĐANG SẢN XUẤT</span>
+            </div>
+            <div style="font-size:12px; color:var(--mut); margin-top:2px;">
+              Harness điều phối tiến trình nguyên tử &bull; Tác vụ nặng giới hạn Concurrency = 1
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:24px; font-weight:800; font-family:monospace; color:var(--brand-light);" id="dag-progress-percent">65%</div>
+            <div style="font-size:11px; color:var(--mut);" id="dag-progress-step">Bước 4 / 6</div>
+          </div>
+        </div>
+        <div style="width:100%; height:8px; background:var(--card-sub); border-radius:99px; overflow:hidden;">
+          <div id="dag-progress-bar" style="width:65%; height:100%; background:var(--brand); transition:width 0.4s ease;"></div>
+        </div>
+      </div>
+
+      <div class="grid-cols-12">
+        <div class="col-7">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Các Bước Thực Thi Dây Chuyền</h3>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;" id="dag-steps-list">
+              <!-- Render các bước DAG -->
+            </div>
+          </div>
+        </div>
+
+        <div class="col-5">
+          <div class="card" style="margin-bottom:14px; background:#0b111a;">
+            <div class="card-header" style="border-color:#1c273a;">
+              <h3 class="card-title" style="color:var(--brand-light);">Nhật Ký Thực Thi (Harness Audit Log)</h3>
+              <span style="font-size:10px; color:var(--mut); font-family:monospace;">STDOUT / EVENT</span>
+            </div>
+            <div id="terminal-logs" style="font-family:monospace; font-size:11px; color:#cbd5e1; height:200px; overflow-y:auto; line-height:1.6;">
+              <div>[00:00.1] Khởi tạo phiên Harness session_9f8e21</div>
+              <div>[00:00.4] Khóa snapshot nhận diện baha_giai_thich_cong_nghe_v1</div>
+              <div>[00:02.1] LLM thẩm định 12 phân cảnh: HỢP CHUẨN 100%</div>
+              <div>[00:06.3] Sinh giọng đọc TTS và đo đạc audio: 120.0s (3.600 frames)</div>
+              <div>[00:14.8] Điều phối Flow adapter sinh tư liệu (Biên nhận rcpt_flow_b8a9c0)</div>
+            </div>
+          </div>
+
+          <!-- BỘ ĐIỀU KHIỂN MÔ PHỎNG PROTOTYPE -->
+          <div class="card" style="border-style:dashed; border-color:rgba(37,99,235,0.4); background:rgba(37,99,235,0.04);">
+            <div class="card-header">
+              <h3 class="card-title" style="color:var(--brand-light);">Công Cụ Thử Nghiệm Trạng Thái Prototype</h3>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <button type="button" class="btn btn-sm btn-outline" onclick="simulateState('SUCCESS')">Mô phỏng: Hoàn tất 100%</button>
+              <button type="button" class="btn btn-sm btn-outline" onclick="simulateState('DURATION_ERROR')">Mô phỏng: Lệch thời lượng</button>
+              <button type="button" class="btn btn-sm btn-outline" onclick="simulateState('MISSING_ASSET')">Mô phỏng: Thiếu recording</button>
+              <button type="button" class="btn btn-sm btn-outline" onclick="simulateState('LLM_TIMEOUT')">Mô phỏng: Timeout LLM</button>
+            </div>
+            <div style="margin-top:14px;" id="btn-next-step-wrap">
+              <button type="button" class="btn btn-success" style="width:100%;" onclick="gotoStep(4)">
+                Xem Trước & Kiểm Định QC Video (Bước Tiếp Theo)
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BƯỚC 4: XEM TRƯỚC, QC & GÓI TẢI -->
+    <div id="view-step-4" style="display:none;">
+      <!-- BANNER QC THÔNG QUA -->
+      <div class="card" style="margin-bottom:20px; background:rgba(16,185,129,0.08); border-color:rgba(16,185,129,0.3);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <div style="background:rgba(16,185,129,0.2); padding:8px; border-radius:8px; color:var(--ok);">
+              <svg class="svg-icon" style="width:22px;height:22px;" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+            </div>
+            <div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-weight:700;">Kiểm Định Chất Lượng Thành Phẩm (QC Gate):</span>
+                <span class="badge badge-ok">5/5 TIÊU CHÍ ĐẠT CHUẨN</span>
+              </div>
+              <div style="font-size:11px; color:var(--mut); font-family:monospace; margin-top:2px;">
+                EBU R128: -14.1 LUFS (±1 LUFS) &bull; True Peak: -1.5 dBTP &bull; Khung hình: 1080x1920 30fps CFR &bull; Full Decode: 0 lỗi
+              </div>
+            </div>
+          </div>
+          <div>
+            <button type="button" class="btn btn-success" onclick="openDownloadModal()">
+              <svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+              Tải Gói Xuất Bản Hoàn Chỉnh (.ZIP)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-cols-12">
+        <!-- PLAYER VIDEO DỌC -->
+        <div class="col-5">
+          <div class="player-wrap">
+            <!-- SAFE ZONE OVERLAY -->
+            <div class="safe-zone" id="safe-zone-overlay">
+              <div style="background:rgba(245,158,11,0.15); height:32px; font-size:9px; font-family:monospace; color:var(--warn); display:flex; align-items:center; justify-content:center; border-bottom:1px solid rgba(245,158,11,0.4);">
+                Safe Zone: Mép trên (150px)
+              </div>
+              <div style="display:flex; justify-content:flex-end; padding-right:6px;">
+                <div style="background:rgba(245,158,11,0.15); width:50px; height:120px; font-size:8px; font-family:monospace; color:var(--warn); display:flex; align-items:center; justify-content:center; text-align:center; border:1px solid rgba(245,158,11,0.4); border-radius:4px;">
+                  Nút TikTok
+                </div>
+              </div>
+              <div style="background:rgba(245,158,11,0.15); height:54px; font-size:9px; font-family:monospace; color:var(--warn); display:flex; align-items:center; justify-content:center; border-top:1px solid rgba(245,158,11,0.4);">
+                Vùng Caption TikTok (320px)
+              </div>
+            </div>
+
+            <!-- NỘI DUNG MÔ PHỎNG PLAYER -->
+            <div style="position:absolute; inset:0; z-index:0; background:linear-gradient(180deg, #090e17 0%, #172554 50%, #090e17 100%); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center;">
+              <img src="../sin_creator_os/public/logo.png" style="width:48px; height:48px; object-fit:contain; margin-bottom:12px; filter:drop-shadow(0 2px 8px rgba(0,0,0,0.5));" alt="Logo">
+              <div style="font-size:11px; font-family:monospace; color:var(--brand-light); margin-bottom:6px;">BAHA CREATOR STUDIO</div>
+              <div style="font-weight:800; font-size:15px; color:#fff; line-height:1.3; margin-bottom:10px;" id="player-title">
+                RAG vs Fine-tuning: Chiến Lược Ứng Dụng Doanh Nghiệp
+              </div>
+              <div style="font-size:11px; color:#94a3b8; font-style:italic;" id="player-time-display">00:00 / 02:00</div>
+
+              <!-- PHỤ ĐỀ MẪU AN TOÀN -->
+              <div style="position:absolute; bottom:68px; left:16px; right:16px; z-index:10;">
+                <span style="background:rgba(0,0,0,0.85); color:#fff; font-size:11px; font-weight:600; padding:6px 10px; border-radius:6px; display:inline-block; line-height:1.4;">
+                  RAG giúp doanh nghiệp truy xuất dữ liệu nội bộ tức thì mà không cần huấn luyện lại mô hình lớn.
+                </span>
+              </div>
+            </div>
+
+            <!-- CONTROLS DƯỚI PLAYER -->
+            <div style="position:relative; z-index:20; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); border-radius:10px; padding:6px 12px; display:flex; justify-content:space-between; align-items:center; color:#fff;">
+              <button type="button" class="btn btn-sm btn-outline" style="border:none; padding:4px;" onclick="togglePlay()" id="btn-player-play">
+                <svg class="svg-icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              </button>
+              <span style="font-size:11px; font-family:monospace;" id="player-timer-text">00:00 / 02:00</span>
+              <button type="button" class="btn btn-sm btn-outline" style="border:none; padding:4px;" onclick="alert('Âm thanh chuẩn: -14.1 LUFS')">
+                <svg class="svg-icon" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div style="text-align:center; margin-top:12px;">
+            <label style="font-size:12px; cursor:pointer;">
+              <input type="checkbox" id="check-safe-zone" checked onchange="toggleSafeZone()">
+              Hiển thị lớp an toàn TikTok Safe Zone (9:16)
+            </label>
+          </div>
+        </div>
+
+        <!-- CỘT SỬA CỤC BỘ 1 CẢNH & THÔNG SỐ TÀI SẢN -->
+        <div class="col-7">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Sửa Cục Bộ Phân Cảnh (Scoped Re-render)</h3>
+              <span class="badge badge-brand">Bảo toàn hash các cảnh khác</span>
+            </div>
+            <p style="font-size:12px; color:var(--mut); margin:0 0 12px;">
+              Bấm &ldquo;Sửa cảnh này&rdquo; để thay đổi kịch bản/prompt một shot duy nhất. Hệ thống chỉ render lại đúng shot đó, không tốn chi phí và thời gian tạo lại toàn bộ 11 cảnh còn lại!
+            </p>
+
+            <div style="display:flex; flex-direction:column; gap:8px;" id="edit-scene-list">
+              <!-- Render danh sách cảnh có nút sửa -->
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px; border-top:1px solid var(--border); padding-top:14px;">
+              <button type="button" class="btn btn-outline" onclick="gotoStep(1)">
+                <svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                Tạo Dự Án Video Khác
+              </button>
+              <button type="button" class="btn btn-success" onclick="openDownloadModal()">
+                Tải Xuống Trọn Gói (.ZIP)
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NỘI DUNG TAB 2: HỒ SƠ PHONG CÁCH KÊNH (STYLE BOARD) -->
+  <div id="tab-content-style" style="display:none;">
+    <div class="card" style="margin-bottom:20px; background:rgba(37,99,235,0.06); border-color:rgba(37,99,235,0.25);">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-weight:700; font-size:15px;">Hồ Sơ Phong Cách Công Ty: baha_giai_thich_cong_nghe</span>
+            <span class="badge badge-ok">ĐÃ DUYỆT BẤT BIẾN</span>
+          </div>
+          <div style="font-size:12px; color:var(--mut); margin-top:2px;">
+            Áp dụng cho mọi video sản xuất trên kênh TikTok <code style="font-family:monospace; color:var(--brand-light);">tiktok_tiktok</code> &bull; Snapshot Hash: <code style="font-family:monospace;">sha256:7f8e3d2a...</code>
+          </div>
+        </div>
+        <div style="font-size:12px; font-family:monospace; color:var(--mut);">
+          Phiên bản: 1.0.0 &bull; Trạng thái: LOCKED
+        </div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:16px;">
+      <!-- Khối 1: Logo -->
+      <div class="card">
+        <div class="card-header">
+          <h4 class="card-title">1. Logo & Nhận Diện</h4>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px; background:var(--card-sub); padding:10px; border-radius:8px; margin-bottom:10px;">
+          <img src="../sin_creator_os/public/logo.png" style="width:44px; height:44px; object-fit:contain; background:#fff; border-radius:8px; padding:2px;" alt="Logo">
+          <div>
+            <div style="font-weight:700; font-size:12px;">Logo BAHA Group Chuẩn</div>
+            <div style="font-size:11px; color:var(--mut); font-family:monospace;">1200x1382 RGBA (822 KB)</div>
+          </div>
+        </div>
+        <div style="font-size:11px; color:var(--mut); line-height:1.5;">
+          &bull; Vị trí: Góc trên trái trong Safe Zone.<br>
+          &bull; Clear space: 24px.<br>
+          &bull; CẤM AI sinh vẽ lại logo trong cảnh video.
+        </div>
+      </div>
+
+      <!-- Khối 2: Bảng Màu -->
+      <div class="card">
+        <div class="card-header">
+          <h4 class="card-title">2. Bảng Màu Ngữ Nghĩa</h4>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-family:monospace; font-size:11px;">
+          <div style="display:flex; align-items:center; gap:6px; background:var(--card-sub); padding:6px; border-radius:6px;">
+            <div style="width:14px; height:14px; border-radius:50%; background:#1e3a8a;"></div>
+            <span>Primary: #1e3a8a</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; background:var(--card-sub); padding:6px; border-radius:6px;">
+            <div style="width:14px; height:14px; border-radius:50%; background:#2563eb;"></div>
+            <span>Accent: #2563eb</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; background:var(--card-sub); padding:6px; border-radius:6px;">
+            <div style="width:14px; height:14px; border-radius:50%; background:#0f172a;"></div>
+            <span>Dark: #0f172a</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; background:var(--card-sub); padding:6px; border-radius:6px;">
+            <div style="width:14px; height:14px; border-radius:50%; background:#38bdf8;"></div>
+            <span>Cyan: #38bdf8</span>
+          </div>
+        </div>
+        <div style="font-size:11px; color:var(--mut); margin-top:10px;">
+          Độ tương phản chữ/nền: Đạt chuẩn WCAG AAA (&gt; 7:1) chống chìm chữ.
+        </div>
+      </div>
+
+      <!-- Khối 3: Giọng Đọc -->
+      <div class="card">
+        <div class="card-header">
+          <h4 class="card-title">3. Giọng Đọc & Phát Âm</h4>
+        </div>
+        <div style="font-size:12px; margin-bottom:8px;">
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span style="color:var(--mut);">Giọng đọc:</span>
+            <span style="font-weight:700;">Vi-VN Neural TTS</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span style="color:var(--mut);">Âm lượng EBU:</span>
+            <span style="font-weight:700; color:var(--ok);">-14.0 LUFS (±1.0 LUFS)</span>
+          </div>
+        </div>
+        <div style="background:var(--card-sub); padding:8px; border-radius:6px; font-size:11px; font-family:monospace;">
+          RAG &rarr; R-A-G &bull; MCP &rarr; M-C-P &bull; API &rarr; A-P-I
+        </div>
+      </div>
+
+      <!-- Khối 4: Phông Chữ -->
+      <div class="card">
+        <div class="card-header">
+          <h4 class="card-title">4. Phông Chữ & Phụ Đề</h4>
+        </div>
+        <div style="font-size:11px; color:var(--mut); line-height:1.6;">
+          &bull; Họ phông: Arial / Sans-serif tiếng Việt UTF-8.<br>
+          &bull; Phụ đề: Tối đa 2 dòng / 38 ký tự mỗi dòng.<br>
+          &bull; Tốc độ đọc: &le; 20 ký tự/giây.<br>
+          &bull; Căn chỉnh: Sai lệch cue audio &lt; 200ms.
+        </div>
+      </div>
+
+      <!-- Khối 5: Safe Zone -->
+      <div class="card">
+        <div class="card-header">
+          <h4 class="card-title">5. TikTok Safe Zone</h4>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:11px; font-family:monospace;">
+          <div style="background:var(--card-sub); padding:6px; border-radius:6px;">Mép trên: 150 px</div>
+          <div style="background:var(--card-sub); padding:6px; border-radius:6px;">Mép dưới: 320 px</div>
+          <div style="background:var(--card-sub); padding:6px; border-radius:6px;">Mép phải: 120 px</div>
+          <div style="background:var(--card-sub); padding:6px; border-radius:6px;">Mép trái: 60 px</div>
+        </div>
+      </div>
+
+      <!-- Khối 6: Điều Cấm -->
+      <div class="card">
+        <div class="card-header">
+          <h4 class="card-title" style="color:var(--err);">6. Danh Sách Điều Cấm</h4>
+        </div>
+        <div style="font-size:11px; color:var(--mut); line-height:1.6;">
+          &bull; CẤM AI sinh chữ hoặc giao diện giả trong video.<br>
+          &bull; CẤM đổi sang phong cách neon, anime, 3D phô diễn.<br>
+          &bull; CẤM đổi giọng đọc hoặc bảng màu giữa các video.<br>
+          &bull; CẤM cắt âm tiết giọng đọc để ép thời lượng.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL SỬA CẢNH -->
+<div class="modal-backdrop" id="modal-edit-scene">
+  <div class="modal-card">
+    <div class="card-header">
+      <h3 class="card-title" id="modal-edit-title">Sửa Cục Bộ Phân Cảnh (c08)</h3>
+      <button type="button" class="btn btn-sm btn-outline" onclick="closeEditModal()">Đóng</button>
+    </div>
+    <p style="font-size:12px; color:var(--mut); margin:0 0 12px;">
+      Chỉ sinh lại riêng phân cảnh này bằng Flow. Toàn bộ 11 phân cảnh khác được bảo toàn 100% hash tư liệu và audio.
+    </p>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:11px; font-weight:600; display:block; margin-bottom:4px;">Prompt kỹ thuật phân cảnh mới:</label>
+      <textarea id="modal-edit-prompt" rows="4" style="font-family:monospace; font-size:12px;"></textarea>
+    </div>
+    <div id="modal-edit-success" style="display:none; padding:8px; border-radius:6px; background:var(--ok-bg); color:var(--ok); font-size:11px; margin-bottom:12px;">
+      Đã cập nhật phân cảnh thành công! Hash các cảnh khác giữ nguyên bất biến.
+    </div>
+    <div style="text-align:right;">
+      <button type="button" class="btn btn-primary" onclick="saveEditScene()">Lưu & Tái Dựng Cảnh Này</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TẢI GÓI XUẤT BẢN -->
+<div class="modal-backdrop" id="modal-download">
+  <div class="modal-card">
+    <div class="card-header">
+      <h3 class="card-title">Gói Video Thành Phẩm & Hồ Sơ Xuất Bản</h3>
+      <button type="button" class="btn btn-sm btn-outline" onclick="closeDownloadModal()">Đóng</button>
+    </div>
+    <p style="font-size:12px; color:var(--mut); margin:0 0 14px;">
+      Trọn bộ tệp tài sản đã được kiểm định EBU R128 (-14.1 LUFS) và khóa mã băm SHA-256 nguyên tử:
+    </p>
+    <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:18px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--card-sub); padding:8px 12px; border-radius:6px; font-size:12px;">
+        <div>
+          <b style="font-family:monospace; display:block;">video_thanh_pham_120s.mp4</b>
+          <span style="font-size:11px; color:var(--mut);">Video dọc 1080x1920, 30fps CFR, H.264 + AAC</span>
+        </div>
+        <span class="badge badge-brand">28.4 MB</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--card-sub); padding:8px 12px; border-radius:6px; font-size:12px;">
+        <div>
+          <b style="font-family:monospace; display:block;">phu_de_tieng_viet.srt</b>
+          <span style="font-size:11px; color:var(--mut);">Phụ đề UTF-8 chuẩn TikTok Safe Zone</span>
+        </div>
+        <span class="badge badge-brand">4.2 KB</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--card-sub); padding:8px 12px; border-radius:6px; font-size:12px;">
+        <div>
+          <b style="font-family:monospace; display:block;">kich_ban_va_storyboard.json</b>
+          <span style="font-size:11px; color:var(--mut);">Kịch bản, phân cảnh và prompt kỹ thuật từng shot</span>
+        </div>
+        <span class="badge badge-brand">12.8 KB</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--card-sub); padding:8px 12px; border-radius:6px; font-size:12px;">
+        <div>
+          <b style="font-family:monospace; display:block;">du_an_timeline.json</b>
+          <span style="font-size:11px; color:var(--mut);">Tệp dự án chỉnh sửa lại (Timeline V2 Native)</span>
+        </div>
+        <span class="badge badge-brand">34.1 KB</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; background:var(--card-sub); padding:8px 12px; border-radius:6px; font-size:12px;">
+        <div>
+          <b style="font-family:monospace; display:block;">bao_cao_kiem_dinh_qc.json</b>
+          <span style="font-size:11px; color:var(--mut);">Số đo EBU R128 (-14.1 LUFS), True Peak, Safe zone</span>
+        </div>
+        <span class="badge badge-brand">5.6 KB</span>
+      </div>
+    </div>
+    <div style="text-align:right;">
+      <button type="button" class="btn btn-success" onclick="alert('Bắt đầu tải gói tài sản video_package_120s.zip (28.5 MB)...')">
+        Tải Xuống Gói .ZIP Hoàn Chỉnh
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Dữ liệu mẫu 60s và 120s
+const DATA_60S = {
+  duration: 60,
+  frames: 1800,
+  cost: "$0.45 USD",
+  script: "Phân biệt Chatbot và AI Agent: Chatbot chỉ đưa ra phản hồi bằng văn bản dựa trên câu hỏi trực tiếp, trong khi AI Agent sở hữu bộ nhớ, công cụ API bên ngoài và tự lập kế hoạch nhiều bước để giải quyết bài toán phức tạp cho doanh nghiệp.",
+  scenes: [
+    { id: "c01", time: "0-3s", frames: 90, type: "HOOK", title: "Hook Mở Đầu", voice: "Đừng nhầm Chatbot và AI Agent: Một bên chỉ trả lời, một bên trực tiếp hành động.", caption: "CHATBOT VS AI AGENT: KHÁC BIỆT THỰC SỰ LÀ GÌ?", prompt: "Văn bản chữ động sắc nét tương phản cao trên nền xanh đen #0f172a, chuyển động kinetic typography nhịp nhanh.", asset: "Đồ họa vector SVG", status: "SAN_SANG" },
+    { id: "c02", time: "3-15s", frames: 360, type: "DIAGRAM", title: "Bản Chất Chatbot", voice: "Chatbot thông thường chỉ xử lý ngôn ngữ và đưa ra câu trả lời dựa trên ngữ cảnh tức thời.", caption: "Chatbot: Phản hồi 1 lần (Single-turn QA)", prompt: "Sơ đồ luồng dữ liệu 2 chiều đơn giản giữa người dùng và ô chat, đường nối phát sáng nhã nhặn theo bảng màu BAHA.", asset: "Sơ đồ giải thích BAHA", status: "DO_HOA_SVG" },
+    { id: "c03", time: "15-43s", frames: 840, type: "SCREEN_RECORDING", title: "Bản Chất AI Agent", voice: "AI Agent sở hữu bộ nhớ dài hạn, công cụ API bên ngoài và khả năng tự lập kế hoạch nhiều bước để hoàn thành mục tiêu.", caption: "AI Agent: Lập kế hoạch + Gọi công cụ + Bộ nhớ", prompt: "Quay màn hình thao tác công cụ tự động hóa gọi API trích xuất dữ liệu, khung hình crop 9:16 căn giữa.", asset: "Tư liệu quay màn hình BAHA Agent OS", status: "CHO_RECORDING" },
+    { id: "c04", time: "43-55s", frames: 360, type: "TEXT_MOTION", title: "Ứng Dụng Doanh Nghiệp", voice: "Trong doanh nghiệp, Agent tự động phân loại đơn hàng, trích xuất hóa đơn và gửi email xác nhận mà không cần con người trực tiếp thao tác.", caption: "Ứng Dụng: Tự Động Hóa Quy Trình Doanh Nghiệp", prompt: "Đồ họa motion infographics hiển thị 3 chỉ số tự động hóa: Tốc độ x5, Tiết kiệm 70% thời gian.", asset: "Infographics BAHA", status: "SAN_SANG" },
+    { id: "c05", time: "55-60s", frames: 150, type: "BRAND_OUTRO", title: "Brand Outro BAHA (O1)", voice: "BAHA Group — Cung cấp giải pháp AI toàn diện.", caption: "BAHA GROUP &bull; GIẢI PHÁP AI TOÀN DIỆN", prompt: "Khung hình Outro nhận diện thương hiệu BAHA O1: Logo logo.png căn giữa, chuyển động nhẹ.", asset: "Asset public/logo.png", status: "SAN_SANG" }
+  ]
+};
+
+const DATA_120S = {
+  duration: 120,
+  frames: 3600,
+  cost: "$0.85 USD",
+  script: "So sánh kiến trúc RAG (Retrieval-Augmented Generation) và Fine-tuning trong ứng dụng doanh nghiệp: RAG giúp truy xuất tri thức nội bộ tức thì với chi phí thấp và trích dẫn rõ nguồn gốc, trong khi Fine-tuning cập nhật trọng số nơ-ron cho các bài toán đòi hỏi giọng điệu chuyên sâu hoặc miền tri thức hẹp.",
+  scenes: [
+    { id: "c01", time: "0-3s", frames: 90, type: "HOOK", title: "Hook Trực Diện", voice: "Nhiều doanh nghiệp tốn tiền tỷ huấn luyện lại mô hình mà không biết RAG có thể giải quyết 80% bài toán.", caption: "RAG HAY FINE-TUNING? SAI LẦM HÀNG TỶ ĐỒNG CỦA DOANH NGHIỆP", prompt: "Văn bản chữ động kinetic typography nhấn mạnh 'Tốn tiền tỷ' vs 'RAG 80%', phông chữ Arial chuẩn dấu tiếng Việt.", asset: "Đồ họa vector SVG", status: "SAN_SANG" },
+    { id: "c02", time: "3-13s", frames: 300, type: "DIAGRAM", title: "Bản Chất RAG", voice: "Bản chất RAG là cơ chế tìm kiếm và cấp ngữ cảnh tri thức nội bộ cho mô hình ngôn ngữ lớn tại thời điểm thực.", caption: "RAG = Retrieval + Augmented + Generation", prompt: "Sơ đồ kiến trúc 3 bước: Tài liệu PDF &rarr; Vector Database &rarr; Đưa vào Prompt của LLM.", asset: "Sơ đồ Vector DB BAHA", status: "DO_HOA_SVG" },
+    { id: "c03", time: "13-23s", frames: 300, type: "DIAGRAM", title: "Bản Chất Fine-Tuning", voice: "Fine-tuning là quá trình cập nhật trực tiếp các trọng số mạng nơ-ron bằng tập dữ liệu huấn luyện chuyên ngành sâu.", caption: "Fine-Tuning: Thay đổi trọng số nơ-ron (Weights Update)", prompt: "Sơ đồ mạng nơ-ron đa tầng với các liên kết phát sáng đổi màu khi nạp bộ dữ liệu huấn luyện domain.", asset: "Đồ họa thuật toán AI BAHA", status: "DO_HOA_SVG" },
+    { id: "c04", time: "23-35s", frames: 360, type: "TEXT_MOTION", title: "So Sánh Cập Nhật", voice: "RAG thắng thế ở khả năng cập nhật tài liệu tức thì và trích dẫn chính xác nguồn dữ liệu kiểm chứng.", caption: "Cập nhật tài liệu: RAG mất 1 giây &bull; FT mất hàng tuần", prompt: "Bảng so sánh 2 cột: Cập nhật tài liệu (RAG tức thì / FT cần train lại); Độ tin cậy (RAG có trích dẫn nguồn).", asset: "Bảng đối chiếu BAHA", status: "SAN_SANG" },
+    { id: "c05", time: "35-47s", frames: 360, type: "SCREEN_RECORDING", title: "Demo Tra Cứu Thật", voice: "Thao tác thực tế: Tìm kiếm chính sách nhân sự nội bộ qua hệ thống Vector Database và LLM.", caption: "Thao Tác Thực Tế: Tra Cứu Quy Chế Nội Bộ", prompt: "Quay màn hình tìm kiếm tài liệu trên phần mềm quản trị nội bộ BAHA, hiển thị đoạn trích dẫn đúng trang tài liệu gốc.", asset: "Video quay màn hình hệ thống BAHA", status: "CHO_RECORDING" },
+    { id: "c06", time: "47-59s", frames: 360, type: "SCREEN_RECORDING", title: "Kiểm Soát Ranh Giới", voice: "Luồng kiểm soát thông tin: Hệ thống từ chối trả lời nếu tài liệu nội bộ không chứa dữ liệu được xác thực.", caption: "Chống Bịa Đặt: Từ Chối Trả Lời Khi Thiếu Căn Cứ", prompt: "Màn hình hiển thị câu hỏi không có trong dữ liệu nội bộ và AI phản hồi lịch sự 'Không có căn cứ trong tài liệu'.", asset: "Video kiểm thử BAHA Guardrails", status: "CHO_RECORDING" },
+    { id: "c07", time: "59-71s", frames: 360, type: "DIAGRAM", title: "Kiến Trúc Phân Quyền", voice: "Kiến trúc dữ liệu doanh nghiệp: Phân quyền truy cập tài liệu và cô lập đa khách thuê chặt chẽ.", caption: "Bảo Mật Cấp Doanh Nghiệp: Phân Quyền Đa Tầng", prompt: "Sơ đồ phân quyền 3 tầng: Nhân viên thường &rarr; Quản lý &rarr; Lãnh đạo, các rào chắn truy cập dữ liệu bảo mật.", asset: "Kiến trúc bảo mật BAHA-AUTHZ", status: "DO_HOA_SVG" },
+    { id: "c08", time: "71-83s", frames: 360, type: "AI_VIDEO", title: "Ứng Dụng Thực Tiễn", voice: "Minh họa bối cảnh vận hành hiện đại: Nhân sự tiết kiệm 70% thời gian tra cứu thủ tục nghiệp vụ hàng ngày.", caption: "Hiệu Quả Thực Tế: Giảm 70% Thời Gian Tra Cứu", prompt: "Không gian làm việc văn phòng công nghệ hiện đại, đội ngũ nhân sự sử dụng tablet tương tác nhanh chóng, ánh sáng tự nhiên.", asset: "Flow AI Video Adapter (Biên nhận Harness)", status: "CHO_FLOW" },
+    { id: "c09", time: "83-95s", frames: 360, type: "DIAGRAM", title: "Khi Nào Cần Fine-Tuning?", voice: "Khi nào bắt buộc dùng Fine-tuning? Khi cần mô hình học phong cách giao tiếp riêng hoặc kiến thức y khoa, pháp lý đặc thù.", caption: "Khi Nào Cần Fine-Tuning? Giọng Điệu & Miền Tri Thức Sâu", prompt: "Sơ đồ radar đánh giá 4 tiêu chí: Phong cách phản hồi, Thuật ngữ chuyên sâu, Định dạng đầu ra nghiêm ngặt.", asset: "Sơ đồ radar BAHA", status: "DO_HOA_SVG" },
+    { id: "c10", time: "95-107s", frames: 360, type: "TEXT_MOTION", title: "So Sánh Chi Phí", voice: "Chi phí so sánh: RAG triển khai trong vài ngày với chi phí thấp; Fine-tuning đòi hỏi hạ tầng GPU và chuyên gia dữ liệu.", caption: "Chi Phí & Thời Gian: RAG 3-5 ngày &bull; Fine-Tuning vài tháng", prompt: "Biểu đồ so sánh thời gian và chi phí đầu tư giữa RAG và Fine-Tuning, số liệu rõ ràng minh bạch.", asset: "Biểu đồ so sánh ROI", status: "SAN_SANG" },
+    { id: "c11", time: "107-115s", frames: 240, type: "TEXT_MOTION", title: "Giải Pháp Hybrid", voice: "Mô hình kết hợp tối ưu: Dùng Fine-tuning để định hình phong cách phản hồi và RAG để cung cấp tri thức thời gian thực.", caption: "Giải Pháp Toàn Diện: RAG + Fine-Tuning Hybrid", prompt: "Đồ họa 2 mảnh ghép RAG và Fine-tuning lồng vào nhau tạo thành khối giải pháp hoàn chỉnh.", asset: "Đồ họa hybrid BAHA", status: "SAN_SANG" },
+    { id: "c12", time: "115-120s", frames: 150, type: "BRAND_OUTRO", title: "Brand Outro BAHA (O1/O3)", voice: "BAHA Group — Cung cấp giải pháp AI toàn diện. Liên hệ ngay để đánh giá bài toán của bạn.", caption: "BAHA GROUP &bull; CUNG CẤP GIẢI PHÁP AI TOÀN DIỆN", prompt: "Khung hình Outro thương hiệu BAHA O3: Logo logo.png + Slogan 'Cung cấp giải pháp AI toàn diện' + Lời mời trải nghiệm giải pháp.", asset: "Asset public/logo.png", status: "SAN_SANG" }
+  ]
+};
+
+let currentDataset = DATA_120S;
+let activeSceneId = "c01";
+let isPlaying = false;
+let playSeconds = 0;
+let playTimer = null;
+
+function loadPreset(type) {
+  if (type === '60s') {
+    currentDataset = DATA_60S;
+    setDuration(60);
+  } else {
+    currentDataset = DATA_120S;
+    setDuration(120);
+  }
+  document.getElementById('input-script').value = currentDataset.script;
+  document.getElementById('char-counter').innerText = currentDataset.script.length + " ký tự";
+  renderScenesList();
+}
+
+function setDuration(sec) {
+  document.getElementById('btn-sec-60').className = sec === 60 ? "btn btn-sm btn-primary" : "btn btn-sm btn-outline";
+  document.getElementById('btn-sec-90').className = sec === 90 ? "btn btn-sm btn-primary" : "btn btn-sm btn-outline";
+  document.getElementById('btn-sec-120').className = sec === 120 ? "btn btn-sm btn-primary" : "btn btn-sm btn-outline";
+  document.getElementById('target-duration-display').innerText = sec + " Giây (" + (sec * 30) + " Frames)";
+  document.getElementById('stat-total-frames').innerText = (sec * 30) + " F";
+  document.getElementById('stat-total-sec').innerText = sec + " giây • 30 fps CFR";
+  document.getElementById('player-time-display').innerText = "00:00 / " + formatTime(sec);
+  document.getElementById('player-timer-text').innerText = "00:00 / " + formatTime(sec);
+}
+
+function gotoStep(step) {
+  for (let i = 1; i <= 4; i++) {
+    document.getElementById('view-step-' + i).style.display = i === step ? "block" : "none";
+    document.getElementById('step-nav-' + i).className = i === step ? "step-item active" : "step-item";
+  }
+  if (step === 2) {
+    renderScenesList();
+    selectScene(currentDataset.scenes[0].id);
+  }
+  if (step === 3) {
+    renderDagSteps();
+  }
+  if (step === 4) {
+    renderEditSceneList();
+  }
+}
+
+function switchMainTab(tab) {
+  document.getElementById('tab-btn-flow').className = tab === 'flow' ? "tab-btn active" : "tab-btn";
+  document.getElementById('tab-btn-style').className = tab === 'style' ? "tab-btn active" : "tab-btn";
+  document.getElementById('tab-content-flow').style.display = tab === 'flow' ? "block" : "none";
+  document.getElementById('tab-content-style').style.display = tab === 'style' ? "block" : "none";
+  document.getElementById('steps-nav-bar').style.display = tab === 'flow' ? "grid" : "none";
+}
+
+function renderScenesList() {
+  const container = document.getElementById('scenes-list-container');
+  container.innerHTML = "";
+  document.getElementById('stat-scene-count').innerText = currentDataset.scenes.length + " Cảnh / " + currentDataset.scenes.length + " Shot";
+  document.getElementById('stat-cost').innerText = currentDataset.cost;
+  document.getElementById('badge-total-scenes').innerText = currentDataset.scenes.length + " Cảnh";
+
+  currentDataset.scenes.forEach(sc => {
+    const div = document.createElement('div');
+    div.className = "scene-item" + (sc.id === activeSceneId ? " active" : "");
+    div.id = "scene-card-" + sc.id;
+    div.onclick = () => selectScene(sc.id);
+    div.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <span style="font-weight:700; font-family:monospace; color:var(--brand-light);">${sc.id}</span>
+        <span style="font-weight:600; font-size:12px;">${sc.title}</span>
+        <span class="badge badge-brand">${sc.time}</span>
+      </div>
+      <div style="font-size:11px; color:var(--mut); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+        "${sc.voice}"
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function selectScene(scId) {
+  activeSceneId = scId;
+  const sc = currentDataset.scenes.find(s => s.id === scId) || currentDataset.scenes[0];
+  document.querySelectorAll('.scene-item').forEach(el => el.classList.remove('active'));
+  const activeEl = document.getElementById('scene-card-' + scId);
+  if (activeEl) activeEl.classList.add('active');
+
+  document.getElementById('detail-scene-title').innerText = sc.id + ": " + sc.title;
+  document.getElementById('detail-scene-meta').innerText = sc.time + " (" + sc.frames + " frames) • Loại: " + sc.type;
+  document.getElementById('detail-scene-voice').value = sc.voice;
+  document.getElementById('detail-scene-caption').value = sc.caption;
+  document.getElementById('detail-scene-prompt').value = sc.prompt;
+  document.getElementById('detail-scene-asset').innerText = sc.asset;
+  document.getElementById('detail-scene-status').innerText = sc.status;
+}
+
+const DAG_STEPS = [
+  { id: "b1", name: "1. Khóa Phong Cách Kênh (Style Lock)", desc: "Khóa snapshot nhận diện, palette, font chữ, voice và outro", status: "OK", time: "0.4s", rcpt: "lock_snap_7f8e" },
+  { id: "b2", name: "2. Thẩm Định Kịch Bản (LLM Preflight)", desc: "Kiểm tra độ phủ luận điểm, quy chuẩn prompt, chống hallucination", status: "OK", time: "1.8s", rcpt: "llm_eval_a1b2" },
+  { id: "b3", name: "3. Sinh Giọng Đọc & Căn Phụ Đề (TTS & Alignment)", desc: "Đo thời lượng audio thật từng câu, căn chuẩn timecode < 200ms", status: "OK", time: "4.2s", rcpt: "tts_res_9f8e" },
+  { id: "b4", name: "4. Điều Phối Flow & Tạo Tư Liệu (Flow Harness)", desc: "Phát lệnh có biên nhận Harness cho từng shot, cấm gọi trực tiếp", status: "RUN", time: "8.5s", rcpt: "rcpt_flow_b8a9" },
+  { id: "b5", name: "5. Lắp Ráp & Ghép Dựng Native (FFmpeg CPU)", desc: "Ghép đa track timeline, burn-in subtitle UTF-8, loudnorm -14 LUFS", status: "WAIT", time: "Chờ...", rcpt: null },
+  { id: "b6", name: "6. Kiểm Định Chất Lượng Tự Động (QC Gate)", desc: "Đo đạc EBU R128 (-14.1 LUFS), Safe zone TikTok, full decode", status: "WAIT", time: "Chờ...", rcpt: null }
+];
+
+function renderDagSteps() {
+  const container = document.getElementById('dag-steps-list');
+  container.innerHTML = "";
+  DAG_STEPS.forEach(st => {
+    const div = document.createElement('div');
+    const isOk = st.status === "OK";
+    const isRun = st.status === "RUN";
+    div.style.cssText = `display:flex; justify-content:space-between; align-items:center; padding:10px 14px; border-radius:8px; border:1px solid ${isOk ? 'rgba(16,185,129,0.3)' : isRun ? 'var(--brand)' : 'var(--border)'}; background:${isOk ? 'rgba(16,185,129,0.06)' : isRun ? 'rgba(37,99,235,0.08)' : 'var(--card-sub)'};`;
+    div.innerHTML = `
+      <div>
+        <div style="font-weight:700; font-size:12px; color:${isOk ? 'var(--ok)' : isRun ? 'var(--brand-light)' : 'var(--ink)'};">${st.name}</div>
+        <div style="font-size:11px; color:var(--mut);">${st.desc}</div>
+      </div>
+      <div style="text-align:right; font-family:monospace; font-size:11px;">
+        <span>${st.time}</span>
+        ${st.rcpt ? `<div style="font-size:10px; color:var(--brand-light);">${st.rcpt}</div>` : ''}
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function simulateState(type) {
+  const logBox = document.getElementById('terminal-logs');
+  if (type === 'SUCCESS') {
+    document.getElementById('run-state-badge').innerText = "HOÀN TẤT 100%";
+    document.getElementById('run-state-badge').className = "badge badge-ok";
+    document.getElementById('dag-progress-percent').innerText = "100%";
+    document.getElementById('dag-progress-step').innerText = "Bước 6 / 6";
+    document.getElementById('dag-progress-bar').style.width = "100%";
+    document.getElementById('dag-progress-bar').style.background = "var(--ok)";
+    logBox.innerHTML += `<div>[FFmpeg] Ghép timeline MP4 1080x1920 30fps hoàn tất (3.600 frames)</div><div>[QC] -14.1 LUFS • True Peak -1.5 dBTP &rarr; ĐẠT CHUẨN</div>`;
+  } else if (type === 'DURATION_ERROR') {
+    document.getElementById('run-state-badge').innerText = "CHO_XU_LY_THOI_LUONG";
+    document.getElementById('run-state-badge').className = "badge badge-warn";
+    document.getElementById('dag-progress-bar').style.background = "var(--warn)";
+    logBox.innerHTML += `<div style="color:var(--warn);">[Cảnh báo] Audio thực tế 148.5s vượt trần 120s (+28.5s) ở chế độ GIU_NGUYEN_LOI.</div>`;
+  } else if (type === 'MISSING_ASSET') {
+    document.getElementById('run-state-badge').innerText = "CHO_TU_LIEU";
+    document.getElementById('run-state-badge').className = "badge badge-warn";
+    logBox.innerHTML += `<div style="color:var(--warn);">[Blocker] Cảnh c05/c06 thiếu SCREEN_RECORDING thật trong kho.</div>`;
+  } else if (type === 'LLM_TIMEOUT') {
+    document.getElementById('run-state-badge').innerText = "CHO_LLM";
+    document.getElementById('run-state-badge').className = "badge badge-warn";
+    logBox.innerHTML += `<div style="color:var(--warn);">[Blocker] 9Router Gateway timeout. Dừng chờ an toàn, không fallback thô.</div>`;
+  }
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+function renderEditSceneList() {
+  const container = document.getElementById('edit-scene-list');
+  container.innerHTML = "";
+  currentDataset.scenes.slice(0, 6).forEach(sc => {
+    const div = document.createElement('div');
+    div.style.cssText = "display:flex; justify-content:space-between; align-items:center; background:var(--card-sub); padding:10px 14px; border-radius:8px; border:1px solid var(--border);";
+    div.innerHTML = `
+      <div style="min-width:0; margin-right:12px;">
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:2px;">
+          <span style="font-weight:700; font-family:monospace; color:var(--brand-light);">${sc.id}</span>
+          <span style="font-weight:600; font-size:12px;">${sc.title}</span>
+          <span class="badge badge-brand">${sc.time}</span>
+        </div>
+        <div style="font-size:11px; color:var(--mut); font-family:monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+          ${sc.prompt}
+        </div>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline" onclick="openEditModal('${sc.id}')">Sửa Cảnh Này</button>
+    `;
+    container.appendChild(div);
+  });
+}
+
+function openEditModal(scId) {
+  const sc = currentDataset.scenes.find(s => s.id === scId) || currentDataset.scenes[0];
+  document.getElementById('modal-edit-title').innerText = "Sửa Cục Bộ Phân Cảnh (" + sc.id + ")";
+  document.getElementById('modal-edit-prompt').value = sc.prompt;
+  document.getElementById('modal-edit-success').style.display = "none";
+  document.getElementById('modal-edit-scene').style.display = "flex";
+}
+
+function closeEditModal() {
+  document.getElementById('modal-edit-scene').style.display = "none";
+}
+
+function saveEditScene() {
+  document.getElementById('modal-edit-success').style.display = "block";
+  setTimeout(() => {
+    closeEditModal();
+  }, 1200);
+}
+
+function openDownloadModal() {
+  document.getElementById('modal-download').style.display = "flex";
+}
+
+function closeDownloadModal() {
+  document.getElementById('modal-download').style.display = "none";
+}
+
+function toggleSafeZone() {
+  const show = document.getElementById('check-safe-zone').checked;
+  document.getElementById('safe-zone-overlay').style.display = show ? "flex" : "none";
+}
+
+function togglePlay() {
+  isPlaying = !isPlaying;
+  document.getElementById('btn-player-play').innerHTML = isPlaying
+    ? `<svg class="svg-icon" viewBox="0 0 24 24"><rect width="4" height="16" x="6" y="4"/><rect width="4" height="16" x="14" y="4"/></svg>`
+    : `<svg class="svg-icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+
+  if (isPlaying) {
+    playTimer = setInterval(() => {
+      playSeconds++;
+      if (playSeconds > currentDataset.duration) {
+        playSeconds = 0;
+        togglePlay();
+      }
+      const text = formatTime(playSeconds) + " / " + formatTime(currentDataset.duration);
+      document.getElementById('player-time-display').innerText = text;
+      document.getElementById('player-timer-text').innerText = text;
+    }, 1000);
+  } else {
+    clearInterval(playTimer);
+  }
+}
+
+function formatTime(sec) {
+  const mins = Math.floor(sec / 60);
+  const s = sec % 60;
+  return String(mins).padStart(2, '0') + ":" + String(s).padStart(2, '0');
+}
+
+// Khởi tạo ban đầu
+loadPreset('120s');
+</script>
+</body>
+</html>

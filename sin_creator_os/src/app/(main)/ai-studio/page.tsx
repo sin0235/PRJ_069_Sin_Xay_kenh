@@ -218,6 +218,27 @@ export default function AIStudioPage() {
     };
   }, [generatedVideoPlaybackUrl]);
 
+  React.useEffect(() => {
+    let cancelled = false;
+    void mediaStudioApi.listAssets().then(async (assets) => {
+      const latestVideo = assets
+        .filter((asset) => asset.mime_detected.startsWith("video/") && asset.source_product === "GOOGLE_FLOW")
+        .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
+      if (!latestVideo?.url) return;
+
+      const playbackUrl = await mediaStudioApi.createAssetObjectUrl(latestVideo.url);
+      if (cancelled) {
+        URL.revokeObjectURL(playbackUrl);
+        return;
+      }
+      setGeneratedVideo(latestVideo);
+      setGeneratedVideoPlaybackUrl(playbackUrl);
+    }).catch((err: unknown) => {
+      if (!cancelled) setErrorMessage(err instanceof Error ? err.message : "Không tải được video Flow đã tạo.");
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   const handleDownloadAsset = async (asset: MediaAssetResponse) => {
     if (!asset.url) return;
     try {
@@ -297,6 +318,7 @@ export default function AIStudioPage() {
         prompt: videoPrompt,
         aspect_ratio: "9:16",
         use_official_omni: false,
+        remove_watermark: false,
         start_image_asset_id: referenceImage?.id,
       });
       setGeneratedVideoPlaybackUrl(await mediaStudioApi.createAssetObjectUrl(res.url || ""));

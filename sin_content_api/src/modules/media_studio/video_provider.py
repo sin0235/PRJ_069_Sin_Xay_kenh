@@ -49,7 +49,7 @@ class GoogleFlowZeroCostProvider:
         prompt: str,
         aspect_ratio: str = "9:16",
         workspace_id: str = "default_ws",
-        remove_watermark: bool = True
+        remove_watermark: bool = False
     ) -> Dict[str, Any]:
         """
         Quy trình chuẩn:
@@ -191,7 +191,7 @@ class GoogleOfficialOmniProvider:
         prompt: str,
         aspect_ratio: str = "9:16",
         workspace_id: str = "default_ws",
-        remove_watermark: bool = True
+        remove_watermark: bool = False
     ) -> Dict[str, Any]:
         """Tạo video 16:9 từ mô hình Omni 10s và mở rộng sang 9:16 chuẩn TikTok."""
         res = self.flow_provider.generate(
@@ -220,7 +220,7 @@ class VideoOrchestrator:
         start_image_path: Optional[pathlib.Path] = None,
         start_image_asset_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        remove_watermark: bool = True
+        remove_watermark: bool = False
     ) -> MediaAsset:
         if start_image_path:
             res = self.flow_provider.generate_from_image(

@@ -117,7 +117,7 @@ class MediaStudioService:
         query = db.query(MediaAsset).filter(MediaAsset.workspace_id == workspace_id)
         if project_id:
             query = query.filter(MediaAsset.project_id == project_id)
-        return query.limit(limit).all()
+        return query.order_by(MediaAsset.created_at.desc()).limit(limit).all()
 
     def create_project(
         self,

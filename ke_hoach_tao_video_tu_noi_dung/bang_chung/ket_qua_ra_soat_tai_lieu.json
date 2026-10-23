@@ -1,0 +1,38 @@
+{
+  "tep": [
+    {
+      "ten": "nghien_cuu_hien_trang_va_phuong_an.md",
+      "sha256": "61b48db8cf13e75fda8e8227f11346c39aead737cdda52fb021f3a82c2b05771"
+    },
+    {
+      "ten": "dac_ta_bo_tao_video_hoan_chinh.md",
+      "sha256": "f9f50a23bb5d84e8cf74d7a83c231557517ca6467d661304da37edb3a118ce67"
+    },
+    {
+      "ten": "ke_hoach_trien_khai_va_checklist.md",
+      "sha256": "01b68466106845302250cddcf2287636a0b692881c9383bb1dc93780ea24c772"
+    },
+    {
+      "ten": "ma_tran_nghiem_thu.md",
+      "sha256": "6c4176f984617e5aa00df8e85cdb7531329e82d401cc65f837b74c543e185653"
+    }
+  ],
+  "tam_tep_ma_nguon_da_khao_sat_giu_nguyen": true,
+  "so_gate": 10,
+  "so_o_checklist_chua_thi_cong": 63,
+  "so_ca_nghiem_thu": 31,
+  "storyboard_mau": {
+    "so_canh": 12,
+    "giay": 120,
+    "frame_30_fps": 3600
+  },
+  "ban_sao_dac_ta_goc_khop_hash": true,
+  "ra_soat_doc_lap": "Không còn điểm thiếu quan trọng trong bộ kế hoạch; chỉ rà soát tài liệu.",
+  "kiem_thu_co_so": {
+    "lenh": "python -m pytest tests/test_video_prompt_compiler.py tests/test_media_studio_video.py tests/test_harness_dao_dien.py -q -p no:cacheprovider",
+    "cwd": "03_ban_lam_viec/sin_content_api",
+    "ket_qua": "45 đạt, 1 cảnh báo deprecation, mã thoát 0",
+    "gioi_han": "Có mô phỏng provider; không chứng minh dây chuyền AUTO 120 giây đã hoạt động."
+  },
+  "ket_qua": "Đạt kiểm tra hồ sơ; chưa nghiệm thu sản phẩm mới."
+}
