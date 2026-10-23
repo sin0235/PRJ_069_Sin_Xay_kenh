@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!cong_cu_tu_dong/ma_tham_khao_flow/**/.env.template
 *.pem
 *.key
 *credentials*.json
