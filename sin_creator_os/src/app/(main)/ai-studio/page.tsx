@@ -312,6 +312,8 @@ export default function AIStudioPage() {
 
   const handleGenerateVideo = async () => {
     setIsGeneratingVideo(true);
+    setGeneratedVideo(null);
+    setGeneratedVideoPlaybackUrl(null);
     setErrorMessage(null);
     try {
       const res = await mediaStudioApi.generateVideo({
