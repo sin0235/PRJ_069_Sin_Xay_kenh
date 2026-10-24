@@ -63,11 +63,18 @@ export default function ContentVideoProduction({ projectId, planId, runId }: { p
   }, [projectId, run]);
   React.useEffect(() => {
     if (!run?.final_asset_id) return;
-    void mediaStudioApi.listAssets({ project_id: projectId }).then((assets) => {
+    let cancelled = false;
+    let playbackUrl: string | null = null;
+    void mediaStudioApi.listAssets({ project_id: projectId }).then(async (assets) => {
+      const finalAsset = assets.find((asset) => asset.id === run.final_asset_id);
+      const nextPlaybackUrl = finalAsset?.url ? await mediaStudioApi.createAssetObjectUrl(finalAsset.url) : null;
+      if (cancelled) { if (nextPlaybackUrl) URL.revokeObjectURL(nextPlaybackUrl); return; }
+      playbackUrl = nextPlaybackUrl;
       setProjectAssets(assets);
-      setFinalUrl(assets.find((asset) => asset.id === run.final_asset_id)?.url || null);
+      setFinalUrl(nextPlaybackUrl);
       setExportUrl(assets.find((asset) => asset.id === run.qc_report?.export_asset_id)?.url || null);
-    });
+    }).catch((err) => { if (!cancelled) showError(err, "Không tải được video đã ghép."); });
+    return () => { cancelled = true; if (playbackUrl) URL.revokeObjectURL(playbackUrl); };
   }, [projectId, run?.final_asset_id, run?.qc_report?.export_asset_id]);
   React.useEffect(() => {
     if (run?.status !== "NEEDS_RECONCILIATION") return;
@@ -226,7 +233,7 @@ export default function ContentVideoProduction({ projectId, planId, runId }: { p
         {run.error_message && <p role="alert" className="text-sm text-destructive">{run.error_code}: {run.error_message}</p>}
         {run.qc_report && <div className="rounded-md border p-3 text-sm">QC kỹ thuật: <strong>{run.qc_report.status}</strong>{run.qc_report.acceptance_mode && <span> · {run.qc_report.acceptance_mode}</span>}{run.qc_report.voice_source === "FLOW_NATIVE" && <span> · lời đọc Flow</span>}{run.qc_report.speech_alignment === "NOT_MEASURED" && <span> · căn chỉnh lời chưa đo</span>}{run.qc_report.issues.length > 0 && <span> · {run.qc_report.issues.join(", ")}</span>}</div>}
         {finalUrl && <video controls playsInline src={finalUrl} className="max-h-[70vh] rounded-lg bg-black" />}
-        {exportUrl && <a href={exportUrl} download className="text-sm font-medium underline underline-offset-4">Tải gói sản xuất (ZIP)</a>}
+        {exportUrl && <button type="button" onClick={() => void mediaStudioApi.downloadAsset(exportUrl, "goi_san_xuat.zip").catch((err) => showError(err, "Không tải được gói sản xuất."))} className="text-sm font-medium underline underline-offset-4">Tải gói sản xuất (ZIP)</button>}
       </Card>}
       {error && <div role="alert" className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><p>{error}</p>{errorCode === "LLM_NOT_CONFIGURED" && <a href="/settings/integrations" className="mt-2 inline-block font-medium underline underline-offset-4">Mở cấu hình cổng LLM</a>}</div>}
     </main>
