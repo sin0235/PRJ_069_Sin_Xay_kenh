@@ -26,7 +26,7 @@ export interface ContentVideoRun {
   voice_asset_id?: string | null;
   status: string;
   current_step?: string | null;
-  steps: { shot_id: string; state: string; asset_id?: string | null }[];
+  steps: { shot_id: string; state: string; asset_id?: string | null; flow_project_url?: string | null }[];
   final_asset_id?: string | null;
   qc_report?: { status: string; acceptance_mode?: string; voice_source?: string; issues: string[]; measured?: Record<string, unknown>; export_asset_id?: string; speech_alignment?: string } | null;
   error_code?: string | null;

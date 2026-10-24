@@ -23,7 +23,7 @@ import shutil
 import sys
 import uuid
 import subprocess
-from typing import Dict, Any, Optional, List
+from typing import Callable, Dict, Any, Optional, List
 from sqlalchemy.orm import Session
 
 BAN_LAM_VIEC = pathlib.Path(__file__).resolve().parents[4]
@@ -50,7 +50,9 @@ class GoogleFlowZeroCostProvider:
         prompt: str,
         aspect_ratio: str = "9:16",
         workspace_id: str = "default_ws",
-        remove_watermark: bool = False
+        remove_watermark: bool = False,
+        flow_project_url: Optional[str] = None,
+        on_flow_project_created: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         """
         Quy trình chuẩn:
@@ -82,7 +84,9 @@ class GoogleFlowZeroCostProvider:
                 prompt=flow_directive,
                 aspect_ratio="16:9",
                 workspace_id=workspace_id,
-                timeout_sec=240
+                timeout_sec=240,
+                flow_project_url=flow_project_url,
+                on_flow_project_created=on_flow_project_created,
             )
             raw_16_9_path = pathlib.Path(flow_res["storage_path"])
         except Exception as flow_err:
@@ -132,6 +136,8 @@ class GoogleFlowZeroCostProvider:
         prompt: str,
         image_path: pathlib.Path,
         workspace_id: str = "default_ws",
+        flow_project_url: Optional[str] = None,
+        on_flow_project_created: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         """Tạo I2V trong Flow rồi chuẩn hóa thành video dọc 9:16."""
         target_dir = MEDIA_ROOT_DIR / "workspaces" / workspace_id / "media"
@@ -148,6 +154,8 @@ class GoogleFlowZeroCostProvider:
                 workspace_id=workspace_id,
                 timeout_sec=240,
                 start_image_path=image_path,
+                flow_project_url=flow_project_url,
+                on_flow_project_created=on_flow_project_created,
             )
             shutil.copy2(flow_res["storage_path"], target_dir / f"flow_source_16_9_{file_id}.mp4")
             meta = video_processor.expand_16_9_to_9_16(
@@ -196,14 +204,18 @@ class GoogleOfficialOmniProvider:
         prompt: str,
         aspect_ratio: str = "9:16",
         workspace_id: str = "default_ws",
-        remove_watermark: bool = False
+        remove_watermark: bool = False,
+        flow_project_url: Optional[str] = None,
+        on_flow_project_created: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         """Tạo video 16:9 từ mô hình Omni 10s và mở rộng sang 9:16 chuẩn TikTok."""
         res = self.flow_provider.generate(
             prompt=prompt,
             aspect_ratio=aspect_ratio,
             workspace_id=workspace_id,
-            remove_watermark=remove_watermark
+            remove_watermark=remove_watermark,
+            flow_project_url=flow_project_url,
+            on_flow_project_created=on_flow_project_created,
         )
         return res
 
@@ -225,18 +237,22 @@ class VideoOrchestrator:
         start_image_path: Optional[pathlib.Path] = None,
         start_image_asset_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        remove_watermark: bool = False
+        remove_watermark: bool = False,
+        flow_project_url: Optional[str] = None,
+        on_flow_project_created: Optional[Callable[[str], None]] = None,
     ) -> MediaAsset:
         if start_image_path:
             res = self.flow_provider.generate_from_image(
                 prompt=prompt,
                 image_path=start_image_path,
                 workspace_id=workspace_id,
+                flow_project_url=flow_project_url,
+                on_flow_project_created=on_flow_project_created,
             )
         elif use_official_omni:
-            res = self.omni_provider.generate(prompt=prompt, aspect_ratio=aspect_ratio, workspace_id=workspace_id, remove_watermark=remove_watermark)
+            res = self.omni_provider.generate(prompt=prompt, aspect_ratio=aspect_ratio, workspace_id=workspace_id, remove_watermark=remove_watermark, flow_project_url=flow_project_url, on_flow_project_created=on_flow_project_created)
         else:
-            res = self.flow_provider.generate(prompt=prompt, aspect_ratio=aspect_ratio, workspace_id=workspace_id, remove_watermark=remove_watermark)
+            res = self.flow_provider.generate(prompt=prompt, aspect_ratio=aspect_ratio, workspace_id=workspace_id, remove_watermark=remove_watermark, flow_project_url=flow_project_url, on_flow_project_created=on_flow_project_created)
 
         v_path = pathlib.Path(res["storage_path"])
         meta = video_processor.probe_video(v_path)

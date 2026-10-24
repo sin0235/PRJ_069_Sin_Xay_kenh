@@ -14,8 +14,8 @@ import sys
 import threading
 import time
 import uuid
-from typing import Any, Dict, Optional
-from urllib.parse import quote
+from typing import Any, Callable, Dict, Optional
+from urllib.parse import quote, urlsplit
 
 CURRENT_DIR = pathlib.Path(__file__).resolve().parent
 if str(CURRENT_DIR) not in sys.path:
@@ -72,6 +72,32 @@ class GoogleFlowClient:
         self.headless = headless
 
     @staticmethod
+    def _open_flow_project(page, project_url: Optional[str] = None) -> str:
+        flow = urlsplit(GOOGLE_FLOW_URL)
+        if project_url:
+            project = urlsplit(project_url)
+            if project.scheme != flow.scheme or project.netloc != flow.netloc or "/project/" not in project.path:
+                raise RuntimeError("FLOW_PROJECT_URL_INVALID")
+            page.goto(project_url, wait_until="domcontentloaded", timeout=45000)
+        else:
+            page.goto(GOOGLE_FLOW_URL, wait_until="domcontentloaded", timeout=45000)
+            new_project = page.get_by_role("button", name="New project").first
+            if not new_project.count() or not new_project.is_visible():
+                new_project = page.get_by_role("button", name="Dự án mới").first
+            if not new_project.count() or not new_project.is_visible():
+                raise RuntimeError("FLOW_NEW_PROJECT_BUTTON_UNAVAILABLE")
+            new_project.click(timeout=10000)
+            page.wait_for_url("**/project/**", timeout=30000)
+
+        project_url = page.url.split("/edit/", 1)[0].rstrip("/")
+        project = urlsplit(project_url)
+        if project.scheme != flow.scheme or project.netloc != flow.netloc or "/project/" not in project.path:
+            raise RuntimeError("FLOW_PROJECT_URL_INVALID")
+        if page.url.rstrip("/") != project_url:
+            page.goto(project_url, wait_until="domcontentloaded", timeout=45000)
+        return project_url
+
+    @staticmethod
     def _media_redirect_url(media_name: str) -> str:
         flow_input = json.dumps({"json": {"name": media_name}}, separators=(",", ":"))
         return "https://labs.google/fx/api/trpc/media.getMediaUrlRedirect?input=" + quote(flow_input, safe="")
@@ -110,6 +136,8 @@ class GoogleFlowClient:
         workspace_id: str = "default_ws",
         timeout_sec: int = 240,
         start_image_path: Optional[pathlib.Path] = None,
+        flow_project_url: Optional[str] = None,
+        on_flow_project_created: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         """
         Gửi yêu cầu tạo video 16:9 (10s) tới Google Flow Omni Flash,
@@ -238,22 +266,10 @@ class GoogleFlowClient:
                             "Vui lòng chạy '00_DANG_NHAP_GOOGLE_FLOW.cmd' một lần để đăng nhập."
                         )
 
-                    # Continue at the project canvas, not a previously opened scene editor.
-                    if "/edit/" in page.url:
-                        page.goto(page.url.split("/edit/", 1)[0], wait_until="domcontentloaded", timeout=45000)
-                        page.wait_for_timeout(2000)
-
-                    # 1. Điều hướng vào dự án
-                    if "/project/" not in page.url:
-                        project_link = page.locator("a[href*='/project/']").first
-                        if project_link.count() > 0:
-                            project_link.click()
-                            page.wait_for_timeout(4000)
-                        else:
-                            new_proj_btn = page.locator("button:has-text('Start Creating'), button:has-text('Dự án mới')").first
-                            if new_proj_btn.count() > 0:
-                                new_proj_btn.click()
-                                page.wait_for_timeout(4000)
+                    requested_project_url = flow_project_url
+                    flow_project_url = self._open_flow_project(page, flow_project_url)
+                    if not requested_project_url and on_flow_project_created:
+                        on_flow_project_created(flow_project_url)
 
                     self._ensure_video_mode(page)
                     if start_image_path:

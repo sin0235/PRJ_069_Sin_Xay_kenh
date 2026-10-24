@@ -177,9 +177,11 @@ def test_flow_video_keeps_raw_source_for_next_scene(monkeypatch, tmp_path):
     monkeypatch.setattr(video_provider, "MEDIA_ROOT_DIR", tmp_path)
     source = tmp_path / "flow_source.mp4"
     source.write_bytes(b"original Flow video")
+    flow_call = {}
 
     class FakeFlowClient:
         def create_video(self, **kwargs):
+            flow_call.update(kwargs)
             return {"storage_path": str(source)}
 
     def expand_16_9_to_9_16(**kwargs):
@@ -188,12 +190,21 @@ def test_flow_video_keeps_raw_source_for_next_scene(monkeypatch, tmp_path):
 
     monkeypatch.setattr(google_flow_client, "GoogleFlowClient", lambda **kwargs: FakeFlowClient())
     monkeypatch.setattr(video_provider.video_processor, "expand_16_9_to_9_16", expand_16_9_to_9_16)
-    result = video_provider.GoogleFlowZeroCostProvider().generate("video", workspace_id="workspace-test")
+    on_project_created = lambda _url: None
+    project_url = "https://flow.google.com/project/run-test"
+    result = video_provider.GoogleFlowZeroCostProvider().generate(
+        "video",
+        workspace_id="workspace-test",
+        flow_project_url=project_url,
+        on_flow_project_created=on_project_created,
+    )
 
     raw_source = pathlib.Path(result["storage_path"]).with_name(
         result["filename"].replace("flow_expanded_9_16_", "flow_source_16_9_", 1)
     )
     assert raw_source.read_bytes() == source.read_bytes()
+    assert flow_call["flow_project_url"] == project_url
+    assert flow_call["on_flow_project_created"] is on_project_created
 
 
 def test_image_video_flow_temporarily_skips_watermark_removal(monkeypatch, tmp_path):

@@ -26,6 +26,7 @@ export default function ContentVideoProduction({ projectId, planId, runId }: { p
   const [reconcileAssetId, setReconcileAssetId] = React.useState("");
   const [reconcileReason, setReconcileReason] = React.useState("");
   const [confirmedClipMatch, setConfirmedClipMatch] = React.useState(false);
+  const [confirmedNoFlowClip, setConfirmedNoFlowClip] = React.useState(false);
   const idempotencyKey = React.useRef<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -91,13 +92,14 @@ export default function ContentVideoProduction({ projectId, planId, runId }: { p
     finally { setBusy(false); }
   };
 
-  const startRun = async () => {
-    if (!plan) return;
+  const startRun = async (confirmedUncertainRetry = false) => {
+    if (!plan || (run?.status === "NEEDS_RECONCILIATION" && (!confirmedUncertainRetry || !confirmedNoFlowClip))) return;
     setBusy(true); setError(null); setErrorCode(null);
     try {
       idempotencyKey.current ||= `content-video-${plan.id}-${crypto.randomUUID()}`;
       const created = await contentVideoApi.createRun(projectId, plan.id, voiceAssetId || null, idempotencyKey.current);
       idempotencyKey.current = null;
+      setConfirmedNoFlowClip(false);
       setRun(created);
       router.replace(`/video-studio/${projectId}/production?plan=${encodeURIComponent(plan.id)}&run=${encodeURIComponent(created.id)}`);
     }
@@ -150,6 +152,7 @@ export default function ContentVideoProduction({ projectId, planId, runId }: { p
   };
 
   const uncertainShot = run?.steps.find((step) => step.state === "NEEDS_RECONCILIATION");
+  const flowProjectUrl = run?.steps.find((step) => step.flow_project_url)?.flow_project_url;
   const uncertainStoryboardShot = plan?.storyboard.shots.find((shot) => shot.shot_id === uncertainShot?.shot_id);
   const reconciliationCandidates = projectAssets.filter((asset) =>
     asset.mime_detected === "video/mp4" &&
@@ -177,7 +180,7 @@ export default function ContentVideoProduction({ projectId, planId, runId }: { p
           <div><p className="font-medium">{plan.storyboard.title} · Rev {plan.revision}</p><p className="text-sm text-muted-foreground">{plan.target_duration_seconds}s · {plan.storyboard.shots.length} shot · {plan.status} · {plan.llm_model}</p><p className="mt-1 text-xs text-muted-foreground">{plan.style_snapshot.style_name} · {plan.style_snapshot.palette.join(" / ")}</p></div>
           <div className="flex gap-2">
             {plan.status === "DRAFT" && <Button onClick={approve} disabled={busy}><Check className="mr-2 size-4" />Duyệt storyboard</Button>}
-            {plan.status === "APPROVED" && (!run || RETRYABLE_RUNS.has(run.status)) && <Button onClick={startRun} disabled={busy}><Play className="mr-2 size-4" />{run ? "Tạo run mới qua Flow" : "Tạo video qua Flow"}</Button>}
+            {plan.status === "APPROVED" && (!run || RETRYABLE_RUNS.has(run.status)) && <Button onClick={() => startRun()} disabled={busy}><Play className="mr-2 size-4" />{run ? "Tạo run mới qua Flow" : "Tạo video qua Flow"}</Button>}
           </div>
         </Card>
         {plan.status === "APPROVED" && (!run || RETRYABLE_RUNS.has(run.status)) && <Card className="grid gap-3 p-4">
@@ -196,7 +199,7 @@ export default function ContentVideoProduction({ projectId, planId, runId }: { p
       </>}
 
       {run && <Card className="flex flex-col gap-4 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">Run {run.id.slice(0, 8)} · {run.status}</h2>{run.current_step && <p className="text-sm text-muted-foreground">Đang xử lý {run.current_step}</p>}</div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-semibold">Run {run.id.slice(0, 8)} · {run.status}</h2>{run.current_step && <p className="text-sm text-muted-foreground">Đang xử lý {run.current_step}</p>}{flowProjectUrl && <a href={flowProjectUrl} target="_blank" rel="noreferrer" className="text-sm font-medium underline underline-offset-4">Mở project Flow của video này</a>}</div>
           {run.status === "BLOCKED_FLOW_LOGIN" && <Button onClick={resumeRun} disabled={busy}><RefreshCw className="mr-2 size-4" />Tiếp tục sau khi đăng nhập Flow</Button>}
           {run.status === "BLOCKED_FLOW_SETUP" && <Button onClick={resumeRun} disabled={busy}><RefreshCw className="mr-2 size-4" />Tiếp tục sau khi sửa Flow</Button>}
           {ACTIVE_RUNS.has(run.status) && <LoaderCircle className="size-5 animate-spin" aria-label="Đang chạy" />}
@@ -216,6 +219,8 @@ export default function ContentVideoProduction({ projectId, planId, runId }: { p
           <textarea id="reconcile-reason" minLength={12} maxLength={500} value={reconcileReason} onChange={(event) => setReconcileReason(event.target.value)} className="min-h-20 rounded-md border bg-background p-3 text-sm" placeholder="Ví dụ: đã mở đúng kết quả mới của prompt shot này trong Flow..." />
           <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={confirmedClipMatch} onChange={(event) => setConfirmedClipMatch(event.target.checked)} className="mt-1" />Tôi đã xem clip trong Flow và xác nhận clip này đúng shot đang chờ.</label>
           <Button onClick={reconcileRunShot} disabled={busy || !reconcileAssetId || !confirmedClipMatch || reconcileReason.trim().length < 12} className="w-fit">Xác nhận clip và tiếp tục run</Button>
+          <label className="flex items-start gap-2 border-t pt-3 text-sm"><input type="checkbox" checked={confirmedNoFlowClip} onChange={(event) => setConfirmedNoFlowClip(event.target.checked)} className="mt-1" />Tôi đã kiểm tra Flow và không có clip cho shot này. Run mới sẽ gửi lại toàn bộ video trong project Flow mới; nếu request cũ hoàn tất trễ, Flow có thể tạo thêm clip.</label>
+          <Button onClick={() => startRun(true)} disabled={busy || !confirmedNoFlowClip} className="w-fit">Tạo lại video trong project Flow mới</Button>
         </section>}
         <div className="grid gap-2 sm:grid-cols-2">{run.steps.map((step) => <div key={step.shot_id} className="rounded-md border p-3 text-sm">{step.shot_id} <span className="float-right text-muted-foreground">{step.state}</span></div>)}</div>
         {run.error_message && <p role="alert" className="text-sm text-destructive">{run.error_code}: {run.error_message}</p>}

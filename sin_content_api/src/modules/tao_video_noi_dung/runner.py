@@ -671,6 +671,16 @@ def process_run(run_id: str, token: str | None = None) -> None:
             storyboard = Storyboard.model_validate_json(plan.storyboard_json)
             _voice_input(db, run, plan)
             steps = json.loads(run.steps_json or "[]")
+            flow_project_url = next((step.get("flow_project_url") for step in steps if step.get("flow_project_url")), None)
+
+            def save_flow_project_url(project_url: str) -> None:
+                nonlocal flow_project_url
+                if flow_project_url and flow_project_url != project_url:
+                    raise RuntimeError("FLOW_PROJECT_CHANGED_WITHIN_RUN")
+                flow_project_url = project_url
+                steps[0]["flow_project_url"] = project_url
+                _save_run(db, run, steps)
+
             if not _heartbeat(db, token):
                 raise RuntimeError("WORKER_LEASE_LOST")
 
@@ -724,6 +734,8 @@ def process_run(run_id: str, token: str | None = None) -> None:
                         step=step,
                         start_image_path=start_image_path,
                         start_image_asset_id=start_image_asset_id,
+                        flow_project_url=flow_project_url,
+                        on_flow_project_created=save_flow_project_url,
                     )
                 except FlowLoginRequired:
                     if shot_index:

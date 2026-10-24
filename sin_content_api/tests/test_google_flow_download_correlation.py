@@ -33,6 +33,84 @@ def test_prompt_must_appear_in_a_new_flow_chat_bubble():
     assert _new_flow_prompt_bubble_index(bubbles[:2], 2, prompt) is None
 
 
+def test_new_video_run_creates_a_fresh_flow_project():
+    events = []
+
+    class Button:
+        first = property(lambda self: self)
+
+        def count(self):
+            return 1
+
+        def is_visible(self):
+            return True
+
+        def click(self, **_kwargs):
+            events.append("new_project")
+            page.url = "https://flow.google.com/project/run-123"
+
+    class MissingButton:
+        first = property(lambda self: self)
+
+        def count(self):
+            return 0
+
+        def is_visible(self):
+            return False
+
+    class Page:
+        url = "about:blank"
+
+        def goto(self, url, **_kwargs):
+            events.append(("goto", url))
+            self.url = url
+
+        def get_by_role(self, role, name):
+            assert role == "button"
+            return Button() if name == "Dự án mới" else MissingButton()
+
+        def wait_for_url(self, pattern, **_kwargs):
+            assert pattern == "**/project/**"
+            assert "/project/" in self.url
+
+    page = Page()
+    project_url = flow_client.GoogleFlowClient._open_flow_project(page)
+
+    assert project_url == "https://flow.google.com/project/run-123"
+    assert "new_project" in events
+    assert not any(isinstance(event, tuple) and "/project/" in event[1] for event in events)
+
+
+def test_later_shots_reopen_the_saved_flow_project_without_creating_another():
+    events = []
+    project_url = "https://flow.google.com/project/run-123"
+
+    class Page:
+        url = "about:blank"
+
+        def goto(self, url, **_kwargs):
+            events.append(("goto", url))
+            self.url = f"{url}/edit/scene-1" if len(events) == 1 else url
+
+        def get_by_role(self, *_args, **_kwargs):
+            raise AssertionError("Shot sau phải mở project của run, không tạo project khác")
+
+    page = Page()
+    actual_url = flow_client.GoogleFlowClient._open_flow_project(page, project_url)
+
+    assert actual_url == project_url
+    assert events == [("goto", project_url), ("goto", project_url)]
+
+
+def test_flow_project_url_rejects_external_hosts():
+    class Page:
+        def goto(self, *_args, **_kwargs):
+            raise AssertionError("KhÃ´ng Ä‘Æ°á»£c Ä‘iá»u hÆ°á»›ng Ä‘áº¿n URL khÃ´ng pháº£i Google Flow")
+
+    with pytest.raises(RuntimeError, match="FLOW_PROJECT_URL_INVALID"):
+        flow_client.GoogleFlowClient._open_flow_project(Page(), "https://example.com/project/fake")
+
+
 def test_localized_flow_agent_editor_is_accepted_without_legacy_video_mode_menu():
     class Locator:
         def __init__(self, visible):

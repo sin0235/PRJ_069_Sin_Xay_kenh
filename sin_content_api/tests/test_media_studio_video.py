@@ -1744,8 +1744,14 @@ def test_content_video_worker_generates_ordered_shots_with_previous_frame_refere
 
     calls = []
 
-    def generate_video_scene(*, db, workspace_id, user_id, project_id, prompt, aspect_ratio, start_image_path=None, start_image_asset_id=None, remove_watermark=False):
+    def generate_video_scene(*, db, workspace_id, user_id, project_id, prompt, aspect_ratio, start_image_path=None, start_image_asset_id=None, remove_watermark=False, flow_project_url=None, on_flow_project_created=None):
         index = len(calls)
+        if index == 0:
+            assert flow_project_url is None
+            flow_project_url = "https://flow.google.com/project/run-e2e"
+            on_flow_project_created(flow_project_url)
+        else:
+            assert flow_project_url == "https://flow.google.com/project/run-e2e"
         if index == 0:
             time.sleep(0.55)
             with SessionLocal() as contender_db:
@@ -1783,7 +1789,7 @@ def test_content_video_worker_generates_ordered_shots_with_previous_frame_refere
         )
         db.add(asset)
         db.commit()
-        calls.append({"asset_id": asset.id, "prompt": prompt, "start_image_asset_id": start_image_asset_id})
+        calls.append({"asset_id": asset.id, "prompt": prompt, "start_image_asset_id": start_image_asset_id, "flow_project_url": flow_project_url})
         return asset
 
     monkeypatch.setattr(cong_harness.video_orchestrator, "generate_video_scene", generate_video_scene)
@@ -1831,8 +1837,10 @@ def test_content_video_worker_generates_ordered_shots_with_previous_frame_refere
     assert completed.status == "COMPLETED", (completed.error_code, completed.error_message, completed.steps_json)
     assert completed.lease_token is None and completed.lease_expires_at is None
     assert [step["state"] for step in steps] == ["SUCCEEDED"] * 3
+    assert steps[0]["flow_project_url"] == "https://flow.google.com/project/run-e2e"
     assert len(calls) == 3
     assert [call["start_image_asset_id"] for call in calls] == [None, "asset-worker-0", "asset-worker-1"]
+    assert [call["flow_project_url"] for call in calls] == ["https://flow.google.com/project/run-e2e"] * 3
 
 
 def test_content_video_continuity_uses_raw_flow_source(video_fixture, monkeypatch, tmp_path):

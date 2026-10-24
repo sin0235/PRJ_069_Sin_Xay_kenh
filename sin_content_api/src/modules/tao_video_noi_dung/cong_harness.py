@@ -109,6 +109,8 @@ def dispatch_shot(
     step: dict[str, Any],
     start_image_path=None,
     start_image_asset_id: str | None = None,
+    flow_project_url: str | None = None,
+    on_flow_project_created=None,
 ) -> MediaAsset:
     command = verify_shot_receipt(run, plan, shot, step)
     if step.get("state") != "SUBMITTING":
@@ -123,4 +125,6 @@ def dispatch_shot(
         start_image_path=start_image_path,
         start_image_asset_id=start_image_asset_id,
         remove_watermark=False,
+        flow_project_url=flow_project_url,
+        on_flow_project_created=on_flow_project_created,
     )
