@@ -1576,6 +1576,13 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
             approve_plan(db, project_id, response.id, video_fixture["ws_id"], video_fixture["user_id"])
         assert getattr(self_approval.value, "status_code", None) == 403
 
+        monkeypatch.setenv("BAHA_AUTH_APP_ENV", "test")
+        monkeypatch.setenv("BAHA_AUTH_ALLOW_SELF_APPROVAL_IN_TEST", "1")
+        monkeypatch.setenv("DATABASE_URL", "sqlite:///./sin_content_e2e_test.db")
+        monkeypatch.setenv("BAHA_AUTH_DATABASE_URL", "sqlite:///./baha_auth_e2e_test.db")
+        test_approved = approve_plan(db, project_id, second_plan.id, video_fixture["ws_id"], video_fixture["user_id"])
+        assert test_approved.status == "APPROVED"
+
         approved = approve_plan(db, project_id, response.id, video_fixture["ws_id"], "independent-reviewer")
         assert approved.status == "APPROVED"
         request = CreateRunRequest(plan_id=approved.id, voice_asset_id=voice_asset_id, idempotency_key=f"run-{uuid.uuid4().hex}")
@@ -1752,10 +1759,13 @@ def test_content_video_worker_generates_ordered_shots_with_previous_frame_refere
         else:
             assert start_image_path is None and start_image_asset_id is None
         asset_id = f"asset-worker-{index}"
-        storage_key = f"workspaces/{workspace_id}/media/{asset_id}.mp4"
+        prefix = "flow_expanded_9_16_" if index == 0 else "flow_i2v_9_16_"
+        filename = f"{prefix}worker_{index}.mp4"
+        storage_key = f"workspaces/{workspace_id}/media/{filename}"
         output_path = tmp_path / storage_key
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_bytes(video_fixture["clip_1"].read_bytes())
+        (output_path.parent / filename.replace(prefix, "flow_source_16_9_", 1)).write_bytes(video_fixture["clip_1"].read_bytes())
         asset = MediaAsset(
             id=asset_id,
             workspace_id=workspace_id,
@@ -1823,6 +1833,29 @@ def test_content_video_worker_generates_ordered_shots_with_previous_frame_refere
     assert [step["state"] for step in steps] == ["SUCCEEDED"] * 3
     assert len(calls) == 3
     assert [call["start_image_asset_id"] for call in calls] == [None, "asset-worker-0", "asset-worker-1"]
+
+
+def test_content_video_continuity_uses_raw_flow_source(video_fixture, monkeypatch, tmp_path):
+    from src.modules.tao_video_noi_dung import runner
+
+    monkeypatch.setattr(runner, "MEDIA_ROOT_DIR", tmp_path)
+    output_path = tmp_path / "workspaces" / video_fixture["ws_id"] / "media" / "flow_i2v_9_16_scene-01.mp4"
+    source_path = output_path.with_name("flow_source_16_9_scene-01.mp4")
+    output_path.parent.mkdir(parents=True)
+    output_path.write_bytes(b"vertical output")
+    source_path.write_bytes(b"original Flow source")
+    asset = MediaAsset(
+        id="asset-continuity-test", workspace_id=video_fixture["ws_id"],
+        storage_key=str(output_path.relative_to(tmp_path)).replace("\\", "/"),
+        sha256=hashlib.sha256(output_path.read_bytes()).hexdigest(), byte_size=output_path.stat().st_size,
+        mime_detected="video/mp4", source_product="GOOGLE_FLOW_I2V", approval_state="UNREVIEWED",
+        created_by=video_fixture["user_id"],
+    )
+
+    assert runner._continuity_source_path(asset) == source_path
+    source_path.unlink()
+    with pytest.raises(RuntimeError, match="CONTINUITY_SOURCE_FILE_MISSING"):
+        runner._continuity_source_path(asset)
 
 
 def test_flow_native_audio_is_stitched_and_registered(video_fixture, monkeypatch, tmp_path):

@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+import os
 from typing import Any, Dict, List, Optional
 
 from baha_auth.src.config import settings
@@ -47,6 +48,15 @@ class AuthorizationDecision:
 
 def _deny(code: str, message: str) -> AuthorizationDecision:
     return AuthorizationDecision(False, "DENY", code, message, settings.policy_version)
+
+
+def e2e_test_self_approval_enabled() -> bool:
+    """Chỉ mở tự duyệt khi bật cờ test và cả hai CSDL là bản E2E riêng."""
+    if os.getenv("BAHA_AUTH_APP_ENV") != "test" or os.getenv("BAHA_AUTH_ALLOW_SELF_APPROVAL_IN_TEST") != "1":
+        return False
+    content_db = os.getenv("DATABASE_URL", "").split("?", 1)[0].replace("\\", "/").rsplit("/", 1)[-1]
+    auth_db = os.getenv("BAHA_AUTH_DATABASE_URL", "").split("?", 1)[0].replace("\\", "/").rsplit("/", 1)[-1]
+    return content_db == "sin_content_e2e_test.db" and auth_db == "baha_auth_e2e_test.db"
 
 
 def _utc(value: Optional[datetime]) -> Optional[datetime]:
@@ -134,7 +144,7 @@ def evaluate_permission(
         if not resource.owner_id and not resource.creator_id:
             return _deny("RESOURCE_ATTRIBUTION_REQUIRED", "Phê duyệt cần chủ sở hữu hoặc người tạo đã xác minh")
         interested_parties = {user_id for user_id in (resource.owner_id, resource.creator_id) if user_id}
-        if actor.user_id in interested_parties:
+        if actor.user_id in interested_parties and not e2e_test_self_approval_enabled():
             return _deny("SELF_FINAL_APPROVAL_DENIED", "Bên có lợi ích không được tự duyệt tài nguyên của mình")
 
     now = datetime.now(timezone.utc)

@@ -421,7 +421,8 @@ class GoogleFlowClient:
         ).first
         if trigger.count() == 0:
             agent_settings = page.locator(
-                "button.agent-action-button[aria-label='Settings']"
+                "button.agent-action-button[aria-label='Settings'], "
+                "button.agent-action-button[aria-label='Cài đặt']"
             ).first
             if agent_settings.count() and agent_settings.is_visible():
                 return
@@ -461,28 +462,27 @@ class GoogleFlowClient:
             page.wait_for_timeout(500)
             image_item = page.locator("[role='option']").filter(has_text=image_path.stem).last
             if image_item.count() == 0:
-                upload_button = page.get_by_role("button", name="Tải nội dung nghe nhìn lên")
-                if upload_button.count() == 0:
-                    upload_button = page.get_by_role("button", name="Upload media")
+                upload_button = page.locator("button.sidebar-upload-btn")
+                upload_button.wait_for(state="visible", timeout=15000)
                 with page.expect_file_chooser(timeout=8000) as chooser_info:
                     upload_button.first.click(timeout=5000)
                 chooser_info.value.set_files(str(image_path))
             image_item.wait_for(state="visible", timeout=30000)
             image_item.click(timeout=5000)
-            attached = page.locator(
-                "button.chip-container[aria-label='Thành phần tạo hình ảnh'], "
-                "button.chip-container[aria-label='Image generation component']"
-            )
+            attached = page.locator("flow-base-prompt-box button.chip-container")
             if attached.count() == 0:
-                add_button = page.get_by_role("button", name="Thêm vào câu lệnh")
-                if add_button.count() == 0:
-                    add_button = page.get_by_role("button", name="Add to prompt")
                 try:
-                    add_button.click(timeout=5000, force=True)
+                    attached.wait_for(state="visible", timeout=1500)
                 except Exception:
-                    if attached.count() == 0:
-                        raise
-            attached.wait_for(state="visible", timeout=5000)
+                    add_button = page.get_by_role("button", name="Thêm vào câu lệnh")
+                    if add_button.count() == 0:
+                        add_button = page.get_by_role("button", name="Add to prompt")
+                    try:
+                        add_button.click(timeout=5000, force=True)
+                    except Exception:
+                        if attached.count() == 0:
+                            raise
+            attached.wait_for(state="visible", timeout=15000)
             page.keyboard.press("Escape")
             page.locator(".cdk-overlay-backdrop-showing").wait_for(state="hidden", timeout=5000)
             page.wait_for_timeout(500)

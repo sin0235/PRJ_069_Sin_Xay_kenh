@@ -33,6 +33,14 @@ _PILOT_STYLE_SNAPSHOT = StyleSnapshot(
 )
 
 
+def _e2e_test_self_approval_enabled() -> bool:
+    try:
+        from baha_auth.src.policy.evaluator import e2e_test_self_approval_enabled
+        return e2e_test_self_approval_enabled()
+    except Exception:
+        return False
+
+
 def _project(db: Session, project_id: str, workspace_id: str) -> ProductionProject:
     project = db.query(ProductionProject).filter(
         ProductionProject.id == project_id,
@@ -139,7 +147,7 @@ def approve_plan(db: Session, project_id: str, plan_id: str, workspace_id: str, 
         raise HTTPException(status_code=404, detail={"error_code": "PLAN_NOT_FOUND", "message": "Không tìm thấy storyboard."})
     if plan.status != "DRAFT":
         raise HTTPException(status_code=409, detail={"error_code": "PLAN_NOT_DRAFT", "message": "Storyboard không còn ở trạng thái chờ duyệt."})
-    if plan.created_by == user_id:
+    if plan.created_by == user_id and not _e2e_test_self_approval_enabled():
         raise HTTPException(status_code=403, detail={"error_code": "SEPARATION_OF_DUTIES", "message": "Người tạo storyboard không được tự duyệt."})
     plan.status = "APPROVED"
     plan.approved_by = user_id

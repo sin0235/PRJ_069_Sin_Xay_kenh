@@ -100,6 +100,26 @@ def test_het_han_va_vai_tro_bi_vo_hieu_khong_duoc_cho_phep():
     assert not evaluate_permission(actor, "workspace.read").allowed
 
 
+def test_tu_duyet_chi_duoc_phep_khi_bat_co_va_dung_ca_hai_csdlt_e2e(monkeypatch):
+    actor = _actor(
+        "nguoi-tao", "khong-gian", "thanh-vien",
+        roles=[{"role_code": "WORKSPACE_OWNER", "scope_type": "WORKSPACE", "is_active": True}],
+    )
+    resource = ResourceContext("khong-gian", resource_id="storyboard", creator_id="nguoi-tao")
+    for name in ("BAHA_AUTH_APP_ENV", "BAHA_AUTH_ALLOW_SELF_APPROVAL_IN_TEST", "DATABASE_URL", "BAHA_AUTH_DATABASE_URL"):
+        monkeypatch.delenv(name, raising=False)
+    assert evaluate_permission(actor, "media.approve", resource).reason_code == "SELF_FINAL_APPROVAL_DENIED"
+
+    monkeypatch.setenv("BAHA_AUTH_APP_ENV", "test")
+    monkeypatch.setenv("BAHA_AUTH_ALLOW_SELF_APPROVAL_IN_TEST", "1")
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///./sin_content_e2e_test.db")
+    monkeypatch.setenv("BAHA_AUTH_DATABASE_URL", "sqlite:///./baha_auth_e2e_test.db")
+    assert evaluate_permission(actor, "media.approve", resource).allowed
+
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///./sin_content_offline.db")
+    assert evaluate_permission(actor, "media.approve", resource).reason_code == "SELF_FINAL_APPROVAL_DENIED"
+
+
 def test_truong_nhom_khong_cap_vai_tro_vuot_nhom(db, multi_tenant_fixture):
     f = multi_tenant_fixture
     team_1 = OrgUnit(id=str(uuid.uuid4()), workspace_id=f["ws_a"].id, type="TEAM", name="Nhóm cấp quyền")

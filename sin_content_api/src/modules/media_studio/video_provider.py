@@ -19,6 +19,7 @@ Tuyệt đối tuân thủ Ground Truth: KHÔNG tạo video lỗi testsrc 6s, KH
 import hashlib
 import os
 import pathlib
+import shutil
 import sys
 import uuid
 import subprocess
@@ -92,6 +93,8 @@ class GoogleFlowZeroCostProvider:
                 "Nếu video đã xuất hiện trên Flow, không tạo lại ngay; kiểm tra video trong project Flow và nhật ký tải kết quả của hệ thống."
             ) from flow_err
 
+        shutil.copy2(raw_16_9_path, target_dir / f"flow_source_16_9_{job_hash}.mp4")
+
         # Bước 2: Tự động mở rộng video 16:9 thật của Flow thành 9:16 chuẩn TikTok (Blurred Backdrop Extension)
         meta_9_16 = video_processor.expand_16_9_to_9_16(
             input_video_path=raw_16_9_path,
@@ -134,7 +137,8 @@ class GoogleFlowZeroCostProvider:
         target_dir = MEDIA_ROOT_DIR / "workspaces" / workspace_id / "media"
         target_dir.mkdir(parents=True, exist_ok=True)
         compiled_info = video_prompt_compiler.compile(user_prompt=prompt, aspect_ratio="16:9", duration_seconds=10)
-        filename = f"flow_i2v_9_16_{uuid.uuid4().hex[:10]}.mp4"
+        file_id = uuid.uuid4().hex[:10]
+        filename = f"flow_i2v_9_16_{file_id}.mp4"
         output_path = target_dir / filename
         try:
             from google_flow_client import GoogleFlowClient
@@ -145,6 +149,7 @@ class GoogleFlowZeroCostProvider:
                 timeout_sec=240,
                 start_image_path=image_path,
             )
+            shutil.copy2(flow_res["storage_path"], target_dir / f"flow_source_16_9_{file_id}.mp4")
             meta = video_processor.expand_16_9_to_9_16(
                 input_video_path=pathlib.Path(flow_res["storage_path"]),
                 output_video_path=output_path,

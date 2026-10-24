@@ -72,6 +72,17 @@ def _verified_asset_path(asset: MediaAsset, error_code: str) -> Path:
     return path
 
 
+def _continuity_source_path(asset: MediaAsset) -> Path:
+    output_path = _verified_asset_path(asset, "CONTINUITY_SOURCE")
+    for prefix in ("flow_expanded_9_16_", "flow_i2v_9_16_"):
+        if output_path.name.startswith(prefix):
+            source_path = output_path.with_name(output_path.name.replace(prefix, "flow_source_16_9_", 1)).resolve()
+            if source_path.is_relative_to(MEDIA_ROOT_DIR.resolve()) and source_path.is_file():
+                return source_path
+            break
+    raise RuntimeError("CONTINUITY_SOURCE_FILE_MISSING")
+
+
 def _save_run(db, run: ContentVideoRun, steps: list[dict]) -> None:
     run.steps_json = json.dumps(steps, ensure_ascii=False, separators=(",", ":"))
     db.commit()
@@ -690,7 +701,7 @@ def process_run(run_id: str, token: str | None = None) -> None:
                     ).first()
                     if not previous_asset:
                         raise RuntimeError("CONTINUITY_SOURCE_NOT_FOUND")
-                    previous_path = _verified_asset_path(previous_asset, "CONTINUITY_SOURCE")
+                    previous_path = _continuity_source_path(previous_asset)
                     continuity_dir = tempfile.TemporaryDirectory(prefix="content-video-continuity-")
                     start_image_path = Path(continuity_dir.name) / f"{shot.shot_id}.jpg"
                     frame = subprocess.run(
