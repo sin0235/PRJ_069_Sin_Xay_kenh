@@ -132,6 +132,44 @@ def test_storyboard_prompt_requires_three_shots_for_twenty_seconds():
     assert request["required_shot_durations"] == [7, 7, 6]
 
 
+def test_storyboard_prompts_prevent_distorted_frames_and_unmotivated_motion():
+    class RecordingClient:
+        max_output_tokens = 6000
+
+        def complete(self, messages, max_tokens):
+            self.messages = messages
+            return SimpleNamespace(
+                content=(
+                    '{"title":"RAG","narration":"Tìm nguồn.",'
+                    '"continuity_anchor":"Trợ lý giấy xanh navy cạnh tủ tài liệu, cùng một bối cảnh.","shots":['
+                    '{"shot_id":"s1","scene":"Tìm","narration":"Tìm nguồn.","prompt":"Một thẻ trượt tới.","duration_seconds":7},'
+                    '{"shot_id":"s2","scene":"Trả lời","narration":"Trả lời.","prompt":"Trợ lý đọc thẻ.","duration_seconds":7},'
+                    '{"shot_id":"s3","scene":"Kết","narration":"Xong.","prompt":"Đặt thẻ lại.","duration_seconds":6}]}'
+                ),
+                model="test-model",
+            )
+
+    client = RecordingClient()
+    storyboard, _ = generate_storyboard(
+        "RAG tìm nguồn trước khi trả lời.",
+        20,
+        {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]},
+        client,
+    )
+    system_prompt = client.messages[0]["content"].lower()
+    shot_prompt = build_shot_prompt(
+        {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]},
+        storyboard.shots[0],
+        storyboard.continuity_anchor,
+    ).lower()
+
+    assert "một hành động chính" in system_prompt
+    assert "không biến hình" in system_prompt
+    assert "không biến hình" in shot_prompt
+    assert "không nhân đôi" in shot_prompt
+    assert "chuyển động liên tục" in shot_prompt
+
+
 @pytest.mark.parametrize(
     "raw, target",
     [

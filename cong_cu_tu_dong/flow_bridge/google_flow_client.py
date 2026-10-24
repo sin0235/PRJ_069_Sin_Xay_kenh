@@ -28,7 +28,7 @@ if sys.platform == "win32":
     except AttributeError:
         pass
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError, sync_playwright
 
 from config import (
     BROWSER_CHANNEL,
@@ -45,6 +45,8 @@ from profile_guard import ensure_profile_free
 from session_manager import FlowLoginRequired, FlowSubmissionNotSent
 
 _FLOW_MUTEX = threading.Lock()
+_FLOW_PROJECT_TIMEOUT_MS = 120_000
+_FLOW_PROJECT_RETRIES = 1
 
 
 def _has_successful_generation(media_items: list[dict], media_name: str) -> bool:
@@ -72,31 +74,57 @@ class GoogleFlowClient:
         self.headless = headless
 
     @staticmethod
+    def _goto_flow_page(page, url: str) -> None:
+        for attempt in range(_FLOW_PROJECT_RETRIES + 1):
+            try:
+                page.goto(url, wait_until="domcontentloaded", timeout=_FLOW_PROJECT_TIMEOUT_MS)
+                return
+            except PlaywrightTimeoutError:
+                current = urlsplit(page.url)
+                target = urlsplit(url)
+                if (current.scheme, current.netloc, current.path) == (target.scheme, target.netloc, target.path):
+                    return
+                if attempt == _FLOW_PROJECT_RETRIES:
+                    raise
+
+    @staticmethod
     def _open_flow_project(page, project_url: Optional[str] = None) -> str:
         flow = urlsplit(GOOGLE_FLOW_URL)
         if project_url:
             project = urlsplit(project_url)
             if project.scheme != flow.scheme or project.netloc != flow.netloc or "/project/" not in project.path:
                 raise RuntimeError("FLOW_PROJECT_URL_INVALID")
-            page.goto(project_url, wait_until="domcontentloaded", timeout=45000)
+            GoogleFlowClient._goto_flow_page(page, project_url)
         else:
-            page.goto(GOOGLE_FLOW_URL, wait_until="domcontentloaded", timeout=45000)
+            GoogleFlowClient._goto_flow_page(page, GOOGLE_FLOW_URL)
             new_project = page.locator(
                 "button:has-text('New project'), button:has-text('Dự án mới')"
             ).first
-            try:
-                new_project.wait_for(state="visible", timeout=20000)
-            except Exception as exc:
-                raise RuntimeError("FLOW_NEW_PROJECT_BUTTON_UNAVAILABLE") from exc
-            new_project.click(timeout=10000)
-            page.wait_for_url("**/project/**", timeout=30000)
+            for attempt in range(_FLOW_PROJECT_RETRIES + 1):
+                try:
+                    new_project.wait_for(state="visible", timeout=_FLOW_PROJECT_TIMEOUT_MS)
+                    break
+                except PlaywrightTimeoutError as exc:
+                    if attempt == _FLOW_PROJECT_RETRIES:
+                        raise RuntimeError("FLOW_NEW_PROJECT_BUTTON_UNAVAILABLE") from exc
+                    GoogleFlowClient._goto_flow_page(page, GOOGLE_FLOW_URL)
+            new_project.click(timeout=_FLOW_PROJECT_TIMEOUT_MS)
+            for attempt in range(_FLOW_PROJECT_RETRIES + 1):
+                try:
+                    page.wait_for_url("**/project/**", timeout=_FLOW_PROJECT_TIMEOUT_MS)
+                    break
+                except PlaywrightTimeoutError as exc:
+                    if "/project/" in urlsplit(page.url).path:
+                        break
+                    if attempt == _FLOW_PROJECT_RETRIES:
+                        raise RuntimeError("FLOW_NEW_PROJECT_INIT_TIMEOUT: Google Flow chưa mở project sau hai lần chờ, mỗi lần 120 giây.") from exc
 
         project_url = page.url.split("/edit/", 1)[0].rstrip("/")
         project = urlsplit(project_url)
         if project.scheme != flow.scheme or project.netloc != flow.netloc or "/project/" not in project.path:
             raise RuntimeError("FLOW_PROJECT_URL_INVALID")
         if page.url.rstrip("/") != project_url:
-            page.goto(project_url, wait_until="domcontentloaded", timeout=45000)
+            GoogleFlowClient._goto_flow_page(page, project_url)
         return project_url
 
     @staticmethod
@@ -250,7 +278,7 @@ class GoogleFlowClient:
                             print("[GOOGLE FLOW] Đã duyệt xác nhận tạo video trong request này.", flush=True)
 
                     # Mở Google Flow với domcontentloaded để không bị timeout bởi heavy streaming
-                    page.goto(GOOGLE_FLOW_URL, wait_until="domcontentloaded", timeout=45000)
+                    self._goto_flow_page(page, GOOGLE_FLOW_URL)
                     page.wait_for_timeout(4000)
 
                     # Kiểm tra trạng thái đăng nhập
@@ -425,10 +453,19 @@ class GoogleFlowClient:
 
     @staticmethod
     def _ensure_video_mode(page) -> None:
-        page.locator(
+        editor = page.locator(
             'div[role="textbox"][data-slate-editor="true"], '
             'div.ProseMirror[contenteditable="true"]'
-        ).first.wait_for(state="visible", timeout=20000)
+        ).first
+        for attempt in range(_FLOW_PROJECT_RETRIES + 1):
+            try:
+                editor.wait_for(state="visible", timeout=_FLOW_PROJECT_TIMEOUT_MS)
+                break
+            except PlaywrightTimeoutError as exc:
+                if attempt == _FLOW_PROJECT_RETRIES:
+                    raise RuntimeError("FLOW_PROJECT_EDITOR_INIT_TIMEOUT: Trình chỉnh sửa Flow chưa sẵn sàng sau hai lần chờ, mỗi lần 120 giây.") from exc
+                project_url = page.url.split("/edit/", 1)[0].rstrip("/")
+                GoogleFlowClient._goto_flow_page(page, project_url)
         trigger = page.locator(
             "button[aria-haspopup='menu']:has(i.google-symbols:text('crop_16_9')), "
             "button[aria-haspopup='menu']:has(i.google-symbols:text('crop_9_16')), "

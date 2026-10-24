@@ -63,6 +63,9 @@ def build_shot_prompt(style_snapshot: dict[str, Any], shot: StoryboardShot, cont
         f"Neo liên tục bắt buộc cho toàn bộ video: {continuity_anchor}. "
         "Giữ liên tục với toàn bộ video: cùng nhân vật/chủ thể chính, trang phục, chất liệu hình ảnh, "
         "bảng màu, ánh sáng và ngôn ngữ máy quay; không tự đổi phong cách hoặc bối cảnh. "
+        "Chỉ một hành động chính diễn ra liên tục, có mở đầu, tiến triển và kết thúc tự nhiên; ưu tiên chuyển động liên tục, quỹ đạo đơn giản, camera mượt, ổn định và đúng vật lý. "
+        "Giữ nguyên số lượng và hình dạng nhân vật, khuôn mặt, chi thể, trang phục, đạo cụ và bố cục; không biến hình, không méo hình, không nhân đôi, "
+        "không rung giật, không nhấp nháy, không xuất hiện hoặc biến mất đột ngột, không tự đổi cảnh, màu và ánh sáng. "
         f"Tạo lời thoại tiếng Việt đúng nguyên văn sau, bằng cùng một giọng thuyết minh rõ ràng và tự nhiên: “{shot.narration}”. "
         "Không thêm lời thoại khác, không nhạc nền. "
         "Không hiển thị chữ, phụ đề, logo hoặc watermark trong hình ảnh."
@@ -88,6 +91,11 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
                 "Tạo đúng số shot và duration_seconds theo required_shot_durations; mỗi shot tối đa 10 giây. "
                 "Lời narration từng shot phải đọc hết ở nhịp tiếng Việt tự nhiên trong thời lượng shot, khoảng 2,5 từ/giây. "
                 "Giữ cùng chủ thể, trang phục, bối cảnh, bảng màu, ánh sáng và ngôn ngữ máy quay xuyên mọi shot. "
+                "Mỗi shot chỉ có một hành động chính, diễn ra liên tục với mở đầu, tiến triển và kết thúc tự nhiên trong thời lượng được giao. "
+                "Tránh hành động đồng thời không liên quan, montage và các chỉ dẫn camera mâu thuẫn. "
+                "Giữ ổn định số lượng, giải phẫu, tỉ lệ, khuôn mặt, trang phục, đạo cụ và bố cục; không biến hình, không méo hình, không nhân đôi, "
+                "không nhấp nháy, không rung giật, không xuất hiện hoặc biến mất đột ngột, không chuyển động phi vật lý, không tự đổi bối cảnh, ánh sáng, màu và phong cách. "
+                "Chỉ dùng một chuyển động camera mượt, ổn định; không tự thêm chuyển cảnh nếu không được yêu cầu. "
                 "Prompt mô tả hình ảnh quay được, không yêu cầu tạo chữ trong khung hình."
             ),
         },
