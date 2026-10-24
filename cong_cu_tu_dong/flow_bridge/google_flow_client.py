@@ -81,11 +81,13 @@ class GoogleFlowClient:
             page.goto(project_url, wait_until="domcontentloaded", timeout=45000)
         else:
             page.goto(GOOGLE_FLOW_URL, wait_until="domcontentloaded", timeout=45000)
-            new_project = page.get_by_role("button", name="New project").first
-            if not new_project.count() or not new_project.is_visible():
-                new_project = page.get_by_role("button", name="Dự án mới").first
-            if not new_project.count() or not new_project.is_visible():
-                raise RuntimeError("FLOW_NEW_PROJECT_BUTTON_UNAVAILABLE")
+            new_project = page.locator(
+                "button:has-text('New project'), button:has-text('Dự án mới')"
+            ).first
+            try:
+                new_project.wait_for(state="visible", timeout=20000)
+            except Exception as exc:
+                raise RuntimeError("FLOW_NEW_PROJECT_BUTTON_UNAVAILABLE") from exc
             new_project.click(timeout=10000)
             page.wait_for_url("**/project/**", timeout=30000)
 
@@ -485,7 +487,9 @@ class GoogleFlowClient:
                 chooser_info.value.set_files(str(image_path))
             image_item.wait_for(state="visible", timeout=30000)
             image_item.click(timeout=5000)
-            attached = page.locator("flow-base-prompt-box button.chip-container")
+            attached = page.locator(
+                "flow-base-prompt-box button.chip-container, button:has-text('Thành phần')"
+            ).first
             if attached.count() == 0:
                 try:
                     attached.wait_for(state="visible", timeout=1500)

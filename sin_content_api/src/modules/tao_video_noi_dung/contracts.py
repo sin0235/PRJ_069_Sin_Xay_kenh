@@ -19,7 +19,7 @@ class CreatePlanRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     content: str = Field(min_length=40, max_length=12000)
-    target_duration_seconds: int = Field(ge=30, le=180)
+    target_duration_seconds: int = Field(ge=20, le=180)
 
 
 class ContentVideoPlanResponse(BaseModel):

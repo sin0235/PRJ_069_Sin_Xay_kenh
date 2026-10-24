@@ -45,6 +45,9 @@ def test_new_video_run_creates_a_fresh_flow_project():
         def is_visible(self):
             return True
 
+        def wait_for(self, **_kwargs):
+            pass
+
         def click(self, **_kwargs):
             events.append("new_project")
             page.url = "https://flow.google.com/project/run-123"
@@ -69,6 +72,10 @@ def test_new_video_run_creates_a_fresh_flow_project():
             assert role == "button"
             return Button() if name == "Dự án mới" else MissingButton()
 
+        def locator(self, selector):
+            assert selector == "button:has-text('New project'), button:has-text('Dự án mới')"
+            return Button()
+
         def wait_for_url(self, pattern, **_kwargs):
             assert pattern == "**/project/**"
             assert "/project/" in self.url
@@ -79,6 +86,58 @@ def test_new_video_run_creates_a_fresh_flow_project():
     assert project_url == "https://flow.google.com/project/run-123"
     assert "new_project" in events
     assert not any(isinstance(event, tuple) and "/project/" in event[1] for event in events)
+
+
+def test_new_project_button_falls_back_to_visible_localized_button_text():
+    events = []
+
+    class Button:
+        first = property(lambda self: self)
+        visible = False
+
+        def count(self):
+            return int(self.visible)
+
+        def is_visible(self):
+            return self.visible
+
+        def wait_for(self, **_kwargs):
+            self.visible = True
+
+        def click(self, **_kwargs):
+            events.append("new_project")
+            page.url = "https://flow.google.com/project/run-456"
+
+    class MissingButton:
+        first = property(lambda self: self)
+
+        def count(self):
+            return 0
+
+        def is_visible(self):
+            return False
+
+    class Page:
+        url = "about:blank"
+
+        def goto(self, url, **_kwargs):
+            self.url = url
+
+        def get_by_role(self, role, name):
+            assert role == "button"
+            return MissingButton()
+
+        def locator(self, selector):
+            assert selector == "button:has-text('New project'), button:has-text('Dự án mới')"
+            return Button()
+
+        def wait_for_url(self, pattern, **_kwargs):
+            assert pattern == "**/project/**"
+
+    page = Page()
+
+    assert flow_client.GoogleFlowClient._open_flow_project(page) == "https://flow.google.com/project/run-456"
+    assert events == ["new_project"]
 
 
 def test_later_shots_reopen_the_saved_flow_project_without_creating_another():
@@ -234,6 +293,70 @@ def test_flow_agent_can_attach_start_frame_from_media_library(tmp_path, attach_o
     assert ("wait_image", 15000) in events
     assert ("upload_button", "button.sidebar-upload-btn") in events
     assert (("role_button", "Thêm vào câu lệnh") in events) is (not attach_on_wait)
+
+
+def test_flow_agent_accepts_new_composer_media_indicator(tmp_path):
+    image_path = tmp_path / "continuity_shot_02.jpg"
+    image_path.write_bytes(b"image")
+    events = []
+    components_attached = False
+
+    class Locator:
+        first = property(lambda self: self)
+        last = property(lambda self: self)
+
+        def __init__(self, visible=True, on_click=None):
+            self.visible = visible
+            self.on_click = on_click
+
+        def count(self):
+            return int(self.visible() if callable(self.visible) else self.visible)
+
+        def click(self, **_kwargs):
+            events.append("click")
+            if self.on_click:
+                self.on_click()
+
+        def wait_for(self, **kwargs):
+            if kwargs.get("state") == "visible" and not self.count():
+                raise TimeoutError("not visible")
+
+        def filter(self, **_kwargs):
+            return self
+
+    class Page:
+        def locator(self, selector):
+            if selector.startswith("div[type='button']"):
+                return Locator(False)
+            if "button:has-text('Thành phần')" in selector:
+                return Locator(lambda: components_attached)
+            if "flow-base-prompt-box button.chip-container" in selector:
+                return Locator(False)
+            if "Thêm thành phần vào ô nhập câu lệnh" in selector:
+                return Locator()
+            if selector == "[role='option']":
+                return Locator(True)
+            if selector == ".cdk-overlay-backdrop-showing":
+                return Locator(False)
+            raise AssertionError(selector)
+
+        def get_by_role(self, role, name):
+            assert role == "button"
+            assert name == "Thêm vào câu lệnh"
+
+            def attach_component():
+                nonlocal components_attached
+                components_attached = True
+
+            return Locator(True, attach_component)
+
+        def wait_for_timeout(self, _timeout):
+            pass
+
+        keyboard = SimpleNamespace(press=lambda key: events.append(("press", key)))
+
+    flow_client.GoogleFlowClient._attach_start_image(Page(), image_path, 10)
+    assert components_attached
 
 
 def test_generate_from_image_preserves_pre_submit_flow_failure(monkeypatch, tmp_path):

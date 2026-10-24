@@ -72,17 +72,6 @@ def _verified_asset_path(asset: MediaAsset, error_code: str) -> Path:
     return path
 
 
-def _continuity_source_path(asset: MediaAsset) -> Path:
-    output_path = _verified_asset_path(asset, "CONTINUITY_SOURCE")
-    for prefix in ("flow_expanded_9_16_", "flow_i2v_9_16_"):
-        if output_path.name.startswith(prefix):
-            source_path = output_path.with_name(output_path.name.replace(prefix, "flow_source_16_9_", 1)).resolve()
-            if source_path.is_relative_to(MEDIA_ROOT_DIR.resolve()) and source_path.is_file():
-                return source_path
-            break
-    raise RuntimeError("CONTINUITY_SOURCE_FILE_MISSING")
-
-
 def _save_run(db, run: ContentVideoRun, steps: list[dict]) -> None:
     run.steps_json = json.dumps(steps, ensure_ascii=False, separators=(",", ":"))
     db.commit()
@@ -700,31 +689,6 @@ def process_run(run_id: str, token: str | None = None) -> None:
                 _save_run(db, run, steps)
                 if not _heartbeat(db, token):
                     raise RuntimeError("WORKER_LEASE_LOST")
-                start_image_path = None
-                start_image_asset_id = None
-                if shot_index:
-                    previous_asset_id = steps[shot_index - 1].get("asset_id")
-                    previous_asset = db.query(MediaAsset).filter(
-                        MediaAsset.id == previous_asset_id,
-                        MediaAsset.workspace_id == run.workspace_id,
-                        MediaAsset.project_id == run.project_id,
-                    ).first()
-                    if not previous_asset:
-                        raise RuntimeError("CONTINUITY_SOURCE_NOT_FOUND")
-                    previous_path = _continuity_source_path(previous_asset)
-                    continuity_dir = tempfile.TemporaryDirectory(prefix="content-video-continuity-")
-                    start_image_path = Path(continuity_dir.name) / f"{shot.shot_id}.jpg"
-                    frame = subprocess.run(
-                        [video_processor.ffmpeg_bin, "-y", "-sseof", "-0.1", "-i", str(previous_path), "-frames:v", "1", str(start_image_path)],
-                        capture_output=True,
-                        text=True,
-                        timeout=60,
-                        check=False,
-                    )
-                    if frame.returncode != 0 or not start_image_path.is_file():
-                        continuity_dir.cleanup()
-                        raise RuntimeError("CONTINUITY_FRAME_EXTRACTION_FAILED")
-                    start_image_asset_id = previous_asset.id
                 try:
                     asset = dispatch_shot(
                         db=db,
@@ -732,22 +696,16 @@ def process_run(run_id: str, token: str | None = None) -> None:
                         plan=plan,
                         shot=shot,
                         step=step,
-                        start_image_path=start_image_path,
-                        start_image_asset_id=start_image_asset_id,
                         flow_project_url=flow_project_url,
                         on_flow_project_created=save_flow_project_url,
                     )
                 except FlowLoginRequired:
-                    if shot_index:
-                        continuity_dir.cleanup()
                     step["state"] = "READY"
                     run.status = "BLOCKED_FLOW_LOGIN"
                     run.error_code = "FLOW_LOGIN_REQUIRED"
                     run.error_message = "Đăng nhập Google Flow rồi tiếp tục run."
                     _save_run(db, run, steps)
                     return
-                if shot_index:
-                    continuity_dir.cleanup()
                 if asset.workspace_id != run.workspace_id or asset.project_id != run.project_id:
                     raise RuntimeError("PROVIDER_ASSET_SCOPE_MISMATCH")
                 path = _verified_asset_path(asset, "PROVIDER_OUTPUT")

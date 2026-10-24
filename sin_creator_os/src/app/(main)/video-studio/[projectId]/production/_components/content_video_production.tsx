@@ -170,7 +170,7 @@ export default function ContentVideoProduction({ projectId, planId, runId }: { p
       {!plan && <Card className="p-5"><form className="flex flex-col gap-4" onSubmit={createPlan}>
         <div className="flex items-center justify-between gap-3"><label className="text-sm font-medium" htmlFor="content-source">Nội dung nguồn (40–12.000 ký tự; tối đa 12 KB UTF-8)</label><span className="text-xs text-muted-foreground">{contentBytes.toLocaleString("vi-VN")} / 12.000 byte</span></div>
         <textarea id="content-source" required minLength={40} maxLength={12000} value={content} onChange={(event) => setContent(event.target.value)} className="min-h-48 rounded-md border bg-background p-3 text-sm" placeholder="Dán bài viết, đề cương hoặc nội dung cần chuyển thành video..." />
-        <label className="flex items-center gap-3 text-sm">Thời lượng mục tiêu <Input type="number" min={30} max={180} step={1} value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="w-28" /> giây</label>
+        <label className="flex items-center gap-3 text-sm">Thời lượng mục tiêu <Input type="number" min={20} max={180} step={1} value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="w-28" /> giây</label>
         <p className="text-xs text-muted-foreground">Profile pilot cố định được khóa ở server; mọi shot dùng cùng bảng màu và continuity anchor. Shot sau nhận frame cuối shot trước làm tham chiếu và được nối bằng crossfade ngắn.</p>
         <Button type="submit" disabled={busy || content.trim().length < 40 || contentBytes > 12000 || duration < 30 || duration > 180}><Sparkles className="mr-2 size-4" />{busy ? "Đang lập storyboard..." : "Tạo storyboard"}</Button>
       </form></Card>}

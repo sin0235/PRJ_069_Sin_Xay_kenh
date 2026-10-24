@@ -15,7 +15,7 @@ API_ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(API_ROOT) not in sys.path:
     sys.path.insert(0, str(API_ROOT))
 
-from src.modules.tao_video_noi_dung.planner import build_shot_prompt, parse_storyboard
+from src.modules.tao_video_noi_dung.planner import build_shot_prompt, generate_storyboard, parse_storyboard
 from src.modules.tao_video_noi_dung.contracts import CreatePlanRequest, CreateRunRequest, ReconcileShotRequest
 from src.modules.tao_video_noi_dung.runner import evaluate_shot_qc, evaluate_video_qc
 from src.modules.tao_video_noi_dung.runner import _mark_flow_setup_blocked
@@ -88,6 +88,50 @@ def test_storyboard_requires_ordered_shots_covering_target_duration():
     assert CreateRunRequest(plan_id="plan-1", idempotency_key="native-flow-audio").voice_asset_id is None
 
 
+def test_twenty_second_storyboard_is_accepted_by_api_and_planner():
+    raw = (
+        '{"title":"RAG","narration":"Tìm đúng tài liệu trước khi trả lời.",'
+        '"continuity_anchor":"Một trợ lý giấy xanh navy đứng cạnh tủ tài liệu trong studio sáng.","shots":['
+        '{"shot_id":"s1","scene":"Tìm kiếm","narration":"Tìm tài liệu liên quan.","prompt":"Tài liệu được truy xuất","duration_seconds":8},'
+        '{"shot_id":"s2","scene":"Tạo câu trả lời","narration":"Tạo câu trả lời có căn cứ.","prompt":"Câu trả lời gắn với nguồn","duration_seconds":6},'
+        '{"shot_id":"s3","scene":"Kết luận","narration":"Đó là RAG.","prompt":"Nguồn và kết quả bên nhau","duration_seconds":6}]}'
+    )
+
+    storyboard = parse_storyboard(raw, target_duration_seconds=20)
+    plan_request = CreatePlanRequest(content="RAG truy xuất tri thức liên quan rồi mới tạo câu trả lời có căn cứ.", target_duration_seconds=20)
+
+    assert sum(shot.duration_seconds for shot in storyboard.shots) == plan_request.target_duration_seconds == 20
+
+
+def test_storyboard_prompt_requires_three_shots_for_twenty_seconds():
+    class RecordingClient:
+        max_output_tokens = 6000
+
+        def complete(self, messages, max_tokens):
+            self.messages = messages
+            return SimpleNamespace(
+                content=(
+                    '{"title":"RAG","narration":"Tìm đúng nguồn.",'
+                    '"continuity_anchor":"Trợ lý giấy xanh navy cạnh tủ tài liệu, cùng một bối cảnh.","shots":['
+                    '{"shot_id":"s1","scene":"Tìm","narration":"Tìm nguồn.","prompt":"Thẻ tài liệu bay ra.","duration_seconds":7},'
+                    '{"shot_id":"s2","scene":"Trả lời","narration":"Trả lời có căn cứ.","prompt":"Trợ lý đọc tài liệu.","duration_seconds":7},'
+                    '{"shot_id":"s3","scene":"Kết","narration":"Thử RAG.","prompt":"Nguồn và câu trả lời.","duration_seconds":6}]}'
+                ),
+                model="test-model",
+            )
+
+    client = RecordingClient()
+    generate_storyboard(
+        "RAG truy xuất tài liệu trước khi trả lời có căn cứ.",
+        20,
+        {"style_name": "Origami", "visual_rules": "Phong cách giấy thống nhất.", "palette": ["navy"]},
+        client,
+    )
+
+    request = json.loads(client.messages[1]["content"])
+    assert request["required_shot_durations"] == [7, 7, 6]
+
+
 @pytest.mark.parametrize(
     "raw, target",
     [
@@ -95,7 +139,7 @@ def test_storyboard_requires_ordered_shots_covering_target_duration():
         ('{"title":"x","narration":"y","shots":[{"shot_id":"s1","scene":"A","narration":"a","prompt":"B","duration_seconds":10}]}', 30),
         ('{"title":"x","narration":"y","shots":[{"shot_id":"s1","scene":"A","narration":"a","prompt":"B","duration_seconds":11},{"shot_id":"s2","scene":"C","narration":"c","prompt":"D","duration_seconds":9},{"shot_id":"s3","scene":"E","narration":"e","prompt":"F","duration_seconds":10}]}', 30),
         ('{"title":"x","narration":"y","shots":[{"shot_id":"s1","scene":"A","narration":"a","prompt":"B","duration_seconds":10},{"shot_id":"s1","scene":"C","narration":"c","prompt":"D","duration_seconds":10},{"shot_id":"s3","scene":"E","narration":"e","prompt":"F","duration_seconds":10}]}', 30),
-        ('{"title":"x","narration":"y","shots":[{"shot_id":"s1","scene":"A","narration":"a","prompt":"B","duration_seconds":10},{"shot_id":"s2","scene":"C","narration":"c","prompt":"D","duration_seconds":10},{"shot_id":"s3","scene":"E","narration":"e","prompt":"F","duration_seconds":10}]}', 20),
+        ('{"title":"x","narration":"y","shots":[{"shot_id":"s1","scene":"A","narration":"a","prompt":"B","duration_seconds":10},{"shot_id":"s2","scene":"C","narration":"c","prompt":"D","duration_seconds":10},{"shot_id":"s3","scene":"E","narration":"e","prompt":"F","duration_seconds":10}]}', 19),
     ],
 )
 def test_storyboard_rejects_invalid_shot_lists(raw: str, target: int):

@@ -1705,7 +1705,7 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
     assert all(step["voice_asset_id"] is None for step in native_run.steps)
 
 
-def test_content_video_worker_generates_ordered_shots_with_previous_frame_reference(video_fixture, monkeypatch, tmp_path):
+def test_content_video_worker_keeps_shots_in_one_project_without_uploading_frames(video_fixture, monkeypatch, tmp_path):
     from datetime import timezone
     from types import SimpleNamespace
     from src.modules.llm.client import LLMClient
@@ -1759,11 +1759,7 @@ def test_content_video_worker_generates_ordered_shots_with_previous_frame_refere
             with SessionLocal() as heartbeat_db:
                 active = heartbeat_db.query(ContentVideoRun).filter(ContentVideoRun.id == active_run_id).one()
                 assert active.lease_expires_at.replace(tzinfo=timezone.utc).timestamp() > time.time()
-        if index:
-            assert start_image_path and start_image_path.is_file()
-            assert start_image_asset_id == calls[-1]["asset_id"]
-        else:
-            assert start_image_path is None and start_image_asset_id is None
+        assert start_image_path is None and start_image_asset_id is None
         asset_id = f"asset-worker-{index}"
         prefix = "flow_expanded_9_16_" if index == 0 else "flow_i2v_9_16_"
         filename = f"{prefix}worker_{index}.mp4"
@@ -1785,7 +1781,7 @@ def test_content_video_worker_generates_ordered_shots_with_previous_frame_refere
             created_by=user_id,
             duration_ms=10000,
             approval_state="UNREVIEWED",
-            parent_asset_id=start_image_asset_id,
+            parent_asset_id=None,
         )
         db.add(asset)
         db.commit()
@@ -1839,31 +1835,8 @@ def test_content_video_worker_generates_ordered_shots_with_previous_frame_refere
     assert [step["state"] for step in steps] == ["SUCCEEDED"] * 3
     assert steps[0]["flow_project_url"] == "https://flow.google.com/project/run-e2e"
     assert len(calls) == 3
-    assert [call["start_image_asset_id"] for call in calls] == [None, "asset-worker-0", "asset-worker-1"]
+    assert [call["start_image_asset_id"] for call in calls] == [None, None, None]
     assert [call["flow_project_url"] for call in calls] == ["https://flow.google.com/project/run-e2e"] * 3
-
-
-def test_content_video_continuity_uses_raw_flow_source(video_fixture, monkeypatch, tmp_path):
-    from src.modules.tao_video_noi_dung import runner
-
-    monkeypatch.setattr(runner, "MEDIA_ROOT_DIR", tmp_path)
-    output_path = tmp_path / "workspaces" / video_fixture["ws_id"] / "media" / "flow_i2v_9_16_scene-01.mp4"
-    source_path = output_path.with_name("flow_source_16_9_scene-01.mp4")
-    output_path.parent.mkdir(parents=True)
-    output_path.write_bytes(b"vertical output")
-    source_path.write_bytes(b"original Flow source")
-    asset = MediaAsset(
-        id="asset-continuity-test", workspace_id=video_fixture["ws_id"],
-        storage_key=str(output_path.relative_to(tmp_path)).replace("\\", "/"),
-        sha256=hashlib.sha256(output_path.read_bytes()).hexdigest(), byte_size=output_path.stat().st_size,
-        mime_detected="video/mp4", source_product="GOOGLE_FLOW_I2V", approval_state="UNREVIEWED",
-        created_by=video_fixture["user_id"],
-    )
-
-    assert runner._continuity_source_path(asset) == source_path
-    source_path.unlink()
-    with pytest.raises(RuntimeError, match="CONTINUITY_SOURCE_FILE_MISSING"):
-        runner._continuity_source_path(asset)
 
 
 def test_flow_native_audio_is_stitched_and_registered(video_fixture, monkeypatch, tmp_path):
