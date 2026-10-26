@@ -16,9 +16,10 @@ from .contracts import (
     ContentVideoRunResponse,
     CreatePlanRequest,
     CreateRunRequest,
+    RetryRunRequest,
     StyleSnapshot,
 )
-from .cong_harness import approval_receipt_hash, build_shot_receipt, canonical_hash
+from .cong_harness import approval_receipt_hash, build_shot_receipt, canonical_hash, verify_shot_receipt
 from .planner import Storyboard, generate_storyboard
 
 _PILOT_STYLE_SNAPSHOT = StyleSnapshot(
@@ -151,8 +152,8 @@ def update_plan(db: Session, project_id: str, plan_id: str, workspace_id: str, u
         raise HTTPException(status_code=404, detail={"error_code": "PLAN_NOT_FOUND", "message": "Không tìm thấy storyboard."})
     if plan.created_by != user_id:
         raise HTTPException(status_code=403, detail={"error_code": "PLAN_EDIT_FORBIDDEN", "message": "Chỉ người tạo storyboard được sửa bản nháp."})
-    if plan.status != "DRAFT":
-        raise HTTPException(status_code=409, detail={"error_code": "PLAN_NOT_DRAFT", "message": "Chỉ storyboard nháp mới sửa được."})
+    if plan.status not in {"DRAFT", "APPROVED"}:
+        raise HTTPException(status_code=409, detail={"error_code": "PLAN_NOT_EDITABLE", "message": "Storyboard này không còn sửa được."})
     original = Storyboard.model_validate_json(plan.storyboard_json)
     if (
         [shot.shot_id for shot in storyboard.shots] != [shot.shot_id for shot in original.shots]
@@ -160,8 +161,34 @@ def update_plan(db: Session, project_id: str, plan_id: str, workspace_id: str, u
         or sum(shot.duration_seconds for shot in storyboard.shots) != plan.target_duration_seconds
     ):
         raise HTTPException(status_code=422, detail={"error_code": "STORYBOARD_STRUCTURE_LOCKED", "message": "Không thể đổi thứ tự, mã cảnh hoặc thời lượng cảnh trong bản nháp này."})
-    plan.storyboard_json = storyboard.model_dump_json()
-    plan.storyboard_sha256 = canonical_hash(storyboard.model_dump(mode="json"))
+    storyboard_json = storyboard.model_dump_json()
+    storyboard_hash = canonical_hash(storyboard.model_dump(mode="json"))
+    if plan.status == "APPROVED":
+        latest = db.query(ContentVideoPlan.revision).filter(
+            ContentVideoPlan.project_id == project_id,
+            ContentVideoPlan.workspace_id == workspace_id,
+        ).order_by(ContentVideoPlan.revision.desc()).first()
+        revised = ContentVideoPlan(
+            id=str(uuid.uuid4()), workspace_id=workspace_id, project_id=project_id,
+            revision=(latest[0] if latest else plan.revision) + 1, status="DRAFT",
+            source_content=plan.source_content, content_sha256=plan.content_sha256,
+            target_duration_seconds=plan.target_duration_seconds,
+            style_snapshot_json=plan.style_snapshot_json,
+            style_snapshot_sha256=plan.style_snapshot_sha256,
+            storyboard_json=storyboard_json, storyboard_sha256=storyboard_hash,
+            llm_model=plan.llm_model, created_by=user_id,
+        )
+        db.add(revised)
+        try:
+            db.commit()
+            db.refresh(revised)
+        except IntegrityError as exc:
+            db.rollback()
+            raise HTTPException(status_code=409, detail={"error_code": "PLAN_REVISION_CONFLICT", "message": "Một storyboard mới vừa được lưu; hãy tải lại rồi thử lại."}) from exc
+        return _response(revised)
+
+    plan.storyboard_json = storyboard_json
+    plan.storyboard_sha256 = storyboard_hash
     db.commit()
     db.refresh(plan)
     return _response(plan)
@@ -169,21 +196,15 @@ def update_plan(db: Session, project_id: str, plan_id: str, workspace_id: str, u
 
 def get_latest_history(db: Session, project_id: str, workspace_id: str) -> dict:
     _project(db, project_id, workspace_id)
+    plan = db.query(ContentVideoPlan).filter(
+        ContentVideoPlan.project_id == project_id,
+        ContentVideoPlan.workspace_id == workspace_id,
+    ).order_by(ContentVideoPlan.revision.desc()).first()
     run = db.query(ContentVideoRun).filter(
         ContentVideoRun.project_id == project_id,
         ContentVideoRun.workspace_id == workspace_id,
-    ).order_by(ContentVideoRun.created_at.desc()).first()
-    if run:
-        plan = db.query(ContentVideoPlan).filter(
-            ContentVideoPlan.id == run.plan_id,
-            ContentVideoPlan.project_id == project_id,
-            ContentVideoPlan.workspace_id == workspace_id,
-        ).first()
-    else:
-        plan = db.query(ContentVideoPlan).filter(
-            ContentVideoPlan.project_id == project_id,
-            ContentVideoPlan.workspace_id == workspace_id,
-        ).order_by(ContentVideoPlan.revision.desc()).first()
+        ContentVideoRun.plan_id == plan.id if plan else False,
+    ).order_by(ContentVideoRun.created_at.desc()).first() if plan else None
     return {"plan": _response(plan) if plan else None, "run": _run_response(run) if run else None}
 
 
@@ -354,6 +375,148 @@ def get_run(db: Session, project_id: str, run_id: str, workspace_id: str) -> Con
     if not run:
         raise HTTPException(status_code=404, detail={"error_code": "RUN_NOT_FOUND", "message": "Không tìm thấy run sản xuất."})
     return _run_response(run)
+
+
+def retry_run(
+    db: Session,
+    project_id: str,
+    run_id: str,
+    workspace_id: str,
+    user_id: str,
+    request: RetryRunRequest,
+) -> ContentVideoRunResponse:
+    _project(db, project_id, workspace_id)
+    source = db.query(ContentVideoRun).filter(
+        ContentVideoRun.id == run_id,
+        ContentVideoRun.project_id == project_id,
+        ContentVideoRun.workspace_id == workspace_id,
+    ).with_for_update().first()
+    if not source:
+        raise HTTPException(status_code=404, detail={"error_code": "RUN_NOT_FOUND", "message": "Không tìm thấy run sản xuất."})
+    if source.status not in {"FAILED", "FAILED_QC", "BLOCKED_FLOW_SETUP", "NEEDS_RECONCILIATION", "COMPLETED"}:
+        raise HTTPException(status_code=409, detail={"error_code": "RUN_NOT_RETRYABLE", "message": "Run đang hoạt động hoặc chưa ở trạng thái có thể tạo lại shot."})
+
+    plan = db.query(ContentVideoPlan).filter(
+        ContentVideoPlan.id == source.plan_id,
+        ContentVideoPlan.project_id == project_id,
+        ContentVideoPlan.workspace_id == workspace_id,
+    ).first()
+    if not plan or plan.status != "APPROVED" or not plan.approved_by or not plan.approved_at:
+        raise HTTPException(status_code=409, detail={"error_code": "PLAN_NOT_APPROVED", "message": "Storyboard của run này không còn được duyệt."})
+    storyboard = Storyboard.model_validate_json(plan.storyboard_json)
+    source_steps = json.loads(source.steps_json or "[]")
+    shot_ids = [shot.shot_id for shot in storyboard.shots]
+    if [step.get("shot_id") for step in source_steps] != shot_ids:
+        raise HTTPException(status_code=409, detail={"error_code": "RUN_SHOTS_CHANGED", "message": "Danh sách shot của run không còn khớp storyboard."})
+    selected = set(request.shot_ids)
+    if not selected <= set(shot_ids):
+        raise HTTPException(status_code=422, detail={"error_code": "SHOT_NOT_IN_RUN", "message": "Danh sách có shot không thuộc run này."})
+    selected_ids = [shot_id for shot_id in shot_ids if shot_id in selected]
+    uncertain_ids = {step["shot_id"] for step in source_steps if step.get("state") in {"SUBMITTING", "NEEDS_RECONCILIATION"}}
+    if uncertain_ids and (not request.confirm_no_flow_clip or not uncertain_ids <= selected):
+        raise HTTPException(status_code=409, detail={"error_code": "FLOW_RESULT_UNCONFIRMED", "message": "Hãy xác nhận không có clip trong Flow cho shot đang chờ đối soát trước khi gửi lại."})
+    all_selected = selected == set(shot_ids)
+    first_unfinished = next((step.get("shot_id") for step in source_steps if step.get("state") != "SUCCEEDED"), None)
+    if request.new_flow_project and (source.status != "BLOCKED_FLOW_SETUP" or source.error_code != "FLOW_REQUEST_NOT_SUBMITTED"):
+        raise HTTPException(status_code=409, detail={"error_code": "FLOW_PROJECT_NOT_UNAVAILABLE", "message": "Chỉ mở project Flow mới khi project hiện tại không truy cập được."})
+    if request.new_flow_project and selected_ids != [first_unfinished]:
+        raise HTTPException(status_code=409, detail={"error_code": "NEW_FLOW_PROJECT_MUST_START_AT_FAILED_SHOT", "message": "Project Flow mới phải bắt đầu từ shot chưa hoàn tất đầu tiên."})
+    if source.status not in {"COMPLETED", "FAILED_QC"} and selected_ids != [first_unfinished]:
+        raise HTTPException(status_code=409, detail={"error_code": "RETRY_MUST_START_AT_FAILED_SHOT", "message": "Run chưa hoàn tất; hãy tạo lại đúng shot chưa hoàn tất đầu tiên."})
+
+    signature = canonical_hash({
+        "source_run_id": source.id,
+        "shot_ids": selected_ids,
+        "new_flow_project": request.new_flow_project,
+        "confirm_no_flow_clip": request.confirm_no_flow_clip,
+    })
+    existing = db.query(ContentVideoRun).filter(ContentVideoRun.idempotency_key == request.idempotency_key).first()
+    if existing:
+        existing_steps = json.loads(existing.steps_json or "[]")
+        if (
+            existing.workspace_id == workspace_id
+            and existing.project_id == project_id
+            and existing.plan_id == plan.id
+            and existing_steps
+            and existing_steps[0].get("retry_signature") == signature
+        ):
+            return _run_response(existing)
+        raise HTTPException(status_code=409, detail={"error_code": "IDEMPOTENCY_KEY_REUSED", "message": "Khóa idempotency đã được dùng cho một yêu cầu khác."})
+
+    tts_config_json = source.tts_config_json
+    style = json.loads(plan.style_snapshot_json)
+    retry_id = str(uuid.uuid4())
+    steps = []
+    reusable_assets = []
+    for shot, old_step in zip(storyboard.shots, source_steps, strict=True):
+        step = build_shot_receipt(
+            run_id=retry_id, workspace_id=workspace_id, project_id=project_id, plan=plan,
+            voice_asset_id=source.voice_asset_id, shot=shot, style_snapshot=style,
+            continuity_anchor=storyboard.continuity_anchor,
+            include_narration_audio=not source.voice_asset_id and not tts_config_json,
+        )
+        if shot.shot_id in selected and old_step.get("state") == "CLEANING":
+            raw_asset_id = old_step.get("raw_asset_id") or old_step.get("asset_id")
+            raw_asset = db.query(MediaAsset).filter(
+                MediaAsset.id == raw_asset_id,
+                MediaAsset.workspace_id == workspace_id,
+                MediaAsset.project_id == project_id,
+            ).first()
+            if not raw_asset:
+                raise HTTPException(status_code=409, detail={"error_code": "RETRY_ASSET_NOT_FOUND", "message": f"Không tìm thấy clip Flow gốc của shot {shot.shot_id}."})
+            step.update({"state": "CLEANING", "raw_asset_id": raw_asset.id, "asset_id": raw_asset.id})
+        elif shot.shot_id not in selected and old_step.get("state") == "SUCCEEDED":
+            verify_shot_receipt(source, plan, shot, old_step)
+            asset = db.query(MediaAsset).filter(
+                MediaAsset.id == old_step.get("asset_id"),
+                MediaAsset.workspace_id == workspace_id,
+                MediaAsset.project_id == project_id,
+            ).first()
+            if not asset:
+                raise HTTPException(status_code=409, detail={"error_code": "RETRY_ASSET_NOT_FOUND", "message": f"Không tìm thấy clip đã hoàn tất của shot {shot.shot_id}."})
+            step.update({
+                "state": "SUCCEEDED", "asset_id": asset.id, "finished_at": old_step.get("finished_at"),
+                "watermark_removed": old_step.get("watermark_removed", False),
+                "raw_asset_id": old_step.get("raw_asset_id"),
+            })
+            reusable_assets.append(asset.id)
+        steps.append(step)
+
+    if not request.new_flow_project:
+        flow_project_url = next((step.get("flow_project_url") for step in source_steps if step.get("flow_project_url")), None)
+        if flow_project_url:
+            steps[0]["flow_project_url"] = flow_project_url
+    steps[0]["retry_signature"] = signature
+    output_asset_ids = list(dict.fromkeys(reusable_assets + ([source.voice_asset_id] if source.voice_asset_id else [])))
+    retry = ContentVideoRun(
+        id=retry_id, workspace_id=workspace_id, project_id=project_id, plan_id=plan.id,
+        voice_asset_id=source.voice_asset_id, tts_config_json=tts_config_json,
+        plan_revision=plan.revision, storyboard_sha256=plan.storyboard_sha256,
+        style_snapshot_sha256=plan.style_snapshot_sha256, approval_sha256=approval_receipt_hash(plan),
+        idempotency_key=request.idempotency_key, status="QUEUED",
+        steps_json=json.dumps(steps, ensure_ascii=False, separators=(",", ":")),
+        output_asset_ids_json=json.dumps(output_asset_ids), created_by=user_id,
+    )
+    db.add(retry)
+    try:
+        db.commit()
+        db.refresh(retry)
+    except IntegrityError as exc:
+        db.rollback()
+        existing = db.query(ContentVideoRun).filter(ContentVideoRun.idempotency_key == request.idempotency_key).first()
+        if existing:
+            existing_steps = json.loads(existing.steps_json or "[]")
+            if (
+                existing
+                and existing.workspace_id == workspace_id
+                and existing.project_id == project_id
+                and existing.plan_id == plan.id
+                and existing_steps
+                and existing_steps[0].get("retry_signature") == signature
+            ):
+                return _run_response(existing)
+        raise HTTPException(status_code=409, detail={"error_code": "RUN_IDEMPOTENCY_CONFLICT", "message": "Không thể tạo run trùng."}) from exc
+    return _run_response(retry)
 
 
 def resume_run(db: Session, project_id: str, run_id: str, workspace_id: str) -> ContentVideoRunResponse:

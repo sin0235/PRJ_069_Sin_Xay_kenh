@@ -393,6 +393,8 @@ def test_watermark_remover_uses_local_video_timeout(monkeypatch, tmp_path):
     call = {}
 
     def fake_run(command, **kwargs):
+        if command[0] == "ffprobe":
+            return SimpleNamespace(returncode=0, stdout='{"format":{"duration":"1"}}', stderr="")
         call.update(command=command, kwargs=kwargs)
         pathlib.Path(command[command.index("-o") + 1]).write_bytes(b"clean")
         return SimpleNamespace(returncode=0, stdout="", stderr="")
@@ -402,6 +404,104 @@ def test_watermark_remover_uses_local_video_timeout(monkeypatch, tmp_path):
 
     assert result["status"] == "SUCCEEDED"
     assert call["kwargs"]["timeout"] == 900
+
+
+def test_video_processor_rejects_watermark_output_with_truncated_duration(monkeypatch, tmp_path):
+    import importlib
+
+    processor_module = importlib.import_module("src.modules.media_studio.video_processor")
+    source = tmp_path / "flow_video.mp4"
+    output = tmp_path / "clean_video.mp4"
+    source.write_bytes(b"source")
+
+    class FakeRemover:
+        def is_available(self):
+            return True
+
+        def remove_watermark(self, **kwargs):
+            kwargs["output_video_path"].write_bytes(b"clean")
+            return {"status": "SUCCEEDED", "watermark_removed": True}
+
+    durations = iter((20.0, 8.0))
+    monkeypatch.setattr(processor_module, "veo_remover", FakeRemover())
+    monkeypatch.setattr(
+        processor_module.video_processor,
+        "probe_video",
+        lambda _path: {"duration_seconds": next(durations)},
+    )
+
+    with pytest.raises(RuntimeError, match="WATERMARK_OUTPUT_DURATION_MISMATCH"):
+        processor_module.video_processor.remove_veo_watermark(source, output)
+
+
+def test_watermark_remover_splits_long_videos_under_eight_second_limit():
+    from cong_cu_tu_dong.veo_watermark_remover import remover_service
+
+    assert remover_service._video_segment_ranges(10.0) == [(0.0, 7.0), (7.0, 3.0)]
+    assert remover_service._video_segment_ranges(7.0) == [(0.0, 7.0)]
+
+
+def test_watermark_remover_processes_and_rejoins_all_video_segments(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+    from cong_cu_tu_dong.veo_watermark_remover import remover_service
+
+    executable = tmp_path / "remover.exe"
+    source = tmp_path / "source.mp4"
+    output = tmp_path / "clean.mp4"
+    executable.write_bytes(b"exe")
+    source.write_bytes(b"source")
+    remover_calls = []
+
+    def probe(_self, path):
+        name = path.name
+        if name == "source.mp4":
+            return 10.0
+        if name.startswith("input_000") or name.startswith("output_000"):
+            return 7.0
+        if name.startswith("input_001") or name.startswith("output_001"):
+            return 3.0
+        return 10.0
+
+    def ffmpeg(_args):
+        pathlib.Path(_args[-1]).write_bytes(b"segment")
+
+    def run(command, **_kwargs):
+        remover_calls.append(command)
+        pathlib.Path(command[command.index("-o") + 1]).write_bytes(b"clean-segment")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(remover_service.VeoWatermarkRemover, "_probe_video_duration", probe)
+    monkeypatch.setattr(remover_service.VeoWatermarkRemover, "_run_ffmpeg", staticmethod(ffmpeg))
+    monkeypatch.setattr(remover_service.subprocess, "run", run)
+
+    result = remover_service.VeoWatermarkRemover(executable).remove_watermark(source, output)
+
+    assert result["status"] == "SUCCEEDED"
+    assert result["watermark_removed"] is True
+    assert len(remover_calls) == 2
+    assert output.read_bytes() == b"segment"
+
+
+def test_watermark_remover_preserves_clip_when_tool_detects_no_watermark(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+    from cong_cu_tu_dong.veo_watermark_remover import remover_service
+
+    executable = tmp_path / "remover.exe"
+    source = tmp_path / "source.mp4"
+    output = tmp_path / "clean.mp4"
+    executable.write_bytes(b"exe")
+    source.write_bytes(b"source")
+    monkeypatch.setattr(remover_service.VeoWatermarkRemover, "_probe_video_duration", lambda self, _path: 3.0)
+    monkeypatch.setattr(remover_service.subprocess, "run", lambda *_args, **_kwargs: SimpleNamespace(
+        returncode=0, stdout="no Gemini 3.5 diamond detected", stderr=""
+    ))
+
+    result = remover_service.VeoWatermarkRemover(executable).remove_watermark(source, output)
+
+    assert result["status"] == "SUCCEEDED"
+    assert result["watermark_removed"] is True
+    assert result["watermark_detected"] is False
+    assert output.read_bytes() == source.read_bytes()
 
 
 def test_watermark_remover_timeout_reports_last_progress(monkeypatch, tmp_path):
@@ -414,6 +514,7 @@ def test_watermark_remover_timeout_reports_last_progress(monkeypatch, tmp_path):
         raise subprocess.TimeoutExpired(command, kwargs["timeout"], output=b"87%", stderr=b"cpu")
 
     monkeypatch.setattr(remover_service.subprocess, "run", fake_run)
+    monkeypatch.setattr(remover_service.VeoWatermarkRemover, "_probe_video_duration", lambda self, _path: 1.0)
     with pytest.raises(TimeoutError, match="900 giây.*87%"):
         remover_service.VeoWatermarkRemover().remove_watermark(source, tmp_path / "clean_video.mp4")
 
@@ -1776,7 +1877,8 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
     assert all(step["voice_asset_id"] is None for step in native_run.steps)
 
 
-def test_content_video_worker_uses_reference_frame_only_for_same_scene_continuation(video_fixture, monkeypatch, tmp_path):
+@pytest.mark.parametrize("with_voice_asset", [True, False])
+def test_content_video_worker_allows_optional_flow_audio_and_uses_reference_frame(video_fixture, monkeypatch, tmp_path, with_voice_asset):
     from datetime import timezone
     from types import SimpleNamespace
     from src.modules.llm.client import LLMClient
@@ -1807,7 +1909,11 @@ def test_content_video_worker_uses_reference_frame_only_for_same_scene_continuat
 
     monkeypatch.setattr(LLMClient, "from_db", classmethod(lambda cls, db: FakeLLM()))
     monkeypatch.setattr(runner, "MEDIA_ROOT_DIR", tmp_path)
-    monkeypatch.setattr(runner.audio_processor, "probe_audio", lambda path: {"duration_seconds": 30, "codec_name": "mp3"})
+    audio_probe_calls = []
+    def probe_audio(path):
+        audio_probe_calls.append(path)
+        return {"duration_seconds": 30, "codec_name": "mp3" if with_voice_asset else "unknown"}
+    monkeypatch.setattr(runner.audio_processor, "probe_audio", probe_audio)
     monkeypatch.setattr(runner, "LEASE_SECONDS", 0.4)
     monkeypatch.setattr(runner.video_processor, "probe_video", lambda path: {
         "width": 1080, "height": 1920, "codec_name": "h264", "duration_seconds": 10.0, "frame_rate": 30.0,
@@ -1846,7 +1952,7 @@ def test_content_video_worker_uses_reference_frame_only_for_same_scene_continuat
             assert start_image_asset_id == calls[0]["asset_id"]
         else:
             assert start_image_path is None and start_image_asset_id is None
-        asset_id = f"asset-worker-{index}"
+        asset_id = f"asset-worker-{uuid.uuid4().hex[:8]}-{index}"
         prefix = "flow_expanded_9_16_" if index == 0 else "flow_i2v_9_16_"
         filename = f"{prefix}worker_{index}.mp4"
         storage_key = f"workspaces/{workspace_id}/media/{filename}"
@@ -1881,26 +1987,28 @@ def test_content_video_worker_uses_reference_frame_only_for_same_scene_continuat
             {"status": "FAILED"}, synchronize_session=False
         )
         db.add(ProductionProject(id=project_id, workspace_id=video_fixture["ws_id"], title="Worker test", created_by=video_fixture["user_id"]))
-        voice_path = video_fixture["audio_file"]
-        voice_storage_key = f"workspaces/{video_fixture['ws_id']}/media/{voice_path.name}"
-        stored_voice_path = tmp_path / voice_storage_key
-        stored_voice_path.parent.mkdir(parents=True, exist_ok=True)
-        stored_voice_path.write_bytes(voice_path.read_bytes())
-        voice_asset = MediaAsset(
-            id=f"voice-{uuid.uuid4().hex[:8]}", workspace_id=video_fixture["ws_id"], project_id=project_id,
-            storage_key=voice_storage_key, sha256=hashlib.sha256(stored_voice_path.read_bytes()).hexdigest(),
-            byte_size=stored_voice_path.stat().st_size, mime_detected="audio/mpeg", source_product="TEST_UPLOAD",
-            original_filename=voice_path.name, created_by=video_fixture["user_id"], duration_ms=30000,
-            approval_state="UNREVIEWED",
-        )
-        db.add(voice_asset)
+        voice_asset = None
+        if with_voice_asset:
+            voice_path = video_fixture["audio_file"]
+            voice_storage_key = f"workspaces/{video_fixture['ws_id']}/media/{voice_path.name}"
+            stored_voice_path = tmp_path / voice_storage_key
+            stored_voice_path.parent.mkdir(parents=True, exist_ok=True)
+            stored_voice_path.write_bytes(voice_path.read_bytes())
+            voice_asset = MediaAsset(
+                id=f"voice-{uuid.uuid4().hex[:8]}", workspace_id=video_fixture["ws_id"], project_id=project_id,
+                storage_key=voice_storage_key, sha256=hashlib.sha256(stored_voice_path.read_bytes()).hexdigest(),
+                byte_size=stored_voice_path.stat().st_size, mime_detected="audio/mpeg", source_product="TEST_UPLOAD",
+                original_filename=voice_path.name, created_by=video_fixture["user_id"], duration_ms=30000,
+                approval_state="UNREVIEWED",
+            )
+            db.add(voice_asset)
         db.commit()
         plan = create_plan(db, project_id, video_fixture["ws_id"], video_fixture["user_id"], CreatePlanRequest.model_validate({
             "content": "RAG truy xuất nguồn tài liệu liên quan trước khi xây dựng câu trả lời có căn cứ.",
             "target_duration_seconds": 30,
         }))
         approve_plan(db, project_id, plan.id, video_fixture["ws_id"], "reviewer-worker-test")
-        queued = create_run(db, project_id, video_fixture["ws_id"], "reviewer-worker-test", CreateRunRequest(plan_id=plan.id, voice_asset_id=voice_asset.id, idempotency_key=f"worker-test-{uuid.uuid4().hex}"))
+        queued = create_run(db, project_id, video_fixture["ws_id"], "reviewer-worker-test", CreateRunRequest(plan_id=plan.id, voice_asset_id=voice_asset.id if voice_asset else None, idempotency_key=f"worker-test-{uuid.uuid4().hex}"))
         active_run_id = queued.id
         token = str(uuid.uuid4())
         assert _acquire_lease(db, token)
@@ -1926,5 +2034,6 @@ def test_content_video_worker_uses_reference_frame_only_for_same_scene_continuat
     assert [call["aspect_ratio"] for call in calls] == ["9:16", "9:16", "9:16"]
     assert [call["start_image_asset_id"] for call in calls] == [None, calls[0]["asset_id"], None]
     assert len(extracted_frames) == 1
+    assert bool(audio_probe_calls) is with_voice_asset
     assert "cảnh độc lập" in calls[2]["prompt"]
     assert [call["flow_project_url"] for call in calls] == ["https://flow.google.com/project/run-e2e"] * 3

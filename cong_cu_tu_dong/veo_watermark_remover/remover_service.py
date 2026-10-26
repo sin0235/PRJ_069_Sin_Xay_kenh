@@ -26,7 +26,21 @@ if sys.platform == "win32":
 
 # Thư mục gốc dự án và công cụ
 CURRENT_DIR = pathlib.Path(__file__).resolve().parent
+# shortcut: binary truncates clips at 8s; keep segments at 7s until the remover is replaced.
 DEFAULT_EXECUTABLE_PATH = CURRENT_DIR / "GeminiWatermarkTool-Video.exe"
+MAX_REMOVER_SEGMENT_SECONDS = 7.0
+
+
+def _video_segment_ranges(duration_sec: float) -> list[tuple[float, float]]:
+    if duration_sec <= 0:
+        raise ValueError("VIDEO_DURATION_INVALID")
+    segments = []
+    start = 0.0
+    while start < duration_sec:
+        length = min(MAX_REMOVER_SEGMENT_SECONDS, duration_sec - start)
+        segments.append((round(start, 3), round(length, 3)))
+        start = round(start + length, 3)
+    return segments
 
 class VeoWatermarkRemover:
     """Điều phối tiến trình xóa watermark Veo/Gemini bằng công cụ chuyên dụng."""
@@ -39,6 +53,27 @@ class VeoWatermarkRemover:
     def is_available(self) -> bool:
         """Kiểm tra xem công cụ có sẵn sàng hoạt động hay không."""
         return self.exe_path.exists() and os.access(str(self.exe_path), os.X_OK | os.R_OK)
+
+    def _probe_video_duration(self, path: pathlib.Path) -> float:
+        res = subprocess.run(
+            ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "json", str(path)],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60,
+        )
+        if res.returncode != 0:
+            raise RuntimeError(f"WATERMARK_VIDEO_PROBE_FAILED: {res.stderr[-500:]}")
+        duration = float(json.loads(res.stdout).get("format", {}).get("duration", 0))
+        if duration <= 0:
+            raise RuntimeError("WATERMARK_VIDEO_DURATION_MISSING")
+        return duration
+
+    @staticmethod
+    def _run_ffmpeg(args: list[str]) -> None:
+        res = subprocess.run(
+            ["ffmpeg", "-y", *args], capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=900,
+        )
+        if res.returncode != 0:
+            raise RuntimeError(f"WATERMARK_VIDEO_SEGMENT_FAILED: {res.stderr[-500:]}")
 
     def remove_watermark(
         self,
@@ -79,76 +114,93 @@ class VeoWatermarkRemover:
 
             if is_unc:
                 local_in = tmp_dir_path / f"in_{input_video_path.name}"
-                local_out = tmp_dir_path / f"out_{output_video_path.name}"
                 shutil.copy2(str(input_video_path), str(local_in))
             else:
                 local_in = input_video_path
-                local_out = output_video_path
+            source_duration = self._probe_video_duration(local_in)
+            segments = _video_segment_ranges(source_duration)
+            staged_output = tmp_dir_path / f"out_{output_video_path.name}"
+            processed_segments = []
+            watermark_detected = False
+            print(f"[VEO REMOVER] Bắt đầu khử logo watermark: {input_video_path.name} -> {output_video_path.name} ({len(segments)} đoạn)", flush=True)
 
-            # Xây dựng danh sách tham số lệnh
-            cmd = [
-                str(self.exe_path),
-                str(local_in),
-                "-o", str(local_out),
-                "--no-banner",
-                "--veo"
-            ]
+            for index, (start_sec, duration_sec) in enumerate(segments):
+                if len(segments) == 1:
+                    segment_input = local_in
+                else:
+                    segment_input = tmp_dir_path / f"input_{index:03d}.mp4"
+                    self._run_ffmpeg([
+                        "-ss", str(start_sec), "-i", str(local_in), "-t", str(duration_sec),
+                        "-map", "0:v:0", "-map", "0:a?", "-c:v", "libx264", "-preset", "ultrafast",
+                        "-crf", "16", "-c:a", "aac", "-b:a", "192k", "-pix_fmt", "yuv420p",
+                        str(segment_input),
+                    ])
+                segment_output = staged_output if len(segments) == 1 else tmp_dir_path / f"output_{index:03d}.mp4"
+                cmd = [str(self.exe_path), str(segment_input), "-o", str(segment_output), "--no-banner", "--veo"]
+                if use_cpu:
+                    cmd.append("--cpu")
+                if watermark_type and watermark_type != "auto":
+                    cmd.extend(["--mark", watermark_type])
+                if denoise_method:
+                    cmd.extend(["--denoise", denoise_method])
+                if region:
+                    cmd.extend(["--region", region])
+                if veo_alpha is not None:
+                    cmd.extend(["--veo-alpha", str(veo_alpha)])
+                try:
+                    res = subprocess.run(
+                        cmd, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                        timeout=timeout_sec,
+                    )
+                except subprocess.TimeoutExpired as exc:
+                    progress = exc.stdout or exc.stderr or ""
+                    if isinstance(progress, bytes):
+                        progress = progress.decode("utf-8", errors="replace")
+                    raise TimeoutError(
+                        f"Veo Watermark Remover vượt quá {timeout_sec} giây; tiến độ cuối: {progress[-500:]}"
+                    ) from exc
+                tool_output = f"{res.stdout}\n{res.stderr}".lower()
+                if "no gemini 3.5 diamond detected" in tool_output:
+                    shutil.copy2(segment_input, segment_output)
+                    processed_segments.append(segment_output)
+                    continue
+                if res.returncode != 0:
+                    err_msg = res.stderr.strip() or res.stdout.strip()
+                    print(f"[VEO REMOVER CẢNH BÁO] Lỗi từ công cụ xóa watermark (code {res.returncode}): {err_msg}", flush=True)
+                    if not segment_output.exists() or segment_output.stat().st_size == 0:
+                        shutil.copy2(str(input_video_path), str(output_video_path))
+                        return {
+                            "status": "FALLBACK_ORIGINAL", "output_path": str(output_video_path),
+                            "watermark_detected": False, "watermark_removed": False,
+                            "byte_size": output_video_path.stat().st_size,
+                            "duration_sec": time.time() - start_time,
+                            "message": f"Không phát hiện watermark hoặc công cụ fallback: {err_msg[:120]}",
+                        }
+                    raise RuntimeError(f"WATERMARK_REMOVAL_TOOL_FAILED: {err_msg[-500:]}")
+                if not segment_output.is_file() or segment_output.stat().st_size == 0:
+                    raise RuntimeError("WATERMARK_OUTPUT_MISSING")
+                segment_input_duration = self._probe_video_duration(segment_input)
+                segment_output_duration = self._probe_video_duration(segment_output)
+                if abs(segment_input_duration - segment_output_duration) > 0.5:
+                    raise RuntimeError(
+                        "WATERMARK_OUTPUT_DURATION_MISMATCH: "
+                        f"source={segment_input_duration:.3f}s output={segment_output_duration:.3f}s"
+                    )
+                processed_segments.append(segment_output)
+                watermark_detected = True
 
-            if use_cpu:
-                cmd.append("--cpu")
-
-            if watermark_type and watermark_type != "auto":
-                cmd.extend(["--mark", watermark_type])
-
-            if denoise_method:
-                cmd.extend(["--denoise", denoise_method])
-
-            if region:
-                cmd.extend(["--region", region])
-
-            if veo_alpha is not None:
-                cmd.extend(["--veo-alpha", str(veo_alpha)])
-
-            print(f"[VEO REMOVER] Bắt đầu khử logo watermark: {input_video_path.name} -> {output_video_path.name}", flush=True)
-
-            try:
-                res = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                    timeout=timeout_sec
+            if len(processed_segments) > 1:
+                concat_file = tmp_dir_path / "concat.txt"
+                concat_lines = [f"file '{path.name}'" for path in processed_segments]
+                concat_file.write_text("\n".join(concat_lines), encoding="utf-8")
+                self._run_ffmpeg(["-f", "concat", "-safe", "0", "-i", str(concat_file), "-c", "copy", str(staged_output)])
+            final_duration = self._probe_video_duration(staged_output)
+            if abs(source_duration - final_duration) > 0.5:
+                raise RuntimeError(
+                    "WATERMARK_OUTPUT_DURATION_MISMATCH: "
+                    f"source={source_duration:.3f}s output={final_duration:.3f}s"
                 )
-            except subprocess.TimeoutExpired as exc:
-                progress = exc.stdout or exc.stderr or ""
-                if isinstance(progress, bytes):
-                    progress = progress.decode("utf-8", errors="replace")
-                raise TimeoutError(
-                    f"Veo Watermark Remover vượt quá {timeout_sec} giây; "
-                    f"tiến độ cuối: {progress[-500:]}"
-                ) from exc
-
-            if res.returncode != 0:
-                err_msg = res.stderr.strip() or res.stdout.strip()
-                print(f"[VEO REMOVER CẢNH BÁO] Lỗi từ công cụ xóa watermark (code {res.returncode}): {err_msg}", flush=True)
-                # Nếu tool không xử lý được (ví dụ video không có watermark hoặc codec lạ),
-                # fallback an toàn: copy video nguồn sang đích để không gián đoạn luồng sản xuất
-                if not local_out.exists() or local_out.stat().st_size == 0:
-                    shutil.copy2(str(input_video_path), str(output_video_path))
-                    return {
-                        "status": "FALLBACK_ORIGINAL",
-                        "output_path": str(output_video_path),
-                        "watermark_detected": False,
-                        "watermark_removed": False,
-                        "byte_size": output_video_path.stat().st_size,
-                        "duration_sec": time.time() - start_time,
-                        "message": f"Không phát hiện watermark hoặc công cụ fallback: {err_msg[:120]}"
-                    }
-
-            # Sao chép tệp kết quả từ thư mục tạm cục bộ về ổ mạng đích nếu cần
-            if is_unc and local_out.exists():
-                shutil.copy2(str(local_out), str(output_video_path))
+            shutil.copy2(str(staged_output), str(output_video_path))
 
         elapsed_sec = time.time() - start_time
         final_size = output_video_path.stat().st_size if output_video_path.exists() else 0
@@ -164,7 +216,7 @@ class VeoWatermarkRemover:
         return {
             "status": "SUCCEEDED",
             "output_path": str(output_video_path),
-            "watermark_detected": True,
+            "watermark_detected": watermark_detected,
             "watermark_removed": True,
             "byte_size": final_size,
             "sha256": sha256_hash,

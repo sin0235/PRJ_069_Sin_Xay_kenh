@@ -17,6 +17,7 @@ import {
   Settings,
   type LucideIcon,
   PieChart,
+  Mic,
 } from "lucide-react";
 
 export type NavBadge = "new" | "ai" | "pro" | "soon";
@@ -93,6 +94,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Phòng dựng Video",
         url: "/video-studio",
         icon: Video,
+      },
+      {
+        id: "voice-studio",
+        title: "Voice Clone & TTS",
+        url: "/voice-studio",
+        icon: Mic,
       },
     ],
   },

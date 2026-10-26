@@ -7,7 +7,7 @@ from src.models.entities import (
     PublishedContentLink, PerformanceSnapshot, LearningSignal,
     ExperimentSuggestion, WorkspaceBudget, CostLedger,
     MediaAsset, AIGenerationJob, ProductionProject, ContentVideoPlan, ContentVideoRun, ContentVideoWorkerLease, MusicBrief,
-    PlatformLLMConfig
+    PlatformLLMConfig, VoiceProfile, VoiceStudioSetting
 )
 
 __all__ = [
@@ -36,5 +36,7 @@ __all__ = [
     "ContentVideoRun",
     "ContentVideoWorkerLease",
     "MusicBrief",
-    "PlatformLLMConfig"
+    "PlatformLLMConfig",
+    "VoiceProfile",
+    "VoiceStudioSetting"
 ]

@@ -94,7 +94,7 @@ const AI_TOOLS = [
     icon: Mic,
     badge: "Audio AI",
     credits: 5,
-    route: "/video-studio",
+    route: "/voice-studio",
     category: "Audio",
   },
   {

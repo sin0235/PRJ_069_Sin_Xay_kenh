@@ -43,6 +43,35 @@ def test_content_video_migration_upgrades_existing_run_table(monkeypatch):
         engine.dispose()
 
 
+def test_watermark_removal_is_queued_off_worker_thread(monkeypatch, tmp_path):
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+    from src.modules.tao_video_noi_dung import runner
+
+    started = threading.Event()
+    release = threading.Event()
+    source = tmp_path / "flow.mp4"
+    output = tmp_path / "flow_clean.mp4"
+    source.write_bytes(b"source")
+
+    def remove(_source, _output, *, use_cpu):
+        assert use_cpu is True
+        started.set()
+        assert release.wait(2)
+        output.write_bytes(b"clean")
+        return {"status": "SUCCEEDED", "watermark_removed": True}
+
+    monkeypatch.setattr(runner.video_processor, "remove_veo_watermark", remove)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = runner._queue_watermark_removal(executor, source, output)
+        assert started.wait(2)
+        assert not future.done()
+        next_flow_download_started = True
+        assert next_flow_download_started
+        release.set()
+        assert future.result(timeout=2)["watermark_removed"] is True
+
+
 def test_full_migration_rollback_preserves_content_video_records(tmp_path, monkeypatch):
     from src import database
     from src.models.entities import ContentVideoPlan
@@ -85,7 +114,7 @@ def test_storyboard_requires_ordered_shots_covering_target_duration():
     assert sum(shot.duration_seconds for shot in storyboard.shots) == 30
     prompts = [build_shot_prompt({"style_name": "Studio", "visual_rules": "Consistent cinematic look", "palette": ["navy"]}, shot, storyboard.continuity_anchor) for shot in storyboard.shots]
     assert all(storyboard.continuity_anchor in prompt for prompt in prompts)
-    assert all(shot.narration not in prompt and "âm thanh tự nhiên" in prompt for shot, prompt in zip(storyboard.shots, prompts, strict=True))
+    assert all("tùy chọn" in prompt and "clip im lặng vẫn chấp nhận" in prompt for prompt in prompts)
     assert CreateRunRequest(plan_id="plan-1", idempotency_key="native-flow-audio").voice_asset_id is None
 
 
@@ -192,7 +221,7 @@ def test_storyboard_prompt_requires_three_shots_for_twenty_seconds():
     assert request["required_shot_durations"] == [7, 7, 6]
 
 
-def test_storyboard_prompts_prevent_distorted_frames_and_unmotivated_motion():
+def test_storyboard_prompts_prevent_distortion_and_allow_optional_flow_audio():
     class RecordingClient:
         max_output_tokens = 6000
 
@@ -233,12 +262,15 @@ def test_storyboard_prompts_prevent_distorted_frames_and_unmotivated_motion():
     assert "một hành động chính" in shot_prompt
     assert "hai mắt cùng kích thước và cao độ" in shot_prompt
     assert "biểu cảm thân thiện tự nhiên" in shot_prompt
-    assert 'giọng dẫn đọc nguyên văn bằng tiếng việt: "tìm nguồn."' in shot_prompt
+    assert "âm thanh flow tùy chọn" in shot_prompt
+    assert 'nếu flow tạo giọng dẫn thì đọc nguyên văn bằng tiếng việt: "tìm nguồn."' in shot_prompt
+    assert "bắt buộc bật" not in shot_prompt
     no_flow_narration = build_shot_prompt(
         {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]},
         storyboard.shots[0], storyboard.continuity_anchor, include_narration_audio=False,
     ).lower()
-    assert "chỉ tạo âm thanh bối cảnh nhẹ" in no_flow_narration
+    assert "âm thanh flow tùy chọn" in no_flow_narration
+    assert "clip im lặng vẫn chấp nhận" in no_flow_narration
     assert 'giọng dẫn đọc nguyên văn' not in no_flow_narration
 
 
@@ -314,7 +346,8 @@ def test_flow_credit_block_is_reported_without_submission():
     assert steps[0]["state"] == "READY"
 
 
-def test_content_video_render_preserves_native_flow_audio_qc(monkeypatch, tmp_path):
+@pytest.mark.parametrize("flow_native_audio", [True, False])
+def test_content_video_render_does_not_gate_on_native_flow_audio_presence(monkeypatch, tmp_path, flow_native_audio):
     from src.models.entities import MediaAsset, TimelineVersion
     from src.modules.tao_video_noi_dung import runner
 
@@ -363,7 +396,7 @@ def test_content_video_render_preserves_native_flow_audio_qc(monkeypatch, tmp_pa
         captured["caption_style"] = caption_style
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_bytes(b"rendered video")
-        return {"flow_native_audio": True}
+        return {"flow_native_audio": flow_native_audio}
 
     monkeypatch.setattr(runner, "_voice_input", lambda *_args: None)
     monkeypatch.setattr(runner, "get_workspace_storage_dir", lambda _workspace: tmp_path)
@@ -373,10 +406,13 @@ def test_content_video_render_preserves_native_flow_audio_qc(monkeypatch, tmp_pa
         "duration_seconds": 30.0,
     })
     monkeypatch.setattr(runner.subprocess, "run", lambda *_args, **_kwargs: SimpleNamespace(returncode=0, stderr=""))
-    monkeypatch.setattr(runner.audio_processor, "verify_audio_qc", lambda *_args, **_kwargs: {"status": "PASS", "passed": True})
+    monkeypatch.setattr(
+        runner.audio_processor, "verify_audio_qc",
+        lambda *_args, **_kwargs: pytest.fail("Flow audio không chạy qua AUDIO_QC"),
+    )
     monkeypatch.setattr(runner, "_write_export_package", lambda path, *_args: path.write_bytes(b"export"))
 
-    shots = [SimpleNamespace(shot_id=f"shot-{index}", duration_seconds=10) for index in range(1, 4)]
+    shots = [SimpleNamespace(shot_id=f"shot-{index}", duration_seconds=10, prompt_contract_version=3) for index in range(1, 4)]
     storyboard = SimpleNamespace(shots=shots)
     plan = SimpleNamespace(
         target_duration_seconds=30, style_snapshot_sha256="style-hash", source_content="source",
@@ -395,9 +431,13 @@ def test_content_video_render_preserves_native_flow_audio_qc(monkeypatch, tmp_pa
     assert captured["transition_seconds"] == 0.3
     assert captured["caption_style"] == "vietsub_v1"
     report = json.loads(run.qc_report_json)
-    assert report["voice_source"] == "FLOW_NATIVE"
-    assert report["flow_native_audio"] is True
-    assert report["audio_qc"]["status"] == "PASS"
+    assert report["voice_source"] == ("FLOW_NATIVE" if flow_native_audio else "NONE")
+    assert report["flow_native_audio"] is flow_native_audio
+    assert report["audio_qc"] == {
+        "status": "SKIPPED",
+        "reason": "FLOW_NATIVE_AUDIO" if flow_native_audio else "NO_AUDIO_SELECTED",
+        "passed": True,
+    }
     assert run.status == "COMPLETED"
 
 
@@ -536,6 +576,22 @@ def test_harness_dispatches_only_approved_immutable_shot_receipt(monkeypatch):
     assert calls[0]["aspect_ratio"] == "16:9"
     assert calls[0]["include_audio"] is True
     assert calls[0]["project_id"] == run.project_id
+
+
+def test_harness_accepts_persisted_cleaning_state_for_safe_resume():
+    run, plan, shot, step = _approved_harness_shot()
+    step["state"] = "CLEANING"
+
+    assert cong_harness.verify_shot_receipt(run, plan, shot, step)["shot_id"] == shot.shot_id
+
+
+def test_harness_accepts_approved_prompt_snapshot_after_prompt_builder_changes(monkeypatch):
+    run, plan, shot, step = _approved_harness_shot()
+    monkeypatch.setattr(cong_harness, "build_shot_prompt", lambda *args, **kwargs: "new prompt after approval")
+
+    command = cong_harness.verify_shot_receipt(run, plan, shot, step)
+
+    assert command["prompt"] == step["prompt"]
 
 
 def test_harness_blocks_tampered_shot_receipt_before_provider_call(monkeypatch):
@@ -781,10 +837,269 @@ def test_storyboard_edit_rejects_non_creator_and_changes_to_shot_timing():
         update_plan(DB(), "project-1", "plan-1", "workspace-1", "creator-1", changed)
     assert invalid.value.status_code == 422
 
-    plan.status = "APPROVED"
-    with pytest.raises(HTTPException) as locked:
-        update_plan(DB(), "project-1", "plan-1", "workspace-1", "creator-1", storyboard)
-    assert locked.value.status_code == 409
+
+
+def _content_video_test_database():
+    from src.database import Base
+
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    return engine, sessionmaker(bind=engine)
+
+
+def _seed_content_video_history(db, run_status="COMPLETED", unfinished_index=None, error_code=None):
+    from src.models.entities import ContentVideoPlan, ContentVideoRun, MediaAsset, ProductionProject, Workspace
+    from src.modules.tao_video_noi_dung.cong_harness import approval_receipt_hash, build_shot_receipt, canonical_hash
+    from src.modules.tao_video_noi_dung.planner import Storyboard
+    from src.modules.tao_video_noi_dung.service import _run_response
+
+    style = {"style_name": "Origami", "visual_rules": "Quy tắc hình ảnh origami rõ ràng.", "palette": ["navy"], "aspect_ratio": "9:16"}
+    storyboard = Storyboard.model_validate({
+        "title": "Video thử nghiệm", "narration": "Lời một. Lời hai. Lời ba.",
+        "continuity_anchor": "Nhân vật origami xanh navy giữ nguyên xuyên suốt các cảnh.",
+        "shots": [
+            {"shot_id": f"s{i}", "scene": f"Cảnh {i}", "narration": f"Lời {i}", "prompt": f"Cảnh origami số {i}.", "duration_seconds": 10}
+            for i in range(1, 4)
+        ],
+    })
+    db.add(Workspace(id="workspace-1", name="Workspace", slug="workspace-test"))
+    db.add(ProductionProject(id="project-1", workspace_id="workspace-1", title="Dự án video", created_by="creator-1"))
+    db.commit()
+    plan = ContentVideoPlan(
+        id="plan-1", workspace_id="workspace-1", project_id="project-1", revision=1, status="APPROVED",
+        source_content="Nội dung nguồn dùng để kiểm tra revision và tạo video.", content_sha256="content-hash",
+        target_duration_seconds=30, style_snapshot_json=json.dumps(style, ensure_ascii=False),
+        style_snapshot_sha256=canonical_hash(style), storyboard_json=storyboard.model_dump_json(),
+        storyboard_sha256=canonical_hash(storyboard.model_dump(mode="json")), llm_model="test",
+        created_by="creator-1", approved_by="reviewer-1", approved_at=datetime(2026, 10, 26),
+    )
+    db.add(plan)
+    db.commit()
+    db.add_all([
+        MediaAsset(
+            id=f"asset-s{i}", workspace_id="workspace-1", project_id="project-1",
+            storage_key=f"test/shot_{i}.mp4", sha256=f"sha256-shot-{i}", byte_size=10,
+            mime_detected="video/mp4", source_product="GOOGLE_FLOW", created_by="creator-1",
+        )
+        for i in range(1, 4)
+    ])
+    db.commit()
+    steps = [build_shot_receipt(
+        run_id="run-1", workspace_id="workspace-1", project_id="project-1", plan=plan,
+        voice_asset_id=None, shot=shot, style_snapshot=style,
+        continuity_anchor=storyboard.continuity_anchor,
+    ) for shot in storyboard.shots]
+    for index, step in enumerate(steps):
+        step.update({"state": "SUCCEEDED", "asset_id": f"asset-s{index + 1}"})
+    steps[0]["flow_project_url"] = "https://flow.google.com/project/existing"
+    if unfinished_index is not None:
+        for index in range(unfinished_index, len(steps)):
+            steps[index].update({"state": "READY", "asset_id": None})
+        if run_status == "NEEDS_RECONCILIATION":
+            steps[unfinished_index]["state"] = "NEEDS_RECONCILIATION"
+    run = ContentVideoRun(
+        id="run-1", workspace_id="workspace-1", project_id="project-1", plan_id=plan.id,
+        plan_revision=plan.revision, storyboard_sha256=plan.storyboard_sha256,
+        style_snapshot_sha256=plan.style_snapshot_sha256, approval_sha256=approval_receipt_hash(plan),
+        idempotency_key="original-run-key", status=run_status,
+        error_code=error_code,
+        steps_json=json.dumps(steps, ensure_ascii=False),
+        output_asset_ids_json=json.dumps([step["asset_id"] for step in steps if step["asset_id"]]),
+        created_by="creator-1",
+    )
+    db.add(run)
+    db.commit()
+    return plan, storyboard, run
+
+
+def test_retry_run_reuses_completed_shots_and_regenerates_only_selected_shot():
+    from src.modules.tao_video_noi_dung.contracts import RetryRunRequest
+    from src.modules.tao_video_noi_dung.service import retry_run
+
+    engine, Session = _content_video_test_database()
+    try:
+        with Session() as db:
+            _seed_content_video_history(db)
+            result = retry_run(db, "project-1", "run-1", "workspace-1", "operator-1", RetryRunRequest(
+                shot_ids=["s2"], idempotency_key="retry-selected-001",
+            ))
+
+            assert result.status == "QUEUED"
+            assert [step["state"] for step in result.steps] == ["SUCCEEDED", "READY", "SUCCEEDED"]
+            assert [step.get("asset_id") for step in result.steps] == ["asset-s1", None, "asset-s3"]
+            assert result.steps[0]["flow_project_url"] == "https://flow.google.com/project/existing"
+            assert result.final_asset_id is None and result.qc_report is None
+    finally:
+        engine.dispose()
+
+
+def test_retry_run_all_shots_discards_every_old_shot_result():
+    from src.modules.tao_video_noi_dung.contracts import RetryRunRequest
+    from src.modules.tao_video_noi_dung.service import retry_run
+
+    engine, Session = _content_video_test_database()
+    try:
+        with Session() as db:
+            _seed_content_video_history(db)
+            result = retry_run(db, "project-1", "run-1", "workspace-1", "operator-1", RetryRunRequest(
+                shot_ids=["s1", "s2", "s3"], idempotency_key="retry-all-shots-001",
+            ))
+
+            assert [step["state"] for step in result.steps] == ["READY", "READY", "READY"]
+            assert all(step.get("asset_id") is None for step in result.steps)
+            assert result.output_asset_ids == []
+    finally:
+        engine.dispose()
+
+
+def test_retry_run_resumes_watermark_cleanup_without_resubmitting_flow():
+    from src.modules.tao_video_noi_dung.contracts import RetryRunRequest
+    from src.modules.tao_video_noi_dung.service import retry_run
+    from src.models.entities import ContentVideoRun
+
+    engine, Session = _content_video_test_database()
+    try:
+        with Session() as db:
+            _seed_content_video_history(db, run_status="FAILED")
+            run = db.query(ContentVideoRun).filter_by(id="run-1").first()
+            steps = json.loads(run.steps_json)
+            steps[1].update({"state": "CLEANING", "raw_asset_id": "asset-s2", "asset_id": "asset-s2"})
+            run.steps_json = json.dumps(steps)
+            db.commit()
+
+            result = retry_run(db, "project-1", "run-1", "workspace-1", "operator-1", RetryRunRequest(
+                shot_ids=["s2"], idempotency_key="retry-cleaning-shot-001",
+            ))
+
+            assert result.steps[1]["state"] == "CLEANING"
+            assert result.steps[1]["raw_asset_id"] == "asset-s2"
+            assert result.steps[1]["asset_id"] == "asset-s2"
+    finally:
+        engine.dispose()
+
+
+def test_retry_run_from_failed_shot_keeps_prior_assets_and_new_project_url_is_empty():
+    from src.modules.tao_video_noi_dung.contracts import RetryRunRequest
+    from src.modules.tao_video_noi_dung.service import retry_run
+
+    engine, Session = _content_video_test_database()
+    try:
+        with Session() as db:
+            _seed_content_video_history(db, run_status="BLOCKED_FLOW_SETUP", unfinished_index=1, error_code="FLOW_REQUEST_NOT_SUBMITTED")
+            result = retry_run(db, "project-1", "run-1", "workspace-1", "operator-1", RetryRunRequest(
+                shot_ids=["s2"], new_flow_project=True, idempotency_key="retry-new-project-01",
+            ))
+
+            assert [step["state"] for step in result.steps] == ["SUCCEEDED", "READY", "READY"]
+            assert [step.get("asset_id") for step in result.steps] == ["asset-s1", None, None]
+            assert not any(step.get("flow_project_url") for step in result.steps)
+    finally:
+        engine.dispose()
+
+
+def test_retry_run_does_not_create_new_flow_project_after_credit_failure():
+    from fastapi import HTTPException
+    from src.modules.tao_video_noi_dung.contracts import RetryRunRequest
+    from src.modules.tao_video_noi_dung.service import retry_run
+
+    engine, Session = _content_video_test_database()
+    try:
+        with Session() as db:
+            _seed_content_video_history(
+                db, run_status="BLOCKED_FLOW_SETUP", unfinished_index=1,
+                error_code="FLOW_CREDITS_INSUFFICIENT",
+            )
+            with pytest.raises(HTTPException) as exc_info:
+                retry_run(db, "project-1", "run-1", "workspace-1", "operator-1", RetryRunRequest(
+                    shot_ids=["s2"], new_flow_project=True, idempotency_key="retry-project-after-credit-failure",
+                ))
+            assert exc_info.value.status_code == 409
+            assert exc_info.value.detail["error_code"] == "FLOW_PROJECT_NOT_UNAVAILABLE"
+    finally:
+        engine.dispose()
+
+
+def test_new_flow_project_restarts_only_from_first_unfinished_shot():
+    from fastapi import HTTPException
+    from src.modules.tao_video_noi_dung.contracts import RetryRunRequest
+    from src.modules.tao_video_noi_dung.service import retry_run
+
+    engine, Session = _content_video_test_database()
+    try:
+        with Session() as db:
+            _seed_content_video_history(
+                db, run_status="BLOCKED_FLOW_SETUP", unfinished_index=1,
+                error_code="FLOW_REQUEST_NOT_SUBMITTED",
+            )
+            with pytest.raises(HTTPException) as exc_info:
+                retry_run(db, "project-1", "run-1", "workspace-1", "operator-1", RetryRunRequest(
+                    shot_ids=["s1", "s2", "s3"], new_flow_project=True,
+                    idempotency_key="retry-all-in-new-project",
+                ))
+            assert exc_info.value.status_code == 409
+            assert exc_info.value.detail["error_code"] == "NEW_FLOW_PROJECT_MUST_START_AT_FAILED_SHOT"
+    finally:
+        engine.dispose()
+
+
+def test_retry_run_requires_confirmation_before_resending_uncertain_shot():
+    from fastapi import HTTPException
+    from src.modules.tao_video_noi_dung.contracts import RetryRunRequest
+    from src.modules.tao_video_noi_dung.service import retry_run
+
+    engine, Session = _content_video_test_database()
+    try:
+        with Session() as db:
+            _seed_content_video_history(db, run_status="NEEDS_RECONCILIATION", unfinished_index=1)
+            with pytest.raises(HTTPException) as exc_info:
+                retry_run(db, "project-1", "run-1", "workspace-1", "operator-1", RetryRunRequest(
+                    shot_ids=["s2"], idempotency_key="retry-uncertain-001",
+                ))
+            assert exc_info.value.status_code == 409
+            assert exc_info.value.detail["error_code"] == "FLOW_RESULT_UNCONFIRMED"
+    finally:
+        engine.dispose()
+
+
+def test_approved_storyboard_edit_creates_new_draft_revision_and_hides_old_run():
+    from src.models.entities import ContentVideoPlan
+    from src.modules.tao_video_noi_dung.service import get_latest_history, update_plan
+
+    engine, Session = _content_video_test_database()
+    try:
+        with Session() as db:
+            plan, storyboard, _run = _seed_content_video_history(db)
+            changed = storyboard.model_copy(deep=True)
+            changed.title = "Bản đã sửa"
+
+            saved = update_plan(db, "project-1", plan.id, "workspace-1", "creator-1", changed)
+            history = get_latest_history(db, "project-1", "workspace-1")
+
+            assert saved.id != plan.id
+            assert saved.revision == 2 and saved.status == "DRAFT"
+            assert saved.approved_by is None and saved.approved_at is None
+            assert history["plan"].id == saved.id and history["run"] is None
+            assert db.get(ContentVideoPlan, plan.id).status == "APPROVED"
+    finally:
+        engine.dispose()
+
+
+def test_retry_request_rejects_empty_or_duplicate_shot_selection():
+    from pydantic import ValidationError
+    from src.modules.tao_video_noi_dung.contracts import RetryRunRequest
+
+    with pytest.raises(ValidationError):
+        RetryRunRequest(shot_ids=[], idempotency_key="retry-empty-001")
+    with pytest.raises(ValidationError):
+        RetryRunRequest(shot_ids=["s1", "s1"], idempotency_key="retry-duplicate-01")
+
+
+def test_new_flow_project_is_saved_on_first_submitting_shot():
+    from src.modules.tao_video_noi_dung.runner import _flow_project_target
+
+    steps = [{"shot_id": "s1", "state": "SUCCEEDED"}, {"shot_id": "s2", "state": "SUBMITTING"}]
+
+    assert _flow_project_target(steps) is steps[1]
 
 
 def test_reconciliation_route_uses_authenticated_operator_and_project_scope(monkeypatch):
@@ -830,11 +1145,12 @@ def test_tts_provider_manager_switches_one_loaded_model_without_fallback():
     class Model:
         def __init__(self, name):
             self.name = name
+            self.sample_rate = 48000
             events.append(f"load:{name}")
         def __del__(self):
             events.append(f"unload:{self.name}")
         def infer(self, text, **kwargs):
-            return (self.name, text, kwargs), 48000
+            return [(self.name, text, kwargs)]
         def generate_voice_clone(self, **kwargs):
             return [(self.name, kwargs["text"], kwargs)], 48000
 

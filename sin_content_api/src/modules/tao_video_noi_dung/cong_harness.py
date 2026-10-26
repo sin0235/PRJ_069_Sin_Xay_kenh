@@ -75,7 +75,7 @@ def verify_shot_receipt(run: ContentVideoRun, plan: ContentVideoPlan, shot: Stor
     storyboard = json.loads(plan.storyboard_json)
     if canonical_hash(style) != plan.style_snapshot_sha256 or canonical_hash(storyboard) != plan.storyboard_sha256:
         raise RuntimeError("APPROVED_PLAN_HASH_CHANGED")
-    if not step.get("operation_id"):
+    if not step.get("operation_id") or not isinstance(step.get("prompt"), str) or not step["prompt"]:
         raise RuntimeError("HARNESS_COMMAND_RECEIPT_INVALID")
     expected = {
         "operation_id": step.get("operation_id"),
@@ -88,14 +88,11 @@ def verify_shot_receipt(run: ContentVideoRun, plan: ContentVideoPlan, shot: Stor
         "shot_id": shot.shot_id,
         "style_snapshot_sha256": plan.style_snapshot_sha256,
         "approval_sha256": run.approval_sha256,
-        "prompt": build_shot_prompt(
-            style, shot, storyboard["continuity_anchor"],
-            include_narration_audio=not run.voice_asset_id and not getattr(run, "tts_config_json", None),
-        ),
+        "prompt": step["prompt"],
         "aspect_ratio": style.get("aspect_ratio", "9:16"),
         "duration_seconds": shot.duration_seconds,
     }
-    if step.get("state") not in {"READY", "SUBMITTING", "SUCCEEDED", "NEEDS_RECONCILIATION"}:
+    if step.get("state") not in {"READY", "SUBMITTING", "CLEANING", "SUCCEEDED", "NEEDS_RECONCILIATION"}:
         raise RuntimeError("HARNESS_COMMAND_STATE_INVALID")
     if any(step.get(key) != value for key, value in expected.items()):
         raise RuntimeError("HARNESS_COMMAND_RECEIPT_INVALID")

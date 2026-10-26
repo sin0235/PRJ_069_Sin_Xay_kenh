@@ -14,6 +14,9 @@ services:
       - DATABASE_URL=postgresql://sin_user:sin_secure_pass@db:5432/sin_content_db
       - OFFLINE_MODE=false
       - LOG_LEVEL=INFO
+      - PRJ069_VIENU_HF_HOME=/home/appuser/.cache/prj069-vieneu
+    volumes:
+      - vieneu_hf_cache:/home/appuser/.cache/prj069-vieneu
     depends_on:
       db:
         condition: service_healthy
@@ -41,6 +44,8 @@ services:
       - sin_network
 
 volumes:
+  vieneu_hf_cache:
+    driver: local
   postgres_data:
     driver: local
 

@@ -9,6 +9,7 @@ import tempfile
 import uuid
 import wave
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -100,6 +101,10 @@ def _verified_asset_path(asset: MediaAsset, error_code: str) -> Path:
     return path
 
 
+def _queue_watermark_removal(executor: ThreadPoolExecutor, source_path: Path, output_path: Path):
+    return executor.submit(video_processor.remove_veo_watermark, source_path, output_path, use_cpu=True)
+
+
 def _extract_final_reference_frame(path: Path, workspace_id: str) -> tempfile.TemporaryDirectory:
     temp_dir = tempfile.TemporaryDirectory(prefix=f"flow_reference_{workspace_id}_")
     frame_path = Path(temp_dir.name) / "khung_hinh_cuoi.png"
@@ -117,6 +122,10 @@ def _save_run(db, run: ContentVideoRun, steps: list[dict]) -> None:
     run.steps_json = json.dumps(steps, ensure_ascii=False, separators=(",", ":"))
     db.commit()
     db.refresh(run)
+
+
+def _flow_project_target(steps: list[dict]) -> dict:
+    return next((step for step in steps if step.get("state") == "SUBMITTING"), steps[0])
 
 
 def _mark_flow_setup_blocked(run: ContentVideoRun, steps: list[dict], error: Exception) -> bool:
@@ -618,11 +627,13 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         meta, plan.target_duration_seconds, decode.returncode == 0 and not decode.stderr.strip(),
         aspect_ratio=aspect_ratio,
     )
-    if not voice_asset and any(getattr(shot, "prompt_contract_version", None) == 3 for shot in storyboard.shots) and not meta["flow_native_audio"]:
-        issues.append("FLOW_NATIVE_AUDIO_MISSING")
     audio_qc = (
         audio_processor.verify_audio_qc(output_path, expected_duration_sec=plan.target_duration_seconds)
-        if voice_asset or meta.get("flow_native_audio") else {"status": "SKIPPED", "reason": "NO_AUDIO_SELECTED", "passed": True}
+        if voice_asset else {
+            "status": "SKIPPED",
+            "reason": "FLOW_NATIVE_AUDIO" if meta.get("flow_native_audio") else "NO_AUDIO_SELECTED",
+            "passed": True,
+        }
     )
     if not audio_qc.get("passed"):
         issues.append("AUDIO_QC")
@@ -723,6 +734,8 @@ def process_run(run_id: str, token: str | None = None) -> None:
             return
         heartbeat = _RunHeartbeat(run_id, token)
         heartbeat.start()
+        watermark_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="flow-watermark")
+        pending_watermark_removals = {}
         try:
             plan, _ = _plan_and_project(db, run)
             storyboard = Storyboard.model_validate_json(plan.storyboard_json)
@@ -736,7 +749,7 @@ def process_run(run_id: str, token: str | None = None) -> None:
                 if flow_project_url and flow_project_url != project_url:
                     raise RuntimeError("FLOW_PROJECT_CHANGED_WITHIN_RUN")
                 flow_project_url = project_url
-                steps[0]["flow_project_url"] = project_url
+                _flow_project_target(steps)["flow_project_url"] = project_url
                 _save_run(db, run, steps)
 
             if not _heartbeat(db, token):
@@ -744,7 +757,25 @@ def process_run(run_id: str, token: str | None = None) -> None:
 
             for shot_index, (step, shot) in enumerate(zip(steps, storyboard.shots, strict=True)):
                 verify_shot_receipt(run, plan, shot, step)
-                if step.get("state") == "SUCCEEDED":
+                if step.get("state") == "SUCCEEDED" and step.get("watermark_removed"):
+                    continue
+                if step.get("state") in {"CLEANING", "SUCCEEDED"}:
+                    raw_asset_id = step.get("raw_asset_id") or step.get("asset_id")
+                    raw_asset = db.query(MediaAsset).filter(
+                        MediaAsset.id == raw_asset_id,
+                        MediaAsset.workspace_id == run.workspace_id,
+                        MediaAsset.project_id == run.project_id,
+                    ).first()
+                    if not raw_asset:
+                        raise RuntimeError("WATERMARK_SOURCE_ASSET_MISSING")
+                    raw_path = _verified_asset_path(raw_asset, "WATERMARK_SOURCE")
+                    clean_path = raw_path.with_name(f"{raw_path.stem}_clean.mp4")
+                    step.update({"state": "CLEANING", "raw_asset_id": raw_asset.id, "asset_id": raw_asset.id})
+                    _save_run(db, run, steps)
+                    pending_watermark_removals[shot.shot_id] = (
+                        step, raw_asset, shot, clean_path,
+                        _queue_watermark_removal(watermark_executor, raw_path, clean_path),
+                    )
                     continue
                 if step.get("state") == "SUBMITTING":
                     run.status = "NEEDS_RECONCILIATION"
@@ -759,7 +790,7 @@ def process_run(run_id: str, token: str | None = None) -> None:
                     if shot_index == 0:
                         raise RuntimeError("CONTINUITY_PREVIOUS_SHOT_MISSING")
                     previous_step = steps[shot_index - 1]
-                    if previous_step.get("state") != "SUCCEEDED" or not previous_step.get("asset_id"):
+                    if previous_step.get("state") not in {"SUCCEEDED", "CLEANING"} or not previous_step.get("asset_id"):
                         raise RuntimeError("CONTINUITY_PREVIOUS_SHOT_NOT_SUCCEEDED")
                     previous_asset = db.query(MediaAsset).filter(
                         MediaAsset.id == previous_step["asset_id"],
@@ -804,20 +835,57 @@ def process_run(run_id: str, token: str | None = None) -> None:
                 if asset.workspace_id != run.workspace_id or asset.project_id != run.project_id:
                     raise RuntimeError("PROVIDER_ASSET_SCOPE_MISMATCH")
                 path = _verified_asset_path(asset, "PROVIDER_OUTPUT")
-                if shot.prompt_contract_version == 3 and not run.voice_asset_id:
-                    if audio_processor.probe_audio(path).get("codec_name") == "unknown":
-                        step.update({"state": "FAILED", "asset_id": asset.id, "error_code": "FLOW_AUDIO_MISSING"})
-                        _save_run(db, run, steps)
-                        raise RuntimeError("FLOW_AUDIO_MISSING")
                 aspect_ratio = json.loads(plan.style_snapshot_json).get("aspect_ratio", "9:16")
                 shot_meta, shot_issues = _probe_shot_with_qc(path, shot.duration_seconds, aspect_ratio)
                 if shot_issues:
                     raise RuntimeError(f"SHOT_QC_FAILED:{shot.shot_id}:{','.join(shot_issues)}")
-                step["state"] = "SUCCEEDED"
-                step["asset_id"] = asset.id
-                step["finished_at"] = _now().isoformat()
-                run.output_asset_ids_json = json.dumps([item.get("asset_id") for item in steps if item.get("asset_id")])
+                clean_path = path.with_name(f"{path.stem}_clean.mp4")
+                step.update({
+                    "state": "CLEANING",
+                    "raw_asset_id": asset.id,
+                    "asset_id": asset.id,
+                    "watermark_removed": False,
+                })
                 _save_run(db, run, steps)
+                pending_watermark_removals[shot.shot_id] = (
+                    step, asset, shot, clean_path,
+                    _queue_watermark_removal(watermark_executor, path, clean_path),
+                )
+            for step, raw_asset, shot, clean_path, future in pending_watermark_removals.values():
+                try:
+                    result = future.result()
+                    if result.get("status") != "SUCCEEDED" or not result.get("watermark_removed"):
+                        raise RuntimeError("WATERMARK_REMOVAL_FAILED")
+                    clean_meta = video_processor.probe_video(clean_path)
+                    clean_asset = MediaAsset(
+                        id=f"asset-{uuid.uuid4().hex[:12]}",
+                        workspace_id=run.workspace_id,
+                        project_id=run.project_id,
+                        storage_key=clean_path.relative_to(MEDIA_ROOT_DIR).as_posix(),
+                        sha256=_file_sha256(clean_path),
+                        byte_size=clean_path.stat().st_size,
+                        mime_detected="video/mp4",
+                        duration_ms=int(clean_meta["duration_seconds"] * 1000),
+                        source_product="GOOGLE_FLOW_CLEANED",
+                        original_filename=clean_path.name,
+                        created_by=run.created_by,
+                        parent_asset_id=raw_asset.id,
+                        approval_state="UNREVIEWED",
+                    )
+                    db.add(clean_asset)
+                    step.update({
+                        "state": "SUCCEEDED",
+                        "asset_id": clean_asset.id,
+                        "watermark_removed": True,
+                        "finished_at": _now().isoformat(),
+                    })
+                    run.output_asset_ids_json = json.dumps([item.get("asset_id") for item in steps if item.get("asset_id")])
+                    _save_run(db, run, steps)
+                except Exception as exc:
+                    step["error_code"] = "WATERMARK_REMOVAL_FAILED"
+                    step["error_message"] = str(exc)[:500]
+                    _save_run(db, run, steps)
+                    raise
             asset_ids = [step["asset_id"] for step in steps]
             shot_assets = db.query(MediaAsset).filter(
                 MediaAsset.id.in_(asset_ids),
@@ -853,13 +921,14 @@ def process_run(run_id: str, token: str | None = None) -> None:
                     run.error_code = "PROVIDER_SUBMISSION_UNCERTAIN"
                 else:
                     run.status = "FAILED"
-                    run.error_code = str(exc) if isinstance(exc, (TTSProviderError, VietsubError)) or str(exc) in {"DUPLICATE_SHOT_MEDIA", "FLOW_AUDIO_MISSING"} else "CONTENT_VIDEO_RUN_FAILED"
+                    run.error_code = str(exc) if isinstance(exc, (TTSProviderError, VietsubError)) or str(exc) == "DUPLICATE_SHOT_MEDIA" else "CONTENT_VIDEO_RUN_FAILED"
                 run.error_message = str(exc)[:1000]
                 run.steps_json = json.dumps(steps, ensure_ascii=False, separators=(",", ":"))
                 run.finished_at = _now()
                 db.commit()
             logger.exception("Content video run failed: run_id=%s", run_id)
         finally:
+            watermark_executor.shutdown(wait=True)
             heartbeat.stop()
             _release_lease(db, token)
 
@@ -894,7 +963,13 @@ class ContentVideoWorker:
                             worked = True
                             process_run(run.id, token)
                         else:
-                            _release_lease(db, token)
+                            from src.modules.voice_studio.worker import claim_next_voice_job, process_voice_studio_job
+                            voice_job = claim_next_voice_job(db, token)
+                            if voice_job:
+                                worked = True
+                                process_voice_studio_job(voice_job.id, token)
+                            else:
+                                _release_lease(db, token)
             except Exception:
                 logger.exception("Content video worker poll failed")
             if not worked:

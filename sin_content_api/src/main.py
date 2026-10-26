@@ -28,6 +28,7 @@ from src.modules.auth.router import auth_router
 from src.modules.platform_config.router import router as platform_config_router
 from src.modules.dieu_phoi_dung.bo_dinh_tuyen import router as dieu_phoi_router
 from src.modules.tao_video_noi_dung.router import router as content_video_router
+from src.modules.voice_studio.router import router as voice_studio_router
 from src.modules.tao_video_noi_dung.runner import content_video_worker
 
 # Exception handler chuẩn hóa theo ErrorPayload
@@ -163,3 +164,4 @@ app.include_router(auth_router)
 app.include_router(platform_config_router)
 app.include_router(dieu_phoi_router)
 app.include_router(content_video_router)
+app.include_router(voice_studio_router)

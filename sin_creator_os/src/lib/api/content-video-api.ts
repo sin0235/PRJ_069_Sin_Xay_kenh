@@ -79,6 +79,10 @@ export const contentVideoApi = {
     method: "POST",
     body: JSON.stringify({ plan_id: planId, voice_source: voice.source, voice_asset_id: voice.source === "UPLOAD" ? voice.assetId : null, tts_provider: voice.source === "TTS" ? voice.provider : null, tts_voice_id: voice.source === "TTS" ? voice.voiceId : null, tts_reference_asset_id: voice.source === "TTS" ? voice.referenceAssetId : null, tts_reference_text: voice.source === "TTS" ? voice.referenceText : null, voice_clone_consent: voice.source === "TTS" && !!voice.consent, idempotency_key: idempotencyKey }),
   }),
+  retryRun: (projectId: string, runId: string, options: { shotIds: string[]; newFlowProject?: boolean; confirmNoFlowClip?: boolean; idempotencyKey: string }) => request<ContentVideoRun>(projectId, `/runs/${encodeURIComponent(runId)}/retry`, {
+    method: "POST",
+    body: JSON.stringify({ shot_ids: options.shotIds, new_flow_project: !!options.newFlowProject, confirm_no_flow_clip: !!options.confirmNoFlowClip, idempotency_key: options.idempotencyKey }),
+  }),
   getRun: (projectId: string, runId: string) => request<ContentVideoRun>(projectId, `/runs/${encodeURIComponent(runId)}`),
   resumeRun: (projectId: string, runId: string) => request<ContentVideoRun>(projectId, `/runs/${encodeURIComponent(runId)}/resume`, { method: "POST" }),
   reconcileShot: (projectId: string, runId: string, shotId: string, assetId: string, reason: string) => request<ContentVideoRun>(projectId, `/runs/${encodeURIComponent(runId)}/reconcile`, {

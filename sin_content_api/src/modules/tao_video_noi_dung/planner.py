@@ -94,10 +94,11 @@ def build_shot_prompt(
         if shot.prompt_contract_version == 3 or shot.continues_previous is not None else ""
     )
     audio_rules = (
-        f"Âm thanh Flow bắt buộc bật: giọng dẫn đọc nguyên văn bằng tiếng Việt: \"{shot.narration}\". Giọng tự nhiên, rõ ràng, không dịch, không sửa lời, không thêm câu thoại và không nói tiếng Anh; có âm thanh bối cảnh nhẹ phù hợp. "
+        f"Âm thanh Flow tùy chọn; nếu Flow tạo giọng dẫn thì đọc nguyên văn bằng tiếng Việt: \"{shot.narration}\". Nếu Flow không tạo âm thanh, clip im lặng vẫn chấp nhận. Giọng tự nhiên, rõ ràng, không dịch, không sửa lời, không thêm câu thoại và không nói tiếng Anh; âm thanh bối cảnh nhẹ nếu có. "
         if shot.prompt_contract_version == 3 and include_narration_audio else
-        "Âm thanh Flow bắt buộc bật: chỉ tạo âm thanh bối cảnh nhẹ phù hợp, không có lời nói vì giọng đọc được ghép riêng. "
-        if shot.prompt_contract_version == 3 else ""
+        "Âm thanh Flow tùy chọn; không tạo lời nói vì giọng đọc được ghép riêng; âm thanh bối cảnh nhẹ nếu có, clip im lặng vẫn chấp nhận. "
+        if shot.prompt_contract_version == 3 else
+        "Âm thanh tự nhiên tùy chọn; clip im lặng vẫn chấp nhận. Không tạo lời nói tiếng Anh; lời thoại nếu có phải bằng tiếng Việt. "
     )
     return (
         f"Bố cục {aspect_ratio}. Phong cách {style_snapshot['style_name']}, dùng mô hình nhân vật, đạo cụ và bối cảnh làm từ giấy origami gấp nếp rõ. " +
@@ -112,7 +113,6 @@ def build_shot_prompt(
         "Chỉ một hành động chính đơn giản diễn ra liên tục, có mở đầu, tiến triển và kết thúc tự nhiên; ưu tiên chuyển động của mô hình đã hoàn chỉnh, quỹ đạo đơn giản, camera mượt, ổn định và đúng vật lý. " +
         anatomy_rules +
         "không rung giật, không nhấp nháy, không xuất hiện hoặc biến mất đột ngột, không tự đổi cảnh, màu và ánh sáng. " +
-        "Có âm thanh tự nhiên phù hợp với hành động và bối cảnh. Không tạo lời nói tiếng Anh; lời thoại nếu có phải bằng tiếng Việt. " +
         "Không hiển thị chữ, phụ đề, logo hoặc watermark trong hình ảnh."
     )
 

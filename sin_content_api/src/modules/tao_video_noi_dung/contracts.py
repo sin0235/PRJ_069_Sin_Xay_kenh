@@ -106,6 +106,22 @@ class ReconcileShotRequest(BaseModel):
         return value
 
 
+class RetryRunRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    shot_ids: list[str] = Field(min_length=1, max_length=30)
+    new_flow_project: bool = False
+    confirm_no_flow_clip: bool = False
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+    @field_validator("shot_ids")
+    @classmethod
+    def unique_nonblank_shots(cls, shot_ids: list[str]) -> list[str]:
+        if any(not shot_id.strip() for shot_id in shot_ids) or len(shot_ids) != len(set(shot_ids)):
+            raise ValueError("Danh sách shot phải có mã duy nhất và không để trống.")
+        return shot_ids
+
+
 class ContentVideoRunResponse(BaseModel):
     id: str
     project_id: str

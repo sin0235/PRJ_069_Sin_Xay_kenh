@@ -14,8 +14,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+COPY requirements.txt yeu_cau_tts_vieneu.txt ./
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt -r yeu_cau_tts_vieneu.txt
 
 # Final stage
 FROM python:3.11-slim
@@ -33,7 +33,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Tao non-root user bao mat
 RUN groupadd -g 10001 appgroup && \
-    useradd -u 10001 -g appgroup -s /bin/bash -m appuser
+    useradd -u 10001 -g appgroup -s /bin/bash -m appuser && \
+    mkdir -p /home/appuser/.cache/prj069-vieneu && \
+    chown -R appuser:appgroup /home/appuser/.cache
 
 COPY --from=builder /install /usr/local
 COPY . /app

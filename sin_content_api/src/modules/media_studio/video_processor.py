@@ -111,7 +111,7 @@ class VideoProcessor:
         Khử sạch logo / watermark Google Veo & Gemini AI khỏi video bằng công cụ chuyên dụng.
         """
         if veo_remover and veo_remover.is_available():
-            return veo_remover.remove_watermark(
+            result = veo_remover.remove_watermark(
                 input_video_path=input_video_path,
                 output_video_path=output_video_path,
                 use_cpu=use_cpu,
@@ -120,6 +120,15 @@ class VideoProcessor:
                 region=region,
                 veo_alpha=veo_alpha
             )
+            if result.get("status") == "SUCCEEDED" and result.get("watermark_removed"):
+                input_duration = self.probe_video(input_video_path)["duration_seconds"]
+                output_duration = self.probe_video(output_video_path)["duration_seconds"]
+                if abs(input_duration - output_duration) > 0.5:
+                    raise RuntimeError(
+                        "WATERMARK_OUTPUT_DURATION_MISMATCH: "
+                        f"source={input_duration:.3f}s output={output_duration:.3f}s"
+                    )
+            return result
         else:
             raise RuntimeError("Công cụ VeoWatermarkRemover chưa sẵn sàng trên hệ thống.")
 

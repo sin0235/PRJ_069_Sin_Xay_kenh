@@ -10,6 +10,7 @@ from src.models import (
     PlatformLLMConfig
 )
 from src.models.entities import ContentVideoPlan, ContentVideoRun, ContentVideoWorkerLease
+from src.models.entities import VoiceProfile, VoiceStudioSetting
 
 def migration_up():
     """Ap dung migration: Khoi tao toan bo cac bang du lieu"""

@@ -9,9 +9,9 @@ from src.auth.tenancy import (
 )
 from src.database import get_db
 from baha_auth.src.policy.evaluator import e2e_test_self_approval_enabled
-from .contracts import ContentVideoPlanResponse, ContentVideoRunResponse, CreatePlanRequest, CreateRunRequest, ReconcileShotRequest, UpdateStoryboardRequest
+from .contracts import ContentVideoPlanResponse, ContentVideoRunResponse, CreatePlanRequest, CreateRunRequest, ReconcileShotRequest, RetryRunRequest, UpdateStoryboardRequest
 from .runner import reconcile_shot
-from .service import approve_plan, create_plan, create_run, get_latest_history, get_plan, get_run, resume_run, update_plan
+from .service import approve_plan, create_plan, create_run, get_latest_history, get_plan, get_run, resume_run, retry_run, update_plan
 
 
 router = APIRouter(prefix="/v1/media/projects/{project_id}/content-video", tags=["Content Video Production"])
@@ -109,6 +109,17 @@ def resume_content_video_run(
     tenant: TenantContext = Depends(require_action("media.upload")),
 ):
     return resume_run(db, project_id, run_id, tenant.workspace_id)
+
+
+@router.post("/runs/{run_id}/retry", response_model=ContentVideoRunResponse, status_code=202)
+def retry_content_video_run(
+    project_id: str,
+    run_id: str,
+    payload: RetryRunRequest,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(require_action("media.upload")),
+):
+    return retry_run(db, project_id, run_id, tenant.workspace_id, tenant.user_id, payload)
 
 
 @router.post("/runs/{run_id}/reconcile", response_model=ContentVideoRunResponse)

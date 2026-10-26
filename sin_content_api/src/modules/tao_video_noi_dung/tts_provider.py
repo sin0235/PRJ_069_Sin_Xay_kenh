@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import gc
+import os
 import threading
+from pathlib import Path
 
 
 class TTSProviderError(RuntimeError):
@@ -63,28 +65,56 @@ class TTSProviderManager:
     @staticmethod
     def _load_vieneu():
         try:
+            cache_home = Path(os.environ.get("PRJ069_VIENU_HF_HOME") or (
+                Path.home() / ".cache" / "prj069-vieneu"
+            )).expanduser()
+            hub_cache = cache_home / "hub"
+            os.environ["HF_HOME"] = str(cache_home)
+            os.environ["HF_HUB_CACHE"] = str(hub_cache)
+            os.environ["HF_HUB_DISABLE_SHARED_BLOBS"] = "1"
+            os.environ["HF_HUB_DISABLE_SYMLINKS"] = "1"
+            import huggingface_hub.constants as hf_constants
+            hf_constants.HF_HOME = str(cache_home)
+            hf_constants.HF_HUB_CACHE = str(hub_cache)
+            hf_constants.HF_HUB_DISABLE_SHARED_BLOBS = True
+            hf_constants.HF_HUB_DISABLE_SYMLINKS = True
             from vieneu import Vieneu
         except ImportError as exc:
             raise TTSProviderError("TTS_PROVIDER_UNAVAILABLE") from exc
-        return Vieneu(mode="v3turbo")
+        return Vieneu(
+            mode="v3turbo", device="cpu", backend="onnx", precision="fp32", threads=0,
+        )
 
     @staticmethod
     def _infer(provider: str, model, config: dict, text: str, reference_path: str | None):
+        advanced = config.get("advanced") or {}
         if provider == "GWEN_TTS":
             audio, sample_rate = model.generate_voice_clone(
                 text=text,
                 language="Vietnamese",
                 ref_audio=reference_path,
                 ref_text=config["reference_text"],
-                temperature=0.3,
-                top_k=20,
-                top_p=0.9,
-                max_new_tokens=4096,
-                repetition_penalty=2.0,
+                x_vector_only_mode=advanced.get("x_vector_only_mode", False),
+                temperature=advanced.get("temperature", 0.3),
+                top_k=advanced.get("top_k", 20),
+                top_p=advanced.get("top_p", 0.9),
+                max_new_tokens=advanced.get("max_new_tokens", 4096),
+                repetition_penalty=advanced.get("repetition_penalty", 2.0),
             )
             return audio[0], sample_rate
         options = {"ref_audio": reference_path} if reference_path else {"voice": config.get("voice_id") or "Hải Đăng"}
-        return model.infer(text, **options), 48000
+        audio = model.infer(
+            text, **options,
+            denoise=advanced.get("denoise_reference", True),
+            use_ref_codes=advanced.get("use_reference_codes", True),
+            temperature=advanced.get("temperature", 0.8),
+            top_k=advanced.get("top_k", 25),
+            top_p=advanced.get("top_p", 0.95),
+            max_new_frames=advanced.get("max_new_frames", 300),
+            repetition_penalty=advanced.get("repetition_penalty", 1.2),
+            max_chars=advanced.get("max_chars", 256),
+        )
+        return audio, model.sample_rate
 
 
 tts_provider_manager = TTSProviderManager()

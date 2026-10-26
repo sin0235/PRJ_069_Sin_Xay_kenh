@@ -809,6 +809,28 @@ class AIGenerationJob(Base):
     created_at = Column(DateTime, default=utc_now, nullable=False)
     finished_at = Column(DateTime, nullable=True)
 
+class VoiceProfile(Base):
+    __tablename__ = "voice_profiles"
+    __table_args__ = (UniqueConstraint("workspace_id", "name", name="uq_voice_profiles_workspace_name"),)
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    workspace_id = Column(String(36), ForeignKey("workspaces.id"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    provider = Column(String(50), nullable=False)
+    reference_asset_id = Column(String(36), ForeignKey("media_assets.id"), nullable=False)
+    reference_text = Column(Text, nullable=True)
+    voice_clone_consent = Column(Boolean, nullable=False, default=False)
+    created_by = Column(String(36), nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+
+class VoiceStudioSetting(Base):
+    __tablename__ = "voice_studio_settings"
+
+    workspace_id = Column(String(36), ForeignKey("workspaces.id"), primary_key=True)
+    pronunciation_dictionary = Column(Text, nullable=False, default="")
+    updated_by = Column(String(36), nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
+
 class MusicBrief(Base):
     __tablename__ = "music_briefs"
 
