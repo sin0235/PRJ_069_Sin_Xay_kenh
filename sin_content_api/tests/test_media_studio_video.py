@@ -1475,6 +1475,35 @@ def test_expand_video_uses_safe_temp_name_and_links_project(video_fixture, monke
     assert not list(tmp_path.glob("flow_raw_*"))
 
 
+def test_flow_provider_uses_native_portrait_output(video_fixture, monkeypatch, tmp_path):
+    import types
+    from src.modules.media_studio import video_provider as provider_module
+
+    raw_video = video_fixture["clip_1"]
+    received = {}
+
+    class FakeFlowClient:
+        def __init__(self, **_kwargs):
+            pass
+
+        def create_video(self, **kwargs):
+            received.update(kwargs)
+            return {"storage_path": str(raw_video)}
+
+    monkeypatch.setattr(provider_module, "MEDIA_ROOT_DIR", tmp_path / "media")
+    monkeypatch.setitem(sys.modules, "google_flow_client", types.SimpleNamespace(GoogleFlowClient=FakeFlowClient))
+    monkeypatch.setattr(provider_module.video_processor, "expand_16_9_to_9_16", lambda **_: pytest.fail("unexpected blur expansion"))
+
+    result = provider_module.GoogleFlowZeroCostProvider().generate("Nhân vật đi bộ", aspect_ratio="9:16")
+
+    assert received["aspect_ratio"] == "9:16"
+    assert result["aspect_ratio"] == "9:16"
+    assert result["raw_source_aspect"] == "9:16"
+    assert result["expansion_technique"] is None
+    assert pathlib.Path(result["storage_path"]).is_file()
+    assert video_processor.probe_video(pathlib.Path(result["storage_path"]))["aspect_ratio"] == "9:16"
+
+
 def test_timeline_renderer_wraps_long_captions(video_fixture, tmp_path):
     caption = "Dải màu ngang dịch chuyển qua bảng kiểm tra với các sọc màu dọc"
     timeline = TimelineDocument(

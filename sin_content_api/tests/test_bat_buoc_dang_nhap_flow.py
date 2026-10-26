@@ -1,4 +1,5 @@
 import pathlib
+import subprocess
 import sys
 import importlib
 from types import SimpleNamespace
@@ -176,7 +177,11 @@ def test_flow_download_timeout_does_not_recommend_removed_upload_button(monkeypa
 def test_flow_video_keeps_raw_source_for_next_scene(monkeypatch, tmp_path):
     monkeypatch.setattr(video_provider, "MEDIA_ROOT_DIR", tmp_path)
     source = tmp_path / "flow_source.mp4"
-    source.write_bytes(b"original Flow video")
+    subprocess.run(
+        [video_processor_module.video_processor.ffmpeg_bin, "-y", "-f", "lavfi", "-i",
+         "color=c=0x1E293B:s=1080x1920:d=2", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(source)],
+        check=True, capture_output=True,
+    )
     flow_call = {}
 
     class FakeFlowClient:
@@ -184,12 +189,8 @@ def test_flow_video_keeps_raw_source_for_next_scene(monkeypatch, tmp_path):
             flow_call.update(kwargs)
             return {"storage_path": str(source)}
 
-    def expand_16_9_to_9_16(**kwargs):
-        pathlib.Path(kwargs["output_video_path"]).write_bytes(b"expanded video")
-        return {"duration_seconds": 10, "watermark_removed": False}
-
     monkeypatch.setattr(google_flow_client, "GoogleFlowClient", lambda **kwargs: FakeFlowClient())
-    monkeypatch.setattr(video_provider.video_processor, "expand_16_9_to_9_16", expand_16_9_to_9_16)
+    monkeypatch.setattr(video_provider.video_processor, "expand_16_9_to_9_16", lambda **_: pytest.fail("blur expansion should be skipped"))
     on_project_created = lambda _url: None
     project_url = "https://flow.google.com/project/run-test"
     result = video_provider.GoogleFlowZeroCostProvider().generate(
@@ -200,9 +201,10 @@ def test_flow_video_keeps_raw_source_for_next_scene(monkeypatch, tmp_path):
     )
 
     raw_source = pathlib.Path(result["storage_path"]).with_name(
-        result["filename"].replace("flow_expanded_9_16_", "flow_source_16_9_", 1)
+        result["filename"].replace("flow_native_9_16_", "flow_source_9_16_", 1)
     )
     assert raw_source.read_bytes() == source.read_bytes()
+    assert video_processor_module.video_processor.probe_video(pathlib.Path(result["storage_path"]))["aspect_ratio"] == "9:16"
     assert flow_call["flow_project_url"] == project_url
     assert flow_call["on_flow_project_created"] is on_project_created
 

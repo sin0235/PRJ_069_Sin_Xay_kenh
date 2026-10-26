@@ -52,11 +52,23 @@ def evaluate_video_qc(meta: dict, expected_duration_seconds: int, decode_ok: boo
     return issues
 
 
-def evaluate_shot_qc(meta: dict, used_duration_seconds: int) -> list[str]:
-    issues = evaluate_video_qc(meta, used_duration_seconds, decode_ok=True)
+def evaluate_shot_qc(meta: dict, used_duration_seconds: int, decode_ok: bool = True) -> list[str]:
+    issues = evaluate_video_qc(meta, used_duration_seconds, decode_ok=decode_ok)
     if float(meta.get("duration_seconds", 0)) + 0.5 >= used_duration_seconds:
         issues = [issue for issue in issues if issue != "DURATION"]
     return issues
+
+
+def _probe_shot_with_qc(path: Path, used_duration_seconds: int) -> tuple[dict, list[str]]:
+    meta = video_processor.probe_video(path)
+    decode = subprocess.run(
+        [video_processor.ffmpeg_bin, "-v", "error", "-i", str(path), "-f", "null", "-"],
+        capture_output=True, text=True, timeout=120, check=False,
+    )
+    return meta, evaluate_shot_qc(
+        meta, used_duration_seconds,
+        decode_ok=decode.returncode == 0 and not decode.stderr.strip(),
+    )
 
 
 def _now() -> datetime:
@@ -288,7 +300,7 @@ def reconcile_shot(
         raise HTTPException(status_code=404, detail={"error_code": "RECONCILE_ASSET_NOT_FOUND", "message": "Không tìm thấy video MP4 mới của run trong dự án."})
     try:
         path = _verified_asset_path(asset, "RECONCILE_ASSET")
-        issues = evaluate_shot_qc(video_processor.probe_video(path), shot.duration_seconds)
+        _, issues = _probe_shot_with_qc(path, shot.duration_seconds)
         if issues:
             raise RuntimeError("SHOT_QC_FAILED:" + ",".join(issues))
         if run.voice_asset_id is None and audio_processor.probe_audio(path).get("codec_name") == "unknown":
@@ -709,9 +721,8 @@ def process_run(run_id: str, token: str | None = None) -> None:
                 if asset.workspace_id != run.workspace_id or asset.project_id != run.project_id:
                     raise RuntimeError("PROVIDER_ASSET_SCOPE_MISMATCH")
                 path = _verified_asset_path(asset, "PROVIDER_OUTPUT")
-                shot_meta = video_processor.probe_video(path)
-                shot_issues = evaluate_shot_qc(shot_meta, shot.duration_seconds)
-                if "DIMENSIONS" in shot_issues or "VIDEO_CODEC" in shot_issues or "DURATION" in shot_issues:
+                shot_meta, shot_issues = _probe_shot_with_qc(path, shot.duration_seconds)
+                if shot_issues:
                     raise RuntimeError(f"SHOT_QC_FAILED:{shot.shot_id}:{','.join(shot_issues)}")
                 step["state"] = "SUCCEEDED"
                 step["asset_id"] = asset.id

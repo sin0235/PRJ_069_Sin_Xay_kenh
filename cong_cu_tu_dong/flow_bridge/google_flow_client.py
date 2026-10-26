@@ -170,18 +170,20 @@ class GoogleFlowClient:
         on_flow_project_created: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
         """
-        Gửi yêu cầu tạo video 16:9 (10s) tới Google Flow Omni Flash,
-        tự động phê duyệt credits, chờ máy chủ hoàn thành và tải MP4 thật 10s về.
+        Tạo video theo tỷ lệ được chọn, chờ Flow hoàn tất rồi tải MP4 về.
         """
+        if aspect_ratio not in {"9:16", "16:9"}:
+            raise ValueError(f"FLOW_ASPECT_RATIO_UNSUPPORTED: {aspect_ratio}")
         if (os.getenv("TESTING") == "1" or os.getenv("APP_ENV") == "test") and not os.getenv("FORCE_FLOW"):
             target_dir = MEDIA_ASSETS_DIR / "workspaces" / workspace_id / "media"
             target_dir.mkdir(parents=True, exist_ok=True)
             dest_filename = f"flow_real_ai_{uuid.uuid4().hex[:8]}_test.mp4"
             dest_path = target_dir / dest_filename
             ffmpeg_bin = os.getenv("FFMPEG_BIN", "ffmpeg")
+            width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
             cmd = [
                 ffmpeg_bin, "-y", "-f", "lavfi",
-                "-i", "color=c=0x1E293B:s=1920x1080:d=10",
+                "-i", f"color=c=0x1E293B:s={width}x{height}:d=10",
                 "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
                 str(dest_path)
             ]
@@ -301,7 +303,7 @@ class GoogleFlowClient:
                     if not requested_project_url and on_flow_project_created:
                         on_flow_project_created(flow_project_url)
 
-                    self._ensure_video_mode(page)
+                    self._ensure_video_mode(page, aspect_ratio)
                     if start_image_path:
                         self._attach_start_image(page, start_image_path, timeout_sec)
 
@@ -445,14 +447,14 @@ class GoogleFlowClient:
                 "byte_size": byte_size,
                 "mime_detected": "video/mp4",
                 "duration_ms": duration_ms,
-                "aspect_ratio": "16:9",
+                "aspect_ratio": aspect_ratio,
                 "actual_cost": 0.0,
                 "cost_currency": "USD",
                 "credits_source": "GOOGLE_FLOW_PRO"
             }
 
     @staticmethod
-    def _ensure_video_mode(page) -> None:
+    def _ensure_video_mode(page, aspect_ratio: str = "16:9") -> None:
         editor = page.locator(
             'div[role="textbox"][data-slate-editor="true"], '
             'div.ProseMirror[contenteditable="true"]'
@@ -479,7 +481,7 @@ class GoogleFlowClient:
                 "button.agent-action-button[aria-label='Settings'], "
                 "button.agent-action-button[aria-label='Cài đặt']"
             ).first
-            if agent_settings.count() and agent_settings.is_visible():
+            if aspect_ratio == "16:9" and agent_settings.count() and agent_settings.is_visible():
                 return
             raise RuntimeError("Google Flow chưa sẵn sàng trình chỉnh sửa video.")
         trigger.click(timeout=5000)
@@ -495,6 +497,29 @@ class GoogleFlowClient:
             raise RuntimeError("Google Flow không hiển thị lựa chọn chế độ Video.")
         video_tab.click(timeout=5000)
         page.wait_for_timeout(1200)
+        trigger = page.locator(
+            "button[aria-haspopup='menu']:has(i.google-symbols:text('crop_16_9')), "
+            "button[aria-haspopup='menu']:has(i.google-symbols:text('crop_9_16')), "
+            "button[aria-haspopup='menu']:has(i.google-symbols:text('crop_square')), "
+            "button[aria-haspopup='menu']:has(i.google-symbols:text('crop_portrait')), "
+            "button[aria-haspopup='menu']:has(i.google-symbols:text('crop_landscape')), "
+            "button[aria-haspopup='menu']:has(i.google-symbols:text('crop_original'))"
+        ).first
+        if trigger.count() == 0:
+            raise RuntimeError("FLOW_ASPECT_RATIO_UNAVAILABLE: KhÃ´ng tÃ¬m tháº¥y bá»™ chá»n khung hÃ¬nh.")
+        trigger.click(timeout=5000)
+        aspect_tab_selector = (
+            "[role='menu'] [role='tab'][id$='-trigger-PORTRAIT'], "
+            "[role='menu'] [role='tab']:has(i.google-symbols:text-is('crop_9_16'))"
+            if aspect_ratio == "9:16" else
+            "[role='menu'] [role='tab'][id$='-trigger-LANDSCAPE'], "
+            "[role='menu'] [role='tab']:has(i.google-symbols:text-is('crop_16_9'))"
+        )
+        aspect_tab = page.locator(aspect_tab_selector).first
+        if aspect_tab.count() == 0:
+            raise RuntimeError(f"FLOW_ASPECT_RATIO_UNAVAILABLE: Flow khÃ´ng hiá»ƒn thá»‹ lá»±a chá»n {aspect_ratio}.")
+        aspect_tab.click(timeout=5000)
+        page.wait_for_timeout(800)
 
     @staticmethod
     def _attach_start_image(page, image_path: pathlib.Path, timeout_sec: int) -> None:

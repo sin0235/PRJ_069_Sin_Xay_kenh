@@ -296,6 +296,18 @@ def test_shot_qc_allows_provider_clip_longer_than_used_trim_but_rejects_short_cl
     assert "DURATION" in evaluate_shot_qc({**meta, "duration_seconds": 6.0}, used_duration_seconds=7)
 
 
+def test_shot_qc_rejects_wrong_frame_rate():
+    meta = {"width": 1080, "height": 1920, "codec_name": "h264", "frame_rate": 24.0, "duration_seconds": 10.0}
+
+    assert "FRAME_RATE" in evaluate_shot_qc(meta, used_duration_seconds=10)
+
+
+def test_shot_qc_rejects_decode_failure():
+    meta = {"width": 1080, "height": 1920, "codec_name": "h264", "frame_rate": 30.0, "duration_seconds": 10.0}
+
+    assert "DECODE" in evaluate_shot_qc(meta, used_duration_seconds=10, decode_ok=False)
+
+
 def test_plan_request_cannot_override_server_style_profile():
     with pytest.raises(ValueError):
         CreatePlanRequest.model_validate({

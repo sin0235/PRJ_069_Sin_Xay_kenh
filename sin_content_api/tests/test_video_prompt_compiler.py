@@ -20,6 +20,8 @@ def test_compiler_uses_requested_duration_and_aspect_ratio_in_directive():
     )
 
     assert result.target_duration_seconds == 7
+    assert "B\u1ed1 c\u1ee5c d\u1ecdc g\u1ed1c 9:16" in result.compiled_directive
+    assert "kh\u00f4ng l\u00e0m m\u1edd ch\u1ee7 th\u1ec3" in result.compiled_directive
     assert "9:16" in result.compiled_directive
     assert "7 giây" in result.compiled_directive
     assert "10 giây" not in result.compiled_directive

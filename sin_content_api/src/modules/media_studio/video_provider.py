@@ -56,21 +56,21 @@ class GoogleFlowZeroCostProvider:
     ) -> Dict[str, Any]:
         """
         Quy trình chuẩn:
-        Bước 0: Biên dịch câu lệnh người dùng thành Bộ lệnh Video 16:9 đầy đủ động học & góc máy.
-        Bước 1: Flow Omni tạo video gốc tỷ lệ 16:9 (10 giây).
-        Bước 2: Xử lý mở rộng (Outpainting Extension) chuyển 16:9 thành 9:16 (1080x1920) chuẩn TikTok, giữ đủ 10s.
+        Biên dịch brief theo tỷ lệ đích, tạo video đúng tỷ lệ trong Flow rồi chuẩn hóa kích thước, fps và codec.
         """
+        if aspect_ratio not in {"9:16", "16:9"}:
+            raise ValueError(f"FLOW_ASPECT_RATIO_UNSUPPORTED: {aspect_ratio}")
         target_dir = MEDIA_ROOT_DIR / "workspaces" / workspace_id / "media"
         target_dir.mkdir(parents=True, exist_ok=True)
         
         job_hash = uuid.uuid4().hex[:10]
-        expanded_9_16_filename = f"flow_expanded_9_16_{job_hash}.mp4"
-        expanded_9_16_path = target_dir / expanded_9_16_filename
+        output_filename = f"flow_native_{aspect_ratio.replace(':', '_')}_{job_hash}.mp4"
+        output_path = target_dir / output_filename
 
         # Bước 0: Biên dịch chỉ thị lệnh
         compiled_info = video_prompt_compiler.compile(
             user_prompt=prompt,
-            aspect_ratio="16:9",
+            aspect_ratio=aspect_ratio,
             duration_seconds=10
         )
         flow_directive = compiled_info.compiled_directive
@@ -82,13 +82,13 @@ class GoogleFlowZeroCostProvider:
             client = GoogleFlowClient(headless=True)
             flow_res = client.create_video(
                 prompt=flow_directive,
-                aspect_ratio="16:9",
+                aspect_ratio=aspect_ratio,
                 workspace_id=workspace_id,
                 timeout_sec=240,
                 flow_project_url=flow_project_url,
                 on_flow_project_created=on_flow_project_created,
             )
-            raw_16_9_path = pathlib.Path(flow_res["storage_path"])
+            raw_flow_path = pathlib.Path(flow_res["storage_path"])
         except Exception as flow_err:
             if isinstance(flow_err, (FlowLoginRequired, FlowSubmissionNotSent)):
                 raise
@@ -97,34 +97,47 @@ class GoogleFlowZeroCostProvider:
                 "Nếu video đã xuất hiện trên Flow, không tạo lại ngay; kiểm tra video trong project Flow và nhật ký tải kết quả của hệ thống."
             ) from flow_err
 
-        shutil.copy2(raw_16_9_path, target_dir / f"flow_source_16_9_{job_hash}.mp4")
-
-        # Bước 2: Tự động mở rộng video 16:9 thật của Flow thành 9:16 chuẩn TikTok (Blurred Backdrop Extension)
-        meta_9_16 = video_processor.expand_16_9_to_9_16(
-            input_video_path=raw_16_9_path,
-            output_video_path=expanded_9_16_path,
-            blur_strength=25,
-            remove_watermark=remove_watermark
+        shutil.copy2(raw_flow_path, target_dir / f"flow_source_{aspect_ratio.replace(':', '_')}_{job_hash}.mp4")
+        watermark_removed = False
+        input_path = raw_flow_path
+        clean_path = target_dir / f"flow_clean_{job_hash}.mp4"
+        if remove_watermark:
+            clean_result = video_processor.remove_veo_watermark(raw_flow_path, clean_path, use_cpu=True)
+            if clean_result.get("status") != "SUCCEEDED" or not clean_result.get("watermark_removed"):
+                raise RuntimeError("WATERMARK_REMOVAL_FAILED: Flow chưa xác nhận đã loại bỏ watermark.")
+            input_path = clean_path
+            watermark_removed = True
+        width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
+        normalize = subprocess.run(
+            [video_processor.ffmpeg_bin, "-y", "-i", str(input_path), "-vf",
+             f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1,fps=30",
+             "-c:v", "libx264", "-c:a", "aac", "-b:a", "192k", "-pix_fmt", "yuv420p", str(output_path)],
+            capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
         )
+        if normalize.returncode != 0:
+            raise RuntimeError(f"FLOW_VIDEO_NORMALIZATION_FAILED: {normalize.stderr[-1000:]}")
+        if clean_path.exists():
+            clean_path.unlink()
+        meta = video_processor.probe_video(output_path)
 
-        data = expanded_9_16_path.read_bytes()
+        data = output_path.read_bytes()
         sha = hashlib.sha256(data).hexdigest()
 
         return {
             "status": "SUCCEEDED",
             "provider": self.provider_id,
             "source_product": "GOOGLE_FLOW",
-            "filename": expanded_9_16_filename,
-            "storage_path": str(expanded_9_16_path),
-            "relative_storage_key": f"workspaces/{workspace_id}/media/{expanded_9_16_filename}",
+            "filename": output_filename,
+            "storage_path": str(output_path),
+            "relative_storage_key": f"workspaces/{workspace_id}/media/{output_filename}",
             "sha256": sha,
             "byte_size": len(data),
             "mime_detected": "video/mp4",
-            "duration_ms": int(meta_9_16.get("duration_seconds", 10.0) * 1000),
-            "aspect_ratio": "9:16",
-            "raw_source_aspect": "16:9",
-            "expansion_technique": "BLURRED_CANVAS_OUTPAINTING",
-            "watermark_removed": bool(meta_9_16.get("watermark_removed", False)),
+            "duration_ms": int(meta.get("duration_seconds", 10.0) * 1000),
+            "aspect_ratio": aspect_ratio,
+            "raw_source_aspect": aspect_ratio,
+            "expansion_technique": None,
+            "watermark_removed": watermark_removed,
             "actual_cost": 0.0,
             "cost_currency": "USD",
             "credits_source": "GOOGLE_FLOW_PRO",

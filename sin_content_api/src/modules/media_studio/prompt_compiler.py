@@ -49,7 +49,11 @@ class VideoPromptCompiler:
             "chỉ cắt cảnh khi brief yêu cầu. Duy trì hình dạng, trang phục, vật thể và hướng chuyển động "
             "nhất quán qua toàn bộ video. Dùng chuyển động máy quay ổn định và ánh sáng phù hợp brief; "
             "ưu tiên hình ảnh chân thực, chuyển động tự nhiên, không méo hình, không nhân đôi vật thể, "
-            "không nhấp nháy hoặc chèn chữ ngoài yêu cầu."
+            "không nhấp nháy hoặc chèn chữ ngoài yêu cầu. "
+            "Giữ tiêu cự và độ nét ổn định, không thở nét, không làm mờ chủ thể. "
+            "Chỉ một chuyển động camera đơn giản, tốc độ đều; không tăng tốc, giật lùi hoặc đổi hướng đột ngột. "
+            + ("Bố cục dọc gốc 9:16, đặt chủ thể và hành động trong vùng trung tâm an toàn, không tạo viền hoặc nền mờ."
+               if aspect_ratio == "9:16" else "")
         )
         guidelines = [
             f"Khung hình đầu ra: {aspect_ratio}, thời lượng {duration_seconds} giây.",

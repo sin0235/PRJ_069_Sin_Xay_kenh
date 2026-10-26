@@ -198,6 +198,47 @@ def test_localized_flow_agent_editor_is_accepted_without_legacy_video_mode_menu(
     flow_client.GoogleFlowClient._ensure_video_mode(Page())
 
 
+def test_flow_video_mode_selects_requested_portrait_ratio():
+    clicks = []
+
+    class Locator:
+        first = property(lambda self: self)
+
+        def __init__(self, name, found=True):
+            self.name = name
+            self.found = found
+
+        def wait_for(self, **_kwargs):
+            assert self.found
+
+        def count(self):
+            return int(self.found)
+
+        def click(self, **_kwargs):
+            clicks.append(self.name)
+
+    class Page:
+        url = "https://flow.google.com/project/test/edit/abc"
+
+        def locator(self, selector):
+            if "data-slate-editor" in selector or "ProseMirror" in selector:
+                return Locator("editor")
+            if "button[aria-haspopup='menu']" in selector:
+                return Locator("aspect-menu")
+            if "trigger-VIDEO" in selector or "play_circle" in selector:
+                return Locator("video-mode")
+            if "trigger-PORTRAIT" in selector or "crop_9_16" in selector:
+                return Locator("portrait")
+            return Locator("missing", found=False)
+
+        def wait_for_timeout(self, _milliseconds):
+            pass
+
+    flow_client.GoogleFlowClient._ensure_video_mode(Page(), "9:16")
+
+    assert clicks == ["aspect-menu", "video-mode", "aspect-menu", "portrait"]
+
+
 @pytest.mark.parametrize("attach_on_wait", [False, True])
 def test_flow_agent_can_attach_start_frame_from_media_library(tmp_path, attach_on_wait):
     image_path = tmp_path / "continuity_shot_01.jpg"
