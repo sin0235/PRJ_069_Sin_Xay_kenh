@@ -25,3 +25,15 @@ def test_compiler_uses_requested_duration_and_aspect_ratio_in_directive():
     assert "9:16" in result.compiled_directive
     assert "7 giây" in result.compiled_directive
     assert "10 giây" not in result.compiled_directive
+
+
+def test_compiler_uses_english_instructions_for_english_flow_prompts():
+    result = VideoPromptCompiler().compile(
+        "A paper assistant folds one corner inward, then holds the pose.",
+        aspect_ratio="9:16",
+        language="en",
+    )
+
+    assert "Authoritative visual brief" in result.compiled_directive
+    assert "Compose natively in vertical 9:16" in result.compiled_directive
+    assert "Bố cục" not in result.compiled_directive

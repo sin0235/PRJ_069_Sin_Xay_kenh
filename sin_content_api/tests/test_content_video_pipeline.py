@@ -113,9 +113,9 @@ def test_storyboard_prompt_requires_three_shots_for_twenty_seconds():
                 content=(
                     '{"title":"RAG","narration":"Tìm đúng nguồn.",'
                     '"continuity_anchor":"Trợ lý giấy xanh navy cạnh tủ tài liệu, cùng một bối cảnh.","shots":['
-                    '{"shot_id":"s1","scene":"Tìm","narration":"Tìm nguồn.","prompt":"Thẻ tài liệu bay ra.","duration_seconds":7},'
-                    '{"shot_id":"s2","scene":"Trả lời","narration":"Trả lời có căn cứ.","prompt":"Trợ lý đọc tài liệu.","duration_seconds":7},'
-                    '{"shot_id":"s3","scene":"Kết","narration":"Thử RAG.","prompt":"Nguồn và câu trả lời.","duration_seconds":6}]}'
+                    '{"shot_id":"s1","scene":"Tìm","narration":"Tìm nguồn.","prompt":"Thẻ tài liệu bay ra.","flow_prompt_en":"One paper card glides from the shelf and settles on the desk.","duration_seconds":7},'
+                    '{"shot_id":"s2","scene":"Trả lời","narration":"Trả lời có căn cứ.","prompt":"Trợ lý đọc tài liệu.","flow_prompt_en":"The paper assistant reads one card, then looks toward the viewer.","duration_seconds":7},'
+                    '{"shot_id":"s3","scene":"Kết","narration":"Thử RAG.","prompt":"Nguồn và câu trả lời.","flow_prompt_en":"The source card rests beside the completed answer card.","duration_seconds":6}]}'
                 ),
                 model="test-model",
             )
@@ -142,9 +142,9 @@ def test_storyboard_prompts_prevent_distorted_frames_and_unmotivated_motion():
                 content=(
                     '{"title":"RAG","narration":"Tìm nguồn.",'
                     '"continuity_anchor":"Trợ lý giấy xanh navy cạnh tủ tài liệu, cùng một bối cảnh.","shots":['
-                    '{"shot_id":"s1","scene":"Tìm","narration":"Tìm nguồn.","prompt":"Một thẻ trượt tới.","duration_seconds":7},'
-                    '{"shot_id":"s2","scene":"Trả lời","narration":"Trả lời.","prompt":"Trợ lý đọc thẻ.","duration_seconds":7},'
-                    '{"shot_id":"s3","scene":"Kết","narration":"Xong.","prompt":"Đặt thẻ lại.","duration_seconds":6}]}'
+                    '{"shot_id":"s1","scene":"Tìm","narration":"Tìm nguồn.","prompt":"Một thẻ trượt tới.","flow_prompt_en":"A single paper card slides toward the assistant and stops.","duration_seconds":7},'
+                    '{"shot_id":"s2","scene":"Trả lời","narration":"Trả lời.","prompt":"Trợ lý đọc thẻ.","flow_prompt_en":"The assistant lifts one card, reads it, and lowers it back onto the desk.","duration_seconds":7},'
+                    '{"shot_id":"s3","scene":"Kết","narration":"Xong.","prompt":"Đặt thẻ lại.","flow_prompt_en":"The assistant places the card beside the answer and holds still.","duration_seconds":6}]}'
                 ),
                 model="test-model",
             )
@@ -165,9 +165,30 @@ def test_storyboard_prompts_prevent_distorted_frames_and_unmotivated_motion():
 
     assert "một hành động chính" in system_prompt
     assert "không biến hình" in system_prompt
-    assert "không biến hình" in shot_prompt
-    assert "không nhân đôi" in shot_prompt
-    assert "chuyển động liên tục" in shot_prompt
+    assert "flow_prompt_en" in system_prompt
+    assert "điểm tiếp xúc/phản ứng vật lý" in system_prompt
+    assert "no morphing" in shot_prompt
+    assert "duplicated" in shot_prompt
+    assert "one continuous action" in shot_prompt
+
+
+def test_english_flow_prompt_is_used_and_keeps_vietnamese_narration_verbatim():
+    shot = StoryboardShot(
+        shot_id="s1", scene="Nhân vật gấp giấy", narration="Gấp nếp thật chậm.",
+        prompt="Nhân vật gấp một nếp giấy.", flow_prompt_en=(
+            "A navy paper assistant slowly folds one corner inward, then holds the finished crease."
+        ), duration_seconds=7,
+    )
+
+    prompt = build_shot_prompt(
+        {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]},
+        shot,
+        "Một nhân vật giấy cố định trong studio navy.",
+    )
+
+    assert "slowly folds one corner inward" in prompt
+    assert 'this exact Vietnamese narration naturally and clearly: "Gấp nếp thật chậm."' in prompt
+    assert "Nhân vật gấp một nếp giấy" not in prompt
 
 
 @pytest.mark.parametrize(
@@ -325,6 +346,7 @@ def _approved_harness_shot():
         scene="Mở đầu trong studio",
         narration="Lời dẫn mở đầu.",
         prompt="Người dẫn mở đầu chủ đề.",
+        flow_prompt_en="A paper assistant introduces the subject with one small hand gesture.",
         duration_seconds=10,
     )
     storyboard_data = {"continuity_anchor": anchor}
@@ -382,6 +404,7 @@ def test_harness_dispatches_only_approved_immutable_shot_receipt(monkeypatch):
     assert result is expected_asset
     assert len(calls) == 1
     assert calls[0]["prompt"] == step["prompt"]
+    assert calls[0]["prompt_language"] == "en"
     assert calls[0]["project_id"] == run.project_id
 
 

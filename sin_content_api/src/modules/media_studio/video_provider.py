@@ -49,6 +49,7 @@ class GoogleFlowZeroCostProvider:
         self,
         prompt: str,
         aspect_ratio: str = "9:16",
+        prompt_language: str = "vi",
         workspace_id: str = "default_ws",
         remove_watermark: bool = False,
         flow_project_url: Optional[str] = None,
@@ -71,7 +72,8 @@ class GoogleFlowZeroCostProvider:
         compiled_info = video_prompt_compiler.compile(
             user_prompt=prompt,
             aspect_ratio=aspect_ratio,
-            duration_seconds=10
+            duration_seconds=10,
+            language=prompt_language,
         )
         flow_directive = compiled_info.compiled_directive
         print(f"[HARNESS PROMPT COMPILER] Đã chuẩn hóa bộ lệnh cho Flow: {flow_directive[:80]}...", flush=True)
@@ -216,15 +218,17 @@ class GoogleOfficialOmniProvider:
         self,
         prompt: str,
         aspect_ratio: str = "9:16",
+        prompt_language: str = "vi",
         workspace_id: str = "default_ws",
         remove_watermark: bool = False,
         flow_project_url: Optional[str] = None,
         on_flow_project_created: Optional[Callable[[str], None]] = None,
     ) -> Dict[str, Any]:
-        """Tạo video 16:9 từ mô hình Omni 10s và mở rộng sang 9:16 chuẩn TikTok."""
+        """Tạo video Flow theo tỷ lệ yêu cầu và chuẩn hóa đầu ra."""
         res = self.flow_provider.generate(
             prompt=prompt,
             aspect_ratio=aspect_ratio,
+            prompt_language=prompt_language,
             workspace_id=workspace_id,
             remove_watermark=remove_watermark,
             flow_project_url=flow_project_url,
@@ -246,6 +250,7 @@ class VideoOrchestrator:
         user_id: str,
         prompt: str,
         aspect_ratio: str = "9:16",
+        prompt_language: str = "vi",
         use_official_omni: bool = False,
         start_image_path: Optional[pathlib.Path] = None,
         start_image_asset_id: Optional[str] = None,
@@ -263,9 +268,9 @@ class VideoOrchestrator:
                 on_flow_project_created=on_flow_project_created,
             )
         elif use_official_omni:
-            res = self.omni_provider.generate(prompt=prompt, aspect_ratio=aspect_ratio, workspace_id=workspace_id, remove_watermark=remove_watermark, flow_project_url=flow_project_url, on_flow_project_created=on_flow_project_created)
+            res = self.omni_provider.generate(prompt=prompt, aspect_ratio=aspect_ratio, prompt_language=prompt_language, workspace_id=workspace_id, remove_watermark=remove_watermark, flow_project_url=flow_project_url, on_flow_project_created=on_flow_project_created)
         else:
-            res = self.flow_provider.generate(prompt=prompt, aspect_ratio=aspect_ratio, workspace_id=workspace_id, remove_watermark=remove_watermark, flow_project_url=flow_project_url, on_flow_project_created=on_flow_project_created)
+            res = self.flow_provider.generate(prompt=prompt, aspect_ratio=aspect_ratio, prompt_language=prompt_language, workspace_id=workspace_id, remove_watermark=remove_watermark, flow_project_url=flow_project_url, on_flow_project_created=on_flow_project_created)
 
         v_path = pathlib.Path(res["storage_path"])
         meta = video_processor.probe_video(v_path)

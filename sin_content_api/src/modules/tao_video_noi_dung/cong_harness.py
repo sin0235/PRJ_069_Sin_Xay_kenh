@@ -122,6 +122,7 @@ def dispatch_shot(
         project_id=command["project_id"],
         prompt=command["prompt"],
         aspect_ratio=command["aspect_ratio"],
+        prompt_language="en" if shot.flow_prompt_en.strip() else "vi",
         start_image_path=start_image_path,
         start_image_asset_id=start_image_asset_id,
         remove_watermark=False,

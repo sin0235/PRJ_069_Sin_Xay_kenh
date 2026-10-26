@@ -202,7 +202,7 @@ export default function ContentVideoProduction({ projectId, planId, runId }: { p
           </label>
         </Card>}
         {plan.status === "DRAFT" && <p className="text-sm text-muted-foreground">Chia sẻ URL có mã plan này cho người duyệt. Người tạo không thể tự duyệt theo quy tắc phân quyền.</p>}
-        <section className="grid gap-3">{plan.storyboard.shots.map((shot, index) => <Card key={shot.shot_id} className="grid gap-3 p-4 md:grid-cols-[100px_1fr]"><div className="text-sm font-semibold">Shot {index + 1}<p className="font-normal text-muted-foreground">{shot.duration_seconds}s</p></div><div><h2 className="font-medium">{shot.scene}</h2><p className="mt-1 text-sm">{shot.narration}</p><p className="mt-2 text-xs text-muted-foreground">{shot.prompt}</p></div></Card>)}</section>
+        <section className="grid gap-3">{plan.storyboard.shots.map((shot, index) => <Card key={shot.shot_id} className="grid gap-3 p-4 md:grid-cols-[100px_1fr]"><div className="text-sm font-semibold">Shot {index + 1}<p className="font-normal text-muted-foreground">{shot.duration_seconds}s</p></div><div><h2 className="font-medium">{shot.scene}</h2><p className="mt-1 text-sm">{shot.narration}</p><p className="mt-2 text-xs text-muted-foreground">{shot.prompt}</p><p className="mt-2 text-xs font-medium">Mô tả gửi Flow (tiếng Anh)</p><p className="text-xs text-muted-foreground">{shot.flow_prompt_en || "Chưa có bản dịch. Hãy tạo storyboard mới."}</p></div></Card>)}</section>
       </>}
 
       {run && <Card className="flex flex-col gap-4 p-5">
@@ -213,7 +213,7 @@ export default function ContentVideoProduction({ projectId, planId, runId }: { p
         </div>
         {uncertainShot && <section className="grid gap-3 rounded-md border border-destructive/30 bg-destructive/5 p-4">
           <div><h3 className="font-medium">Đối soát kết quả Flow · {uncertainShot.shot_id}</h3><p className="mt-1 text-sm text-muted-foreground">Flow có thể đã tạo clip nhưng worker chưa nhận được. Mở clip trong Flow, xác nhận đúng nội dung và nhân vật của shot này, rồi chọn hoặc tải clip đã tải về. Hệ thống sẽ kiểm tra file và tiếp tục từ shot sau, không gửi lại lệnh Flow.</p></div>
-          {uncertainStoryboardShot && <div className="grid gap-2 rounded-md border bg-background p-3 text-sm"><p><span className="font-medium">Cảnh:</span> {uncertainStoryboardShot.scene}</p><p><span className="font-medium">Lời đọc:</span> {uncertainStoryboardShot.narration}</p><p className="text-muted-foreground"><span className="font-medium">Prompt:</span> {uncertainStoryboardShot.prompt}</p></div>}
+          {uncertainStoryboardShot && <div className="grid gap-2 rounded-md border bg-background p-3 text-sm"><p><span className="font-medium">Cảnh:</span> {uncertainStoryboardShot.scene}</p><p><span className="font-medium">Lời đọc:</span> {uncertainStoryboardShot.narration}</p><p className="text-muted-foreground"><span className="font-medium">Prompt gốc:</span> {uncertainStoryboardShot.prompt}</p><p className="text-muted-foreground"><span className="font-medium">Mô tả gửi Flow (tiếng Anh):</span> {uncertainStoryboardShot.flow_prompt_en}</p></div>}
           <label htmlFor="reconcile-asset" className="text-sm font-medium">Clip trong dự án</label>
           <select id="reconcile-asset" value={reconcileAssetId} onChange={(event) => setReconcileAssetId(event.target.value)} className="h-10 rounded-md border bg-background px-3 text-sm">
             <option value="">Chọn clip MP4 mới của run này</option>

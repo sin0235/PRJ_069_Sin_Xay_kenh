@@ -15,6 +15,7 @@ class StoryboardShot(BaseModel):
     scene: str = Field(min_length=1, max_length=300)
     narration: str = Field(min_length=1, max_length=2000)
     prompt: str = Field(min_length=8, max_length=3000)
+    flow_prompt_en: str = Field(default="", max_length=5000)
     negative_prompt: str = Field(default="", max_length=1000)
     duration_seconds: int = Field(ge=1, le=10)
 
@@ -55,6 +56,19 @@ def parse_storyboard(raw: str, target_duration_seconds: int) -> Storyboard:
 
 
 def build_shot_prompt(style_snapshot: dict[str, Any], shot: StoryboardShot, continuity_anchor: str) -> str:
+    if shot.flow_prompt_en.strip():
+        return (
+            "Create one native 9:16 animated shot. "
+            f"{shot.flow_prompt_en.strip()} "
+            "Animate with readable key poses: establish the starting pose, perform one continuous action along the stated path, "
+            "show a plausible consequence when objects interact, then settle into a stable ending pose. "
+            "Timing: first 15 percent establish, middle 65 percent perform the action, final 20 percent settle; adapt to shot length. "
+            "Use natural acceleration and deceleration, with cause before effect and no time jumps. "
+            "Keep the same character design, anatomy, material, clothing, props, colors, lighting, and set throughout. "
+            "Keep the subject in focus. No morphing, teleporting, duplicated or disappearing objects, flicker, jitter, sudden speed changes, cuts, or extra actions. "
+            f'If audio is generated, speak this exact Vietnamese narration naturally and clearly: "{shot.narration}". '
+            "No other dialogue or music."
+        )
     palette = ", ".join(style_snapshot["palette"])
     negative = f" Tránh: {shot.negative_prompt}." if shot.negative_prompt else ""
     return (
@@ -92,6 +106,12 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
                 "Lời narration từng shot phải đọc hết ở nhịp tiếng Việt tự nhiên trong thời lượng shot, khoảng 2,5 từ/giây. "
                 "Giữ cùng chủ thể, trang phục, bối cảnh, bảng màu, ánh sáng và ngôn ngữ máy quay xuyên mọi shot. "
                 "Mỗi shot chỉ có một hành động chính, diễn ra liên tục với mở đầu, tiến triển và kết thúc tự nhiên trong thời lượng được giao. "
+                "Với mỗi shot, tạo thêm flow_prompt_en: prompt hình ảnh tiếng Anh tự nhiên, giàu chi tiết cụ thể để Google Flow dựng animation. "
+                "Dịch đầy đủ scene, prompt, negative_prompt, visual_rules, bảng màu và continuity_anchor; không thêm nhân vật, đạo cụ hay sự kiện mới. "
+                "Mô tả rõ tư thế đầu, một quỹ đạo/chuyển động duy nhất, điểm tiếp xúc/phản ứng vật lý nếu có tương tác, rồi tư thế kết thúc; camera cố định hoặc chỉ một chuyển động đơn giản có lý do. "
+                "Nêu thời điểm hành động theo tiến trình shot, chuyển động có quán tính và giảm tốc tự nhiên; tránh chuỗi hành động dồn dập, trừu tượng hoặc mâu thuẫn. "
+                "Mỗi flow_prompt_en dài khoảng 80-130 từ, cụ thể theo shot nhưng không lặp chỉ dẫn chung quá mức. "
+                "flow_prompt_en chỉ mô tả hình ảnh, không dịch narration; narration phải giữ nguyên tiếng Việt. "
                 "Tránh hành động đồng thời không liên quan, montage và các chỉ dẫn camera mâu thuẫn. "
                 "Giữ ổn định số lượng, giải phẫu, tỉ lệ, khuôn mặt, trang phục, đạo cụ và bố cục; không biến hình, không méo hình, không nhân đôi, "
                 "không nhấp nháy, không rung giật, không xuất hiện hoặc biến mất đột ngột, không chuyển động phi vật lý, không tự đổi bối cảnh, ánh sáng, màu và phong cách. "
@@ -116,6 +136,7 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
                                 "scene": "string",
                                 "narration": "string",
                                 "prompt": "string",
+                                "flow_prompt_en": "English-only visual prompt with detailed continuous animation blocking",
                                 "negative_prompt": "string",
                                 "duration_seconds": "integer 1..10",
                             }
@@ -128,4 +149,7 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
         },
     ]
     completion = client.complete(messages, max_tokens=min(6000, client.max_output_tokens))
-    return parse_storyboard(completion.content, target_duration_seconds), completion.model
+    storyboard = parse_storyboard(completion.content, target_duration_seconds)
+    if any(not shot.flow_prompt_en.strip() for shot in storyboard.shots):
+        raise ValueError("LLM trả storyboard thiếu prompt tiếng Anh cho Flow")
+    return storyboard, completion.model

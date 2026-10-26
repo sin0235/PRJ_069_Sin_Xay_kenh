@@ -17,7 +17,7 @@ export interface ContentVideoPlan {
   source_content: string;
   target_duration_seconds: number;
   style_snapshot: { style_name: string; visual_rules: string; palette: string[] };
-  storyboard: { title: string; narration: string; shots: { shot_id: string; scene: string; narration: string; prompt: string; negative_prompt: string; duration_seconds: number }[] };
+  storyboard: { title: string; narration: string; shots: { shot_id: string; scene: string; narration: string; prompt: string; flow_prompt_en: string; negative_prompt: string; duration_seconds: number }[] };
   llm_model: string;
 }
 

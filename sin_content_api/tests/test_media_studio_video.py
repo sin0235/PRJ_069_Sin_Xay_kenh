@@ -1494,9 +1494,13 @@ def test_flow_provider_uses_native_portrait_output(video_fixture, monkeypatch, t
     monkeypatch.setitem(sys.modules, "google_flow_client", types.SimpleNamespace(GoogleFlowClient=FakeFlowClient))
     monkeypatch.setattr(provider_module.video_processor, "expand_16_9_to_9_16", lambda **_: pytest.fail("unexpected blur expansion"))
 
-    result = provider_module.GoogleFlowZeroCostProvider().generate("Nhân vật đi bộ", aspect_ratio="9:16")
+    result = provider_module.GoogleFlowZeroCostProvider().generate(
+        "A paper assistant walks slowly.", aspect_ratio="9:16", prompt_language="en"
+    )
 
     assert received["aspect_ratio"] == "9:16"
+    assert "Authoritative visual brief" in received["prompt"]
+    assert "Create a 9:16 video" in received["prompt"]
     assert result["aspect_ratio"] == "9:16"
     assert result["raw_source_aspect"] == "9:16"
     assert result["expansion_technique"] is None
@@ -1535,9 +1539,9 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
         "narration": "RAG giúp truy xuất thông tin trước khi trả lời.",
         "continuity_anchor": "Một chuyên gia công nghệ mặc áo xanh navy giải thích trong studio tối giản cùng bảng màu navy và teal.",
         "shots": [
-            {"shot_id": "s1", "scene": "Vấn đề", "narration": "Thông tin rời rạc.", "prompt": "Tư liệu rời rạc trên bàn làm việc", "duration_seconds": 10},
-            {"shot_id": "s2", "scene": "Cách làm", "narration": "RAG tìm nguồn liên quan.", "prompt": "Tìm kiếm tài liệu theo câu hỏi", "duration_seconds": 10},
-            {"shot_id": "s3", "scene": "Kết quả", "narration": "Câu trả lời có căn cứ.", "prompt": "Trình bày câu trả lời cùng nguồn", "duration_seconds": 10},
+            {"shot_id": "s1", "scene": "Vấn đề", "narration": "Thông tin rời rạc.", "prompt": "Tư liệu rời rạc trên bàn làm việc", "flow_prompt_en": "Three paper cards slide apart and settle on the desk beside the same navy paper assistant in the same studio, with the same navy and teal palette.", "duration_seconds": 10},
+            {"shot_id": "s2", "scene": "Cách làm", "narration": "RAG tìm nguồn liên quan.", "prompt": "Tìm kiếm tài liệu theo câu hỏi", "flow_prompt_en": "The same navy paper assistant moves one card from the shelf to the computer in the same studio, with the same navy and teal palette.", "duration_seconds": 10},
+            {"shot_id": "s3", "scene": "Kết quả", "narration": "Câu trả lời có căn cứ.", "prompt": "Trình bày câu trả lời cùng nguồn", "flow_prompt_en": "The same navy paper assistant places the answer beside its source in the same studio, with the same navy and teal palette, then holds the pose.", "duration_seconds": 10},
         ],
     }
 
@@ -1597,6 +1601,7 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
     assert response.status == "DRAFT"
     assert len(response.storyboard.shots) == 3
     assert response.storyboard.shots[0].shot_id == "s1"
+    assert response.storyboard.shots[0].flow_prompt_en.startswith("Three paper cards")
     assert response.style_snapshot.style_name.startswith("Origami")
     assert "Mọi vật thể" in response.style_snapshot.visual_rules
 
@@ -1729,7 +1734,7 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
     assert run.status == "QUEUED"
     assert len(run.steps) == 3
     assert all(step["state"] == "READY" and step["command_sha256"] for step in run.steps)
-    assert all(response.storyboard.continuity_anchor in step["prompt"] for step in run.steps)
+    assert all("same navy and teal palette" in step["prompt"] for step in run.steps)
     assert native_run.voice_asset_id is None
     assert all(step["voice_asset_id"] is None for step in native_run.steps)
 
@@ -1750,7 +1755,7 @@ def test_content_video_worker_keeps_shots_in_one_project_without_uploading_frame
         "narration": "RAG truy xuất tài liệu rồi mới tạo câu trả lời.",
         "continuity_anchor": "Một chuyên gia công nghệ mặc áo xanh navy giải thích trong studio tối giản, ánh sáng mềm.",
         "shots": [
-            {"shot_id": f"shot-{i}", "scene": f"Cảnh {i}", "narration": f"Lời dẫn {i}", "prompt": f"Minh họa bước {i} trong quy trình truy xuất tài liệu", "duration_seconds": 10}
+            {"shot_id": f"shot-{i}", "scene": f"Cảnh {i}", "narration": f"Lời dẫn {i}", "prompt": f"Minh họa bước {i} trong quy trình truy xuất tài liệu", "flow_prompt_en": f"The same paper assistant moves one document card through step {i} of the retrieval process.", "duration_seconds": 10}
             for i in range(1, 4)
         ],
     }
@@ -1773,7 +1778,7 @@ def test_content_video_worker_keeps_shots_in_one_project_without_uploading_frame
 
     calls = []
 
-    def generate_video_scene(*, db, workspace_id, user_id, project_id, prompt, aspect_ratio, start_image_path=None, start_image_asset_id=None, remove_watermark=False, flow_project_url=None, on_flow_project_created=None):
+    def generate_video_scene(*, db, workspace_id, user_id, project_id, prompt, aspect_ratio, prompt_language="vi", start_image_path=None, start_image_asset_id=None, remove_watermark=False, flow_project_url=None, on_flow_project_created=None):
         index = len(calls)
         if index == 0:
             assert flow_project_url is None
@@ -1814,7 +1819,7 @@ def test_content_video_worker_keeps_shots_in_one_project_without_uploading_frame
         )
         db.add(asset)
         db.commit()
-        calls.append({"asset_id": asset.id, "prompt": prompt, "start_image_asset_id": start_image_asset_id, "flow_project_url": flow_project_url})
+        calls.append({"asset_id": asset.id, "prompt": prompt, "prompt_language": prompt_language, "start_image_asset_id": start_image_asset_id, "flow_project_url": flow_project_url})
         return asset
 
     monkeypatch.setattr(cong_harness.video_orchestrator, "generate_video_scene", generate_video_scene)
@@ -1864,6 +1869,7 @@ def test_content_video_worker_keeps_shots_in_one_project_without_uploading_frame
     assert [step["state"] for step in steps] == ["SUCCEEDED"] * 3
     assert steps[0]["flow_project_url"] == "https://flow.google.com/project/run-e2e"
     assert len(calls) == 3
+    assert [call["prompt_language"] for call in calls] == ["en", "en", "en"]
     assert [call["start_image_asset_id"] for call in calls] == [None, None, None]
     assert [call["flow_project_url"] for call in calls] == ["https://flow.google.com/project/run-e2e"] * 3
 
