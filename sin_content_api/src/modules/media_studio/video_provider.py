@@ -50,6 +50,7 @@ class GoogleFlowZeroCostProvider:
         prompt: str,
         aspect_ratio: str = "9:16",
         prompt_language: str = "vi",
+        include_audio: bool = True,
         workspace_id: str = "default_ws",
         remove_watermark: bool = False,
         flow_project_url: Optional[str] = None,
@@ -110,10 +111,11 @@ class GoogleFlowZeroCostProvider:
             input_path = clean_path
             watermark_removed = True
         width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
+        audio_options = ["-c:a", "aac", "-b:a", "192k"] if include_audio else ["-an"]
         normalize = subprocess.run(
             [video_processor.ffmpeg_bin, "-y", "-i", str(input_path), "-vf",
              f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1,fps=30",
-             "-c:v", "libx264", "-c:a", "aac", "-b:a", "192k", "-pix_fmt", "yuv420p", str(output_path)],
+             "-c:v", "libx264", *audio_options, "-pix_fmt", "yuv420p", str(output_path)],
             capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
         )
         if normalize.returncode != 0:
@@ -219,6 +221,7 @@ class GoogleOfficialOmniProvider:
         prompt: str,
         aspect_ratio: str = "9:16",
         prompt_language: str = "vi",
+        include_audio: bool = True,
         workspace_id: str = "default_ws",
         remove_watermark: bool = False,
         flow_project_url: Optional[str] = None,
@@ -229,6 +232,7 @@ class GoogleOfficialOmniProvider:
             prompt=prompt,
             aspect_ratio=aspect_ratio,
             prompt_language=prompt_language,
+            include_audio=include_audio,
             workspace_id=workspace_id,
             remove_watermark=remove_watermark,
             flow_project_url=flow_project_url,
@@ -251,6 +255,7 @@ class VideoOrchestrator:
         prompt: str,
         aspect_ratio: str = "9:16",
         prompt_language: str = "vi",
+        include_audio: bool = True,
         use_official_omni: bool = False,
         start_image_path: Optional[pathlib.Path] = None,
         start_image_asset_id: Optional[str] = None,
@@ -268,9 +273,9 @@ class VideoOrchestrator:
                 on_flow_project_created=on_flow_project_created,
             )
         elif use_official_omni:
-            res = self.omni_provider.generate(prompt=prompt, aspect_ratio=aspect_ratio, prompt_language=prompt_language, workspace_id=workspace_id, remove_watermark=remove_watermark, flow_project_url=flow_project_url, on_flow_project_created=on_flow_project_created)
+            res = self.omni_provider.generate(prompt=prompt, aspect_ratio=aspect_ratio, prompt_language=prompt_language, include_audio=include_audio, workspace_id=workspace_id, remove_watermark=remove_watermark, flow_project_url=flow_project_url, on_flow_project_created=on_flow_project_created)
         else:
-            res = self.flow_provider.generate(prompt=prompt, aspect_ratio=aspect_ratio, prompt_language=prompt_language, workspace_id=workspace_id, remove_watermark=remove_watermark, flow_project_url=flow_project_url, on_flow_project_created=on_flow_project_created)
+            res = self.flow_provider.generate(prompt=prompt, aspect_ratio=aspect_ratio, prompt_language=prompt_language, include_audio=include_audio, workspace_id=workspace_id, remove_watermark=remove_watermark, flow_project_url=flow_project_url, on_flow_project_created=on_flow_project_created)
 
         v_path = pathlib.Path(res["storage_path"])
         meta = video_processor.probe_video(v_path)

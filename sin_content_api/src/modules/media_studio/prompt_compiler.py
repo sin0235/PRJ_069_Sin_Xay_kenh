@@ -50,7 +50,9 @@ class VideoPromptCompiler:
                 "Keep shapes, clothing, objects, direction of travel, and lighting consistent. Use physically plausible, smooth motion and one simple, steady camera move. "
                 "Keep focus and subject sharp; no focus breathing, blur, distortion, duplicated objects, flicker, or unrequested text. "
                 + ("Compose natively in vertical 9:16; keep the subject and action in the central safe area, with no blurred background or borders."
-                   if aspect_ratio == "9:16" else "")
+                   if aspect_ratio == "9:16" else
+                   "Compose natively in horizontal widescreen 16:9; keep the subject and action inside the frame, with no blurred background or borders."
+                   if aspect_ratio == "16:9" else "")
             )
         else:
             compiled_directive = (

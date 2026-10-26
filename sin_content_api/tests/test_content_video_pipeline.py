@@ -84,7 +84,7 @@ def test_storyboard_requires_ordered_shots_covering_target_duration():
     assert sum(shot.duration_seconds for shot in storyboard.shots) == 30
     prompts = [build_shot_prompt({"style_name": "Studio", "visual_rules": "Consistent cinematic look", "palette": ["navy"]}, shot, storyboard.continuity_anchor) for shot in storyboard.shots]
     assert all(storyboard.continuity_anchor in prompt for prompt in prompts)
-    assert all(f'“{shot.narration}”' in prompt and "cùng một giọng thuyết minh" in prompt for shot, prompt in zip(storyboard.shots, prompts, strict=True))
+    assert all(shot.narration not in prompt and "Silent visual only" in prompt for shot, prompt in zip(storyboard.shots, prompts, strict=True))
     assert CreateRunRequest(plan_id="plan-1", idempotency_key="native-flow-audio").voice_asset_id is None
 
 
@@ -172,7 +172,7 @@ def test_storyboard_prompts_prevent_distorted_frames_and_unmotivated_motion():
     assert "one continuous action" in shot_prompt
 
 
-def test_english_flow_prompt_is_used_and_keeps_vietnamese_narration_verbatim():
+def test_english_flow_prompt_is_silent_and_omits_narration():
     shot = StoryboardShot(
         shot_id="s1", scene="Nhân vật gấp giấy", narration="Gấp nếp thật chậm.",
         prompt="Nhân vật gấp một nếp giấy.", flow_prompt_en=(
@@ -187,7 +187,8 @@ def test_english_flow_prompt_is_used_and_keeps_vietnamese_narration_verbatim():
     )
 
     assert "slowly folds one corner inward" in prompt
-    assert 'this exact Vietnamese narration naturally and clearly: "Gấp nếp thật chậm."' in prompt
+    assert "Silent visual only" in prompt
+    assert "Vietnamese narration" not in prompt
     assert "Nhân vật gấp một nếp giấy" not in prompt
 
 
@@ -230,7 +231,7 @@ def test_flow_pre_submit_failure_is_resumable_without_reconciliation():
     assert not _mark_flow_setup_blocked(run, [{"state": "NEEDS_RECONCILIATION"}], RuntimeError("unknown submission"))
 
 
-def test_content_video_render_keeps_narration_as_audio_without_caption_text(monkeypatch, tmp_path):
+def test_content_video_render_is_silent_without_user_selected_audio(monkeypatch, tmp_path):
     from src.models.entities import MediaAsset, TimelineVersion
     from src.modules.tao_video_noi_dung import runner
 
@@ -279,24 +280,22 @@ def test_content_video_render_keeps_narration_as_audio_without_caption_text(monk
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_bytes(b"rendered video")
 
-    voice = SimpleNamespace(id="voice-1", sha256="voice-hash")
     monkeypatch.setattr(runner, "_voice_input", lambda *_args: None)
-    monkeypatch.setattr(runner, "_flow_voice_asset", lambda *_args: voice)
     monkeypatch.setattr(runner, "get_workspace_storage_dir", lambda _workspace: tmp_path)
     monkeypatch.setattr(runner.video_processor, "render_timeline_document", render)
     monkeypatch.setattr(runner.video_processor, "probe_video", lambda _path: {
-        "width": 1080, "height": 1920, "codec_name": "h264", "frame_rate": 30.0,
+        "width": 1920, "height": 1080, "codec_name": "h264", "frame_rate": 30.0,
         "duration_seconds": 30.0,
     })
     monkeypatch.setattr(runner.subprocess, "run", lambda *_args, **_kwargs: SimpleNamespace(returncode=0, stderr=""))
-    monkeypatch.setattr(runner.audio_processor, "verify_audio_qc", lambda *_args, **_kwargs: {"passed": True})
+    monkeypatch.setattr(runner.audio_processor, "verify_audio_qc", lambda *_args, **_kwargs: pytest.fail("audio was not selected"))
     monkeypatch.setattr(runner, "_write_export_package", lambda path, *_args: path.write_bytes(b"export"))
 
     shots = [SimpleNamespace(shot_id=f"shot-{index}", duration_seconds=10) for index in range(1, 4)]
     storyboard = SimpleNamespace(shots=shots)
     plan = SimpleNamespace(
         target_duration_seconds=30, style_snapshot_sha256="style-hash", source_content="source",
-        storyboard_json="{}", id="plan", revision=1,
+        storyboard_json="{}", style_snapshot_json='{"aspect_ratio":"16:9"}', id="plan", revision=1,
     )
     run = SimpleNamespace(
         id="run", workspace_id="ws", project_id="project", created_by="creator",
@@ -306,7 +305,12 @@ def test_content_video_render_keeps_narration_as_audio_without_caption_text(monk
     runner._render_and_qc(DB(), run, plan, storyboard, list(shot_assets))
 
     assert captured["timeline"].captions == []
+    assert (captured["timeline"].width, captured["timeline"].height) == (1920, 1080)
+    assert captured["timeline"].voice_track is None
     assert captured["transition_seconds"] == 0.3
+    report = json.loads(run.qc_report_json)
+    assert report["voice_source"] == "NONE"
+    assert report["audio_qc"]["status"] == "SKIPPED"
     assert run.status == "COMPLETED"
 
 
@@ -329,6 +333,28 @@ def test_shot_qc_rejects_decode_failure():
     assert "DECODE" in evaluate_shot_qc(meta, used_duration_seconds=10, decode_ok=False)
 
 
+def test_video_qc_accepts_user_selected_landscape_ratio():
+    meta = {"width": 1920, "height": 1080, "codec_name": "h264", "frame_rate": 30.0, "duration_seconds": 10.0}
+
+    assert evaluate_video_qc(meta, 10, decode_ok=True, aspect_ratio="16:9") == []
+
+
+def test_plan_request_persists_user_selected_aspect_ratio():
+    request = CreatePlanRequest.model_validate({
+        "content": "Một chủ đề đủ dài để tạo video minh họa về công nghệ trí tuệ nhân tạo.",
+        "target_duration_seconds": 30,
+        "aspect_ratio": "16:9",
+    })
+
+    assert request.aspect_ratio == "16:9"
+    with pytest.raises(ValueError):
+        CreatePlanRequest.model_validate({
+            "content": "Một chủ đề đủ dài để tạo video minh họa về công nghệ trí tuệ nhân tạo.",
+            "target_duration_seconds": 30,
+            "aspect_ratio": "1:1",
+        })
+
+
 def test_plan_request_cannot_override_server_style_profile():
     with pytest.raises(ValueError):
         CreatePlanRequest.model_validate({
@@ -339,7 +365,7 @@ def test_plan_request_cannot_override_server_style_profile():
 
 
 def _approved_harness_shot():
-    style = {"style_name": "Pilot", "visual_rules": "Giữ cùng chủ thể và ánh sáng mềm.", "palette": ["navy"]}
+    style = {"style_name": "Pilot", "visual_rules": "Giữ cùng chủ thể và ánh sáng mềm.", "palette": ["navy"], "aspect_ratio": "16:9"}
     anchor = "Một người dẫn mặc áo navy trong studio sáng mềm xuyên suốt video."
     shot = StoryboardShot(
         shot_id="shot-1",
@@ -405,6 +431,8 @@ def test_harness_dispatches_only_approved_immutable_shot_receipt(monkeypatch):
     assert len(calls) == 1
     assert calls[0]["prompt"] == step["prompt"]
     assert calls[0]["prompt_language"] == "en"
+    assert calls[0]["aspect_ratio"] == "16:9"
+    assert calls[0]["include_audio"] is False
     assert calls[0]["project_id"] == run.project_id
 
 
@@ -478,19 +506,18 @@ def test_export_package_contains_video_editable_plan_qc_and_hash_manifest(tmp_pa
     video = tmp_path / "final.mp4"
     video.write_bytes(b"video fixture")
     package = tmp_path / "export.zip"
-    run = SimpleNamespace(id="run-1", voice_asset_id="voice-1")
+    run = SimpleNamespace(id="run-1", voice_asset_id=None)
     plan = SimpleNamespace(
         id="plan-1", revision=2, source_content="Nội dung nguồn", storyboard_json='{"shots":[]}',
         style_snapshot_sha256="style-hash",
     )
-    voice = SimpleNamespace(id="voice-1", sha256="voice-hash")
     report = {"status": "PASS", "acceptance_mode": "HYBRID", "speech_alignment": "NOT_MEASURED"}
 
     _write_export_package(
         package, video, run, plan, TimelineDocument(), report,
         [{"asset_id": "shot-1", "sha256": "shot-hash"}],
         [{"shot_id": "shot-1", "prompt": "Prompt", "command_sha256": "receipt-hash", "asset_id": "shot-1"}],
-        voice,
+        None,
     )
 
     with zipfile.ZipFile(package) as archive:
@@ -498,6 +525,7 @@ def test_export_package_contains_video_editable_plan_qc_and_hash_manifest(tmp_pa
         manifest = json.loads(archive.read("manifest.json"))
         qc_report = json.loads(archive.read("qc/report.json"))
         assert manifest["acceptance_mode"] == "HYBRID"
+        assert manifest["voice_asset"] is None
         assert manifest["speech_alignment"] == "NOT_MEASURED"
         assert qc_report["acceptance_mode"] == "HYBRID"
         assert manifest["files"]["video/final.mp4"] == hashlib.sha256(video.read_bytes()).hexdigest()

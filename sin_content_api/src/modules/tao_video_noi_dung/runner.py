@@ -4,7 +4,6 @@ import json
 import hashlib
 import logging
 import subprocess
-import tempfile
 import threading
 import uuid
 import zipfile
@@ -37,9 +36,10 @@ LEASE_NAME = "content-video-flow"
 LEASE_SECONDS = 480
 
 
-def evaluate_video_qc(meta: dict, expected_duration_seconds: int, decode_ok: bool) -> list[str]:
+def evaluate_video_qc(meta: dict, expected_duration_seconds: int, decode_ok: bool, aspect_ratio: str = "9:16") -> list[str]:
     issues = []
-    if (meta.get("width"), meta.get("height")) != (1080, 1920):
+    expected_dimensions = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
+    if (meta.get("width"), meta.get("height")) != expected_dimensions:
         issues.append("DIMENSIONS")
     if meta.get("codec_name") != "h264":
         issues.append("VIDEO_CODEC")
@@ -52,14 +52,14 @@ def evaluate_video_qc(meta: dict, expected_duration_seconds: int, decode_ok: boo
     return issues
 
 
-def evaluate_shot_qc(meta: dict, used_duration_seconds: int, decode_ok: bool = True) -> list[str]:
-    issues = evaluate_video_qc(meta, used_duration_seconds, decode_ok=decode_ok)
+def evaluate_shot_qc(meta: dict, used_duration_seconds: int, decode_ok: bool = True, aspect_ratio: str = "9:16") -> list[str]:
+    issues = evaluate_video_qc(meta, used_duration_seconds, decode_ok=decode_ok, aspect_ratio=aspect_ratio)
     if float(meta.get("duration_seconds", 0)) + 0.5 >= used_duration_seconds:
         issues = [issue for issue in issues if issue != "DURATION"]
     return issues
 
 
-def _probe_shot_with_qc(path: Path, used_duration_seconds: int) -> tuple[dict, list[str]]:
+def _probe_shot_with_qc(path: Path, used_duration_seconds: int, aspect_ratio: str = "9:16") -> tuple[dict, list[str]]:
     meta = video_processor.probe_video(path)
     decode = subprocess.run(
         [video_processor.ffmpeg_bin, "-v", "error", "-i", str(path), "-f", "null", "-"],
@@ -68,6 +68,7 @@ def _probe_shot_with_qc(path: Path, used_duration_seconds: int) -> tuple[dict, l
     return meta, evaluate_shot_qc(
         meta, used_duration_seconds,
         decode_ok=decode.returncode == 0 and not decode.stderr.strip(),
+        aspect_ratio=aspect_ratio,
     )
 
 
@@ -300,11 +301,10 @@ def reconcile_shot(
         raise HTTPException(status_code=404, detail={"error_code": "RECONCILE_ASSET_NOT_FOUND", "message": "Không tìm thấy video MP4 mới của run trong dự án."})
     try:
         path = _verified_asset_path(asset, "RECONCILE_ASSET")
-        _, issues = _probe_shot_with_qc(path, shot.duration_seconds)
+        aspect_ratio = json.loads(plan.style_snapshot_json).get("aspect_ratio", "9:16")
+        _, issues = _probe_shot_with_qc(path, shot.duration_seconds, aspect_ratio)
         if issues:
             raise RuntimeError("SHOT_QC_FAILED:" + ",".join(issues))
-        if run.voice_asset_id is None and audio_processor.probe_audio(path).get("codec_name") == "unknown":
-            raise RuntimeError("FLOW_NATIVE_AUDIO_MISSING")
     except Exception as exc:
         raise HTTPException(status_code=422, detail={"error_code": "RECONCILE_ASSET_INVALID", "message": "Video không qua kiểm tra hash, hình ảnh, thời lượng hoặc âm thanh cần thiết."}) from exc
 
@@ -373,86 +373,6 @@ def _voice_input(db, run: ContentVideoRun, plan: ContentVideoPlan) -> tuple[Medi
     return asset, path
 
 
-def _flow_voice_asset(db, run: ContentVideoRun, plan: ContentVideoPlan, asset_ids: list[str]) -> MediaAsset:
-    steps = json.loads(run.steps_json or "[]")
-    existing_id = next((step.get("flow_audio_asset_id") for step in steps if step.get("flow_audio_asset_id")), None)
-    if existing_id:
-        asset = db.query(MediaAsset).filter(
-            MediaAsset.id == existing_id,
-            MediaAsset.workspace_id == run.workspace_id,
-            MediaAsset.project_id == run.project_id,
-        ).first()
-        if not asset:
-            raise RuntimeError("FLOW_VOICE_ASSET_NOT_FOUND")
-        _verified_asset_path(asset, "FLOW_VOICE_ASSET")
-        return asset
-
-    storyboard = Storyboard.model_validate_json(plan.storyboard_json)
-    with tempfile.TemporaryDirectory(prefix="content-video-flow-audio-") as tmp:
-        audio_path = Path(tmp) / "flow_voice.wav"
-        command = [video_processor.ffmpeg_bin, "-y"]
-        filters = []
-        transition = 0.3
-        for index, (shot, asset_id) in enumerate(zip(storyboard.shots, asset_ids, strict=True)):
-            asset = db.query(MediaAsset).filter(
-                MediaAsset.id == asset_id,
-                MediaAsset.workspace_id == run.workspace_id,
-                MediaAsset.project_id == run.project_id,
-            ).first()
-            if not asset:
-                raise RuntimeError(f"FLOW_VOICE_SHOT_NOT_FOUND:{shot.shot_id}")
-            video_path = _verified_asset_path(asset, "FLOW_VOICE_SHOT")
-            audio_meta = audio_processor.probe_audio(video_path)
-            if audio_meta.get("codec_name") == "unknown":
-                raise RuntimeError(f"FLOW_NATIVE_AUDIO_MISSING:{shot.shot_id}")
-            command.extend(["-i", str(video_path)])
-            pad = f",apad=pad_dur={transition:.3f}" if index < len(asset_ids) - 1 else ""
-            filters.append(
-                f"[{index}:a:0]apad,atrim=duration={shot.duration_seconds},asetpts=PTS-STARTPTS,"
-                f"aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo{pad}[a{index}]"
-            )
-        previous = "a0"
-        for index in range(1, len(asset_ids)):
-            output = f"xf{index}"
-            filters.append(f"[{previous}][a{index}]acrossfade=d={transition:.3f}:c1=tri:c2=tri[{output}]")
-            previous = output
-        filters.append(f"[{previous}]loudnorm=I=-14:LRA=11:TP=-1.5[aout]")
-        command.extend([
-            "-filter_complex", ";".join(filters), "-map", "[aout]", "-c:a", "pcm_s16le",
-            "-t", str(plan.target_duration_seconds), str(audio_path),
-        ])
-        result = subprocess.run(command, capture_output=True, text=True, timeout=600, check=False)
-        if result.returncode != 0 or not audio_path.is_file():
-            raise RuntimeError(f"FLOW_NATIVE_AUDIO_ASSEMBLY_FAILED:{result.stderr[-500:]}")
-        meta = audio_processor.probe_audio(audio_path)
-        if abs(float(meta["duration_seconds"]) - plan.target_duration_seconds) > 0.5:
-            raise RuntimeError("FLOW_NATIVE_AUDIO_DURATION_INVALID")
-        data = audio_path.read_bytes()
-
-    filename = f"flow_voice_{run.id}.wav"
-    output_path = get_workspace_storage_dir(run.workspace_id) / filename
-    output_path.write_bytes(data)
-    asset = MediaAsset(
-        id=f"asset-{uuid.uuid4().hex[:12]}",
-        workspace_id=run.workspace_id,
-        project_id=run.project_id,
-        storage_key=f"workspaces/{run.workspace_id}/media/{filename}",
-        sha256=hashlib.sha256(data).hexdigest(),
-        byte_size=len(data),
-        mime_detected="audio/wav",
-        duration_ms=int(meta["duration_seconds"] * 1000),
-        source_product="FLOW_NATIVE_VOICE",
-        original_filename=filename,
-        created_by=run.created_by,
-        approval_state="UNREVIEWED",
-    )
-    db.add(asset)
-    db.commit()
-    steps[0]["flow_audio_asset_id"] = asset.id
-    _save_run(db, run, steps)
-    return asset
-
-
 def _write_export_package(
     package_path: Path,
     video_path: Path,
@@ -462,7 +382,7 @@ def _write_export_package(
     report: dict,
     shot_asset_hashes: list[dict],
     steps: list[dict],
-    voice_asset: MediaAsset,
+    voice_asset: MediaAsset | None,
 ) -> None:
     files = {
         "content/source.txt": plan.source_content.encode("utf-8"),
@@ -487,8 +407,8 @@ def _write_export_package(
         "voice_asset": {
             "id": voice_asset.id,
             "sha256": voice_asset.sha256,
-            "source": "UPLOAD" if run.voice_asset_id else "FLOW_NATIVE",
-        },
+            "source": "UPLOAD",
+        } if voice_asset else None,
         "shot_assets": shot_asset_hashes,
         "files": {"video/final.mp4": _file_sha256(video_path), **{name: hashlib.sha256(data).hexdigest() for name, data in files.items()}},
         "speech_alignment": "NOT_MEASURED",
@@ -537,13 +457,15 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         start_ms += duration_ms
 
     voice_input = _voice_input(db, run, plan)
-    voice_asset = voice_input[0] if voice_input else _flow_voice_asset(db, run, plan, asset_ids)
+    voice_asset = voice_input[0] if voice_input else None
+    aspect_ratio = json.loads(plan.style_snapshot_json).get("aspect_ratio", "9:16")
+    width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
     timeline = TimelineDocument(
-        width=1080,
-        height=1920,
+        width=width,
+        height=height,
         fps=30,
         clips=clips,
-        voice_track=TimelineAudioTrack(asset_id=voice_asset.id, duration_ms=plan.target_duration_seconds * 1000),
+        voice_track=TimelineAudioTrack(asset_id=voice_asset.id, duration_ms=plan.target_duration_seconds * 1000) if voice_asset else None,
     )
     latest = db.query(TimelineVersion).filter(TimelineVersion.project_id == run.project_id).order_by(TimelineVersion.version.desc()).first()
     version = (latest.version if latest else 0) + 1
@@ -583,8 +505,14 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         timeout=600,
         check=False,
     )
-    issues = evaluate_video_qc(meta, plan.target_duration_seconds, decode.returncode == 0 and not decode.stderr.strip())
-    audio_qc = audio_processor.verify_audio_qc(output_path, expected_duration_sec=plan.target_duration_seconds)
+    issues = evaluate_video_qc(
+        meta, plan.target_duration_seconds, decode.returncode == 0 and not decode.stderr.strip(),
+        aspect_ratio=aspect_ratio,
+    )
+    audio_qc = (
+        audio_processor.verify_audio_qc(output_path, expected_duration_sec=plan.target_duration_seconds)
+        if voice_asset else {"status": "SKIPPED", "reason": "NO_AUDIO_SELECTED", "passed": True}
+    )
     if not audio_qc.get("passed"):
         issues.append("AUDIO_QC")
     report = {
@@ -597,9 +525,9 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         "shot_asset_ids": asset_ids,
         "shot_asset_hashes": shot_asset_hashes,
         "style_snapshot_sha256": plan.style_snapshot_sha256,
-        "voice_asset_id": voice_asset.id,
-        "voice_source": "UPLOAD" if run.voice_asset_id else "FLOW_NATIVE",
-        "voice_asset_sha256": voice_asset.sha256,
+        "voice_asset_id": voice_asset.id if voice_asset else None,
+        "voice_source": "UPLOAD" if voice_asset else "NONE",
+        "voice_asset_sha256": voice_asset.sha256 if voice_asset else None,
         "audio_qc": audio_qc,
         "speech_alignment": "NOT_MEASURED",
     }
@@ -652,7 +580,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     run.final_asset_id = output.id
     report["export_sha256"] = export.sha256
     run.qc_report_json = json.dumps(report, ensure_ascii=False, separators=(",", ":"))
-    run.output_asset_ids_json = json.dumps(asset_ids + [voice_asset.id, output.id, export.id])
+    run.output_asset_ids_json = json.dumps(asset_ids + ([voice_asset.id] if voice_asset else []) + [output.id, export.id])
     run.status = "COMPLETED"
     run.current_step = "QC_PASSED"
     run.finished_at = _now()
@@ -721,7 +649,8 @@ def process_run(run_id: str, token: str | None = None) -> None:
                 if asset.workspace_id != run.workspace_id or asset.project_id != run.project_id:
                     raise RuntimeError("PROVIDER_ASSET_SCOPE_MISMATCH")
                 path = _verified_asset_path(asset, "PROVIDER_OUTPUT")
-                shot_meta, shot_issues = _probe_shot_with_qc(path, shot.duration_seconds)
+                aspect_ratio = json.loads(plan.style_snapshot_json).get("aspect_ratio", "9:16")
+                shot_meta, shot_issues = _probe_shot_with_qc(path, shot.duration_seconds, aspect_ratio)
                 if shot_issues:
                     raise RuntimeError(f"SHOT_QC_FAILED:{shot.shot_id}:{','.join(shot_issues)}")
                 step["state"] = "SUCCEEDED"

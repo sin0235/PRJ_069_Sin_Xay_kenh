@@ -16,6 +16,7 @@ export default function ContentVideoProduction({ projectId, planId, runId }: { p
   const router = useRouter();
   const [content, setContent] = React.useState("");
   const [duration, setDuration] = React.useState(60);
+  const [aspectRatio, setAspectRatio] = React.useState<"9:16" | "16:9">("9:16");
   const [plan, setPlan] = React.useState<ContentVideoPlan | null>(null);
   const [run, setRun] = React.useState<ContentVideoRun | null>(null);
   const [finalUrl, setFinalUrl] = React.useState<string | null>(null);
@@ -84,7 +85,7 @@ export default function ContentVideoProduction({ projectId, planId, runId }: { p
   const createPlan = async (event: React.FormEvent) => {
     event.preventDefault(); setBusy(true); setError(null); setErrorCode(null);
     try {
-      const next = await contentVideoApi.createPlan(projectId, content, duration);
+      const next = await contentVideoApi.createPlan(projectId, content, duration, aspectRatio);
       setPlan(next);
       router.replace(`/video-studio/${projectId}/production?plan=${encodeURIComponent(next.id)}`);
     } catch (err) { showError(err, "Không tạo được storyboard."); }
@@ -178,31 +179,34 @@ export default function ContentVideoProduction({ projectId, planId, runId }: { p
         <div className="flex items-center justify-between gap-3"><label className="text-sm font-medium" htmlFor="content-source">Nội dung nguồn (40–12.000 ký tự; tối đa 12 KB UTF-8)</label><span className="text-xs text-muted-foreground">{contentBytes.toLocaleString("vi-VN")} / 12.000 byte</span></div>
         <textarea id="content-source" required minLength={40} maxLength={12000} value={content} onChange={(event) => setContent(event.target.value)} className="min-h-48 rounded-md border bg-background p-3 text-sm" placeholder="Dán bài viết, đề cương hoặc nội dung cần chuyển thành video..." />
         <label className="flex items-center gap-3 text-sm">Thời lượng mục tiêu <Input type="number" min={20} max={180} step={1} value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="w-28" /> giây</label>
+        <label className="flex items-center gap-3 text-sm" htmlFor="aspect-ratio">Tỷ lệ video
+          <select id="aspect-ratio" value={aspectRatio} onChange={(event) => setAspectRatio(event.target.value as "9:16" | "16:9")} className="h-10 rounded-md border bg-background px-3 text-sm">
+            <option value="9:16">Dọc 9:16</option><option value="16:9">Ngang 16:9</option>
+          </select>
+        </label>
         <p className="text-xs text-muted-foreground">Profile pilot cố định được khóa ở server; mọi shot dùng cùng bảng màu và continuity anchor. Shot sau nhận frame cuối shot trước làm tham chiếu và được nối bằng crossfade ngắn.</p>
         <Button type="submit" disabled={busy || content.trim().length < 40 || contentBytes > 12000 || duration < 30 || duration > 180}><Sparkles className="mr-2 size-4" />{busy ? "Đang lập storyboard..." : "Tạo storyboard"}</Button>
       </form></Card>}
 
       {plan && <>
         <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
-          <div><p className="font-medium">{plan.storyboard.title} · Rev {plan.revision}</p><p className="text-sm text-muted-foreground">{plan.target_duration_seconds}s · {plan.storyboard.shots.length} shot · {plan.status} · {plan.llm_model}</p><p className="mt-1 text-xs text-muted-foreground">{plan.style_snapshot.style_name} · {plan.style_snapshot.palette.join(" / ")}</p></div>
+          <div><p className="font-medium">{plan.storyboard.title} · Rev {plan.revision}</p><p className="text-sm text-muted-foreground">{plan.target_duration_seconds}s · {plan.storyboard.shots.length} shot · {plan.style_snapshot.aspect_ratio} · {plan.status} · {plan.llm_model}</p><p className="mt-1 text-xs text-muted-foreground">{plan.style_snapshot.style_name} · {plan.style_snapshot.palette.join(" / ")}</p></div>
           <div className="flex gap-2">
             {plan.status === "DRAFT" && <Button onClick={approve} disabled={busy}><Check className="mr-2 size-4" />Duyệt storyboard</Button>}
             {plan.status === "APPROVED" && (!run || RETRYABLE_RUNS.has(run.status)) && <Button onClick={() => startRun()} disabled={busy}><Play className="mr-2 size-4" />{run ? "Tạo run mới qua Flow" : "Tạo video qua Flow"}</Button>}
           </div>
         </Card>
         {plan.status === "APPROVED" && (!run || RETRYABLE_RUNS.has(run.status)) && <Card className="grid gap-3 p-4">
-          <div><h2 className="font-medium">Âm thanh lời đọc</h2><p className="text-sm text-muted-foreground">Để trống để dùng lời thoại do Flow tạo trong từng shot. Hoặc chọn/tải voice-over dài đúng {plan.target_duration_seconds} giây (sai số tối đa 0,5 giây); bản thu sẽ thay lời đọc Flow trong video cuối.</p></div>
-          <label htmlFor="voice-asset" className="text-sm font-medium">Nguồn lời đọc</label>
+          <label htmlFor="voice-asset" className="text-sm font-medium">Nguồn lời đọc tiếng Việt</label>
           <select id="voice-asset" value={voiceAssetId} onChange={(event) => { setVoiceAssetId(event.target.value); idempotencyKey.current = null; }} className="h-10 rounded-md border bg-background px-3 text-sm">
-            <option value="">Lời đọc native của Flow</option>
+            <option value="">Không thêm âm thanh</option>
             {voiceAssets.map((asset) => <option key={asset.id} value={asset.id}>{asset.original_filename || asset.id}{asset.duration_ms ? ` · ${(asset.duration_ms / 1000).toFixed(1)}s` : ""}</option>)}
           </select>
-          <label className="grid gap-2 text-sm">Hoặc tải voice-over lên
+          <label className="grid gap-2 text-sm">Hoặc tải bản thu tiếng Việt lên
             <input type="file" accept="audio/*" onChange={uploadVoice} disabled={busy} className="text-sm file:mr-3 file:rounded-md file:border file:bg-background file:px-3 file:py-2" />
           </label>
         </Card>}
         {plan.status === "DRAFT" && <p className="text-sm text-muted-foreground">Chia sẻ URL có mã plan này cho người duyệt. Người tạo không thể tự duyệt theo quy tắc phân quyền.</p>}
-        <section className="grid gap-3">{plan.storyboard.shots.map((shot, index) => <Card key={shot.shot_id} className="grid gap-3 p-4 md:grid-cols-[100px_1fr]"><div className="text-sm font-semibold">Shot {index + 1}<p className="font-normal text-muted-foreground">{shot.duration_seconds}s</p></div><div><h2 className="font-medium">{shot.scene}</h2><p className="mt-1 text-sm">{shot.narration}</p><p className="mt-2 text-xs text-muted-foreground">{shot.prompt}</p><p className="mt-2 text-xs font-medium">Mô tả gửi Flow (tiếng Anh)</p><p className="text-xs text-muted-foreground">{shot.flow_prompt_en || "Chưa có bản dịch. Hãy tạo storyboard mới."}</p></div></Card>)}</section>
       </>}
 
       {run && <Card className="flex flex-col gap-4 p-5">
@@ -216,10 +220,10 @@ export default function ContentVideoProduction({ projectId, planId, runId }: { p
           {uncertainStoryboardShot && <div className="grid gap-2 rounded-md border bg-background p-3 text-sm"><p><span className="font-medium">Cảnh:</span> {uncertainStoryboardShot.scene}</p><p><span className="font-medium">Lời đọc:</span> {uncertainStoryboardShot.narration}</p><p className="text-muted-foreground"><span className="font-medium">Prompt gốc:</span> {uncertainStoryboardShot.prompt}</p><p className="text-muted-foreground"><span className="font-medium">Mô tả gửi Flow (tiếng Anh):</span> {uncertainStoryboardShot.flow_prompt_en}</p></div>}
           <label htmlFor="reconcile-asset" className="text-sm font-medium">Clip trong dự án</label>
           <select id="reconcile-asset" value={reconcileAssetId} onChange={(event) => setReconcileAssetId(event.target.value)} className="h-10 rounded-md border bg-background px-3 text-sm">
-            <option value="">Chọn clip MP4 mới của run này</option>
+            <option value="">Không thêm âm thanh</option>
             {reconciliationCandidates.map((asset) => <option key={asset.id} value={asset.id}>{asset.original_filename || asset.id} · {asset.source_product}</option>)}
           </select>
-          <label className="grid gap-2 text-sm">Hoặc tải clip Flow đã tải về
+          <label className="grid gap-2 text-sm">Hoặc tải bản thu tiếng Việt lên
             <input type="file" accept="video/mp4,.mp4" onChange={uploadReconciliationClip} disabled={busy} className="text-sm file:mr-3 file:rounded-md file:border file:bg-background file:px-3 file:py-2" />
           </label>
           <label htmlFor="reconcile-reason" className="text-sm font-medium">Ghi chú đối soát</label>

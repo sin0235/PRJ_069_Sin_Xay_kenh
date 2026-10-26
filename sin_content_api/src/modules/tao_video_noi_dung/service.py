@@ -25,7 +25,7 @@ _PILOT_STYLE_SNAPSHOT = StyleSnapshot(
     style_name="Origami giấy gấp · pilot v1",
     visual_rules=(
         "Mọi vật thể và nhân vật đều là mô hình giấy origami gấp nếp rõ, bề mặt giấy mịn có thớ nhẹ; "
-        "dùng cùng một mô hình nhân vật giấy xuyên suốt, chuyển động gấp/mở liền mạch; bố cục dọc 9:16, "
+        "dùng cùng một mô hình nhân vật giấy xuyên suốt, chuyển động gấp/mở liền mạch; bố cục theo tỷ lệ người dùng chọn, "
         "ánh sáng studio mềm từ trên trái, bóng đổ giấy nhất quán, máy quay macro điện ảnh chậm; "
         "không đổi chất liệu sang ảnh thật hoặc 3D nhựa, không sinh chữ trong cảnh."
     ),
@@ -82,7 +82,7 @@ def create_plan(db: Session, project_id: str, workspace_id: str, user_id: str, r
     if not client.is_enabled:
         raise HTTPException(status_code=503, detail={"error_code": "LLM_NOT_CONFIGURED", "message": "LLM chưa được cấu hình hoặc đang tắt; chưa tạo storyboard."})
     try:
-        style_data = _PILOT_STYLE_SNAPSHOT.model_dump(mode="json")
+        style_data = _PILOT_STYLE_SNAPSHOT.model_copy(update={"aspect_ratio": request.aspect_ratio}).model_dump(mode="json")
         storyboard, model = generate_storyboard(
             content,
             request.target_duration_seconds,
@@ -214,7 +214,8 @@ def create_run(
         if not voice_asset or not (voice_asset.mime_detected or "").startswith("audio/"):
             raise HTTPException(status_code=404, detail={"error_code": "VOICE_ASSET_NOT_FOUND", "message": "Hãy chọn tệp giọng đọc âm thanh thuộc dự án này."})
 
-    style = StyleSnapshot.model_validate_json(plan.style_snapshot_json).model_dump(mode="json")
+    style = json.loads(plan.style_snapshot_json)
+    StyleSnapshot.model_validate(style)
     storyboard = Storyboard.model_validate_json(plan.storyboard_json)
     approval_hash = approval_receipt_hash(plan)
     run_id = str(uuid.uuid4())

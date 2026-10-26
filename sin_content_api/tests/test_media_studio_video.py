@@ -895,6 +895,7 @@ def test_timeline_render_video_only(video_fixture, tmp_path):
     assert meta["width"] == 1080
     assert meta["height"] == 1920
     assert 1.4 <= meta["duration_seconds"] <= 1.7
+    assert audio_processor.probe_audio(out_mp4)["codec_name"] == "unknown"
 
 
 def test_timeline_crossfade_keeps_requested_duration_and_decodes(video_fixture, tmp_path):
@@ -1479,7 +1480,12 @@ def test_flow_provider_uses_native_portrait_output(video_fixture, monkeypatch, t
     import types
     from src.modules.media_studio import video_provider as provider_module
 
-    raw_video = video_fixture["clip_1"]
+    raw_video = tmp_path / "flow-with-auto-audio.mp4"
+    subprocess.run([
+        video_processor.ffmpeg_bin, "-y", "-f", "lavfi", "-i", "color=c=navy:s=1080x1920:d=2",
+        "-f", "lavfi", "-i", "sine=frequency=440:duration=2", "-shortest", "-c:v", "libx264",
+        "-pix_fmt", "yuv420p", "-c:a", "aac", str(raw_video),
+    ], check=True, capture_output=True)
     received = {}
 
     class FakeFlowClient:
@@ -1495,7 +1501,7 @@ def test_flow_provider_uses_native_portrait_output(video_fixture, monkeypatch, t
     monkeypatch.setattr(provider_module.video_processor, "expand_16_9_to_9_16", lambda **_: pytest.fail("unexpected blur expansion"))
 
     result = provider_module.GoogleFlowZeroCostProvider().generate(
-        "A paper assistant walks slowly.", aspect_ratio="9:16", prompt_language="en"
+        "A paper assistant walks slowly.", aspect_ratio="9:16", prompt_language="en", include_audio=False
     )
 
     assert received["aspect_ratio"] == "9:16"
@@ -1506,6 +1512,7 @@ def test_flow_provider_uses_native_portrait_output(video_fixture, monkeypatch, t
     assert result["expansion_technique"] is None
     assert pathlib.Path(result["storage_path"]).is_file()
     assert video_processor.probe_video(pathlib.Path(result["storage_path"]))["aspect_ratio"] == "9:16"
+    assert audio_processor.probe_audio(pathlib.Path(result["storage_path"]))["codec_name"] == "unknown"
 
 
 def test_timeline_renderer_wraps_long_captions(video_fixture, tmp_path):
@@ -1584,6 +1591,7 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
             CreatePlanRequest.model_validate({
             "content": "RAG truy xuất tài liệu liên quan trước khi tạo câu trả lời có căn cứ.",
             "target_duration_seconds": 30,
+            "aspect_ratio": "16:9",
             }),
         )
         second_plan = create_plan(
@@ -1594,6 +1602,7 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
             CreatePlanRequest.model_validate({
                 "content": "RAG tìm tài liệu đáng tin trước rồi mới tạo câu trả lời cho người dùng.",
                 "target_duration_seconds": 30,
+            "aspect_ratio": "16:9",
             }),
         )
         assert response.style_snapshot_sha256 == second_plan.style_snapshot_sha256
@@ -1602,6 +1611,7 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
     assert len(response.storyboard.shots) == 3
     assert response.storyboard.shots[0].shot_id == "s1"
     assert response.storyboard.shots[0].flow_prompt_en.startswith("Three paper cards")
+    assert response.style_snapshot.aspect_ratio == "16:9"
     assert response.style_snapshot.style_name.startswith("Origami")
     assert "Mọi vật thể" in response.style_snapshot.visual_rules
 
@@ -1666,7 +1676,7 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
         db.commit()
         monkeypatch.setattr(runner, "MEDIA_ROOT_DIR", tmp_path)
         monkeypatch.setattr(runner.video_processor, "probe_video", lambda _: {
-            "width": 1080, "height": 1920, "codec_name": "h264", "duration_seconds": 10.0, "frame_rate": 30.0,
+            "width": 1920, "height": 1080, "codec_name": "h264", "duration_seconds": 10.0, "frame_rate": 30.0,
         })
         monkeypatch.setattr(runner.audio_processor, "probe_audio", lambda _: {"codec_name": "aac"})
         reconcile_request = ReconcileShotRequest(
@@ -1697,7 +1707,7 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
             with SessionLocal() as competing_db:
                 competing_db.query(ContentVideoRun).filter_by(id=uncertain_run.id).update({"status": "QUEUED"})
                 competing_db.commit()
-            return {"width": 1080, "height": 1920, "codec_name": "h264", "duration_seconds": 10.0, "frame_rate": 30.0}
+            return {"width": 1920, "height": 1080, "codec_name": "h264", "duration_seconds": 10.0, "frame_rate": 30.0}
 
         monkeypatch.setattr(runner.video_processor, "probe_video", race_update_run)
         with pytest.raises(Exception) as reconcile_conflict:
@@ -1712,7 +1722,7 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
         persisted_run.status = "NEEDS_RECONCILIATION"
         db.commit()
         monkeypatch.setattr(runner.video_processor, "probe_video", lambda _: {
-            "width": 1080, "height": 1920, "codec_name": "h264", "duration_seconds": 10.0, "frame_rate": 30.0,
+            "width": 1920, "height": 1080, "codec_name": "h264", "duration_seconds": 10.0, "frame_rate": 30.0,
         })
 
         reconcile_shot(
@@ -1778,7 +1788,7 @@ def test_content_video_worker_keeps_shots_in_one_project_without_uploading_frame
 
     calls = []
 
-    def generate_video_scene(*, db, workspace_id, user_id, project_id, prompt, aspect_ratio, prompt_language="vi", start_image_path=None, start_image_asset_id=None, remove_watermark=False, flow_project_url=None, on_flow_project_created=None):
+    def generate_video_scene(*, db, workspace_id, user_id, project_id, prompt, aspect_ratio, prompt_language="vi", include_audio=True, start_image_path=None, start_image_asset_id=None, remove_watermark=False, flow_project_url=None, on_flow_project_created=None):
         index = len(calls)
         if index == 0:
             assert flow_project_url is None
@@ -1819,7 +1829,7 @@ def test_content_video_worker_keeps_shots_in_one_project_without_uploading_frame
         )
         db.add(asset)
         db.commit()
-        calls.append({"asset_id": asset.id, "prompt": prompt, "prompt_language": prompt_language, "start_image_asset_id": start_image_asset_id, "flow_project_url": flow_project_url})
+        calls.append({"asset_id": asset.id, "prompt": prompt, "prompt_language": prompt_language, "include_audio": include_audio, "aspect_ratio": aspect_ratio, "start_image_asset_id": start_image_asset_id, "flow_project_url": flow_project_url})
         return asset
 
     monkeypatch.setattr(cong_harness.video_orchestrator, "generate_video_scene", generate_video_scene)
@@ -1870,59 +1880,7 @@ def test_content_video_worker_keeps_shots_in_one_project_without_uploading_frame
     assert steps[0]["flow_project_url"] == "https://flow.google.com/project/run-e2e"
     assert len(calls) == 3
     assert [call["prompt_language"] for call in calls] == ["en", "en", "en"]
+    assert [call["include_audio"] for call in calls] == [False, False, False]
+    assert [call["aspect_ratio"] for call in calls] == ["9:16", "9:16", "9:16"]
     assert [call["start_image_asset_id"] for call in calls] == [None, None, None]
     assert [call["flow_project_url"] for call in calls] == ["https://flow.google.com/project/run-e2e"] * 3
-
-
-def test_flow_native_audio_is_stitched_and_registered(video_fixture, monkeypatch, tmp_path):
-    from types import SimpleNamespace
-    from src.modules.tao_video_noi_dung import runner
-
-    media_root = tmp_path / "media"
-    monkeypatch.setattr(runner, "MEDIA_ROOT_DIR", media_root)
-    monkeypatch.setattr(runner, "get_workspace_storage_dir", lambda workspace_id: media_root / "workspaces" / workspace_id / "media")
-    monkeypatch.setattr(runner, "_save_run", lambda db, run, steps: setattr(run, "steps_json", json.dumps(steps)))
-    project_id = f"project-native-audio-{uuid.uuid4().hex[:8]}"
-    workspace_id = video_fixture["ws_id"]
-    run_id = f"run-native-audio-{uuid.uuid4().hex[:8]}"
-    storyboard = {
-        "title": "Native audio",
-        "narration": "Lời đọc do Flow tạo.",
-        "continuity_anchor": "Mô hình giấy origami cùng bảng màu xuyên suốt video.",
-        "shots": [
-            {"shot_id": f"shot-{i}", "scene": f"Cảnh {i}", "narration": "Lời đọc", "prompt": "Cảnh origami", "duration_seconds": 2}
-            for i in range(3)
-        ],
-    }
-    plan = SimpleNamespace(storyboard_json=json.dumps(storyboard, ensure_ascii=False), target_duration_seconds=6)
-    run = SimpleNamespace(id=run_id, workspace_id=workspace_id, project_id=project_id, voice_asset_id=None, created_by=video_fixture["user_id"], steps_json="[{}]")
-    ids = []
-    with SessionLocal() as db:
-        db.add(ProductionProject(id=project_id, workspace_id=workspace_id, title="Native audio", created_by=video_fixture["user_id"]))
-        storage_dir = media_root / "workspaces" / workspace_id / "media"
-        storage_dir.mkdir(parents=True)
-        for index in range(3):
-            clip_path = storage_dir / f"clip-{index}.mp4"
-            subprocess.run([
-                video_processor.ffmpeg_bin, "-y", "-f", "lavfi", "-i", f"color=c=navy:s=160x240:d=2",
-                "-f", "lavfi", "-i", f"sine=frequency={440 + index * 80}:duration=2", "-shortest",
-                "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-t", "2", str(clip_path),
-            ], check=True, capture_output=True)
-            asset_id = f"flow-clip-{uuid.uuid4().hex[:8]}"
-            payload = clip_path.read_bytes()
-            db.add(MediaAsset(
-                id=asset_id, workspace_id=workspace_id, project_id=project_id,
-                storage_key=f"workspaces/{workspace_id}/media/{clip_path.name}",
-                sha256=hashlib.sha256(payload).hexdigest(), byte_size=len(payload), mime_detected="video/mp4",
-                source_product="TEST_FLOW", original_filename=clip_path.name, created_by=video_fixture["user_id"],
-                duration_ms=2000, approval_state="UNREVIEWED",
-            ))
-            ids.append(asset_id)
-        db.commit()
-        voice = runner._flow_voice_asset(db, run, plan, ids)
-        voice_path = runner._verified_asset_path(voice, "FLOW_VOICE_ASSET")
-        assert voice.source_product == "FLOW_NATIVE_VOICE"
-        assert abs(runner.audio_processor.probe_audio(voice_path)["duration_seconds"] - 6) <= 0.5
-        assert json.loads(run.steps_json)[0]["flow_audio_asset_id"] == voice.id
-
-

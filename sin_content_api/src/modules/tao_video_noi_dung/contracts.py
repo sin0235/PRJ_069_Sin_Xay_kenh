@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -13,6 +14,7 @@ class StyleSnapshot(BaseModel):
     style_name: str = Field(min_length=2, max_length=120)
     visual_rules: str = Field(min_length=10, max_length=3000)
     palette: list[str] = Field(min_length=1, max_length=8)
+    aspect_ratio: Literal["9:16", "16:9"] = "9:16"
 
 
 class CreatePlanRequest(BaseModel):
@@ -20,6 +22,7 @@ class CreatePlanRequest(BaseModel):
 
     content: str = Field(min_length=40, max_length=12000)
     target_duration_seconds: int = Field(ge=20, le=180)
+    aspect_ratio: Literal["9:16", "16:9"] = "9:16"
 
 
 class ContentVideoPlanResponse(BaseModel):

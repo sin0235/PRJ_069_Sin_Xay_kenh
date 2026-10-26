@@ -49,7 +49,7 @@ def build_shot_receipt(
         "style_snapshot_sha256": plan.style_snapshot_sha256,
         "approval_sha256": approval_receipt_hash(plan),
         "prompt": build_shot_prompt(style_snapshot, shot, continuity_anchor),
-        "aspect_ratio": "9:16",
+        "aspect_ratio": style_snapshot.get("aspect_ratio", "9:16"),
         "duration_seconds": shot.duration_seconds,
     }
     return {**command, "command_sha256": canonical_hash(command), "state": "READY", "asset_id": None}
@@ -88,7 +88,7 @@ def verify_shot_receipt(run: ContentVideoRun, plan: ContentVideoPlan, shot: Stor
         "style_snapshot_sha256": plan.style_snapshot_sha256,
         "approval_sha256": run.approval_sha256,
         "prompt": build_shot_prompt(style, shot, storyboard["continuity_anchor"]),
-        "aspect_ratio": "9:16",
+        "aspect_ratio": style.get("aspect_ratio", "9:16"),
         "duration_seconds": shot.duration_seconds,
     }
     if step.get("state") not in {"READY", "SUBMITTING", "SUCCEEDED", "NEEDS_RECONCILIATION"}:
@@ -123,6 +123,7 @@ def dispatch_shot(
         prompt=command["prompt"],
         aspect_ratio=command["aspect_ratio"],
         prompt_language="en" if shot.flow_prompt_en.strip() else "vi",
+        include_audio=False,
         start_image_path=start_image_path,
         start_image_asset_id=start_image_asset_id,
         remove_watermark=False,

@@ -434,6 +434,7 @@ class VideoProcessor:
                     font_file = "/Windows/Fonts/arial.ttf"
                     has_font = os.path.exists("C:/Windows/Fonts/arial.ttf") or os.path.exists("/Windows/Fonts/arial.ttf")
 
+                    caption_y = "h-480" if height > width else "h-160"
                     for c_idx, cap in enumerate(captions):
                         text = getattr(cap, "text", "") or (cap.get("text", "") if isinstance(cap, dict) else "")
                         if not text:
@@ -453,14 +454,14 @@ class VideoProcessor:
                             filter_str = (
                                 f"drawtext=fontfile='{font_file}':textfile='{txt_filename}':fontsize={f_size}:fontcolor=0xFFE600"
                                 f":box=1:boxcolor=0x000000@0.7:boxborderw=8"
-                                f":x=(w-text_w)/2:y=h-480"
+                                f":x=(w-text_w)/2:y={caption_y}"
                                 f":enable='between(t,{c_start_s:.3f},{c_end_s:.3f})'"
                             )
                         else:
                             filter_str = (
                                 f"drawtext=textfile='{txt_filename}':fontsize={f_size}:fontcolor=0xFFE600"
                                 f":box=1:boxcolor=0x000000@0.7:boxborderw=8"
-                                f":x=(w-text_w)/2:y=h-480"
+                                f":x=(w-text_w)/2:y={caption_y}"
                                 f":enable='between(t,{c_start_s:.3f},{c_end_s:.3f})'"
                             )
                         drawtext_filters.append(filter_str)
@@ -546,30 +547,18 @@ class VideoProcessor:
                     ]
                     subprocess.run(cmd_audio, capture_output=True, check=True)
 
+                # 5. Xuất silent MP4 nếu người dùng chưa chọn giọng đọc hoặc nhạc.
+                cmd_final = [self.ffmpeg_bin, "-y", "-i", str(current_video)]
+                if has_voice or has_music:
+                    cmd_final.extend([
+                        "-i", str(final_audio), "-c:a", "aac", "-b:a", "192k", "-ar", "44100",
+                    ])
                 else:
-                    cmd_silent = [
-                        self.ffmpeg_bin, "-y",
-                        "-f", "lavfi",
-                        "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
-                        "-t", f"{total_duration_sec:.3f}",
-                        str(final_audio)
-                    ]
-                    subprocess.run(cmd_silent, capture_output=True, check=True)
-
-                # 5. Ghép cuối cùng: Video (current_video) + Audio (final_audio) -> output_path
-                cmd_final = [
-                    self.ffmpeg_bin, "-y",
-                    "-i", str(current_video),
-                    "-i", str(final_audio),
-                    "-c:v", "libx264",
-                    "-c:a", "aac",
-                    "-b:a", "192k",
-                    "-ar", "44100",
-                    "-pix_fmt", "yuv420p",
-                    "-r", str(fps),
-                    "-t", f"{total_duration_sec:.3f}",
-                    str(output_path)
-                ]
+                    cmd_final.append("-an")
+                cmd_final.extend([
+                    "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(fps),
+                    "-t", f"{total_duration_sec:.3f}", str(output_path),
+                ])
                 res_final = subprocess.run(cmd_final, capture_output=True, text=True)
                 if res_final.returncode != 0:
                     raise RuntimeError(f"Lỗi ghép hoàn chỉnh thành phẩm MP4: {res_final.stderr}")
