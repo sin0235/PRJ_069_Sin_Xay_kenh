@@ -898,6 +898,32 @@ def test_timeline_render_video_only(video_fixture, tmp_path):
     assert audio_processor.probe_audio(out_mp4)["codec_name"] == "unknown"
 
 
+def test_timeline_render_keeps_flow_generated_audio(video_fixture, tmp_path):
+    flow_clip = tmp_path / "flow_clip_with_audio.mp4"
+    subprocess.run([
+        video_processor.ffmpeg_bin, "-y", "-i", str(video_fixture["clip_1"]),
+        "-i", str(video_fixture["audio_file"]), "-map", "0:v:0", "-map", "1:a:0",
+        "-t", "1.5", "-c:v", "copy", "-c:a", "aac", str(flow_clip),
+    ], check=True, capture_output=True)
+    timeline = TimelineDocument(
+        width=1080,
+        height=1920,
+        fps=30,
+        clips=[
+            TimelineClip(clip_id="flow-1", asset_id="flow", media_type="video", duration_ms=1500, trim_out_ms=1500),
+            TimelineClip(clip_id="flow-2", asset_id="flow", media_type="video", duration_ms=1500, trim_out_ms=1500),
+        ],
+    )
+    output = tmp_path / "flow_audio_render.mp4"
+
+    meta = video_processor.render_timeline_document(timeline, lambda _: flow_clip, output, temp_dir=tmp_path / "flow_render", transition_seconds=0.3)
+
+    audio_meta = audio_processor.probe_audio(output)
+    assert audio_meta["codec_name"] == "aac"
+    assert 2.9 <= audio_meta["duration_seconds"] <= 3.1
+    assert 2.9 <= meta["duration_seconds"] <= 3.1
+
+
 def test_timeline_crossfade_keeps_requested_duration_and_decodes(video_fixture, tmp_path):
     timeline_doc = TimelineDocument(
         width=1080,
@@ -1434,7 +1460,7 @@ def test_generated_video_is_bound_to_existing_project(video_fixture, monkeypatch
     assert response.status_code == 200, response.text
     assert response.json()["project_id"] == project_id
     assert received["project_id"] == project_id
-    assert received["remove_watermark"] is True
+    assert received["remove_watermark"] is False
 
 
 def test_expand_video_uses_safe_temp_name_and_links_project(video_fixture, monkeypatch, tmp_path):
@@ -1610,10 +1636,11 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
     assert response.status == "DRAFT"
     assert len(response.storyboard.shots) == 3
     assert response.storyboard.shots[0].shot_id == "s1"
-    assert response.storyboard.shots[0].flow_prompt_en.startswith("Three paper cards")
+    assert "flow_prompt_en" not in response.storyboard.shots[0].model_dump()
     assert response.style_snapshot.aspect_ratio == "16:9"
     assert response.style_snapshot.style_name.startswith("Origami")
-    assert "Mọi vật thể" in response.style_snapshot.visual_rules
+    assert "Nhân vật, đạo cụ và bối cảnh" in response.style_snapshot.visual_rules
+    assert "không có người thật" in response.style_snapshot.visual_rules
 
     with SessionLocal() as db:
         with pytest.raises(Exception) as self_approval:
@@ -1744,12 +1771,12 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
     assert run.status == "QUEUED"
     assert len(run.steps) == 3
     assert all(step["state"] == "READY" and step["command_sha256"] for step in run.steps)
-    assert all("same navy and teal palette" in step["prompt"] for step in run.steps)
+    assert all("mô hình origami đã gấp thành hình hoàn chỉnh" in step["prompt"] for step in run.steps)
     assert native_run.voice_asset_id is None
     assert all(step["voice_asset_id"] is None for step in native_run.steps)
 
 
-def test_content_video_worker_keeps_shots_in_one_project_without_uploading_frames(video_fixture, monkeypatch, tmp_path):
+def test_content_video_worker_uses_reference_frame_only_for_same_scene_continuation(video_fixture, monkeypatch, tmp_path):
     from datetime import timezone
     from types import SimpleNamespace
     from src.modules.llm.client import LLMClient
@@ -1765,8 +1792,9 @@ def test_content_video_worker_keeps_shots_in_one_project_without_uploading_frame
         "narration": "RAG truy xuất tài liệu rồi mới tạo câu trả lời.",
         "continuity_anchor": "Một chuyên gia công nghệ mặc áo xanh navy giải thích trong studio tối giản, ánh sáng mềm.",
         "shots": [
-            {"shot_id": f"shot-{i}", "scene": f"Cảnh {i}", "narration": f"Lời dẫn {i}", "prompt": f"Minh họa bước {i} trong quy trình truy xuất tài liệu", "flow_prompt_en": f"The same paper assistant moves one document card through step {i} of the retrieval process.", "duration_seconds": 10}
-            for i in range(1, 4)
+            {"shot_id": "shot-1", "scene": "Trợ lý mở hồ sơ trong văn phòng", "narration": "Lời dẫn 1", "prompt": "Trợ lý mở hồ sơ", "duration_seconds": 10, "continues_previous": False},
+            {"shot_id": "shot-2", "scene": "Cùng cảnh văn phòng, trợ lý tiếp tục đọc hồ sơ", "narration": "Lời dẫn 2", "prompt": "Trợ lý tiếp tục đọc hồ sơ", "duration_seconds": 10, "continues_previous": True},
+            {"shot_id": "shot-3", "scene": "Chuyển sang phòng họp", "narration": "Lời dẫn 3", "prompt": "Nhóm xem kết quả truy xuất", "duration_seconds": 10, "continues_previous": False},
         ],
     }
 
@@ -1785,6 +1813,16 @@ def test_content_video_worker_keeps_shots_in_one_project_without_uploading_frame
         "width": 1080, "height": 1920, "codec_name": "h264", "duration_seconds": 10.0, "frame_rate": 30.0,
     })
     monkeypatch.setattr(runner, "_render_and_qc", lambda db, run, plan, storyboard, asset_ids: setattr(run, "status", "COMPLETED") or db.commit())
+    monkeypatch.setattr(runner, "_has_duplicate_shot_media", lambda hashes: False)
+    extracted_frames = []
+
+    def fake_extract_final_frame(path, workspace_id):
+        temp_dir = runner.tempfile.TemporaryDirectory()
+        (pathlib.Path(temp_dir.name) / "khung_hinh_cuoi.png").write_bytes(b"test frame")
+        extracted_frames.append(path)
+        return temp_dir
+
+    monkeypatch.setattr(runner, "_extract_final_reference_frame", fake_extract_final_frame)
 
     calls = []
 
@@ -1803,7 +1841,11 @@ def test_content_video_worker_keeps_shots_in_one_project_without_uploading_frame
             with SessionLocal() as heartbeat_db:
                 active = heartbeat_db.query(ContentVideoRun).filter(ContentVideoRun.id == active_run_id).one()
                 assert active.lease_expires_at.replace(tzinfo=timezone.utc).timestamp() > time.time()
-        assert start_image_path is None and start_image_asset_id is None
+        if index == 1:
+            assert start_image_path and start_image_path.is_file()
+            assert start_image_asset_id == calls[0]["asset_id"]
+        else:
+            assert start_image_path is None and start_image_asset_id is None
         asset_id = f"asset-worker-{index}"
         prefix = "flow_expanded_9_16_" if index == 0 else "flow_i2v_9_16_"
         filename = f"{prefix}worker_{index}.mp4"
@@ -1879,8 +1921,10 @@ def test_content_video_worker_keeps_shots_in_one_project_without_uploading_frame
     assert [step["state"] for step in steps] == ["SUCCEEDED"] * 3
     assert steps[0]["flow_project_url"] == "https://flow.google.com/project/run-e2e"
     assert len(calls) == 3
-    assert [call["prompt_language"] for call in calls] == ["en", "en", "en"]
-    assert [call["include_audio"] for call in calls] == [False, False, False]
+    assert [call["prompt_language"] for call in calls] == ["vi", "vi", "vi"]
+    assert [call["include_audio"] for call in calls] == [True, True, True]
     assert [call["aspect_ratio"] for call in calls] == ["9:16", "9:16", "9:16"]
-    assert [call["start_image_asset_id"] for call in calls] == [None, None, None]
+    assert [call["start_image_asset_id"] for call in calls] == [None, calls[0]["asset_id"], None]
+    assert len(extracted_frames) == 1
+    assert "cảnh độc lập" in calls[2]["prompt"]
     assert [call["flow_project_url"] for call in calls] == ["https://flow.google.com/project/run-e2e"] * 3

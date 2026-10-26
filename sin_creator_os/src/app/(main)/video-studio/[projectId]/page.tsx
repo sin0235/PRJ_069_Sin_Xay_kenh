@@ -65,16 +65,39 @@ import {
   TimelineVersionResponse,
 } from "@/lib/api/media-studio-api";
 import { BangDieuPhoiDung } from "@/components/video_studio/bang_dieu_phoi_dung";
+import { taoPhuDeDeLuu } from "./phu_de_timeline";
 
 export default function VideoStudioPage() {
   const router = useRouter();
   const params = useParams();
   const projectId = (params?.projectId as string) || "";
+  const [projectTitle, setProjectTitle] = React.useState("");
+  const [projectLoadStatus, setProjectLoadStatus] = React.useState<"loading" | "ready" | "missing" | "error">("loading");
+  const [projectError, setProjectError] = React.useState<string | null>(null);
+
+  const loadProject = React.useCallback(async () => {
+    setProjectLoadStatus("loading");
+    setProjectError(null);
+    try {
+      const project = (await mediaStudioApi.listProjects()).find((item) => item.id === projectId);
+      if (!project) {
+        setProjectLoadStatus("missing");
+        return;
+      }
+      setProjectTitle(project.title);
+      setProjectLoadStatus("ready");
+    } catch (error) {
+      setProjectError(error instanceof Error ? error.message : "Không tải được dự án.");
+      setProjectLoadStatus("error");
+    }
+  }, [projectId]);
+
+  React.useEffect(() => { void loadProject(); }, [loadProject]);
 
   // State Trình phát Video / Canvas
   const [isPlaying, setIsPlaying] = React.useState(false);
   const [currentTime, setCurrentTime] = React.useState(0.0);
-  const [totalDuration, setTotalDuration] = React.useState(3.0);
+  const [totalDuration, setTotalDuration] = React.useState(0.0);
   const [aspectRatio, setAspectRatio] = React.useState<"9:16" | "16:9">("9:16");
   const [showSafeZone, setShowSafeZone] = React.useState(true);
   const videoRef = React.useRef<HTMLVideoElement | null>(null);
@@ -90,15 +113,19 @@ export default function VideoStudioPage() {
   // State Phân Cảnh & Tư Liệu Đang Chọn
   const [selectedAssetId, setSelectedAssetId] = React.useState<string | null>(null);
   const [selectedClipId, setSelectedClipId] = React.useState<string | null>(null);
+  const [previewSource, setPreviewSource] = React.useState<{ url: string; type: "image" | "video" } | null>(null);
   const [previewMediaUrl, setPreviewMediaUrl] = React.useState<string | null>(null);
   const [previewMediaType, setPreviewMediaType] = React.useState<"image" | "video">("video");
+  const [isLoadingPreview, setIsLoadingPreview] = React.useState(false);
+  const [previewError, setPreviewError] = React.useState<string | null>(null);
 
   // State Timeline Đa Track (M-P3 / M-P4)
   const [timelineVersion, setTimelineVersion] = React.useState<number>(0);
   const [timelineClips, setTimelineClips] = React.useState<TimelineClip[]>([]);
   const [timelineVoice, setTimelineVoice] = React.useState<TimelineAudioTrack | null>(null);
   const [timelineMusic, setTimelineMusic] = React.useState<TimelineAudioTrack | null>(null);
-  const [captionText, setCaptionText] = React.useState("ĐỪNG GÕ KỊCH BẢN TAY NỮA!");
+  const [timelineCaptions, setTimelineCaptions] = React.useState<TimelineCaption[]>([]);
+  const [captionText, setCaptionText] = React.useState("");
   const [captionFontSize, setCaptionFontSize] = React.useState(26);
   const [musicAttenuationDb, setMusicAttenuationDb] = React.useState(-18.0);
 
@@ -118,13 +145,7 @@ export default function VideoStudioPage() {
   const [copiedPrompt, setCopiedPrompt] = React.useState(false);
 
   // State Quick AI
-  const [quickPrompt, setQuickPrompt] = React.useState(
-    "A single cobalt-blue and vermilion washi sheet folds crease by crease into a crisp origami hummingbird. " +
-      "Show every fold forming; the bird opens its sharply creased paper wings and glides above a mirror-silver bowl, " +
-      "sending ripples across the water. Distinctive Japanese craft-editorial art direction, pearlescent paper fibers, " +
-      "midnight-blue backdrop, warm copper rim light, graceful tactile stop-motion folding animation, cinematic macro " +
-      "camera orbit. No hands, text, logos, or plastic look.",
-  );
+  const [quickPrompt, setQuickPrompt] = React.useState("");
   const [quickGenType, setQuickGenType] = React.useState<"video" | "music">("video");
   const [isGeneratingAi, setIsGeneratingAi] = React.useState(false);
   const [aiGenMessage, setAiGenMessage] = React.useState<string | null>(null);
@@ -135,6 +156,47 @@ export default function VideoStudioPage() {
   const [isCleaningWatermark, setIsCleaningWatermark] = React.useState(false);
   const [cleanWatermarkMessage, setCleanWatermarkMessage] = React.useState<string | null>(null);
   const [autoCleanWatermark, setAutoCleanWatermark] = React.useState(false);
+  const [timelineLoadError, setTimelineLoadError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!previewSource) {
+      setPreviewMediaUrl(null);
+      setIsLoadingPreview(false);
+      setPreviewError(null);
+      return;
+    }
+
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    videoRef.current?.pause();
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setIsLoadingPreview(true);
+    setPreviewError(null);
+    setPreviewMediaUrl(null);
+
+    void mediaStudioApi.createAssetObjectUrl(previewSource.url)
+      .then((url) => {
+        if (cancelled) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        objectUrl = url;
+        setPreviewMediaType(previewSource.type);
+        setPreviewMediaUrl(url);
+      })
+      .catch((error) => {
+        if (!cancelled) setPreviewError(error instanceof Error ? error.message : "Không tải được bản xem trước.");
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingPreview(false);
+      });
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [previewSource]);
 
   // Tải danh sách tư liệu từ Backend
   const loadAssets = React.useCallback(async () => {
@@ -142,12 +204,11 @@ export default function VideoStudioPage() {
     try {
       const data = await mediaStudioApi.listAssets({ project_id: projectId });
       setAssets(data);
-      if (data.length > 0 && !selectedAssetId && !previewMediaUrl) {
+      if (data.length > 0 && !selectedAssetId && !previewSource) {
         const firstVid = data.find((a) => a.mime_detected?.startsWith("video/"));
         if (firstVid && firstVid.url) {
           setSelectedAssetId(firstVid.id);
-          setPreviewMediaUrl(firstVid.url);
-          setPreviewMediaType("video");
+          setPreviewSource({ url: firstVid.url, type: "video" });
         }
       }
     } catch (err: any) {
@@ -155,49 +216,43 @@ export default function VideoStudioPage() {
     } finally {
       setIsLoadingAssets(false);
     }
-  }, [projectId, selectedAssetId, previewMediaUrl]);
+  }, [projectId, selectedAssetId, previewSource]);
 
   // Tải Timeline từ Backend (M-P3)
   const loadTimeline = React.useCallback(async () => {
+    setTimelineLoadError(null);
     try {
       const res = await mediaStudioApi.getTimeline(projectId);
+      const document = res.timeline;
+      const clips = document?.clips ?? [];
+      const captions = document?.captions ?? [];
       setTimelineVersion(res.version);
-      if (res.timeline && Array.isArray(res.timeline.clips)) {
-        setTimelineClips(res.timeline.clips);
-        if (res.timeline.clips.length > 0) {
-          const totalDurMs = res.timeline.clips.reduce((acc, c) => acc + (c.duration_ms || 3000), 0);
-          setTotalDuration(totalDurMs / 1000.0);
-        }
-        if (res.timeline.voice_track) setTimelineVoice(res.timeline.voice_track);
-        if (res.timeline.music_track) {
-          setTimelineMusic(res.timeline.music_track);
-          if (res.timeline.music_track.ducking_attenuation_db !== undefined) {
-            setMusicAttenuationDb(res.timeline.music_track.ducking_attenuation_db);
-          }
-        }
-        if (res.timeline.captions && res.timeline.captions.length > 0) {
-          setCaptionText(res.timeline.captions[0].text);
-          if (res.timeline.captions[0].font_size) {
-            setCaptionFontSize(res.timeline.captions[0].font_size);
-          }
-        }
+      setTimelineClips(clips);
+      setTimelineVoice(document?.voice_track ?? null);
+      setTimelineMusic(document?.music_track ?? null);
+      setTimelineCaptions(captions);
+      setCaptionText(captions[0]?.text ?? "");
+      setCaptionFontSize(captions[0]?.font_size ?? 26);
+      if (document?.music_track?.ducking_attenuation_db !== undefined) {
+        setMusicAttenuationDb(document.music_track.ducking_attenuation_db);
       }
+      setTotalDuration(clips.reduce((total, clip) => total + clip.duration_ms, 0) / 1000.0);
     } catch (err: any) {
+      setTimelineLoadError(err instanceof Error ? err.message : "Không tải được timeline.");
       console.warn("Không thể tải timeline từ API:", err?.message);
     }
   }, [projectId]);
 
   React.useEffect(() => {
-    loadAssets();
-    loadTimeline();
-  }, [loadAssets, loadTimeline]);
+    if (projectLoadStatus !== "ready") return;
+    void loadAssets();
+    void loadTimeline();
+  }, [projectLoadStatus, loadAssets, loadTimeline]);
 
   // Tính lại tổng thời lượng khi timelineClips thay đổi
   React.useEffect(() => {
-    if (timelineClips.length > 0) {
-      const totalDurMs = timelineClips.reduce((acc, c) => acc + (c.duration_ms || 3000), 0);
-      setTotalDuration(Math.max(1.0, totalDurMs / 1000.0));
-    }
+    const totalDurMs = timelineClips.reduce((acc, clip) => acc + clip.duration_ms, 0);
+    setTotalDuration(totalDurMs ? Math.max(1.0, totalDurMs / 1000.0) : 0);
   }, [timelineClips]);
 
   // Xử lý tải tệp tư liệu lên (M-P2)
@@ -226,9 +281,8 @@ export default function VideoStudioPage() {
 
       // Tự động chọn preview
       setSelectedAssetId(uploaded.id);
-      if (uploaded.url) {
-        setPreviewMediaUrl(uploaded.url);
-        setPreviewMediaType(expectedCategory === "image" ? "image" : "video");
+      if (uploaded.url && expectedCategory !== "audio") {
+        setPreviewSource({ url: uploaded.url, type: expectedCategory === "image" ? "image" : "video" });
       }
     } catch (err: any) {
       setUploadMessage(`Lỗi tải lên: ${err?.message || "Không xác định"}`);
@@ -280,8 +334,7 @@ export default function VideoStudioPage() {
     setSelectedClipId(newClipId);
     setSelectedAssetId(asset.id);
     if (asset.url) {
-      setPreviewMediaUrl(asset.url);
-      setPreviewMediaType(isImage ? "image" : "video");
+      setPreviewSource({ url: asset.url, type: isImage ? "image" : "video" });
     }
   };
 
@@ -331,16 +384,7 @@ export default function VideoStudioPage() {
       music_track: timelineMusic
         ? { ...timelineMusic, ducking_attenuation_db: musicAttenuationDb }
         : null,
-      captions: [
-        {
-          caption_id: "cap_main",
-          text: captionText,
-          start_ms: 0,
-          duration_ms: Math.round(totalDuration * 1000),
-          font_size: captionFontSize,
-          safe_zone: true,
-        },
-      ],
+      captions: taoPhuDeDeLuu(timelineCaptions, captionText, captionFontSize, Math.round(totalDuration * 1000)),
     };
 
     try {
@@ -386,8 +430,7 @@ export default function VideoStudioPage() {
       setRenderTimelineProgress("Kết xuất hoàn tất 100%!");
       setRenderedTimelineAsset(result);
       if (result.url) {
-        setPreviewMediaUrl(result.url);
-        setPreviewMediaType("video");
+        setPreviewSource({ url: result.url, type: "video" });
       }
       await loadAssets();
     } catch (err: any) {
@@ -458,6 +501,9 @@ export default function VideoStudioPage() {
 
       setTimelineClips(document.clips);
       setTimelineMusic(document.music_track || null);
+      setTimelineVoice(document.voice_track || null);
+      setTimelineCaptions(document.captions || []);
+      setCaptionText(document.captions?.[0]?.text ?? "");
       setAutoProduceStage("Đang lưu timeline và phiên bản...");
       const saved = await mediaStudioApi.saveTimeline(projectId, document, timelineVersion);
       setTimelineVersion(saved.version);
@@ -466,8 +512,7 @@ export default function VideoStudioPage() {
       const output = await mediaStudioApi.renderTimeline(projectId, saved.id);
       setRenderedTimelineAsset(output);
       if (output.url) {
-        setPreviewMediaUrl(output.url);
-        setPreviewMediaType("video");
+        setPreviewSource({ url: output.url, type: "video" });
       }
       setAiGenMessage("Đã tạo video AI, nhạc nền, timeline và MP4 hoàn chỉnh.");
       setAutoProduceStage(null);
@@ -514,8 +559,7 @@ export default function VideoStudioPage() {
       await loadAssets();
       setSelectedAssetId(cleaned.id);
       if (cleaned.url) {
-        setPreviewMediaUrl(cleaned.url);
-        setPreviewMediaType("video");
+        setPreviewSource({ url: cleaned.url, type: "video" });
       }
     } catch (err: any) {
       setCleanWatermarkMessage(`Lỗi xóa logo: ${err?.message || "Không xác định"}`);
@@ -534,6 +578,31 @@ export default function VideoStudioPage() {
 
   // Tìm clip đang chọn
   const activeSelectedClip = timelineClips.find((c) => c.clip_id === selectedClipId);
+  const previewCaption = timelineCaptions.length
+    ? timelineCaptions.find((cue) => currentTime * 1000 >= cue.start_ms && currentTime * 1000 < cue.start_ms + cue.duration_ms)?.text ?? ""
+    : captionText;
+  const captionsForSave = taoPhuDeDeLuu(timelineCaptions, captionText, captionFontSize, Math.round(totalDuration * 1000));
+
+  if (projectLoadStatus !== "ready") {
+    return (
+      <main className="flex min-h-[60vh] items-center justify-center p-6">
+        <Card className="w-full max-w-lg space-y-4 border-zinc-800 bg-zinc-950 p-6 text-zinc-100">
+          <div>
+            <h1 className="text-lg font-semibold">
+              {projectLoadStatus === "loading" ? "Đang tải dự án video" : projectLoadStatus === "missing" ? "Không tìm thấy dự án" : "Không thể tải dự án"}
+            </h1>
+            <p className="mt-2 text-sm text-zinc-400">
+              {projectLoadStatus === "loading" ? "Đang kiểm tra dữ liệu dự án trong workspace." : projectLoadStatus === "missing" ? "Dự án này không còn trong workspace. Quay lại danh sách để chọn dự án đang có." : projectError}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            {projectLoadStatus === "error" && <Button variant="outline" onClick={() => void loadProject()}>Thử tải lại</Button>}
+            <Button onClick={() => router.push("/video-studio")}>Về danh sách video</Button>
+          </div>
+        </Card>
+      </main>
+    );
+  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-6rem)] bg-zinc-950 text-zinc-100 rounded-2xl overflow-hidden border border-zinc-800 shadow-2xl">
@@ -543,7 +612,7 @@ export default function VideoStudioPage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => router.push("/content")}
+            onClick={() => router.push("/video-studio")}
             className="size-8 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800"
           >
             <ArrowLeft className="size-4" />
@@ -551,7 +620,7 @@ export default function VideoStudioPage() {
 
           <div className="flex items-center gap-2">
             <span className="font-bold text-xs text-white">
-              Dự án: {projectId} (Video Studio Media-First)
+              {projectTitle}
             </span>
             <Badge variant="outline" className="border-teal-500/40 text-teal-400 bg-teal-500/10 text-[10px] font-mono">
               Timeline v{timelineVersion}
@@ -659,6 +728,12 @@ export default function VideoStudioPage() {
           )}
         </div>
       )}
+      {timelineLoadError && (
+        <div role="alert" className="border-b border-red-900 bg-red-950/60 px-4 py-2 text-xs text-red-200">
+          Không tải được timeline: {timelineLoadError}
+          <Button size="sm" variant="outline" onClick={loadTimeline} className="ml-3 h-6 text-[10px]">Thử lại</Button>
+        </div>
+      )}
 
       {/* 2. Thân Studio: 3 Cột (Trái: Kho Tư Liệu & AI, Giữa: Canvas Xem Trước, Phải: Thuộc Tính) */}
       <div className="flex-1 grid grid-cols-12 min-h-0 overflow-hidden">
@@ -736,7 +811,8 @@ export default function VideoStudioPage() {
               {filteredAssets.length === 0 ? (
                 <div className="p-4 border border-dashed border-zinc-800 rounded-lg text-center text-xs text-zinc-500 space-y-2">
                   <Film className="size-6 mx-auto text-zinc-600" />
-                  <p>Chưa có tư liệu phù hợp.</p>
+                  <p>{assets.length === 0 ? "Thư viện chưa có tư liệu." : "Không có tư liệu thuộc bộ lọc này."}</p>
+                  <p className="text-zinc-600">Tải video, ảnh hoặc âm thanh lên để bắt đầu dựng.</p>
                 </div>
               ) : (
                 <div className="space-y-1.5">
@@ -750,9 +826,8 @@ export default function VideoStudioPage() {
                         key={asset.id}
                         onClick={() => {
                           setSelectedAssetId(asset.id);
-                          if (asset.url) {
-                            setPreviewMediaUrl(asset.url);
-                            setPreviewMediaType(isImg ? "image" : "video");
+                          if (asset.url && !isAud) {
+                            setPreviewSource({ url: asset.url, type: isImg ? "image" : "video" });
                           }
                         }}
                         className={`p-2 rounded-lg border text-xs cursor-pointer transition-all flex items-center justify-between ${
@@ -926,13 +1001,32 @@ export default function VideoStudioPage() {
               </span>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] text-zinc-400">Nội dung chữ nổi bật:</label>
+                <label className="text-[10px] text-zinc-400">
+                  {timelineCaptions[0] ? `Câu 1 · ${(timelineCaptions[0].start_ms / 1000).toFixed(1)}–${((timelineCaptions[0].start_ms + timelineCaptions[0].duration_ms) / 1000).toFixed(1)} giây` : "Tạo phụ đề đầu tiên"}
+                </label>
                 <Input
                   value={captionText}
-                  onChange={(e) => setCaptionText(e.target.value)}
+                  aria-label="Sửa câu phụ đề đầu tiên"
+                  onChange={(e) => {
+                    const text = e.target.value;
+                    setCaptionText(text);
+                    setTimelineCaptions((current) => current.map((cue, index) => index === 0 ? { ...cue, text } : cue));
+                  }}
                   className="h-8 text-xs bg-zinc-800 border-zinc-700 text-white font-bold"
                 />
               </div>
+
+              {timelineCaptions.slice(1).map((cue, index) => (
+                <div className="space-y-1.5" key={cue.caption_id}>
+                  <label className="text-[10px] text-zinc-400">Câu {index + 2} · {(cue.start_ms / 1000).toFixed(1)}–{((cue.start_ms + cue.duration_ms) / 1000).toFixed(1)} giây</label>
+                  <Input
+                    aria-label={`Sửa câu phụ đề ${index + 2}`}
+                    value={cue.text}
+                    onChange={(event) => setTimelineCaptions((current) => current.map((item) => item.caption_id === cue.caption_id ? { ...item, text: event.target.value } : item))}
+                    className="h-8 text-xs bg-zinc-800 border-zinc-700 text-white"
+                  />
+                </div>
+              ))}
 
               <div className="space-y-1.5">
                 <div className="flex justify-between text-[10px] text-zinc-400">
@@ -942,14 +1036,14 @@ export default function VideoStudioPage() {
                 <Slider
                   value={[captionFontSize]}
                   min={16}
-                  max={48}
+                  max={64}
                   step={2}
                   onValueChange={(val) => setCaptionFontSize(val[0])}
                 />
               </div>
 
               <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs text-center text-amber-300 font-bold uppercase tracking-wide">
-                {captionText}
+                {previewCaption || "Chưa có phụ đề"}
               </div>
             </TabsContent>
 
@@ -960,17 +1054,7 @@ export default function VideoStudioPage() {
                 currentRevision={timelineVersion}
                 timelineDoc={{
                   clips: timelineClips,
-                  captions: [{
-                    caption_id: "cap_main",
-                    start_ms: 0,
-                    end_ms: timelineClips.reduce((acc, c) => {
-                      const tOut = c.trim_out_ms ?? 0;
-                      const tIn = c.trim_in_ms ?? 0;
-                      return acc + (tOut > tIn ? tOut - tIn : c.duration_ms);
-                    }, 0) || 5000,
-                    text: captionText,
-                    safe_zone: true
-                  }],
+                  captions: captionsForSave.map((cue) => ({ ...cue, end_ms: cue.start_ms + cue.duration_ms })),
                   audio_tracks: [
                     ...(timelineVoice ? [{ track_id: "voice_trk", asset_id: timelineVoice.asset_id, volume: 1.0 }] : []),
                     ...(timelineMusic ? [{ track_id: "music_trk", asset_id: timelineMusic.asset_id, volume: 0.8 }] : [])
@@ -1007,7 +1091,6 @@ export default function VideoStudioPage() {
                   onTimeUpdate={() => {
                     if (videoRef.current) {
                       setCurrentTime(videoRef.current.currentTime);
-                      setTotalDuration(videoRef.current.duration || totalDuration);
                     }
                   }}
                 />
@@ -1015,7 +1098,7 @@ export default function VideoStudioPage() {
             ) : (
               <div className="flex flex-col items-center justify-center text-zinc-600 space-y-2">
                 <Film className="size-8" />
-                <span className="text-xs">Chưa có nội dung xem trước</span>
+                <span className="max-w-56 text-center text-xs">{isLoadingPreview ? "Đang tải bản xem trước" : previewError || "Tải video hoặc chọn một phân cảnh để xem trước"}</span>
               </div>
             )}
 
@@ -1035,20 +1118,24 @@ export default function VideoStudioPage() {
             )}
 
             {/* Lớp Phụ Đề Chữ Nổi Bật Nằm Trong Vùng An Toàn */}
-            <div className="absolute inset-x-4 bottom-20 text-center pointer-events-none">
-              <span
-                style={{ fontSize: `${captionFontSize}px` }}
-                className="font-extrabold text-amber-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] uppercase tracking-wide px-2 py-1 bg-black/60 rounded"
-              >
-                {captionText}
-              </span>
-            </div>
+            {previewCaption && (
+              <div className="absolute inset-x-4 bottom-20 text-center pointer-events-none">
+                <span
+                  style={{ fontSize: `${captionFontSize}px` }}
+                  className="font-extrabold text-amber-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] px-2 py-1 bg-black/60 rounded"
+                >
+                  {previewCaption}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Thanh Điều Khiển Phát Nhanh */}
           <div className="flex items-center gap-4 mt-3 bg-zinc-900/90 px-4 py-1.5 rounded-full border border-zinc-800 shadow-md">
             <button
               onClick={togglePlay}
+              disabled={!previewMediaUrl || previewMediaType !== "video"}
+              aria-label={isPlaying ? "Dừng xem trước" : "Phát xem trước"}
               className="text-white hover:text-teal-400 transition-colors p-1"
             >
               {isPlaying ? <Pause className="size-4 fill-current" /> : <Play className="size-4 fill-current ml-0.5" />}
@@ -1057,9 +1144,6 @@ export default function VideoStudioPage() {
               00:{currentTime < 10 ? `0${currentTime.toFixed(1)}` : currentTime.toFixed(1)} / 00:
               {totalDuration < 10 ? `0${totalDuration.toFixed(1)}` : totalDuration.toFixed(1)}
             </span>
-            <Badge variant="outline" className="text-[9px] border-zinc-700 text-teal-400 font-mono">
-              -14 LUFS
-            </Badge>
           </div>
         </div>
 
@@ -1220,9 +1304,6 @@ export default function VideoStudioPage() {
               <span className="font-semibold text-purple-300 flex items-center gap-1.5">
                 <Eraser className="size-3.5 text-purple-400" /> Khử Logo Veo AI
               </span>
-              <Badge variant="outline" className="border-purple-500/50 text-purple-300 text-[9px] font-mono">
-                v0.6.5-demo
-              </Badge>
             </div>
             <p className="text-[10px] text-zinc-400">
               Loại bỏ logo hình thoi và chữ Veo bằng toán học phân giải alpha ngược.
@@ -1330,8 +1411,7 @@ export default function VideoStudioPage() {
                       setSelectedClipId(clip.clip_id);
                       const matchingAsset = assets.find((a) => a.id === clip.asset_id);
                       if (matchingAsset && matchingAsset.url) {
-                        setPreviewMediaUrl(matchingAsset.url);
-                        setPreviewMediaType(clip.media_type === "image" ? "image" : "video");
+                        setPreviewSource({ url: matchingAsset.url, type: clip.media_type === "image" ? "image" : "video" });
                       }
                     }}
                     className={`h-5.5 px-2 rounded cursor-pointer flex items-center gap-1.5 text-[10px] font-mono shrink-0 border transition-all ${
@@ -1341,7 +1421,7 @@ export default function VideoStudioPage() {
                     }`}
                   >
                     <span>#{idx + 1} {clip.media_type === "image" ? "[Ảnh]" : "[Video]"}</span>
-                    <span>{((clip.duration_ms || 3000) / 1000).toFixed(1)}s</span>
+                    <span>{(clip.duration_ms / 1000).toFixed(1)}s</span>
 
                     {/* Điều khiển di chuyển thứ tự bằng nút (Keyboard accessible) */}
                     <div className="flex items-center gap-0.5 ml-1" onClick={(e) => e.stopPropagation()}>
@@ -1383,11 +1463,11 @@ export default function VideoStudioPage() {
           {/* Track 2: Caption Track */}
           <div className="flex items-center gap-2 h-6 text-xs">
             <span className="w-20 font-mono text-[10px] text-zinc-400 truncate flex items-center gap-1">
-              <Type className="size-3 text-amber-400" /> Caption
+              <Type className="size-3 text-amber-400" /> Phụ đề
             </span>
             <div className="flex-1 h-full rounded bg-amber-950/60 border border-amber-500/40 relative flex items-center px-2">
               <span className="text-[10px] text-amber-300 truncate font-mono">
-                {captionText} ({captionFontSize}px • Safe Zone)
+                {captionsForSave.length ? `${captionsForSave.length} câu phụ đề · ${captionFontSize}px · Vùng an toàn` : "Chưa có phụ đề."}
               </span>
             </div>
           </div>
@@ -1399,9 +1479,7 @@ export default function VideoStudioPage() {
             </span>
             <div className="flex-1 h-full rounded bg-teal-950/60 border border-teal-500/40 relative flex items-center px-2">
               <span className="text-[10px] text-teal-300 truncate font-mono">
-                {timelineVoice
-                  ? `Voice Asset: ${timelineVoice.asset_id}`
-                  : "Chưa chọn giọng đọc (Nạp file audio tại thư viện tư liệu)"}
+                {timelineVoice ? `Tệp giọng đọc: ${timelineVoice.asset_id}` : "Chưa có giọng đọc."}
               </span>
             </div>
           </div>
@@ -1413,9 +1491,7 @@ export default function VideoStudioPage() {
             </span>
             <div className="flex-1 h-full rounded bg-emerald-950/60 border border-emerald-500/40 relative flex items-center px-2">
               <span className="text-[10px] text-emerald-300 truncate font-mono">
-                {timelineMusic
-                  ? `Nhạc nền • Auto-Ducking: ${musicAttenuationDb}dB • -14 LUFS`
-                  : "Nhạc nền Flow Music (-14 LUFS • Auto-Ducking)"}
+                {timelineMusic ? `Nhạc nền · Tự động giảm ${musicAttenuationDb} dB` : "Chưa có nhạc nền."}
               </span>
             </div>
           </div>

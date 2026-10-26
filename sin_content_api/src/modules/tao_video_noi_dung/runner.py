@@ -5,7 +5,9 @@ import hashlib
 import logging
 import subprocess
 import threading
+import tempfile
 import uuid
+import wave
 import zipfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -24,12 +26,14 @@ from src.models.entities import (
 )
 from src.modules.media_studio.security import MEDIA_ROOT_DIR, get_workspace_storage_dir
 from src.modules.media_studio.audio_processor import audio_processor
-from src.modules.media_studio.video_processor import video_processor
-from src.schemas.contracts import TimelineAudioTrack, TimelineClip, TimelineDocument, TimelineMediaType
+from src.modules.media_studio.video_processor import VIETSUB_FONT_PATH, video_processor
+from src.schemas.contracts import TimelineAudioTrack, TimelineCaption, TimelineClip, TimelineDocument, TimelineMediaType
 from session_manager import FlowLoginRequired, FlowSubmissionNotSent
 from .cong_harness import approval_receipt_hash, dispatch_shot, verify_shot_receipt
 from .contracts import ReconcileShotRequest
 from .planner import Storyboard
+from .tts_provider import TTSProviderError, tts_provider_manager
+from .vietsub import MODEL_SIZE as VIETSUB_MODEL_SIZE, VietsubError, to_srt, transcribe_cached
 
 logger = logging.getLogger(__name__)
 LEASE_NAME = "content-video-flow"
@@ -54,6 +58,13 @@ def evaluate_video_qc(meta: dict, expected_duration_seconds: int, decode_ok: boo
 
 def evaluate_shot_qc(meta: dict, used_duration_seconds: int, decode_ok: bool = True, aspect_ratio: str = "9:16") -> list[str]:
     issues = evaluate_video_qc(meta, used_duration_seconds, decode_ok=decode_ok, aspect_ratio=aspect_ratio)
+    width, height = int(meta.get("width", 0)), int(meta.get("height", 0))
+    ratio = 9 / 16 if aspect_ratio == "9:16" else 16 / 9
+    if height and min(width, height) >= 720 and abs(width / height - ratio) < 0.01:
+        issues = [issue for issue in issues if issue != "DIMENSIONS"]
+    frame_rate = float(meta.get("frame_rate", 0))
+    if 23.9 <= frame_rate <= 60:
+        issues = [issue for issue in issues if issue != "FRAME_RATE"]
     if float(meta.get("duration_seconds", 0)) + 0.5 >= used_duration_seconds:
         issues = [issue for issue in issues if issue != "DURATION"]
     return issues
@@ -76,6 +87,10 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+def _has_duplicate_shot_media(hashes: list[str]) -> bool:
+    return len(hashes) != len(set(hashes))
+
+
 def _verified_asset_path(asset: MediaAsset, error_code: str) -> Path:
     path = (MEDIA_ROOT_DIR / asset.storage_key).resolve()
     if not path.is_relative_to(MEDIA_ROOT_DIR.resolve()) or not path.is_file():
@@ -83,6 +98,19 @@ def _verified_asset_path(asset: MediaAsset, error_code: str) -> Path:
     if _file_sha256(path) != asset.sha256:
         raise RuntimeError(f"{error_code}_HASH_MISMATCH")
     return path
+
+
+def _extract_final_reference_frame(path: Path, workspace_id: str) -> tempfile.TemporaryDirectory:
+    temp_dir = tempfile.TemporaryDirectory(prefix=f"flow_reference_{workspace_id}_")
+    frame_path = Path(temp_dir.name) / "khung_hinh_cuoi.png"
+    result = subprocess.run(
+        [video_processor.ffmpeg_bin, "-y", "-sseof", "-0.15", "-i", str(path), "-frames:v", "1", str(frame_path)],
+        capture_output=True, text=True, timeout=60, check=False,
+    )
+    if result.returncode != 0 or not frame_path.is_file() or frame_path.stat().st_size == 0:
+        temp_dir.cleanup()
+        raise RuntimeError("CONTINUITY_FRAME_EXTRACTION_FAILED")
+    return temp_dir
 
 
 def _save_run(db, run: ContentVideoRun, steps: list[dict]) -> None:
@@ -97,7 +125,7 @@ def _mark_flow_setup_blocked(run: ContentVideoRun, steps: list[dict], error: Exc
         return False
     active["state"] = "READY"
     run.status = "BLOCKED_FLOW_SETUP"
-    run.error_code = "FLOW_REQUEST_NOT_SUBMITTED"
+    run.error_code = "FLOW_CREDITS_INSUFFICIENT" if "FLOW_CREDITS_INSUFFICIENT" in str(error) else "FLOW_REQUEST_NOT_SUBMITTED"
     run.error_message = str(error)[:1000]
     run.finished_at = None
     run.steps_json = json.dumps(steps, ensure_ascii=False, separators=(",", ":"))
@@ -289,7 +317,7 @@ def reconcile_shot(
         MediaAsset.workspace_id == workspace_id,
         MediaAsset.project_id == project_id,
     ).first()
-    if not asset or asset.mime_detected != "video/mp4" or asset.source_product not in {"GOOGLE_FLOW", "UPLOAD"}:
+    if not asset or asset.mime_detected != "video/mp4" or asset.source_product not in {"GOOGLE_FLOW", "GOOGLE_FLOW_I2V", "UPLOAD"}:
         raise HTTPException(status_code=404, detail={"error_code": "RECONCILE_ASSET_NOT_FOUND", "message": "Không tìm thấy video MP4 trong dự án."})
     run_started_at = run.started_at
     asset_created_at = asset.created_at
@@ -373,6 +401,61 @@ def _voice_input(db, run: ContentVideoRun, plan: ContentVideoPlan) -> tuple[Medi
     return asset, path
 
 
+def _generate_tts_voice(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard: Storyboard) -> None:
+    config = json.loads(run.tts_config_json) if run.tts_config_json else None
+    if not config or run.voice_asset_id:
+        return
+    reference_path = None
+    if config.get("reference_asset_id"):
+        reference = db.query(MediaAsset).filter(
+            MediaAsset.id == config["reference_asset_id"],
+            MediaAsset.workspace_id == run.workspace_id,
+            MediaAsset.project_id == run.project_id,
+        ).first()
+        if not reference or not (reference.mime_detected or "").startswith("audio/"):
+            raise TTSProviderError("TTS_REFERENCE_NOT_FOUND")
+        reference_path = str(_verified_asset_path(reference, "TTS_REFERENCE"))
+    audio, sample_rate = tts_provider_manager.synthesize(config, storyboard.narration, reference_path)
+    import numpy as np
+    samples = np.asarray(audio, dtype=np.float32)
+    if samples.size == 0 or not np.isfinite(samples).all() or sample_rate <= 0:
+        raise TTSProviderError("TTS_AUDIO_INVALID")
+    samples = np.clip(samples.reshape(-1), -1.0, 1.0)
+    pcm = (samples * 32767).astype("<i2").tobytes()
+    filename = f"content_video_{run.id}_tts.wav"
+    storage_key = f"workspaces/{run.workspace_id}/media/{filename}"
+    output_path = MEDIA_ROOT_DIR / storage_key
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = output_path.with_suffix(".wav.tmp")
+    try:
+        with wave.open(str(temporary_path), "wb") as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(int(sample_rate))
+            wav.writeframes(pcm)
+        temporary_path.replace(output_path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
+    data = output_path.read_bytes()
+    meta = audio_processor.probe_audio(output_path)
+    if meta.get("codec_name") not in {"pcm_s16le", "wav"} or abs(float(meta.get("duration_seconds", 0)) - plan.target_duration_seconds) > 0.5:
+        output_path.unlink(missing_ok=True)
+        raise TTSProviderError("TTS_AUDIO_QC_FAILED")
+    asset = MediaAsset(
+        id=f"asset-{uuid.uuid4().hex[:12]}", workspace_id=run.workspace_id,
+        project_id=run.project_id, storage_key=storage_key,
+        sha256=hashlib.sha256(data).hexdigest(), byte_size=len(data),
+        mime_detected="audio/wav", duration_ms=int(meta["duration_seconds"] * 1000),
+        source_product="CONTENT_VIDEO_TTS", original_filename=filename,
+        created_by=run.created_by, approval_state="UNREVIEWED",
+    )
+    db.add(asset)
+    run.voice_asset_id = asset.id
+    run.output_asset_ids_json = json.dumps([*json.loads(run.output_asset_ids_json or "[]"), asset.id])
+    db.commit()
+    db.refresh(run)
+
+
 def _write_export_package(
     package_path: Path,
     video_path: Path,
@@ -398,6 +481,8 @@ def _write_export_package(
         ).encode("utf-8"),
         "qc/report.json": json.dumps(report, ensure_ascii=False, indent=2).encode("utf-8"),
     }
+    if timeline.captions:
+        files["subtitles/vietsub.srt"] = to_srt([caption.model_dump() for caption in timeline.captions]).encode("utf-8")
     manifest = {
         "run_id": run.id,
         "plan_id": plan.id,
@@ -407,11 +492,12 @@ def _write_export_package(
         "voice_asset": {
             "id": voice_asset.id,
             "sha256": voice_asset.sha256,
-            "source": "UPLOAD",
+            "source": "TTS" if getattr(voice_asset, "source_product", None) == "CONTENT_VIDEO_TTS" else "UPLOAD",
         } if voice_asset else None,
         "shot_assets": shot_asset_hashes,
         "files": {"video/final.mp4": _file_sha256(video_path), **{name: hashlib.sha256(data).hexdigest() for name, data in files.items()}},
-        "speech_alignment": "NOT_MEASURED",
+        "speech_alignment": report.get("speech_alignment", "NOT_MEASURED"),
+        "vietsub": report.get("vietsub"),
     }
     temporary_path = package_path.with_name(f".{package_path.name}.{uuid.uuid4().hex}.tmp")
     try:
@@ -456,16 +542,36 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         ))
         start_ms += duration_ms
 
-    voice_input = _voice_input(db, run, plan)
-    voice_asset = voice_input[0] if voice_input else None
     aspect_ratio = json.loads(plan.style_snapshot_json).get("aspect_ratio", "9:16")
     width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
+    voice_input = _voice_input(db, run, plan)
+    voice_asset = voice_input[0] if voice_input else None
+    caption_cues = []
+    if voice_input:
+        audio_sha256 = voice_asset.sha256 or _file_sha256(voice_input[1])
+        cache_key = hashlib.sha256(f"{run.workspace_id}:{audio_sha256}:{VIETSUB_MODEL_SIZE}".encode("utf-8")).hexdigest()
+        cache_path = MEDIA_ROOT_DIR / ".cache" / "vietsub" / f"{cache_key}.json"
+        target_duration_ms = plan.target_duration_seconds * 1000
+        for cue in transcribe_cached(voice_input[1], cache_path):
+            cue_start = max(0, int(cue["start_ms"]))
+            cue_end = min(target_duration_ms, cue_start + int(cue["duration_ms"]))
+            if cue_end > cue_start:
+                caption_cues.append(TimelineCaption(
+                    caption_id=f"vietsub_{len(caption_cues) + 1:04d}",
+                    text=cue["text"],
+                    start_ms=cue_start,
+                    duration_ms=cue_end - cue_start,
+                    font_size=52 if height > width else 36,
+                    safe_zone=True,
+                ))
+    vietsub_status = "NO_AUDIO_FOR_VIETSUB" if not voice_asset else "GENERATED_UNREVIEWED" if caption_cues else "NO_SPEECH_DETECTED"
     timeline = TimelineDocument(
         width=width,
         height=height,
         fps=30,
         clips=clips,
         voice_track=TimelineAudioTrack(asset_id=voice_asset.id, duration_ms=plan.target_duration_seconds * 1000) if voice_asset else None,
+        captions=caption_cues,
     )
     latest = db.query(TimelineVersion).filter(TimelineVersion.project_id == run.project_id).order_by(TimelineVersion.version.desc()).first()
     version = (latest.version if latest else 0) + 1
@@ -496,8 +602,11 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
 
     run.current_step = "RENDER"
     db.commit()
-    video_processor.render_timeline_document(timeline, resolve_asset, output_path, transition_seconds=0.3)
+    render_meta = video_processor.render_timeline_document(
+        timeline, resolve_asset, output_path, transition_seconds=0.3, caption_style="vietsub_v1"
+    )
     meta = video_processor.probe_video(output_path)
+    meta["flow_native_audio"] = bool(render_meta.get("flow_native_audio"))
     decode = subprocess.run(
         [video_processor.ffmpeg_bin, "-v", "error", "-i", str(output_path), "-f", "null", "-"],
         capture_output=True,
@@ -509,12 +618,15 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         meta, plan.target_duration_seconds, decode.returncode == 0 and not decode.stderr.strip(),
         aspect_ratio=aspect_ratio,
     )
+    if not voice_asset and any(getattr(shot, "prompt_contract_version", None) == 3 for shot in storyboard.shots) and not meta["flow_native_audio"]:
+        issues.append("FLOW_NATIVE_AUDIO_MISSING")
     audio_qc = (
         audio_processor.verify_audio_qc(output_path, expected_duration_sec=plan.target_duration_seconds)
-        if voice_asset else {"status": "SKIPPED", "reason": "NO_AUDIO_SELECTED", "passed": True}
+        if voice_asset or meta.get("flow_native_audio") else {"status": "SKIPPED", "reason": "NO_AUDIO_SELECTED", "passed": True}
     )
     if not audio_qc.get("passed"):
         issues.append("AUDIO_QC")
+    tts_config = json.loads(run.tts_config_json) if getattr(run, "tts_config_json", None) else None
     report = {
         "status": "PASS" if not issues else "FAIL",
         "acceptance_mode": "HYBRID",
@@ -526,10 +638,26 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         "shot_asset_hashes": shot_asset_hashes,
         "style_snapshot_sha256": plan.style_snapshot_sha256,
         "voice_asset_id": voice_asset.id if voice_asset else None,
-        "voice_source": "UPLOAD" if voice_asset else "NONE",
+        "voice_source": "TTS" if voice_asset and getattr(voice_asset, "source_product", None) == "CONTENT_VIDEO_TTS" else "UPLOAD" if voice_asset else "FLOW_NATIVE" if meta.get("flow_native_audio") else "NONE",
+        "flow_native_audio": bool(meta.get("flow_native_audio")),
         "voice_asset_sha256": voice_asset.sha256 if voice_asset else None,
+        "tts_provider": tts_config.get("provider") if tts_config and voice_asset else None,
+        "tts_model": {"GWEN_TTS": "g-group-ai-lab/gwen-tts-0.6B", "VIE_NEU_V3_TURBO": "pnnbao-ump/VieNeu-TTS-v3-Turbo"}.get(tts_config.get("provider")) if tts_config and voice_asset else None,
         "audio_qc": audio_qc,
-        "speech_alignment": "NOT_MEASURED",
+        "vietsub_status": vietsub_status,
+        "caption_count": len(caption_cues),
+        "vietsub": {
+            "status": vietsub_status,
+            "provider": "faster-whisper" if voice_asset else None,
+            "model": VIETSUB_MODEL_SIZE if voice_asset else None,
+            "language": "vi" if voice_asset else None,
+            "audio_sha256": voice_asset.sha256 if voice_asset else None,
+            "style": "be_vietnam_pro_semibold_box_v1" if caption_cues else None,
+            "font_sha256": _file_sha256(VIETSUB_FONT_PATH) if caption_cues else None,
+            "caption_count": len(caption_cues),
+            "asr_quality_status": "UNVERIFIED" if voice_asset else None,
+        },
+        "speech_alignment": "WHISPER_ASR_TIMESTAMPS" if caption_cues else vietsub_status,
     }
     run.qc_report_json = json.dumps(report, ensure_ascii=False, separators=(",", ":"))
     if issues:
@@ -598,6 +726,7 @@ def process_run(run_id: str, token: str | None = None) -> None:
         try:
             plan, _ = _plan_and_project(db, run)
             storyboard = Storyboard.model_validate_json(plan.storyboard_json)
+            _generate_tts_voice(db, run, plan, storyboard)
             _voice_input(db, run, plan)
             steps = json.loads(run.steps_json or "[]")
             flow_project_url = next((step.get("flow_project_url") for step in steps if step.get("flow_project_url")), None)
@@ -623,6 +752,26 @@ def process_run(run_id: str, token: str | None = None) -> None:
                     run.error_message = f"Không gửi lại shot {shot.shot_id} vì trạng thái nhà cung cấp chưa rõ."
                     db.commit()
                     return
+                reference_temp = None
+                reference_path = None
+                reference_asset_id = None
+                if shot.continues_previous:
+                    if shot_index == 0:
+                        raise RuntimeError("CONTINUITY_PREVIOUS_SHOT_MISSING")
+                    previous_step = steps[shot_index - 1]
+                    if previous_step.get("state") != "SUCCEEDED" or not previous_step.get("asset_id"):
+                        raise RuntimeError("CONTINUITY_PREVIOUS_SHOT_NOT_SUCCEEDED")
+                    previous_asset = db.query(MediaAsset).filter(
+                        MediaAsset.id == previous_step["asset_id"],
+                        MediaAsset.workspace_id == run.workspace_id,
+                        MediaAsset.project_id == run.project_id,
+                    ).first()
+                    if not previous_asset:
+                        raise RuntimeError("CONTINUITY_PREVIOUS_ASSET_NOT_FOUND")
+                    previous_path = _verified_asset_path(previous_asset, "CONTINUITY_PREVIOUS_ASSET")
+                    reference_temp = _extract_final_reference_frame(previous_path, run.workspace_id)
+                    reference_path = Path(reference_temp.name) / "khung_hinh_cuoi.png"
+                    reference_asset_id = previous_asset.id
                 step["state"] = "SUBMITTING"
                 step["started_at"] = _now().isoformat()
                 run.current_step = shot.shot_id
@@ -630,15 +779,21 @@ def process_run(run_id: str, token: str | None = None) -> None:
                 if not _heartbeat(db, token):
                     raise RuntimeError("WORKER_LEASE_LOST")
                 try:
-                    asset = dispatch_shot(
-                        db=db,
-                        run=run,
-                        plan=plan,
-                        shot=shot,
-                        step=step,
-                        flow_project_url=flow_project_url,
-                        on_flow_project_created=save_flow_project_url,
-                    )
+                    try:
+                        asset = dispatch_shot(
+                            db=db,
+                            run=run,
+                            plan=plan,
+                            shot=shot,
+                            step=step,
+                            start_image_path=reference_path,
+                            start_image_asset_id=reference_asset_id,
+                            flow_project_url=flow_project_url,
+                            on_flow_project_created=save_flow_project_url,
+                        )
+                    finally:
+                        if reference_temp:
+                            reference_temp.cleanup()
                 except FlowLoginRequired:
                     step["state"] = "READY"
                     run.status = "BLOCKED_FLOW_LOGIN"
@@ -649,6 +804,11 @@ def process_run(run_id: str, token: str | None = None) -> None:
                 if asset.workspace_id != run.workspace_id or asset.project_id != run.project_id:
                     raise RuntimeError("PROVIDER_ASSET_SCOPE_MISMATCH")
                 path = _verified_asset_path(asset, "PROVIDER_OUTPUT")
+                if shot.prompt_contract_version == 3 and not run.voice_asset_id:
+                    if audio_processor.probe_audio(path).get("codec_name") == "unknown":
+                        step.update({"state": "FAILED", "asset_id": asset.id, "error_code": "FLOW_AUDIO_MISSING"})
+                        _save_run(db, run, steps)
+                        raise RuntimeError("FLOW_AUDIO_MISSING")
                 aspect_ratio = json.loads(plan.style_snapshot_json).get("aspect_ratio", "9:16")
                 shot_meta, shot_issues = _probe_shot_with_qc(path, shot.duration_seconds, aspect_ratio)
                 if shot_issues:
@@ -659,6 +819,15 @@ def process_run(run_id: str, token: str | None = None) -> None:
                 run.output_asset_ids_json = json.dumps([item.get("asset_id") for item in steps if item.get("asset_id")])
                 _save_run(db, run, steps)
             asset_ids = [step["asset_id"] for step in steps]
+            shot_assets = db.query(MediaAsset).filter(
+                MediaAsset.id.in_(asset_ids),
+                MediaAsset.workspace_id == run.workspace_id,
+                MediaAsset.project_id == run.project_id,
+            ).all()
+            if len(shot_assets) != len(asset_ids):
+                raise RuntimeError("SHOT_ASSET_MISSING")
+            if _has_duplicate_shot_media([asset.sha256 for asset in shot_assets]):
+                raise RuntimeError("DUPLICATE_SHOT_MEDIA")
             _render_and_qc(db, run, plan, storyboard, asset_ids)
         except FlowSubmissionNotSent as exc:
             db.rollback()
@@ -684,7 +853,7 @@ def process_run(run_id: str, token: str | None = None) -> None:
                     run.error_code = "PROVIDER_SUBMISSION_UNCERTAIN"
                 else:
                     run.status = "FAILED"
-                    run.error_code = "CONTENT_VIDEO_RUN_FAILED"
+                    run.error_code = str(exc) if isinstance(exc, (TTSProviderError, VietsubError)) or str(exc) in {"DUPLICATE_SHOT_MEDIA", "FLOW_AUDIO_MISSING"} else "CONTENT_VIDEO_RUN_FAILED"
                 run.error_message = str(exc)[:1000]
                 run.steps_json = json.dumps(steps, ensure_ascii=False, separators=(",", ":"))
                 run.finished_at = _now()

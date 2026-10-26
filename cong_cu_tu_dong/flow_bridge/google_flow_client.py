@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import threading
@@ -65,6 +66,10 @@ def _new_flow_prompt_bubble_index(bubble_texts: list[str], existing_count: int, 
          if prompt in " ".join(text.split())),
         None,
     )
+
+
+def _new_flow_video_tile_index(existing_sources: list[str], current_sources: list[str]) -> Optional[int]:
+    return next((index for index, source in enumerate(current_sources) if source and source not in existing_sources), None)
 
 
 class GoogleFlowClient:
@@ -174,26 +179,6 @@ class GoogleFlowClient:
         """
         if aspect_ratio not in {"9:16", "16:9"}:
             raise ValueError(f"FLOW_ASPECT_RATIO_UNSUPPORTED: {aspect_ratio}")
-        if (os.getenv("TESTING") == "1" or os.getenv("APP_ENV") == "test") and not os.getenv("FORCE_FLOW"):
-            target_dir = MEDIA_ASSETS_DIR / "workspaces" / workspace_id / "media"
-            target_dir.mkdir(parents=True, exist_ok=True)
-            dest_filename = f"flow_real_ai_{uuid.uuid4().hex[:8]}_test.mp4"
-            dest_path = target_dir / dest_filename
-            ffmpeg_bin = os.getenv("FFMPEG_BIN", "ffmpeg")
-            width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
-            cmd = [
-                ffmpeg_bin, "-y", "-f", "lavfi",
-                "-i", f"color=c=0x1E293B:s={width}x{height}:d=10",
-                "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "30",
-                str(dest_path)
-            ]
-            subprocess.run(cmd, check=True, capture_output=True)
-            return {
-                "status": "SUCCEEDED",
-                "filename": dest_filename,
-                "storage_path": str(dest_path)
-            }
-
         with _FLOW_MUTEX:
             # 1. Đồng bộ và sử dụng thư mục profile cục bộ trên ổ C: để tránh lỗi đóng kết nối do SQLite SMB locking
             profile_dir = sync_browser_profile()
@@ -309,6 +294,23 @@ class GoogleFlowClient:
 
                     flow_bubbles = page.locator("flow-chat-bubble")
                     existing_flow_bubble_count = flow_bubbles.count()
+                    flow_tile_grid = page.locator(".tiles-container")
+                    if flow_tile_grid.count():
+                        flow_tile_grid.evaluate("element => { element.scrollTop = element.scrollHeight; }")
+                        page.wait_for_timeout(750)
+                        flow_tile_grid.evaluate("element => { element.scrollTop = 0; }")
+                    flow_tiles = page.locator("flow-grid-tile-container:has(flow-video-tile)")
+                    existing_flow_video_sources = []
+                    stable_reads = 0
+                    for _ in range(12):
+                        current_sources = flow_tiles.locator("img.thumbnail").evaluate_all(
+                            "images => images.map(image => image.currentSrc || image.src).filter(Boolean)"
+                        )
+                        stable_reads = stable_reads + 1 if current_sources == existing_flow_video_sources else 0
+                        existing_flow_video_sources = current_sources
+                        if stable_reads >= 5:
+                            break
+                        page.wait_for_timeout(500)
 
                     # 2. Nhập bộ lệnh video vào ProseMirror editor (ô hiển thị đầu tiên)
                     input_box = page.locator(
@@ -327,6 +329,13 @@ class GoogleFlowClient:
                     page.wait_for_timeout(1000)
 
                     # Bấm nút Bắt đầu tạo (Submit button)
+                    credit_warning = page.locator(
+                        "button[aria-label*='không đủ tín dụng'], button:has-text('không đủ tín dụng')"
+                    ).first
+                    if credit_warning.count() and credit_warning.is_visible():
+                        raise RuntimeError(
+                            "FLOW_CREDITS_INSUFFICIENT: Google Flow báo không đủ tín dụng; shot chưa được gửi."
+                        )
                     gen_btn = page.get_by_role("button", name="Bắt đầu tạo")
                     if gen_btn.count() == 0 or not gen_btn.is_enabled():
                         raise RuntimeError(
@@ -358,6 +367,14 @@ class GoogleFlowClient:
                                     new_video_card = cards.first
                                     print("[GOOGLE FLOW] Đã có video card thuộc bubble prompt mới.", flush=True)
                                     break
+                        if new_video_card is None:
+                            current_sources = flow_tiles.locator("img.thumbnail").evaluate_all(
+                                "images => images.map(image => image.currentSrc || image.src).filter(Boolean)"
+                            )
+                            tile_index = _new_flow_video_tile_index(existing_flow_video_sources, current_sources)
+                            if tile_index is not None:
+                                new_video_card = flow_tiles.nth(tile_index)
+                                print("[GOOGLE FLOW] Đã nhận thẻ video mới từ giao diện Flow.", flush=True)
                         if new_video_card is not None or (generation_response_received and captured_media_name):
                             break
                     if new_video_card is not None:
@@ -455,6 +472,43 @@ class GoogleFlowClient:
 
     @staticmethod
     def _ensure_video_mode(page, aspect_ratio: str = "16:9") -> None:
+        agent_toggle = page.locator("button.agent-mode-chip")
+        if agent_toggle.count():
+            agent_toggle.wait_for(state="visible", timeout=_FLOW_PROJECT_TIMEOUT_MS)
+        if agent_toggle.count() and agent_toggle.get_attribute("aria-pressed") == "true":
+            agent_toggle.click(timeout=5000)
+
+        generation_settings = page.locator(
+            "button.settings-trigger-button, button[aria-label*='settings']"
+        ).first
+        try:
+            generation_settings.wait_for(state="visible", timeout=_FLOW_PROJECT_TIMEOUT_MS)
+        except PlaywrightTimeoutError:
+            pass
+        if not generation_settings.count():
+            generation_settings = page.locator(
+                "button:has-text('Nano Banana'), button:has-text('Video'), button:has-text('Veo')"
+            ).first
+        model_button_count = page.locator(
+            "button:has-text('Nano Banana'),button:has-text('Video'),button:has-text('Veo')"
+        ).count()
+        textbox_count = page.locator('[role="textbox"]').count()
+        print(
+            "[FLOW MODE] "
+            f"agent={agent_toggle.count()}:{agent_toggle.get_attribute('aria-pressed') if agent_toggle.count() else 'missing'} "
+            f"settings={generation_settings.count()} "
+            f"model_buttons={model_button_count} textboxes={textbox_count}",
+            flush=True,
+        )
+        if generation_settings.count() and generation_settings.is_visible():
+            generation_settings.click(timeout=5000)
+            page.get_by_role("radio", name="Video", exact=True).click(timeout=5000)
+            page.get_by_role("radio", name=aspect_ratio, exact=True).click(timeout=5000)
+            page.get_by_role("radio", name=re.compile(r"^\s*10\b", re.I)).click(timeout=5000)
+            page.keyboard.press("Escape")
+            page.get_by_role("radio", name="Video", exact=True).wait_for(state="hidden", timeout=5000)
+            return
+
         editor = page.locator(
             'div[role="textbox"][data-slate-editor="true"], '
             'div.ProseMirror[contenteditable="true"]'
@@ -483,7 +537,13 @@ class GoogleFlowClient:
             ).first
             if aspect_ratio == "16:9" and agent_settings.count() and agent_settings.is_visible():
                 return
-            raise RuntimeError("Google Flow chưa sẵn sàng trình chỉnh sửa video.")
+            raise RuntimeError(
+                "FLOW_VIDEO_MODE_SELECTOR_NOT_FOUND: "
+                f"agent={agent_toggle.count()} "
+                f"settings={generation_settings.count()} "
+                f"model_buttons={model_button_count} "
+                f"textboxes={textbox_count}"
+            )
         trigger.click(timeout=5000)
         page.wait_for_timeout(800)
         video_tab = page.locator(

@@ -155,32 +155,41 @@ class GoogleFlowZeroCostProvider:
         workspace_id: str = "default_ws",
         flow_project_url: Optional[str] = None,
         on_flow_project_created: Optional[Callable[[str], None]] = None,
+        aspect_ratio: str = "9:16",
+        include_audio: bool = True,
     ) -> Dict[str, Any]:
-        """Tạo I2V trong Flow rồi chuẩn hóa thành video dọc 9:16."""
+        """Tạo I2V trong Flow rồi chuẩn hóa theo tỷ lệ người dùng chọn."""
+        if aspect_ratio not in {"9:16", "16:9"}:
+            raise ValueError(f"FLOW_ASPECT_RATIO_UNSUPPORTED: {aspect_ratio}")
         target_dir = MEDIA_ROOT_DIR / "workspaces" / workspace_id / "media"
         target_dir.mkdir(parents=True, exist_ok=True)
-        compiled_info = video_prompt_compiler.compile(user_prompt=prompt, aspect_ratio="16:9", duration_seconds=10)
+        compiled_info = video_prompt_compiler.compile(user_prompt=prompt, aspect_ratio=aspect_ratio, duration_seconds=10)
         file_id = uuid.uuid4().hex[:10]
-        filename = f"flow_i2v_9_16_{file_id}.mp4"
+        filename = f"flow_i2v_{aspect_ratio.replace(':', '_')}_{file_id}.mp4"
         output_path = target_dir / filename
         try:
             from google_flow_client import GoogleFlowClient
             flow_res = GoogleFlowClient(headless=True).create_video(
                 prompt=compiled_info.compiled_directive,
-                aspect_ratio="16:9",
+                aspect_ratio=aspect_ratio,
                 workspace_id=workspace_id,
                 timeout_sec=240,
                 start_image_path=image_path,
                 flow_project_url=flow_project_url,
                 on_flow_project_created=on_flow_project_created,
             )
-            shutil.copy2(flow_res["storage_path"], target_dir / f"flow_source_16_9_{file_id}.mp4")
-            meta = video_processor.expand_16_9_to_9_16(
-                input_video_path=pathlib.Path(flow_res["storage_path"]),
-                output_video_path=output_path,
-                blur_strength=25,
-                remove_watermark=False,
+            shutil.copy2(flow_res["storage_path"], target_dir / f"flow_source_{aspect_ratio.replace(':', '_')}_{file_id}.mp4")
+            width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
+            audio_options = ["-c:a", "aac", "-b:a", "192k"] if include_audio else ["-an"]
+            normalized = subprocess.run(
+                [video_processor.ffmpeg_bin, "-y", "-i", flow_res["storage_path"], "-vf",
+                 f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1,fps=30",
+                 "-c:v", "libx264", *audio_options, "-pix_fmt", "yuv420p", str(output_path)],
+                capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
             )
+            if normalized.returncode != 0:
+                raise RuntimeError(f"FLOW_VIDEO_NORMALIZATION_FAILED: {normalized.stderr[-1000:]}")
+            meta = video_processor.probe_video(output_path)
         except (FlowLoginRequired, FlowSubmissionNotSent):
             raise
         except Exception as ex:
@@ -199,9 +208,9 @@ class GoogleFlowZeroCostProvider:
             "byte_size": output_path.stat().st_size,
             "mime_detected": "video/mp4",
             "duration_ms": int(meta.get("duration_seconds", 10.0) * 1000),
-            "aspect_ratio": "9:16",
-            "raw_source_aspect": "16:9",
-            "expansion_technique": "BLURRED_CANVAS_OUTPAINTING",
+            "aspect_ratio": aspect_ratio,
+            "raw_source_aspect": aspect_ratio,
+            "expansion_technique": None,
             "watermark_removed": bool(meta.get("watermark_removed", False)),
             "actual_cost": 0.0,
             "cost_currency": "USD",
@@ -268,6 +277,8 @@ class VideoOrchestrator:
             res = self.flow_provider.generate_from_image(
                 prompt=prompt,
                 image_path=start_image_path,
+                aspect_ratio=aspect_ratio,
+                include_audio=include_audio,
                 workspace_id=workspace_id,
                 flow_project_url=flow_project_url,
                 on_flow_project_created=on_flow_project_created,

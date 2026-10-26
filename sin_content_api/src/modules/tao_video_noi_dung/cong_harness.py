@@ -36,6 +36,7 @@ def build_shot_receipt(
     shot: StoryboardShot,
     style_snapshot: dict[str, Any],
     continuity_anchor: str,
+    include_narration_audio: bool = True,
 ) -> dict[str, Any]:
     command = {
         "operation_id": str(uuid.uuid4()),
@@ -48,7 +49,7 @@ def build_shot_receipt(
         "shot_id": shot.shot_id,
         "style_snapshot_sha256": plan.style_snapshot_sha256,
         "approval_sha256": approval_receipt_hash(plan),
-        "prompt": build_shot_prompt(style_snapshot, shot, continuity_anchor),
+        "prompt": build_shot_prompt(style_snapshot, shot, continuity_anchor, include_narration_audio),
         "aspect_ratio": style_snapshot.get("aspect_ratio", "9:16"),
         "duration_seconds": shot.duration_seconds,
     }
@@ -87,7 +88,10 @@ def verify_shot_receipt(run: ContentVideoRun, plan: ContentVideoPlan, shot: Stor
         "shot_id": shot.shot_id,
         "style_snapshot_sha256": plan.style_snapshot_sha256,
         "approval_sha256": run.approval_sha256,
-        "prompt": build_shot_prompt(style, shot, storyboard["continuity_anchor"]),
+        "prompt": build_shot_prompt(
+            style, shot, storyboard["continuity_anchor"],
+            include_narration_audio=not run.voice_asset_id and not getattr(run, "tts_config_json", None),
+        ),
         "aspect_ratio": style.get("aspect_ratio", "9:16"),
         "duration_seconds": shot.duration_seconds,
     }
@@ -122,8 +126,8 @@ def dispatch_shot(
         project_id=command["project_id"],
         prompt=command["prompt"],
         aspect_ratio=command["aspect_ratio"],
-        prompt_language="en" if shot.flow_prompt_en.strip() else "vi",
-        include_audio=False,
+        prompt_language="vi",
+        include_audio=True,
         start_image_path=start_image_path,
         start_image_asset_id=start_image_asset_id,
         remove_watermark=False,

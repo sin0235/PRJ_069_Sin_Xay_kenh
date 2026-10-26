@@ -209,7 +209,7 @@ def test_flow_video_keeps_raw_source_for_next_scene(monkeypatch, tmp_path):
     assert flow_call["on_flow_project_created"] is on_project_created
 
 
-def test_image_video_flow_temporarily_skips_watermark_removal(monkeypatch, tmp_path):
+def test_image_video_flow_preserves_selected_aspect_ratio(monkeypatch, tmp_path):
     monkeypatch.setattr(video_provider, "MEDIA_ROOT_DIR", tmp_path)
     source = tmp_path / "flow_source.mp4"
     source.write_bytes(b"flow video")
@@ -217,25 +217,28 @@ def test_image_video_flow_temporarily_skips_watermark_removal(monkeypatch, tmp_p
 
     class FakeFlowClient:
         def create_video(self, **kwargs):
+            received["flow"] = kwargs
             return {"storage_path": str(source)}
 
-    def expand_16_9_to_9_16(**kwargs):
-        received.update(kwargs)
-        output = pathlib.Path(kwargs["output_video_path"])
-        output.write_bytes(b"expanded video")
-        return {"duration_seconds": 10, "watermark_removed": False}
+    def normalize(command, **kwargs):
+        received["command"] = command
+        pathlib.Path(command[-1]).write_bytes(b"normalized video")
+        return SimpleNamespace(returncode=0, stderr="")
 
     monkeypatch.setattr(google_flow_client, "GoogleFlowClient", lambda **kwargs: FakeFlowClient())
-    monkeypatch.setattr(video_provider.video_processor, "expand_16_9_to_9_16", expand_16_9_to_9_16)
+    monkeypatch.setattr(video_provider.subprocess, "run", normalize)
+    monkeypatch.setattr(video_provider.video_processor, "probe_video", lambda _path: {"duration_seconds": 10, "watermark_removed": False})
 
     result = video_provider.GoogleFlowZeroCostProvider().generate_from_image(
-        "video", tmp_path / "reference.jpg", workspace_id="workspace-test"
+        "video", tmp_path / "reference.jpg", workspace_id="workspace-test", aspect_ratio="16:9"
     )
 
-    assert received["remove_watermark"] is False
+    assert received["flow"]["aspect_ratio"] == "16:9"
+    assert any(argument.startswith("scale=1920:1080") for argument in received["command"])
+    assert result["aspect_ratio"] == "16:9"
     assert result["watermark_removed"] is False
     raw_source = pathlib.Path(result["storage_path"]).with_name(
-        result["filename"].replace("flow_i2v_9_16_", "flow_source_16_9_", 1)
+        result["filename"].replace("flow_i2v_16_9_", "flow_source_16_9_", 1)
     )
     assert raw_source.read_bytes() == source.read_bytes()
 

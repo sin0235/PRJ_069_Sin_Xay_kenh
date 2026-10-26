@@ -17,6 +17,7 @@ import textwrap
 from typing import Dict, Any, List, Optional, Callable
 
 logger = logging.getLogger(__name__)
+VIETSUB_FONT_PATH = pathlib.Path(__file__).resolve().parent / "assets" / "fonts" / "be_vietnam_pro_semibold.ttf"
 
 # Nạp công cụ tẩy watermark Veo từ cong_cu_tu_dong
 BAN_LAM_VIEC = pathlib.Path(__file__).resolve().parents[4]
@@ -254,6 +255,7 @@ class VideoProcessor:
         output_path: pathlib.Path,
         temp_dir: Optional[pathlib.Path] = None,
         transition_seconds: float = 0.0,
+        caption_style: str = "legacy",
     ) -> Dict[str, Any]:
         """
         Render toàn diện video MP4 từ timeline document (M-P5):
@@ -267,6 +269,8 @@ class VideoProcessor:
         - Không sử dụng -shortest gây cắt cụt video.
         """
         with self._render_lock:
+            if caption_style not in {"legacy", "vietsub_v1"}:
+                raise ValueError("CAPTION_STYLE_UNSUPPORTED")
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
             clips = getattr(timeline, "clips", [])
@@ -286,6 +290,7 @@ class VideoProcessor:
                 # 1. Render từng phân cảnh thành clip tạm chuẩn hóa
                 seg_files = []
                 seg_durations = []
+                native_audio_specs = []
                 total_duration_sec = 0.0
 
                 for idx, clip in enumerate(clips):
@@ -335,6 +340,7 @@ class VideoProcessor:
                             raise RuntimeError(f"Lỗi render phân cảnh ảnh {clip_id}: {res.stderr}")
                         seg_files.append(seg_out)
                         seg_durations.append(dur_s)
+                        native_audio_specs.append((asset_file, media_type, 0.0, dur_s))
                         total_duration_sec += dur_s
                     else:
                         in_s = trim_in_ms / 1000.0
@@ -373,6 +379,7 @@ class VideoProcessor:
                             raise RuntimeError(f"Lỗi render phân cảnh video {clip_id}: {res.stderr}")
                         seg_files.append(seg_out)
                         seg_durations.append(dur_s)
+                        native_audio_specs.append((asset_file, media_type, in_s, dur_s))
                         total_duration_sec += dur_s
 
                 # 2. Ghép các phân cảnh video; tail freeze keeps the timeline duration during crossfade.
@@ -431,10 +438,23 @@ class VideoProcessor:
                 current_video = concat_video
                 if captions:
                     drawtext_filters = []
-                    font_file = "/Windows/Fonts/arial.ttf"
-                    has_font = os.path.exists("C:/Windows/Fonts/arial.ttf") or os.path.exists("/Windows/Fonts/arial.ttf")
-
-                    caption_y = "h-480" if height > width else "h-160"
+                    if caption_style == "vietsub_v1":
+                        if not VIETSUB_FONT_PATH.is_file():
+                            raise RuntimeError("CAPTION_FONT_NOT_FOUND")
+                        font_file = VIETSUB_FONT_PATH.name
+                        shutil.copyfile(VIETSUB_FONT_PATH, work_dir / font_file)
+                        has_font = True
+                        font_color = "white"
+                        box_color = "0x000000@0.72"
+                        box_border = 16
+                        caption_y = "h*0.73" if height > width else "h-90"
+                    else:
+                        font_file = "/Windows/Fonts/arial.ttf"
+                        has_font = os.path.exists("C:/Windows/Fonts/arial.ttf") or os.path.exists("/Windows/Fonts/arial.ttf")
+                        font_color = "0xFFE600"
+                        box_color = "0x000000@0.7"
+                        box_border = 8
+                        caption_y = "h-480" if height > width else "h-160"
                     for c_idx, cap in enumerate(captions):
                         text = getattr(cap, "text", "") or (cap.get("text", "") if isinstance(cap, dict) else "")
                         if not text:
@@ -452,15 +472,15 @@ class VideoProcessor:
                         # Safe Zone: x=(w-text_w)/2, y=h-480 (nằm trên mép bottom 320px)
                         if has_font:
                             filter_str = (
-                                f"drawtext=fontfile='{font_file}':textfile='{txt_filename}':fontsize={f_size}:fontcolor=0xFFE600"
-                                f":box=1:boxcolor=0x000000@0.7:boxborderw=8"
+                                f"drawtext=fontfile='{font_file}':textfile='{txt_filename}':fontsize={f_size}:fontcolor={font_color}"
+                                f":box=1:boxcolor={box_color}:boxborderw={box_border}"
                                 f":x=(w-text_w)/2:y={caption_y}"
                                 f":enable='between(t,{c_start_s:.3f},{c_end_s:.3f})'"
                             )
                         else:
                             filter_str = (
-                                f"drawtext=textfile='{txt_filename}':fontsize={f_size}:fontcolor=0xFFE600"
-                                f":box=1:boxcolor=0x000000@0.7:boxborderw=8"
+                                f"drawtext=textfile='{txt_filename}':fontsize={f_size}:fontcolor={font_color}"
+                                f":box=1:boxcolor={box_color}:boxborderw={box_border}"
                                 f":x=(w-text_w)/2:y={caption_y}"
                                 f":enable='between(t,{c_start_s:.3f},{c_end_s:.3f})'"
                             )
@@ -563,7 +583,12 @@ class VideoProcessor:
                 if res_final.returncode != 0:
                     raise RuntimeError(f"Lỗi ghép hoàn chỉnh thành phẩm MP4: {res_final.stderr}")
 
+                flow_audio_present = self._preserve_native_clip_audio(
+                    output_path, native_audio_specs, work_dir, has_voice or has_music, total_duration_sec,
+                )
+
                 meta = self.probe_video(output_path)
+                meta["flow_native_audio"] = flow_audio_present
                 if has_voice or has_music:
                     try:
                         from .audio_processor import audio_processor
@@ -592,6 +617,64 @@ class VideoProcessor:
             finally:
                 if temp_dir is None and work_dir.exists():
                     shutil.rmtree(work_dir, ignore_errors=True)
+
+    def _preserve_native_clip_audio(self, output_path, audio_specs, work_dir, mix_existing, duration_sec):
+        from .audio_processor import audio_processor
+
+        probed_specs = [
+            (path, media_type, trim_in, duration,
+             media_type == "video" and audio_processor.probe_audio(path).get("codec_name") != "unknown")
+            for path, media_type, trim_in, duration in audio_specs
+        ]
+        has_native_audio = any(has_audio for *_, has_audio in probed_specs)
+        if not has_native_audio:
+            return False
+
+        segment_paths = []
+        for index, (path, media_type, trim_in, duration, has_audio) in enumerate(probed_specs):
+            segment = work_dir / f"native_audio_{index:03d}.wav"
+            if has_audio:
+                cmd = [self.ffmpeg_bin, "-y", "-ss", f"{trim_in:.3f}", "-t", f"{duration:.3f}", "-i", str(path),
+                       "-map", "0:a:0", "-vn", "-af", f"aresample=44100,apad,atrim=duration={duration:.3f}",
+                       "-ac", "2", "-c:a", "pcm_s16le", str(segment)]
+            else:
+                cmd = [self.ffmpeg_bin, "-y", "-f", "lavfi", "-t", f"{duration:.3f}", "-i", "anullsrc=r=44100:cl=stereo",
+                       "-c:a", "pcm_s16le", str(segment)]
+            subprocess.run(cmd, capture_output=True, check=True)
+            segment_paths.append(segment)
+
+        concat_list = work_dir / "native_audio_concat.txt"
+        concat_list.write_text("".join(f"file '{path.resolve().as_posix()}'\n" for path in segment_paths), encoding="utf-8")
+        native_audio = work_dir / "native_flow_audio.wav"
+        subprocess.run([
+            self.ffmpeg_bin, "-y", "-f", "concat", "-safe", "0", "-i", str(concat_list),
+            "-t", f"{duration_sec:.3f}", "-c:a", "pcm_s16le", str(native_audio),
+        ], capture_output=True, check=True)
+
+        mixed_video = work_dir / "flow_audio_video.mp4"
+        cmd = [self.ffmpeg_bin, "-y", "-i", str(output_path), "-i", str(native_audio)]
+        audio_input = "[0:a][1:a]amix=inputs=2:duration=first:normalize=0," if mix_existing else "[1:a]"
+        # Giữ dải động nguồn và chừa 1,5 dB cho đỉnh phát sinh khi mã hóa AAC.
+        normalization = "loudnorm=I=-14:LRA=50:TP=-3"
+        analysis = subprocess.run(cmd + [
+            "-filter_complex", f"{audio_input}{normalization}:print_format=json[aout]",
+            "-map", "[aout]", "-t", f"{duration_sec:.3f}", "-f", "null", "-",
+        ], capture_output=True, check=True, text=True, encoding="utf-8", errors="replace")
+        measured = json.loads(analysis.stderr[analysis.stderr.rfind("{"):analysis.stderr.rfind("}") + 1])
+        if measured["input_i"] == "-inf":
+            normalization = "anull"
+        else:
+            normalization += (
+                f":measured_I={measured['input_i']}:measured_LRA={measured['input_lra']}"
+                f":measured_TP={measured['input_tp']}:measured_thresh={measured['input_thresh']}"
+                f":offset={measured['target_offset']}:linear=true"
+            )
+        cmd.extend(["-filter_complex", f"{audio_input}{normalization}[aout]", "-map", "0:v:0", "-map", "[aout]"])
+        cmd.extend(["-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2",
+                    "-t", f"{duration_sec:.3f}", str(mixed_video)])
+        subprocess.run(cmd, capture_output=True, check=True)
+        mixed_video.replace(output_path)
+        return True
 
 video_processor = VideoProcessor()
 

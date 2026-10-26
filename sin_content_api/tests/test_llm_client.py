@@ -175,6 +175,20 @@ def test_gate2_http_5xx_server_error():
     assert exc_info.value.error_code == "UPSTREAM_SERVER_ERROR"
     assert exc_info.value.status_code == 502
 
+
+def test_gate2_maps_gateway_503_with_embedded_429_to_rate_limit():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(503, json={"error": {"message": "[cx/gpt-6-luna] [429]: The usage limit has been reached (reset after 2m)"}})
+
+    client = LLMClient(settings=make_settings(), transport=httpx.MockTransport(handler))
+
+    with pytest.raises(LLMResponseError) as exc_info:
+        client.complete([{"role": "user", "content": "hello"}])
+
+    assert exc_info.value.error_code == "UPSTREAM_RATE_LIMITED"
+    assert exc_info.value.status_code == 429
+    assert "2m" not in str(exc_info.value)
+
 def test_gate2_invalid_json_response():
     """Gate 2: Phản hồi không phải JSON được bắt an toàn."""
     def handler(request: httpx.Request) -> httpx.Response:

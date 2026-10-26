@@ -4,6 +4,14 @@
 export const DEFAULT_DEV_TOKEN =
   "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJzdWIiOiAidXNyX3Npbl9vd25lciIsICJpc3MiOiAiYmFoYS1hdXRoLWlzc3VlciIsICJhdWQiOiAic2luLWNvbnRlbnQtdGVzdCIsICJleHAiOiAxODkzNDU2MDAwLCAid29ya3NwYWNlX2lkIjogImRlZmF1bHRfd3MiLCAiZW1haWwiOiAic2luQHRlc3QuY29tIiwgIm5hbWUiOiAiU2luIEFkbWluIChIaWdoZXN0IFByaXZpbGVnZSkiLCAicm9sZSI6ICJQTEFURk9STV9PV05FUiJ9.4z6KRyymGYvOGltsTehDvG-rVMl_ggr6WTpmzby0Gzk";
 
+function browserStorage(): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage || null;
+  } catch {
+    return null;
+  }
+}
+
 export interface UserSession {
   id: string;
   email: string;
@@ -27,26 +35,35 @@ export interface LoginResult {
 export class AuthApi {
   static isAuthenticated(): boolean {
     if (typeof window === "undefined") return false;
-    const token = localStorage.getItem("baha_auth_token") || localStorage.getItem("baha_access_token");
+    const storage = browserStorage();
+    const token = storage?.getItem("baha_auth_token") || storage?.getItem("baha_access_token");
     if (token && token.length > 20) return true;
-    const hasCookie = document.cookie.split(";").some((item) => item.trim().startsWith("baha_auth_token="));
-    return Boolean(hasCookie);
+    try {
+      return document.cookie.split(";").some((item) => item.trim().startsWith("baha_auth_token="));
+    } catch {
+      return false;
+    }
   }
 
   static getAuthToken(): string {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("baha_auth_token") || localStorage.getItem("baha_access_token");
+      const storage = browserStorage();
+      const stored = storage?.getItem("baha_auth_token") || storage?.getItem("baha_access_token");
       if (stored && stored.length > 20) return stored;
       // Trích xuất từ cookie nếu localStorage bị trống
-      const match = document.cookie.match(/baha_auth_token=([^;]+)/);
-      if (match && match[1]) return decodeURIComponent(match[1]);
+      try {
+        const match = document.cookie.match(/baha_auth_token=([^;]+)/);
+        if (match && match[1]) return decodeURIComponent(match[1]);
+      } catch {
+        return DEFAULT_DEV_TOKEN;
+      }
     }
     return DEFAULT_DEV_TOKEN;
   }
 
   static getWorkspaceId(): string {
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("baha_workspace_id");
+      const stored = browserStorage()?.getItem("baha_workspace_id");
       if (stored) return stored;
     }
     return "default_ws";
@@ -54,7 +71,7 @@ export class AuthApi {
 
   static getCurrentUser(): UserSession {
     if (typeof window !== "undefined") {
-      const raw = localStorage.getItem("baha_user_profile");
+      const raw = browserStorage()?.getItem("baha_user_profile");
       if (raw) {
         try {
           return JSON.parse(raw);
@@ -98,12 +115,17 @@ export class AuthApi {
       }
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("baha_auth_token", data.token);
-        localStorage.setItem("baha_access_token", data.token);
-        localStorage.setItem("baha_workspace_id", data.workspace?.id || "default_ws");
-        localStorage.setItem("baha_user_profile", JSON.stringify(data.user));
+        const storage = browserStorage();
+        storage?.setItem("baha_auth_token", data.token);
+        storage?.setItem("baha_access_token", data.token);
+        storage?.setItem("baha_workspace_id", data.workspace?.id || "default_ws");
+        storage?.setItem("baha_user_profile", JSON.stringify(data.user));
 
-        document.cookie = `baha_auth_token=${encodeURIComponent(data.token)}; path=/; max-age=2592000; SameSite=Lax`;
+        try {
+          document.cookie = `baha_auth_token=${encodeURIComponent(data.token)}; path=/; max-age=2592000; SameSite=Lax`;
+        } catch {
+          // Cookie HTTP-only từ route đăng nhập vẫn được giữ.
+        }
       }
 
       return {
@@ -125,11 +147,16 @@ export class AuthApi {
     }
 
     if (typeof window !== "undefined") {
-      localStorage.removeItem("baha_auth_token");
-      localStorage.removeItem("baha_access_token");
-      localStorage.removeItem("baha_workspace_id");
-      localStorage.removeItem("baha_user_profile");
-      document.cookie = "baha_auth_token=; path=/; max-age=0; SameSite=Lax";
+      const storage = browserStorage();
+      storage?.removeItem("baha_auth_token");
+      storage?.removeItem("baha_access_token");
+      storage?.removeItem("baha_workspace_id");
+      storage?.removeItem("baha_user_profile");
+      try {
+        document.cookie = "baha_auth_token=; path=/; max-age=0; SameSite=Lax";
+      } catch {
+        // Cookie đã được xóa qua route logout.
+      }
     }
   }
 }

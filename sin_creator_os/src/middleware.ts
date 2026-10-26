@@ -23,7 +23,7 @@ export function middleware(request: NextRequest) {
   let token = request.cookies.get("baha_auth_token")?.value;
 
   // 3. Nếu chưa có cookie xác thực: tự động gắn token Quản trị tối cao (sin@test.com)
-  if (!token && !pathname.startsWith("/auth/")) {
+  if (!token && process.env.NODE_ENV === "development" && !pathname.startsWith("/auth/")) {
     const response = NextResponse.next();
     response.cookies.set("baha_auth_token", DEFAULT_DEV_TOKEN, {
       path: "/",

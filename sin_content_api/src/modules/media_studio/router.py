@@ -97,7 +97,7 @@ def open_google_flow_login(
     tenant: TenantContext = Depends(require_action("media.upload")),
 ):
     """Mở tiện ích đăng nhập Flow trên máy chủ đang chạy ứng dụng."""
-    if not tenant.dev_auth_bypass and not any(
+    if not any(
         role.get("role_code") == "WORKSPACE_OWNER" and role.get("scope_type") == "WORKSPACE"
         for role in tenant.actor.roles
     ):

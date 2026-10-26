@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .planner import Storyboard
 
@@ -23,6 +23,12 @@ class CreatePlanRequest(BaseModel):
     content: str = Field(min_length=40, max_length=12000)
     target_duration_seconds: int = Field(ge=20, le=180)
     aspect_ratio: Literal["9:16", "16:9"] = "9:16"
+
+
+class UpdateStoryboardRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    storyboard: Storyboard
 
 
 class ContentVideoPlanResponse(BaseModel):
@@ -49,7 +55,39 @@ class CreateRunRequest(BaseModel):
 
     plan_id: str = Field(min_length=1, max_length=36)
     voice_asset_id: str | None = Field(default=None, min_length=1, max_length=36)
+    voice_source: Literal["NONE", "UPLOAD", "TTS"] | None = None
+    tts_provider: Literal["GWEN_TTS", "VIE_NEU_V3_TURBO"] | None = None
+    tts_voice_id: str | None = Field(default=None, min_length=1, max_length=120)
+    tts_reference_asset_id: str | None = Field(default=None, min_length=1, max_length=36)
+    tts_reference_text: str | None = Field(default=None, max_length=3000)
+    voice_clone_consent: bool = False
     idempotency_key: str = Field(min_length=8, max_length=128)
+
+    @model_validator(mode="after")
+    def validate_voice_choice(self):
+        tts = self.tts_provider is not None
+        if self.voice_asset_id and tts:
+            raise ValueError("Chỉ được chọn tải voiceover hoặc TTS.")
+        if self.voice_source == "UPLOAD" and (not self.voice_asset_id or tts):
+            raise ValueError("Nguồn tải lên cần đúng một voiceover.")
+        if self.voice_source == "NONE" and self.voice_asset_id:
+            raise ValueError("Nguồn không âm thanh không nhận voiceover tải lên.")
+        if self.voice_source == "TTS" and not tts:
+            raise ValueError("Nguồn TTS cần chọn một provider.")
+        if self.voice_source in {"NONE", "UPLOAD"} and tts:
+            raise ValueError("Provider TTS chỉ hợp lệ khi chọn nguồn TTS.")
+        if self.voice_source == "UPLOAD" and self.tts_reference_asset_id:
+            raise ValueError("Voiceover tải lên không nhận cấu hình TTS.")
+        if self.tts_provider == "GWEN_TTS":
+            if not self.tts_reference_asset_id or not self.tts_reference_text or not self.voice_clone_consent:
+                raise ValueError("Gwen cần audio tham chiếu, bản chép chính xác và xác nhận quyền sử dụng giọng.")
+        if self.tts_reference_asset_id and not self.voice_clone_consent:
+            raise ValueError("Cần xác nhận quyền sử dụng giọng khi dùng audio tham chiếu.")
+        if self.tts_reference_text and not self.tts_reference_asset_id:
+            raise ValueError("Bản chép tham chiếu cần audio tham chiếu.")
+        if not tts and (self.tts_voice_id or self.tts_reference_asset_id or self.tts_reference_text or self.voice_clone_consent):
+            raise ValueError("Cấu hình voice clone chỉ hợp lệ khi chọn TTS.")
+        return self
 
 
 class ReconcileShotRequest(BaseModel):
@@ -74,6 +112,8 @@ class ContentVideoRunResponse(BaseModel):
     plan_id: str
     plan_revision: int
     voice_asset_id: str | None = None
+    voice_source: Literal["NONE", "UPLOAD", "TTS"] = "NONE"
+    tts_provider: Literal["GWEN_TTS", "VIE_NEU_V3_TURBO"] | None = None
     status: str
     current_step: str | None = None
     steps: list[dict]

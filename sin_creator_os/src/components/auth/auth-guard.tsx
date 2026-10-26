@@ -12,6 +12,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [authorized, setAuthorized] = React.useState(false);
 
   React.useEffect(() => {
+    if (process.env.NODE_ENV === "development") return;
+
     // Không áp dụng guard cho các trang đăng nhập/đăng ký
     if (pathname.startsWith("/auth/")) {
       setAuthorized(true);
@@ -19,7 +21,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const isAuthed = AuthApi.isAuthenticated();
+    let isAuthed = false;
+    try {
+      isAuthed = AuthApi.isAuthenticated();
+    } catch {
+      isAuthed = false;
+    }
     if (!isAuthed) {
       setAuthorized(false);
       setIsChecking(false);
@@ -29,6 +36,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       setIsChecking(false);
     }
   }, [pathname, router]);
+
+  if (process.env.NODE_ENV === "development") return <>{children}</>;
 
   if (isChecking) {
     return (

@@ -50,11 +50,20 @@ def _auto_start_9router_if_needed():
     except Exception:
         pass
 
+def _e2e_test_worker_enabled():
+    database_name = settings.database_url.split("?", 1)[0].replace("\\", "/").rsplit("/", 1)[-1]
+    return (
+        os.getenv("TESTING") == "1"
+        and os.getenv("CONTENT_VIDEO_TEST_WORKER") == "1"
+        and settings.app_env.lower() in {"offline", "test", "testing"}
+        and database_name == "sin_content_e2e_test.db"
+    )
+
 async def lifespan(app: FastAPI):
     # Khởi tạo bảng trong chế độ offline nếu chưa có
     migration_up()
     _auto_start_9router_if_needed()
-    if settings.app_env.lower() not in {"test", "testing"} and os.getenv("TESTING") != "1":
+    if _e2e_test_worker_enabled() or (settings.app_env.lower() not in {"test", "testing"} and os.getenv("TESTING") != "1"):
         content_video_worker.start()
     try:
         yield

@@ -8,9 +8,10 @@ from src.auth.tenancy import (
     require_resolved_resource_action,
 )
 from src.database import get_db
-from .contracts import ContentVideoPlanResponse, ContentVideoRunResponse, CreatePlanRequest, CreateRunRequest, ReconcileShotRequest
+from baha_auth.src.policy.evaluator import e2e_test_self_approval_enabled
+from .contracts import ContentVideoPlanResponse, ContentVideoRunResponse, CreatePlanRequest, CreateRunRequest, ReconcileShotRequest, UpdateStoryboardRequest
 from .runner import reconcile_shot
-from .service import approve_plan, create_plan, create_run, get_plan, get_run, resume_run
+from .service import approve_plan, create_plan, create_run, get_latest_history, get_plan, get_run, resume_run, update_plan
 
 
 router = APIRouter(prefix="/v1/media/projects/{project_id}/content-video", tags=["Content Video Production"])
@@ -36,6 +37,26 @@ def read_content_video_plan(
     return get_plan(db, project_id, plan_id, tenant.workspace_id)
 
 
+@router.put("/plans/{plan_id}", response_model=ContentVideoPlanResponse)
+def update_content_video_plan(
+    project_id: str,
+    plan_id: str,
+    payload: UpdateStoryboardRequest,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(require_action("media.upload")),
+):
+    return update_plan(db, project_id, plan_id, tenant.workspace_id, tenant.user_id, payload.storyboard)
+
+
+@router.get("/history")
+def read_content_video_history(
+    project_id: str,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(require_action("media.read")),
+):
+    return get_latest_history(db, project_id, tenant.workspace_id)
+
+
 @router.post("/plans/{plan_id}/approve", response_model=ContentVideoPlanResponse)
 def approve_content_video_plan(
     project_id: str,
@@ -44,18 +65,19 @@ def approve_content_video_plan(
     tenant: TenantContext = Depends(require_resolved_resource_action("media.approve")),
 ):
     plan = get_plan(db, project_id, plan_id, tenant.workspace_id)
-    authorize_resource(
-        tenant,
-        "media.approve",
-        resource_type="content_video_plan",
-        resource_id=plan.id,
-        workspace_id=tenant.workspace_id,
-        creator_id=plan.created_by,
-        artifact_version=plan.revision,
-        content_hash=plan.storyboard_sha256,
-        project_id=project_id,
-        require_creator=True,
-    )
+    if not e2e_test_self_approval_enabled():
+        authorize_resource(
+            tenant,
+            "media.approve",
+            resource_type="content_video_plan",
+            resource_id=plan.id,
+            workspace_id=tenant.workspace_id,
+            creator_id=plan.created_by,
+            artifact_version=plan.revision,
+            content_hash=plan.storyboard_sha256,
+            project_id=project_id,
+            require_creator=True,
+        )
     return approve_plan(db, project_id, plan_id, tenant.workspace_id, tenant.user_id)
 
 

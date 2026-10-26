@@ -192,6 +192,24 @@ class LLMClient:
                     )
 
                 if response.status_code >= 500:
+                    if response.status_code == 503:
+                        try:
+                            body = response.json()
+                            error = body.get("error", {}) if isinstance(body, dict) else {}
+                            upstream_message = error.get("message", "") if isinstance(error, dict) else str(error)
+                        except Exception:
+                            upstream_message = ""
+                        normalized_message = upstream_message.casefold()
+                        if "429" in normalized_message and ("usage limit" in normalized_message or "rate limit" in normalized_message):
+                            logger.warning("LLM call rate limited: error_code=UPSTREAM_RATE_LIMITED, status=%d, model=%s, duration_ms=%.1f, request_id=%s", response.status_code, self.model, duration_ms, req_id)
+                            raise LLMResponseError(
+                                "Hạn mức sử dụng 9Router đã đạt. Hãy đợi giới hạn làm mới rồi thử lại.",
+                                error_code="UPSTREAM_RATE_LIMITED",
+                                status_code=429,
+                                model=self.model,
+                                duration_ms=duration_ms,
+                                request_id=req_id
+                            )
                     logger.warning("LLM call failed: error_code=UPSTREAM_SERVER_ERROR, status=%d, model=%s, duration_ms=%.1f, request_id=%s", response.status_code, self.model, duration_ms, req_id)
                     raise LLMResponseError(
                         f"LLM Gateway gặp sự cố máy chủ nội bộ (HTTP {response.status_code}).",

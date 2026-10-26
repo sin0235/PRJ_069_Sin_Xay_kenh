@@ -75,3 +75,8 @@ Master spec P0–P8 vẫn là định hướng chung. Đợt ưu tiên này xử
 Chưa chạy provider tính phí, chưa tạo phim 120 giây, chưa có benchmark giọng/ASR, chưa duyệt storyboard với Founder, chưa kiểm thử GUI có phiên đăng nhập, chưa audit đầy đủ publishing/lead/RBAC và chưa chạy migration. Kết quả kiểm thử cơ sở được ghi riêng, không nâng trạng thái provider nhờ mock test.
 
 Vùng ghi phiên này là `03_ban_lam_viec/` và trạng thái quy định tại `00_bat_dau/`. Bằng chứng được giữ tại thư mục `bang_chung/` của bộ kế hoạch để không vượt vùng ghi; việc đưa bằng chứng nghiệm thu chính thức vào `08_kiem_thu/bang_chung/` và cập nhật trang hành trình gốc do người có vùng ghi phù hợp thực hiện ở gate sau. Không đổi checkpoint nghiệm thu sản phẩm trong phiên nghiên cứu.
+
+
+## 8. C?p nh?t l?a ch?n TTS ti?ng Vi?t ? 2026-10-26
+
+B? sung VieNeu-TTS v3 Turbo l?m ?ng vi?n th? hai b?n c?nh Gwen-TTS. Ch? m?t provider/model ???c n?p v? ch?y t?i m?t th?i ?i?m; job ghi provider/version ?? ch?n, kh?ng ch?y song song v? kh?ng fallback t? ??ng. VieNeu c? backend CPU ONNX/GPU PyTorch, audio 48 kHz v? voice cloning; c?c s? ?o t?c ?? v? s? preset c?n ph? thu?c phi?n b?n upstream, c?n pin b?n v? benchmark n?i b?. Chi ti?t ??i chi?u, gi?y ph?p, ?? xu?t ?i?u ph?i v? A/B ? `nghien_cuu_tich_hop_tts_vietnamese.md`, m?c 8.

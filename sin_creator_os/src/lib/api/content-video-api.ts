@@ -17,22 +17,29 @@ export interface ContentVideoPlan {
   source_content: string;
   target_duration_seconds: number;
   style_snapshot: { style_name: string; visual_rules: string; palette: string[]; aspect_ratio: "9:16" | "16:9" };
-  storyboard: { title: string; narration: string; shots: { shot_id: string; scene: string; narration: string; prompt: string; flow_prompt_en: string; negative_prompt: string; duration_seconds: number }[] };
+  storyboard: { title: string; narration: string; shots: { shot_id: string; scene: string; narration: string; prompt: string; negative_prompt: string; duration_seconds: number }[] };
   llm_model: string;
 }
 
 export interface ContentVideoRun {
   id: string;
   voice_asset_id?: string | null;
+  voice_source?: "NONE" | "UPLOAD" | "TTS";
+  tts_provider?: "GWEN_TTS" | "VIE_NEU_V3_TURBO" | null;
   status: string;
   current_step?: string | null;
   steps: { shot_id: string; state: string; asset_id?: string | null; flow_project_url?: string | null }[];
   final_asset_id?: string | null;
-  qc_report?: { status: string; acceptance_mode?: string; voice_source?: string; issues: string[]; measured?: Record<string, unknown>; export_asset_id?: string; speech_alignment?: string } | null;
+  qc_report?: { status: string; acceptance_mode?: string; voice_source?: string; flow_native_audio?: boolean; issues: string[]; measured?: Record<string, unknown>; export_asset_id?: string; speech_alignment?: string } | null;
   error_code?: string | null;
   error_message?: string | null;
   created_at?: string;
   started_at?: string | null;
+}
+
+export interface ContentVideoHistory {
+  plan: ContentVideoPlan | null;
+  run: ContentVideoRun | null;
 }
 
 async function request<T>(projectId: string, path: string, init?: RequestInit): Promise<T> {
@@ -57,15 +64,20 @@ async function request<T>(projectId: string, path: string, init?: RequestInit): 
 }
 
 export const contentVideoApi = {
+  getLatestHistory: (projectId: string) => request<ContentVideoHistory>(projectId, "/history"),
   createPlan: (projectId: string, content: string, duration: number, aspectRatio: "9:16" | "16:9") => request<ContentVideoPlan>(projectId, "/plans", {
     method: "POST",
     body: JSON.stringify({ content, target_duration_seconds: duration, aspect_ratio: aspectRatio }),
   }),
   getPlan: (projectId: string, planId: string) => request<ContentVideoPlan>(projectId, `/plans/${encodeURIComponent(planId)}`),
+  updatePlan: (projectId: string, planId: string, storyboard: ContentVideoPlan["storyboard"]) => request<ContentVideoPlan>(projectId, `/plans/${encodeURIComponent(planId)}`, {
+    method: "PUT",
+    body: JSON.stringify({ storyboard }),
+  }),
   approvePlan: (projectId: string, planId: string) => request<ContentVideoPlan>(projectId, `/plans/${encodeURIComponent(planId)}/approve`, { method: "POST" }),
-  createRun: (projectId: string, planId: string, voiceAssetId: string | null, idempotencyKey: string) => request<ContentVideoRun>(projectId, "/runs", {
+  createRun: (projectId: string, planId: string, voice: { source: "NONE" | "UPLOAD" | "TTS"; assetId?: string | null; provider?: "GWEN_TTS" | "VIE_NEU_V3_TURBO"; voiceId?: string; referenceAssetId?: string; referenceText?: string; consent?: boolean }, idempotencyKey: string) => request<ContentVideoRun>(projectId, "/runs", {
     method: "POST",
-    body: JSON.stringify({ plan_id: planId, voice_asset_id: voiceAssetId, idempotency_key: idempotencyKey }),
+    body: JSON.stringify({ plan_id: planId, voice_source: voice.source, voice_asset_id: voice.source === "UPLOAD" ? voice.assetId : null, tts_provider: voice.source === "TTS" ? voice.provider : null, tts_voice_id: voice.source === "TTS" ? voice.voiceId : null, tts_reference_asset_id: voice.source === "TTS" ? voice.referenceAssetId : null, tts_reference_text: voice.source === "TTS" ? voice.referenceText : null, voice_clone_consent: voice.source === "TTS" && !!voice.consent, idempotency_key: idempotencyKey }),
   }),
   getRun: (projectId: string, runId: string) => request<ContentVideoRun>(projectId, `/runs/${encodeURIComponent(runId)}`),
   resumeRun: (projectId: string, runId: string) => request<ContentVideoRun>(projectId, `/runs/${encodeURIComponent(runId)}/resume`, { method: "POST" }),

@@ -24,9 +24,12 @@ from .planner import Storyboard, generate_storyboard
 _PILOT_STYLE_SNAPSHOT = StyleSnapshot(
     style_name="Origami giấy gấp · pilot v1",
     visual_rules=(
-        "Mọi vật thể và nhân vật đều là mô hình giấy origami gấp nếp rõ, bề mặt giấy mịn có thớ nhẹ; "
-        "dùng cùng một mô hình nhân vật giấy xuyên suốt, chuyển động gấp/mở liền mạch; bố cục theo tỷ lệ người dùng chọn, "
+        "Nhân vật, đạo cụ và bối cảnh đều là mô hình giấy origami gấp nếp rõ, bề mặt giấy mịn có thớ nhẹ; "
+        "dùng cùng một mô hình nhân vật giấy đã hoàn thiện xuyên suốt và chỉ hoạt họa mô hình đó; tuyệt đối không có người thật, bàn tay, ngón tay hay thao tác gấp giấy; bố cục theo tỷ lệ người dùng chọn, "
         "ánh sáng studio mềm từ trên trái, bóng đổ giấy nhất quán, máy quay macro điện ảnh chậm; "
+        "nhân vật có dáng người hoàn chỉnh, đầu và thân rõ, đủ hai tay, hai chân và bàn chân với tỷ lệ tự nhiên; khuôn mặt origami cách điệu, không mô phỏng da người thật; hai mắt cùng kích thước và cao độ, cân đối hai bên; mũi giấy nhỏ ở giữa; miệng khép kín rõ nét với biểu cảm thân thiện tự nhiên; "
+        "không mắt lác hoặc lệch, không mặt nạ trống, không nét mặt méo hoặc đáng sợ; "
+        "không thiếu chi, không mặt trống, không dị dạng, quái vật hoặc hình thể ngoài loài người; "
         "không đổi chất liệu sang ảnh thật hoặc 3D nhựa, không sinh chữ trong cảnh."
     ),
     palette=["xanh navy", "trắng ngà", "xanh teal"],
@@ -90,7 +93,8 @@ def create_plan(db: Session, project_id: str, workspace_id: str, user_id: str, r
             client,
         )
     except LLMClientError as exc:
-        raise HTTPException(status_code=503, detail={"error_code": exc.error_code, "message": "LLM chưa tạo được storyboard hợp lệ."}) from exc
+        message = "Hạn mức sử dụng 9Router đã đạt. Hãy đợi giới hạn làm mới rồi thử lại." if exc.error_code == "UPSTREAM_RATE_LIMITED" else "LLM chưa tạo được storyboard hợp lệ."
+        raise HTTPException(status_code=503, detail={"error_code": exc.error_code, "message": message}) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail={"error_code": "INVALID_STORYBOARD", "message": str(exc)}) from exc
 
@@ -136,6 +140,53 @@ def get_plan(db: Session, project_id: str, plan_id: str, workspace_id: str) -> C
     return _response(plan)
 
 
+def update_plan(db: Session, project_id: str, plan_id: str, workspace_id: str, user_id: str, storyboard: Storyboard) -> ContentVideoPlanResponse:
+    _project(db, project_id, workspace_id)
+    plan = db.query(ContentVideoPlan).filter(
+        ContentVideoPlan.id == plan_id,
+        ContentVideoPlan.project_id == project_id,
+        ContentVideoPlan.workspace_id == workspace_id,
+    ).with_for_update().first()
+    if not plan:
+        raise HTTPException(status_code=404, detail={"error_code": "PLAN_NOT_FOUND", "message": "Không tìm thấy storyboard."})
+    if plan.created_by != user_id:
+        raise HTTPException(status_code=403, detail={"error_code": "PLAN_EDIT_FORBIDDEN", "message": "Chỉ người tạo storyboard được sửa bản nháp."})
+    if plan.status != "DRAFT":
+        raise HTTPException(status_code=409, detail={"error_code": "PLAN_NOT_DRAFT", "message": "Chỉ storyboard nháp mới sửa được."})
+    original = Storyboard.model_validate_json(plan.storyboard_json)
+    if (
+        [shot.shot_id for shot in storyboard.shots] != [shot.shot_id for shot in original.shots]
+        or [shot.duration_seconds for shot in storyboard.shots] != [shot.duration_seconds for shot in original.shots]
+        or sum(shot.duration_seconds for shot in storyboard.shots) != plan.target_duration_seconds
+    ):
+        raise HTTPException(status_code=422, detail={"error_code": "STORYBOARD_STRUCTURE_LOCKED", "message": "Không thể đổi thứ tự, mã cảnh hoặc thời lượng cảnh trong bản nháp này."})
+    plan.storyboard_json = storyboard.model_dump_json()
+    plan.storyboard_sha256 = canonical_hash(storyboard.model_dump(mode="json"))
+    db.commit()
+    db.refresh(plan)
+    return _response(plan)
+
+
+def get_latest_history(db: Session, project_id: str, workspace_id: str) -> dict:
+    _project(db, project_id, workspace_id)
+    run = db.query(ContentVideoRun).filter(
+        ContentVideoRun.project_id == project_id,
+        ContentVideoRun.workspace_id == workspace_id,
+    ).order_by(ContentVideoRun.created_at.desc()).first()
+    if run:
+        plan = db.query(ContentVideoPlan).filter(
+            ContentVideoPlan.id == run.plan_id,
+            ContentVideoPlan.project_id == project_id,
+            ContentVideoPlan.workspace_id == workspace_id,
+        ).first()
+    else:
+        plan = db.query(ContentVideoPlan).filter(
+            ContentVideoPlan.project_id == project_id,
+            ContentVideoPlan.workspace_id == workspace_id,
+        ).order_by(ContentVideoPlan.revision.desc()).first()
+    return {"plan": _response(plan) if plan else None, "run": _run_response(run) if run else None}
+
+
 def approve_plan(db: Session, project_id: str, plan_id: str, workspace_id: str, user_id: str) -> ContentVideoPlanResponse:
     _project(db, project_id, workspace_id)
     plan = db.query(ContentVideoPlan).filter(
@@ -158,12 +209,16 @@ def approve_plan(db: Session, project_id: str, plan_id: str, workspace_id: str, 
 
 
 def _run_response(run: ContentVideoRun) -> ContentVideoRunResponse:
+    tts_config_json = getattr(run, "tts_config_json", None)
+    tts_config = json.loads(tts_config_json) if tts_config_json else None
     return ContentVideoRunResponse(
         id=run.id,
         project_id=run.project_id,
         plan_id=run.plan_id,
         plan_revision=run.plan_revision,
         voice_asset_id=run.voice_asset_id,
+        voice_source="TTS" if tts_config else "UPLOAD" if run.voice_asset_id else "NONE",
+        tts_provider=tts_config.get("provider") if tts_config else None,
         status=run.status,
         current_step=run.current_step,
         steps=json.loads(run.steps_json or "[]"),
@@ -175,6 +230,26 @@ def _run_response(run: ContentVideoRun) -> ContentVideoRunResponse:
         created_at=run.created_at,
         started_at=run.started_at,
         finished_at=run.finished_at,
+    )
+
+
+def _tts_config(request: CreateRunRequest) -> dict | None:
+    if not request.tts_provider:
+        return None
+    return {
+        "provider": request.tts_provider,
+        "voice_id": request.tts_voice_id,
+        "reference_asset_id": request.tts_reference_asset_id,
+        "reference_text": request.tts_reference_text,
+        "voice_clone_consent": request.voice_clone_consent,
+    }
+
+
+def _same_run_request(run, workspace_id: str, project_id: str, plan_id: str, voice_asset_id: str | None, tts_config_json: str | None) -> bool:
+    return (
+        (run.workspace_id, run.project_id, run.plan_id, run.tts_config_json)
+        == (workspace_id, project_id, plan_id, tts_config_json)
+        and (tts_config_json is not None or run.voice_asset_id == voice_asset_id)
     )
 
 
@@ -196,11 +271,11 @@ def create_run(
     if plan.status != "APPROVED" or not plan.approved_by or not plan.approved_at:
         raise HTTPException(status_code=409, detail={"error_code": "PLAN_NOT_APPROVED", "message": "Cần duyệt storyboard trước khi sản xuất."})
 
+    tts_config = _tts_config(request)
+    tts_config_json = json.dumps(tts_config, ensure_ascii=False, sort_keys=True, separators=(",", ":")) if tts_config else None
     existing = db.query(ContentVideoRun).filter(ContentVideoRun.idempotency_key == request.idempotency_key).first()
     if existing:
-        if (existing.workspace_id, existing.project_id, existing.plan_id, existing.voice_asset_id) != (
-            workspace_id, project_id, plan.id, request.voice_asset_id
-        ):
+        if not _same_run_request(existing, workspace_id, project_id, plan.id, request.voice_asset_id, tts_config_json):
             raise HTTPException(status_code=409, detail={"error_code": "IDEMPOTENCY_KEY_REUSED", "message": "Khóa idempotency đã được dùng cho một run khác."})
         return _run_response(existing)
 
@@ -213,6 +288,14 @@ def create_run(
         ).first()
         if not voice_asset or not (voice_asset.mime_detected or "").startswith("audio/"):
             raise HTTPException(status_code=404, detail={"error_code": "VOICE_ASSET_NOT_FOUND", "message": "Hãy chọn tệp giọng đọc âm thanh thuộc dự án này."})
+    if request.tts_reference_asset_id:
+        reference_asset = db.query(MediaAsset).filter(
+            MediaAsset.id == request.tts_reference_asset_id,
+            MediaAsset.workspace_id == workspace_id,
+            MediaAsset.project_id == project_id,
+        ).first()
+        if not reference_asset or not (reference_asset.mime_detected or "").startswith("audio/"):
+            raise HTTPException(status_code=404, detail={"error_code": "TTS_REFERENCE_NOT_FOUND", "message": "Audio tham chiếu không thuộc dự án này hoặc không phải tệp âm thanh."})
 
     style = json.loads(plan.style_snapshot_json)
     StyleSnapshot.model_validate(style)
@@ -230,6 +313,7 @@ def create_run(
             shot=shot,
             style_snapshot=style,
             continuity_anchor=storyboard.continuity_anchor,
+            include_narration_audio=not voice_asset and not tts_config,
         ))
     run = ContentVideoRun(
         id=run_id,
@@ -237,6 +321,7 @@ def create_run(
         project_id=project_id,
         plan_id=plan.id,
         voice_asset_id=voice_asset.id if voice_asset else None,
+        tts_config_json=tts_config_json,
         plan_revision=plan.revision,
         storyboard_sha256=plan.storyboard_sha256,
         style_snapshot_sha256=plan.style_snapshot_sha256,
@@ -253,9 +338,7 @@ def create_run(
     except IntegrityError as exc:
         db.rollback()
         existing = db.query(ContentVideoRun).filter(ContentVideoRun.idempotency_key == request.idempotency_key).first()
-        if existing and (existing.workspace_id, existing.project_id, existing.plan_id, existing.voice_asset_id) == (
-            workspace_id, project_id, plan.id, request.voice_asset_id
-        ):
+        if existing and _same_run_request(existing, workspace_id, project_id, plan.id, request.voice_asset_id, tts_config_json):
             return _run_response(existing)
         raise HTTPException(status_code=409, detail={"error_code": "RUN_IDEMPOTENCY_CONFLICT", "message": "Không thể tạo run trùng."}) from exc
     return _run_response(run)
