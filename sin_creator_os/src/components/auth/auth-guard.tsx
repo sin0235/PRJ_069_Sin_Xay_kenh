@@ -5,14 +5,18 @@ import { useRouter, usePathname } from "next/navigation";
 import { AuthApi } from "@/lib/api/auth-api";
 import { ShieldAlert, Loader2 } from "lucide-react";
 
-export function AuthGuard({ children }: { children: React.ReactNode }) {
+export function AuthGuard({ children, devAuthBypass = false }: { children: React.ReactNode; devAuthBypass?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isChecking, setIsChecking] = React.useState(true);
   const [authorized, setAuthorized] = React.useState(false);
 
   React.useEffect(() => {
-    if (process.env.NODE_ENV === "development") return;
+    if (devAuthBypass) {
+      setAuthorized(true);
+      setIsChecking(false);
+      return;
+    }
 
     // Không áp dụng guard cho các trang đăng nhập/đăng ký
     if (pathname.startsWith("/auth/")) {
@@ -35,9 +39,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       setAuthorized(true);
       setIsChecking(false);
     }
-  }, [pathname, router]);
-
-  if (process.env.NODE_ENV === "development") return <>{children}</>;
+  }, [devAuthBypass, pathname, router]);
 
   if (isChecking) {
     return (

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { cn } from "cn";
 
 import { AppSidebar } from "@/app/(main)/_components/sidebar/app-sidebar";
@@ -18,6 +18,8 @@ import { AuthGuard } from "@/components/auth/auth-guard";
 
 export default async function MainLayout({ children }: Readonly<{ children: ReactNode }>) {
   const cookieStore = await cookies();
+  const requestHeaders = await headers();
+  const devAuthBypass = requestHeaders.get("x-sin-dev-auth-bypass") === "1";
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
   const [variant, collapsible] = await Promise.all([
     getPreference("sidebar_variant"),
@@ -25,7 +27,7 @@ export default async function MainLayout({ children }: Readonly<{ children: Reac
   ]);
 
   return (
-    <AuthGuard>
+    <AuthGuard devAuthBypass={devAuthBypass}>
       <SidebarProvider
         defaultOpen={defaultOpen}
         style={

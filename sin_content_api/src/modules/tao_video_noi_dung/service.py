@@ -208,7 +208,15 @@ def get_latest_history(db: Session, project_id: str, workspace_id: str) -> dict:
     return {"plan": _response(plan) if plan else None, "run": _run_response(run) if run else None}
 
 
-def approve_plan(db: Session, project_id: str, plan_id: str, workspace_id: str, user_id: str) -> ContentVideoPlanResponse:
+def approve_plan(
+    db: Session,
+    project_id: str,
+    plan_id: str,
+    workspace_id: str,
+    user_id: str,
+    *,
+    allow_self_approval: bool = False,
+) -> ContentVideoPlanResponse:
     _project(db, project_id, workspace_id)
     plan = db.query(ContentVideoPlan).filter(
         ContentVideoPlan.id == plan_id,
@@ -219,7 +227,7 @@ def approve_plan(db: Session, project_id: str, plan_id: str, workspace_id: str, 
         raise HTTPException(status_code=404, detail={"error_code": "PLAN_NOT_FOUND", "message": "Không tìm thấy storyboard."})
     if plan.status != "DRAFT":
         raise HTTPException(status_code=409, detail={"error_code": "PLAN_NOT_DRAFT", "message": "Storyboard không còn ở trạng thái chờ duyệt."})
-    if plan.created_by == user_id and not _e2e_test_self_approval_enabled():
+    if plan.created_by == user_id and not (allow_self_approval or _e2e_test_self_approval_enabled()):
         raise HTTPException(status_code=403, detail={"error_code": "SEPARATION_OF_DUTIES", "message": "Người tạo storyboard không được tự duyệt."})
     plan.status = "APPROVED"
     plan.approved_by = user_id
@@ -240,6 +248,7 @@ def _run_response(run: ContentVideoRun) -> ContentVideoRunResponse:
         voice_asset_id=run.voice_asset_id,
         voice_source="TTS" if tts_config else "UPLOAD" if run.voice_asset_id else "NONE",
         tts_provider=tts_config.get("provider") if tts_config else None,
+        include_subtitles=getattr(run, "include_subtitles", True),
         status=run.status,
         current_step=run.current_step,
         steps=json.loads(run.steps_json or "[]"),
@@ -266,10 +275,11 @@ def _tts_config(request: CreateRunRequest) -> dict | None:
     }
 
 
-def _same_run_request(run, workspace_id: str, project_id: str, plan_id: str, voice_asset_id: str | None, tts_config_json: str | None) -> bool:
+def _same_run_request(run, workspace_id: str, project_id: str, plan_id: str, voice_asset_id: str | None, tts_config_json: str | None, include_subtitles: bool) -> bool:
     return (
         (run.workspace_id, run.project_id, run.plan_id, run.tts_config_json)
         == (workspace_id, project_id, plan_id, tts_config_json)
+        and getattr(run, "include_subtitles", True) == include_subtitles
         and (tts_config_json is not None or run.voice_asset_id == voice_asset_id)
     )
 
@@ -296,7 +306,7 @@ def create_run(
     tts_config_json = json.dumps(tts_config, ensure_ascii=False, sort_keys=True, separators=(",", ":")) if tts_config else None
     existing = db.query(ContentVideoRun).filter(ContentVideoRun.idempotency_key == request.idempotency_key).first()
     if existing:
-        if not _same_run_request(existing, workspace_id, project_id, plan.id, request.voice_asset_id, tts_config_json):
+        if not _same_run_request(existing, workspace_id, project_id, plan.id, request.voice_asset_id, tts_config_json, request.include_subtitles):
             raise HTTPException(status_code=409, detail={"error_code": "IDEMPOTENCY_KEY_REUSED", "message": "Khóa idempotency đã được dùng cho một run khác."})
         return _run_response(existing)
 
@@ -343,6 +353,7 @@ def create_run(
         plan_id=plan.id,
         voice_asset_id=voice_asset.id if voice_asset else None,
         tts_config_json=tts_config_json,
+        include_subtitles=request.include_subtitles,
         plan_revision=plan.revision,
         storyboard_sha256=plan.storyboard_sha256,
         style_snapshot_sha256=plan.style_snapshot_sha256,
@@ -359,7 +370,7 @@ def create_run(
     except IntegrityError as exc:
         db.rollback()
         existing = db.query(ContentVideoRun).filter(ContentVideoRun.idempotency_key == request.idempotency_key).first()
-        if existing and _same_run_request(existing, workspace_id, project_id, plan.id, request.voice_asset_id, tts_config_json):
+        if existing and _same_run_request(existing, workspace_id, project_id, plan.id, request.voice_asset_id, tts_config_json, request.include_subtitles):
             return _run_response(existing)
         raise HTTPException(status_code=409, detail={"error_code": "RUN_IDEMPOTENCY_CONFLICT", "message": "Không thể tạo run trùng."}) from exc
     return _run_response(run)
@@ -455,7 +466,7 @@ def retry_run(
             continuity_anchor=storyboard.continuity_anchor,
             include_narration_audio=not source.voice_asset_id and not tts_config_json,
         )
-        if shot.shot_id in selected and old_step.get("state") == "CLEANING":
+        if old_step.get("state") == "CLEANING":
             raw_asset_id = old_step.get("raw_asset_id") or old_step.get("asset_id")
             raw_asset = db.query(MediaAsset).filter(
                 MediaAsset.id == raw_asset_id,
@@ -464,7 +475,12 @@ def retry_run(
             ).first()
             if not raw_asset:
                 raise HTTPException(status_code=409, detail={"error_code": "RETRY_ASSET_NOT_FOUND", "message": f"Không tìm thấy clip Flow gốc của shot {shot.shot_id}."})
-            step.update({"state": "CLEANING", "raw_asset_id": raw_asset.id, "asset_id": raw_asset.id})
+            step.update({
+                "state": "SUCCEEDED", "raw_asset_id": raw_asset.id, "asset_id": raw_asset.id,
+                "watermark_removed": False,
+                "finished_at": old_step.get("finished_at") or datetime.now(timezone.utc).isoformat(),
+            })
+            reusable_assets.append(raw_asset.id)
         elif shot.shot_id not in selected and old_step.get("state") == "SUCCEEDED":
             verify_shot_receipt(source, plan, shot, old_step)
             asset = db.query(MediaAsset).filter(
@@ -491,6 +507,7 @@ def retry_run(
     retry = ContentVideoRun(
         id=retry_id, workspace_id=workspace_id, project_id=project_id, plan_id=plan.id,
         voice_asset_id=source.voice_asset_id, tts_config_json=tts_config_json,
+        include_subtitles=getattr(source, "include_subtitles", True),
         plan_revision=plan.revision, storyboard_sha256=plan.storyboard_sha256,
         style_snapshot_sha256=plan.style_snapshot_sha256, approval_sha256=approval_receipt_hash(plan),
         idempotency_key=request.idempotency_key, status="QUEUED",
@@ -528,9 +545,32 @@ def resume_run(db: Session, project_id: str, run_id: str, workspace_id: str) -> 
     ).with_for_update().first()
     if not run:
         raise HTTPException(status_code=404, detail={"error_code": "RUN_NOT_FOUND", "message": "Không tìm thấy run sản xuất."})
-    if run.status not in {"BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_SETUP"}:
+    steps = json.loads(run.steps_json or "[]")
+    render_only_retry = (
+        run.status == "FAILED"
+        and run.error_message == "VOICE_ASSET_DURATION_MISMATCH"
+        and bool(run.tts_config_json)
+        and bool(run.voice_asset_id)
+        and bool(steps)
+        and all(step.get("state") == "SUCCEEDED" and step.get("asset_id") for step in steps)
+    )
+    if render_only_retry:
+        voice_asset = db.query(MediaAsset).filter(
+            MediaAsset.id == run.voice_asset_id,
+            MediaAsset.project_id == project_id,
+            MediaAsset.workspace_id == workspace_id,
+            MediaAsset.source_product == "CONTENT_VIDEO_TTS",
+        ).first()
+        asset_ids = [step["asset_id"] for step in steps]
+        shot_asset_count = db.query(MediaAsset.id).filter(
+            MediaAsset.id.in_(asset_ids),
+            MediaAsset.project_id == project_id,
+            MediaAsset.workspace_id == workspace_id,
+        ).count()
+        render_only_retry = bool(voice_asset) and shot_asset_count == len(set(asset_ids))
+    if run.status not in {"BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_SETUP"} and not render_only_retry:
         raise HTTPException(status_code=409, detail={"error_code": "RUN_NOT_RESUMABLE", "message": "Run chưa ở trạng thái có thể tiếp tục an toàn."})
-    if any(step.get("state") in {"SUBMITTING", "NEEDS_RECONCILIATION"} for step in json.loads(run.steps_json or "[]")):
+    if any(step.get("state") in {"SUBMITTING", "NEEDS_RECONCILIATION"} for step in steps):
         raise HTTPException(status_code=409, detail={"error_code": "RUN_HAS_UNCERTAIN_SHOT", "message": "Cần đối soát shot chưa rõ kết quả trước khi tiếp tục."})
     run.status = "QUEUED"
     run.error_code = None
