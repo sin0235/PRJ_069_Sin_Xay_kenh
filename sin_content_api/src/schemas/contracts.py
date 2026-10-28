@@ -14,6 +14,7 @@ class ReadyResponse(BaseModel):
     database_connected: bool = True
     offline_mode: bool = True
     version: str = "1.0.0"
+    components: Optional[Dict[str, Any]] = None
 
 class ErrorPayload(BaseModel):
     error_code: str

@@ -84,7 +84,8 @@ def verify_shot_receipt(run: ContentVideoRun, plan: ContentVideoPlan, shot: Stor
         "run_id": run.id,
         "plan_id": plan.id,
         "plan_revision": plan.revision,
-        "voice_asset_id": run.voice_asset_id,
+        # TTS is generated after enqueue and mixed locally, never sent to Flow.
+        "voice_asset_id": None if getattr(run, "tts_config_json", None) and step.get("voice_asset_id") is None else run.voice_asset_id,
         "shot_id": shot.shot_id,
         "style_snapshot_sha256": plan.style_snapshot_sha256,
         "approval_sha256": run.approval_sha256,

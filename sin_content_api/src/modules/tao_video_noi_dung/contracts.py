@@ -54,6 +54,7 @@ class CreateRunRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     plan_id: str = Field(min_length=1, max_length=36)
+    flow_profile_id: str | None = Field(default=None, min_length=1, max_length=64)
     voice_asset_id: str | None = Field(default=None, min_length=1, max_length=36)
     voice_source: Literal["NONE", "UPLOAD", "TTS"] | None = None
     tts_provider: Literal["GWEN_TTS", "VIE_NEU_V3_TURBO"] | None = None
@@ -89,6 +90,11 @@ class CreateRunRequest(BaseModel):
         if not tts and (self.tts_voice_id or self.tts_reference_asset_id or self.tts_reference_text or self.voice_clone_consent):
             raise ValueError("Cấu hình voice clone chỉ hợp lệ khi chọn TTS.")
         return self
+
+
+class ResumeRunRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    flow_profile_id: str | None = Field(default=None, min_length=1, max_length=64)
 
 
 class ReconcileShotRequest(BaseModel):

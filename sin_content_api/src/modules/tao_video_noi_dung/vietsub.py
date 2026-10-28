@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import subprocess
+import sys
+import tempfile
 import threading
 import textwrap
 from pathlib import Path
@@ -19,8 +23,11 @@ class VietsubError(RuntimeError):
 
 def _load_model():
     from faster_whisper import WhisperModel
-
-    return WhisperModel(MODEL_SIZE, device="cpu", compute_type="int8")
+    options = {"device": "cpu", "compute_type": "int8", "cpu_threads": 2, "num_workers": 1}
+    if os.getenv("APP_ENV", "").lower() == "production":
+        from src.model_runtime import cache_home
+        options["download_root"] = str(cache_home().parent / "whisper")
+    return WhisperModel(MODEL_SIZE, **options)
 
 
 def _get_model():
@@ -73,6 +80,8 @@ def group_words(words: Iterable[object]) -> list[dict]:
 
 
 def transcribe_vietnamese(audio_path: Path) -> list[dict]:
+    if os.getenv("APP_ENV", "").lower() == "production" and os.getenv("VIETSUB_INFERENCE_CHILD") != "1":
+        return _transcribe_isolated(audio_path)
     try:
         segments, _ = _get_model().transcribe(
             str(audio_path),
@@ -100,6 +109,21 @@ def transcribe_vietnamese(audio_path: Path) -> list[dict]:
             raise VietsubError("VIETSUB_WORD_TIMESTAMPS_MISSING")
         cues.append({"text": _wrap_words(text.split()), "start_ms": max(0, round(start * 1000)), "duration_ms": round((end - start) * 1000)})
     return cues
+
+
+def _transcribe_isolated(audio_path: Path) -> list[dict]:
+    with tempfile.TemporaryDirectory(prefix="prj069-vietsub-") as directory:
+        output = Path(directory) / "cues.json"
+        env = {**os.environ, "VIETSUB_INFERENCE_CHILD": "1", "OMP_NUM_THREADS": "2", "OPENBLAS_NUM_THREADS": "2", "MKL_NUM_THREADS": "2"}
+        try:
+            with (Path(directory) / "asr.log").open("w") as log:
+                result = subprocess.run([sys.executable, "-m", __name__, str(audio_path), str(output)],
+                    env=env, stdout=log, stderr=log, timeout=600, check=False)
+        except subprocess.TimeoutExpired as error:
+            raise VietsubError("VIETSUB_ASR_TIMEOUT") from error
+        if result.returncode != 0 or not output.is_file():
+            raise VietsubError("VIETSUB_ASR_FAILED")
+        return json.loads(output.read_text(encoding="utf-8"))
 
 
 def transcribe_cached(audio_path: Path, cache_path: Path) -> list[dict]:
@@ -150,3 +174,7 @@ def _srt_timestamp(milliseconds: int) -> str:
     minutes, remainder = divmod(remainder, 60_000)
     seconds, millis = divmod(remainder, 1000)
     return f"{hours:02}:{minutes:02}:{seconds:02},{millis:03}"
+
+
+if __name__ == "__main__":
+    Path(sys.argv[2]).write_text(json.dumps(transcribe_vietnamese(Path(sys.argv[1])), ensure_ascii=False), encoding="utf-8")

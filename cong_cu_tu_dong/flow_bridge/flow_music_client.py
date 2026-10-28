@@ -28,22 +28,41 @@ from playwright.sync_api import sync_playwright
 
 from config import (
     BROWSER_CHANNEL,
-    BROWSER_PROFILE_DIR,
-    LOCAL_BROWSER_PROFILE_DIR,
     DEFAULT_TIMEOUT_MS,
     FLOW_MUSIC_URL,
     MEDIA_ASSETS_DIR,
     POLL_INTERVAL_SEC,
+    browser_launch_args,
+    get_current_browser_profile_dir,
     sync_browser_profile,
 )
-from profile_guard import ensure_profile_free
-from session_manager import FlowLoginRequired
+from profile_guard import profile_locked
+from session_manager import FlowLoginRequired, FlowQuotaExceeded
+from src.modules.flow_sessions.context import assert_flow_profile_workspace, flow_profile_metadata
+
+
+FFMPEG_TIMEOUT_SEC = 600
+FFMPEG_THREADS = "2"
+
+
+def _raise_provider_status(response, context, description: str, *, submitted: bool) -> None:
+    """Raise a typed error for a non-200 response without echoing the provider body."""
+    status = response.status
+    if status == 401:
+        context.close()
+        raise FlowLoginRequired("FLOW_LOGIN_REQUIRED: Flow Music session was rejected.")
+    if status == 429 or (status == 403 and "credit" in (response.text() or "").lower()):
+        context.close()
+        raise FlowQuotaExceeded("FLOW_QUOTA_LIMITED", submitted=submitted)
+    context.close()
+    raise RuntimeError(f"[FLOW MUSIC ERROR] {description} ({status}).")
 
 
 class FlowMusicClient:
     def __init__(self, headless: bool = True):
         self.headless = headless
 
+    @profile_locked(get_current_browser_profile_dir)
     def create_track(
         self,
         prompt: str,
@@ -62,24 +81,20 @@ class FlowMusicClient:
         """
         print(f"[FLOW MUSIC] Khởi tạo tác vụ tạo nhạc: '{title}' ({genre} / {mood})")
         print(f"[FLOW MUSIC] Prompt: {prompt[:100]}...")
+        assert_flow_profile_workspace(workspace_id)
 
         # Thư mục đích lưu tệp media cho workspace
         target_dir = MEDIA_ASSETS_DIR / "workspaces" / workspace_id / "media"
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        # Đồng bộ hồ sơ từ NAS về ổ cục bộ để tránh lỗi khóa ProcessSingleton SMB
-        sync_browser_profile(BROWSER_PROFILE_DIR, LOCAL_BROWSER_PROFILE_DIR)
-        ensure_profile_free(LOCAL_BROWSER_PROFILE_DIR)
+        profile_dir = sync_browser_profile()
 
         with sync_playwright() as p:
             context = p.chromium.launch_persistent_context(
-                user_data_dir=str(LOCAL_BROWSER_PROFILE_DIR),
+                user_data_dir=str(profile_dir),
                 channel=BROWSER_CHANNEL,
                 headless=self.headless,
-                args=[
-                    "--disable-blink-features=AutomationControlled",
-                    "--no-sandbox"
-                ]
+                args=browser_launch_args(),
             )
 
             # Bắt giữ Bearer Token từ các request API của Flow Music
@@ -133,8 +148,7 @@ class FlowMusicClient:
                 timeout=request_timeout_ms
             )
             if proj_resp.status != 200:
-                context.close()
-                raise RuntimeError(f"[FLOW MUSIC ERROR] Không thể khởi tạo Project trên Flow Music ({proj_resp.status}): {proj_resp.text()[:200]}")
+                _raise_provider_status(proj_resp, context, "Không thể khởi tạo Project trên Flow Music", submitted=False)
 
             proj_data = proj_resp.json()
             project_id = proj_data.get("id")
@@ -152,8 +166,8 @@ class FlowMusicClient:
                 timeout=request_timeout_ms
             )
             if conv_resp.status != 200:
-                context.close()
-                raise RuntimeError(f"[FLOW MUSIC ERROR] Không thể gửi yêu cầu tạo bài hát ({conv_resp.status}): {conv_resp.text()[:200]}")
+                # The request may have reached Flow even when the response is an error.
+                _raise_provider_status(conv_resp, context, "Không thể gửi yêu cầu tạo bài hát", submitted=True)
 
             conv_data = conv_resp.json()
             job_id = conv_data.get("job_id")
@@ -172,6 +186,8 @@ class FlowMusicClient:
                     headers={"Authorization": token},
                     timeout=request_timeout_ms
                 )
+                if p_resp.status in (401, 403, 429):
+                    _raise_provider_status(p_resp, context, "Không thể theo dõi bản nhạc", submitted=True)
                 if p_resp.status == 200:
                     try:
                         c_data = p_resp.json()
@@ -219,8 +235,7 @@ class FlowMusicClient:
             )
 
             if dl_resp.status != 200:
-                context.close()
-                raise RuntimeError(f"[FLOW MUSIC ERROR] Không thể tải dữ liệu âm thanh của clip {chosen_clip_id} ({dl_resp.status}).")
+                _raise_provider_status(dl_resp, context, f"Không thể tải dữ liệu âm thanh của clip {chosen_clip_id}", submitted=True)
 
             audio_data = dl_resp.body()
             api.dispose()
@@ -240,12 +255,13 @@ class FlowMusicClient:
 
             cmd = [
                 "ffmpeg", "-y",
+                "-threads", FFMPEG_THREADS,
                 "-i", str(raw_path),
                 "-af", "loudnorm=I=-14:LRA=7:tp=-1.5",
                 "-b:a", "192k",
                 str(final_path)
             ]
-            subprocess.run(cmd, capture_output=True, check=True)
+            subprocess.run(cmd, capture_output=True, check=True, timeout=FFMPEG_TIMEOUT_SEC)
 
             # Xóa file m4a thô sau khi chuyển đổi thành công
             try:
@@ -269,6 +285,7 @@ class FlowMusicClient:
             print(f"[FLOW MUSIC] Hoàn tất tạo nhạc AI thật: {final_path.name} ({byte_size} bytes, {duration_ms}ms)")
 
             return {
+                **flow_profile_metadata(),
                 "status": "SUCCEEDED",
                 "provider": "FLOW_MUSIC_ASSISTED",
                 "source_product": "FLOW_MUSIC",

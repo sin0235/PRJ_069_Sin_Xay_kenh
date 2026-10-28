@@ -9,12 +9,12 @@ import subprocess
 import sys
 from pathlib import Path
 import uuid
-import hashlib
 import json
 from datetime import datetime, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form, status
-from fastapi.responses import FileResponse
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -45,14 +45,17 @@ from src.schemas.contracts import (
 
 from src.modules.media_studio.service import media_service
 from src.modules.media_studio.job_engine import job_engine
+from src.modules.media_queue.service import FLOW_BACKEND_PROVIDERS, enqueue_media_job, is_production, media_idempotency_hash, resolve_profile_id
 from src.modules.media_studio.music_provider import music_orchestrator
 from src.modules.media_studio.video_provider import video_orchestrator
-from session_manager import FlowLoginRequired, LOCAL_BROWSER_PROFILE_DIR
+import session_manager as flow_session_manager
+
+FlowLoginRequired = flow_session_manager.FlowLoginRequired
+LOCAL_BROWSER_PROFILE_DIR = getattr(flow_session_manager, "LOCAL_BROWSER_PROFILE_DIR", None)
 from src.modules.media_studio.audio_processor import audio_processor
 from src.modules.media_studio.video_processor import video_processor
 from src.modules.media_studio.security import (
-    get_workspace_storage_dir, MEDIA_ROOT_DIR, UPLOAD_SIZE_LIMITS,
-    validate_audio_or_media_file,
+    get_workspace_storage_dir, MEDIA_ROOT_DIR, hash_file, stream_media_to_tempfile,
 )
 
 media_router = APIRouter(prefix="/v1/media", tags=["Media Studio"])
@@ -61,7 +64,7 @@ FLOW_SESSION_MANAGER = Path(__file__).resolve().parents[4] / "cong_cu_tu_dong" /
 
 
 def _flow_login_session_running() -> bool:
-    if sys.platform != "linux" or not Path("/proc").is_dir():
+    if sys.platform != "linux" or not Path("/proc").is_dir() or not LOCAL_BROWSER_PROFILE_DIR:
         return False
     profile_arg = b"--user-data-dir=" + os.fsencode(LOCAL_BROWSER_PROFILE_DIR)
     for process in Path("/proc").iterdir():
@@ -96,12 +99,37 @@ def list_media_projects(
 def open_google_flow_login(
     tenant: TenantContext = Depends(require_action("media.upload")),
 ):
-    """Mở tiện ích đăng nhập Flow trên máy chủ đang chạy ứng dụng."""
-    if not any(
-        role.get("role_code") == "WORKSPACE_OWNER" and role.get("scope_type") == "WORKSPACE"
-        for role in tenant.actor.roles
-    ):
+    """Return the browser profile manager in production; retain the local legacy launcher elsewhere."""
+    actor = getattr(tenant, "actor", None)
+    roles = getattr(actor, "roles", None) or []
+    trusted_owner = (
+        actor is not None
+        and not getattr(tenant, "dev_auth_bypass", False)
+        and getattr(tenant, "auth_db", None) is not None
+        and getattr(actor, "user_id", None) == getattr(tenant, "user_id", None)
+        and getattr(actor, "workspace_id", None) == getattr(tenant, "workspace_id", None)
+        and getattr(actor, "membership_status", None) == "ACTIVE"
+        and getattr(actor, "user_status", None) == "ACTIVE"
+        and getattr(actor, "workspace_status", None) == "ACTIVE"
+        and any(
+            isinstance(role, dict)
+            and role.get("role_code") == "WORKSPACE_OWNER"
+            and role.get("scope_type") == "WORKSPACE"
+            and role.get("scope_id") in {None, tenant.workspace_id}
+            and role.get("assignment_status") == "ACTIVE"
+            and role.get("role_status") == "ACTIVE"
+            and role.get("is_active") is True
+            for role in roles
+        )
+    )
+    if not trusted_owner:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Chỉ chủ workspace được mở phiên Google Flow.")
+    if is_production():
+        from src.modules.flow_sessions.router import _require_owner
+
+        _require_owner(tenant)
+        return {"success": True, "url": "/flow-sessions"}
+
     if sys.platform == "win32":
         login_script = Path(__file__).resolve().parents[5] / "00_DANG_NHAP_GOOGLE_FLOW.cmd"
         if not login_script.is_file():
@@ -132,7 +160,7 @@ def open_google_flow_login(
 # ==============================================================================
 
 @media_router.post("/upload", response_model=MediaAssetOut)
-async def upload_asset(
+def upload_asset(
     file: UploadFile = File(...),
     source_product: str = Form("UPLOAD"),
     project_id: Optional[str] = Form(None),
@@ -143,13 +171,13 @@ async def upload_asset(
     """
     Tải lên tệp media (âm thanh, stems, ảnh, video) với xác thực magic bytes (B04, B05).
     """
-    content = await file.read()
-    asset = media_service.upload_asset(
+    file.file.seek(0)
+    asset = media_service.upload_asset_stream(
         db=db,
         workspace_id=tenant.workspace_id,
         user_id=tenant.user_id,
         filename=file.filename or "unknown",
-        data=content,
+        file_obj=file.file,
         source_product=source_product,
         project_id=project_id,
         expected_category=expected_category
@@ -246,7 +274,39 @@ def download_asset(
         )
 
 
-@jobs_router.post("", response_model=AIGenerationJobOut)
+def _ai_job_response_payload(job: AIGenerationJob) -> dict:
+    try:
+        output_asset_ids = json.loads(getattr(job, "output_asset_ids_json", "[]") or "[]")
+    except (TypeError, ValueError):
+        output_asset_ids = []
+    if not isinstance(output_asset_ids, list):
+        output_asset_ids = []
+    return {
+        "id": job.id,
+        "job_id": job.id,
+        "workspace_id": job.workspace_id,
+        "project_id": job.project_id,
+        "asset_type": job.asset_type,
+        "provider": job.provider,
+        "provider_mode": job.provider_mode,
+        "model_id": job.model_id,
+        "idempotency_key": job.idempotency_key,
+        "state": job.state,
+        "estimated_cost": float(job.estimated_cost or 0.0),
+        "actual_cost": float(job.actual_cost or 0.0),
+        "cost_currency": job.cost_currency,
+        "credits_source": job.credits_source,
+        "output_asset_ids": output_asset_ids,
+        "retry_count": job.retry_count,
+        "error_code": job.error_code,
+        "error_message": job.error_message,
+        "created_by": job.created_by,
+        "created_at": job.created_at,
+        "finished_at": job.finished_at,
+    }
+
+
+@jobs_router.post("", response_model=None)
 def submit_ai_job(
     payload: AIGenerationJobCreate,
     budget_cap: Optional[float] = Query(None),
@@ -263,7 +323,89 @@ def submit_ai_job(
         payload=payload,
         budget_cap=budget_cap
     )
-    return job
+    response_payload = jsonable_encoder(_ai_job_response_payload(job))
+    if is_production():
+        return JSONResponse(status_code=202, content=response_payload)
+    return response_payload
+
+
+@jobs_router.post("/{job_id}/resume", response_model=None, status_code=status.HTTP_202_ACCEPTED)
+def resume_ai_job(
+    job_id: str,
+    profile_id: Optional[str] = Query(None, min_length=1, max_length=128),
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(require_action("ai_job.create")),
+):
+    """Resume a queued Flow media job only after a typed, known pre-submit block."""
+    job = db.query(AIGenerationJob).filter(
+        AIGenerationJob.id == job_id,
+        AIGenerationJob.workspace_id == tenant.workspace_id,
+    ).first()
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error_code": "JOB_NOT_FOUND", "message": "Không tìm thấy tác vụ AI."},
+        )
+
+    try:
+        request_payload = json.loads(job.request_payload_json or "{}")
+    except (TypeError, ValueError):
+        request_payload = {}
+    if not isinstance(request_payload, dict):
+        request_payload = {}
+    resumable_codes = {
+        "FLOW_LOGIN_REQUIRED",
+        "FLOW_QUOTA_LIMITED",
+        "FLOW_CREDITS_INSUFFICIENT",
+    }
+    if (
+        job.provider not in {"MEDIA_MUSIC", "MEDIA_VIDEO"}
+        or request_payload.get("operation") not in {"generate_flow_job", "generate_music_track", "generate_video_scene"}
+        or request_payload.get("backend_provider") not in FLOW_BACKEND_PROVIDERS
+        or job.state not in {"BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_QUOTA", "BLOCKED_FLOW_SETUP"}
+        or job.error_code not in resumable_codes
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error_code": "JOB_NOT_RESUMABLE",
+                "message": "Chỉ có thể tiếp tục tác vụ Flow bị chặn trước khi gửi yêu cầu đến nhà cung cấp.",
+            },
+        )
+
+    from src.modules.flow_sessions.service import resolve_profile
+
+    selected_profile = resolve_profile(db, tenant.workspace_id, profile_id or request_payload.get("profile_id"))
+    request_payload["profile_id"] = selected_profile.id
+
+    from sqlalchemy import update
+
+    result = db.execute(update(AIGenerationJob).where(
+        AIGenerationJob.id == job.id,
+        AIGenerationJob.workspace_id == tenant.workspace_id,
+        AIGenerationJob.state.in_(("BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_QUOTA", "BLOCKED_FLOW_SETUP")),
+        AIGenerationJob.error_code.in_(resumable_codes),
+        AIGenerationJob.lease_token.is_(None),
+    ).values(
+        request_payload_json=json.dumps(request_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+        state="QUEUED",
+        error_code=None,
+        error_message=None,
+        finished_at=None,
+        lease_expires_at=None,
+    ))
+    if result.rowcount != 1:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error_code": "JOB_STATE_CHANGED", "message": "Trạng thái tác vụ đã thay đổi; hãy tải lại trạng thái."},
+        )
+    db.commit()
+    db.refresh(job)
+    return JSONResponse(
+        status_code=status.HTTP_202_ACCEPTED,
+        content=jsonable_encoder(_ai_job_response_payload(job)),
+    )
 
 @jobs_router.get("/{job_id}", response_model=AIGenerationJobOut)
 def get_ai_job(
@@ -283,7 +425,34 @@ def get_ai_job(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error_code": "JOB_NOT_FOUND", "message": "Không tìm thấy tác vụ AI."}
         )
-    return job
+    try:
+        output_asset_ids = json.loads(job.output_asset_ids_json or "[]")
+    except (TypeError, ValueError):
+        output_asset_ids = []
+    if not isinstance(output_asset_ids, list):
+        output_asset_ids = []
+    return {
+        "id": job.id,
+        "workspace_id": job.workspace_id,
+        "project_id": job.project_id,
+        "asset_type": job.asset_type,
+        "provider": job.provider,
+        "provider_mode": job.provider_mode,
+        "model_id": job.model_id,
+        "idempotency_key": job.idempotency_key,
+        "state": job.state,
+        "estimated_cost": job.estimated_cost,
+        "actual_cost": job.actual_cost,
+        "cost_currency": job.cost_currency,
+        "credits_source": job.credits_source,
+        "output_asset_ids": output_asset_ids,
+        "retry_count": job.retry_count,
+        "error_code": job.error_code,
+        "error_message": job.error_message,
+        "created_by": job.created_by,
+        "created_at": job.created_at,
+        "finished_at": job.finished_at,
+    }
 
 # ==============================================================================
 # 3. Music Generation & Audio Ducking Endpoints (P08 + GF04)
@@ -307,7 +476,10 @@ def get_music_generation_status(
     job = db.query(AIGenerationJob).filter(
         AIGenerationJob.workspace_id == tenant.workspace_id,
         AIGenerationJob.asset_type == "MUSIC",
-        AIGenerationJob.idempotency_key == idempotency_key,
+        AIGenerationJob.idempotency_key.in_((
+            idempotency_key,
+            media_idempotency_hash(tenant.workspace_id, "MEDIA_MUSIC", idempotency_key),
+        )),
     ).first()
     if not job:
         raise HTTPException(status_code=404, detail={"error_code": "JOB_NOT_FOUND", "message": "Không tìm thấy tác vụ âm nhạc."})
@@ -330,7 +502,7 @@ def get_music_generation_status(
     return {
         "job_id": job.id,
         "state": job.state,
-        "provider": job.provider,
+        "provider": job.provider_mode if job.provider in ("MEDIA_MUSIC", "MEDIA_VIDEO") else job.provider,
         "model_id": job.model_id,
         "credits_source": job.credits_source,
         "error_code": job.error_code,
@@ -339,7 +511,7 @@ def get_music_generation_status(
     }
 
 
-@media_router.post("/music/generate", response_model=MediaAssetOut)
+@media_router.post("/music/generate", response_model=None)
 def generate_music_track(
     prompt: str = Form(...),
     genre: str = Form("Pop"),
@@ -500,6 +672,34 @@ def generate_music_track(
                     status_code=status.HTTP_402_PAYMENT_REQUIRED,
                     detail={"error_code": "QUOTA_EXCEEDED", "message": f"Vượt quá hạn ngạch ngân sách workspace ({budget.spent_units:.2f}/{budget.hard_limit_units:.2f})."}
                 )
+
+    if is_production():
+        effective_key = idempotency_key or str(uuid.uuid4())
+        model_id = "flow-music-web" if target_provider == MusicProviderType.FLOW_BROWSER_PILOT else (
+            "lyria-3-clip-preview" if target_mode == MusicGenerationMode.CLIP_30S else "lyria-3.5"
+        )
+        job = enqueue_media_job(
+            db,
+            workspace_id=tenant.workspace_id,
+            user_id=tenant.user_id,
+            provider="MEDIA_MUSIC",
+            operation="generate_music_track",
+            backend_provider=target_provider.value,
+            provider_mode=target_mode.value,
+            model_id=model_id,
+            prompt_text=prompt.strip(),
+            parameters=canonical_payload,
+            idempotency_key=effective_key,
+            project_id=project_id,
+            profile_id=resolve_profile_id(tenant, canonical_payload),
+            estimated_cost=estimated_cost,
+            credits_source="FLOW_MUSIC_PLUS" if target_provider == MusicProviderType.FLOW_BROWSER_PILOT else "API_BILLING",
+        )
+        return JSONResponse(status_code=202, content={
+            "job_id": job.id,
+            "state": job.state,
+            "idempotency_key": effective_key,
+        })
 
     # 4. Ghi nhận Job SUBMITTING
     job_record = None
@@ -677,15 +877,14 @@ def mix_voice_and_music(
             detail={"error_code": "AUDIO_MIX_FAILED", "message": f"Không thể hòa âm tự động: {exc}"}
         ) from exc
 
-    data = out_path.read_bytes()
-    sha = hashlib.sha256(data).hexdigest()
+    sha, byte_size = hash_file(out_path)
 
     mixed_asset = MediaAsset(
         id=f"asset-{uuid.uuid4().hex[:12]}",
         workspace_id=tenant.workspace_id,
         storage_key=f"workspaces/{tenant.workspace_id}/media/{out_filename}",
         sha256=sha,
-        byte_size=len(data),
+        byte_size=byte_size,
         mime_detected="audio/mpeg",
         source_product="AUDIO_MIXER_DUCKING",
         original_filename=out_filename,
@@ -706,7 +905,7 @@ def mix_voice_and_music(
 
 
 @media_router.post("/video/expand", response_model=MediaAssetOut)
-async def expand_existing_16_9_video(
+def expand_existing_16_9_video(
     file: Optional[UploadFile] = File(None),
     asset_id: Optional[str] = Form(None),
     project_id: Optional[str] = Form(None),
@@ -734,10 +933,10 @@ async def expand_existing_16_9_video(
     parent_asset_id = None
 
     if file and file.filename:
-        file_bytes = await file.read(UPLOAD_SIZE_LIMITS["video"] + 1)
-        validate_audio_or_media_file(file_bytes, file.filename, expected_category="video")
-        temp_input_path = out_dir / f"flow_raw_16_9_{uuid.uuid4().hex}.mp4"
-        temp_input_path.write_bytes(file_bytes)
+        file.file.seek(0)
+        temp_input_path, _, _, _ = stream_media_to_tempfile(
+            file.file, file.filename, "video", out_dir
+        )
         input_path = temp_input_path
     elif asset_id:
         existing = db.query(MediaAsset).filter(
@@ -765,8 +964,7 @@ async def expand_existing_16_9_video(
             blur_strength=blur_strength,
             remove_watermark=remove_watermark
         )
-        data = expanded_path.read_bytes()
-        sha = hashlib.sha256(data).hexdigest()
+        sha, byte_size = hash_file(expanded_path)
 
         asset = MediaAsset(
             id=f"asset-{uuid.uuid4().hex[:12]}",
@@ -775,7 +973,7 @@ async def expand_existing_16_9_video(
             parent_asset_id=parent_asset_id,
             storage_key=f"workspaces/{tenant.workspace_id}/media/{expanded_filename}",
             sha256=sha,
-            byte_size=len(data),
+            byte_size=byte_size,
             mime_detected="video/mp4",
             source_product="FLOW_OMNI_EXPANDED_9_16",
             original_filename=expanded_filename,
@@ -802,7 +1000,7 @@ async def expand_existing_16_9_video(
 
 
 @media_router.post("/video/remove-watermark", response_model=MediaAssetOut)
-async def remove_watermark_from_video(
+def remove_watermark_from_video(
     file: Optional[UploadFile] = File(None),
     asset_id: Optional[str] = Form(None),
     use_cpu: bool = Form(True),
@@ -814,16 +1012,18 @@ async def remove_watermark_from_video(
     bằng công nghệ Reverse Alpha Blending & NCNN AI Denoiser (VeoWatermarkRemover v0.6.5).
     Đảm bảo video sạch 100%, không còn logo AI gây phản cảm cho người xem.
     """
-    import uuid, hashlib
+    import uuid
     out_dir = get_workspace_storage_dir(tenant.workspace_id)
     input_path = None
+    temp_input_path = None
     original_name = "video.mp4"
 
     if file and file.filename:
-        file_bytes = await file.read()
-        tmp_name = f"raw_for_clean_{uuid.uuid4().hex[:8]}_{file.filename}"
-        input_path = out_dir / tmp_name
-        input_path.write_bytes(file_bytes)
+        file.file.seek(0)
+        temp_input_path, _, _, _ = stream_media_to_tempfile(
+            file.file, file.filename, "video", out_dir
+        )
+        input_path = temp_input_path
         original_name = file.filename
     elif asset_id:
         existing = db.query(MediaAsset).filter(
@@ -838,48 +1038,51 @@ async def remove_watermark_from_video(
     else:
         raise HTTPException(status_code=400, detail="Vui lòng cung cấp file video hoặc asset_id.")
 
-    if not input_path or not input_path.exists():
-        raise HTTPException(status_code=404, detail="Tập tin video nguồn không tồn tại trên hệ thống.")
-
-    clean_filename = f"veo_cleaned_{uuid.uuid4().hex[:10]}.mp4"
-    clean_path = out_dir / clean_filename
-
     try:
-        res = video_processor.remove_veo_watermark(
-            input_video_path=input_path,
-            output_video_path=clean_path,
-            use_cpu=use_cpu
+        if not input_path or not input_path.exists():
+            raise HTTPException(status_code=404, detail="Tập tin video nguồn không tồn tại trên hệ thống.")
+
+        clean_filename = f"veo_cleaned_{uuid.uuid4().hex[:10]}.mp4"
+        clean_path = out_dir / clean_filename
+
+        try:
+            video_processor.remove_veo_watermark(
+                input_video_path=input_path,
+                output_video_path=clean_path,
+                use_cpu=use_cpu
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Lỗi khi khử watermark Veo: {exc}"
+            ) from exc
+
+        meta = video_processor.probe_video(clean_path)
+        sha, byte_size = hash_file(clean_path)
+
+        asset = MediaAsset(
+            id=f"asset-{uuid.uuid4().hex[:12]}",
+            workspace_id=tenant.workspace_id,
+            storage_key=f"workspaces/{tenant.workspace_id}/media/{clean_filename}",
+            sha256=sha,
+            byte_size=byte_size,
+            mime_detected="video/mp4",
+            source_product="VEO_WATERMARK_CLEANED",
+            original_filename=f"clean_{original_name}",
+            created_by=tenant.user_id,
+            duration_ms=int(meta.get("duration_seconds", 0.0) * 1000),
+            approval_state="APPROVED"
         )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Lỗi khi khử watermark Veo: {exc}"
-        ) from exc
+        db.add(asset)
+        db.commit()
+        db.refresh(asset)
 
-    meta = video_processor.probe_video(clean_path)
-    data = clean_path.read_bytes()
-    sha = hashlib.sha256(data).hexdigest()
-
-    asset = MediaAsset(
-        id=f"asset-{uuid.uuid4().hex[:12]}",
-        workspace_id=tenant.workspace_id,
-        storage_key=f"workspaces/{tenant.workspace_id}/media/{clean_filename}",
-        sha256=sha,
-        byte_size=len(data),
-        mime_detected="video/mp4",
-        source_product="VEO_WATERMARK_CLEANED",
-        original_filename=f"clean_{original_name}",
-        created_by=tenant.user_id,
-        duration_ms=int(meta.get("duration_seconds", 0.0) * 1000),
-        approval_state="APPROVED"
-    )
-    db.add(asset)
-    db.commit()
-    db.refresh(asset)
-
-    out = MediaAssetOut.model_validate(asset)
-    out.url = f"/v1/media/assets/{asset.id}/download?ttl=3600"
-    return out
+        out = MediaAssetOut.model_validate(asset)
+        out.url = f"/v1/media/assets/{asset.id}/download?ttl=3600"
+        return out
+    finally:
+        if temp_input_path:
+            temp_input_path.unlink(missing_ok=True)
 
 @media_router.post("/video/prompt/compile", response_model=CompiledVideoPrompt)
 def compile_video_prompt(
@@ -897,7 +1100,7 @@ def compile_video_prompt(
         duration_seconds=duration_seconds
     )
 
-@media_router.post("/video/generate", response_model=MediaAssetOut)
+@media_router.post("/video/generate", response_model=None)
 def generate_video_scene(
     prompt: str = Form(...),
     aspect_ratio: str = Form("9:16"),
@@ -905,6 +1108,7 @@ def generate_video_scene(
     project_id: Optional[str] = Form(None),
     start_image_asset_id: Optional[str] = Form(None),
     remove_watermark: bool = Form(False),
+    idempotency_key: Optional[str] = Form(None),
     db: Session = Depends(get_db),
     tenant: TenantContext = Depends(require_action("media.upload"))
 ):
@@ -933,6 +1137,38 @@ def generate_video_scene(
         start_image_path = (MEDIA_ROOT_DIR / image_asset.storage_key).resolve()
         if not start_image_path.is_relative_to(MEDIA_ROOT_DIR.resolve()) or not start_image_path.is_file():
             raise HTTPException(status_code=404, detail={"error_code": "IMAGE_NOT_FOUND", "message": "Tệp ảnh tham chiếu không tồn tại."})
+
+    if is_production():
+        effective_key = idempotency_key or str(uuid.uuid4())
+        parameters = {
+            "prompt": prompt,
+            "aspect_ratio": aspect_ratio,
+            "use_official_omni": use_official_omni,
+            "start_image_asset_id": start_image_asset_id,
+            "remove_watermark": remove_watermark,
+            "project_id": project_id,
+        }
+        job = enqueue_media_job(
+            db,
+            workspace_id=tenant.workspace_id,
+            user_id=tenant.user_id,
+            provider="MEDIA_VIDEO",
+            operation="generate_video_scene",
+            backend_provider="GOOGLE_OMNI_FLASH" if use_official_omni else "GOOGLE_FLOW",
+            provider_mode="OFFICIAL_API" if use_official_omni else "FLOW_BROWSER_PILOT",
+            model_id="google-omni-flash" if use_official_omni else "google-flow",
+            prompt_text=prompt,
+            parameters=parameters,
+            idempotency_key=effective_key,
+            project_id=project_id,
+            profile_id=resolve_profile_id(tenant, parameters),
+            credits_source="API_BILLING" if use_official_omni else "GOOGLE_FLOW_PRO",
+        )
+        return JSONResponse(status_code=202, content={
+            "job_id": job.id,
+            "state": job.state,
+            "idempotency_key": effective_key,
+        })
 
     try:
         asset = video_orchestrator.generate_video_scene(
@@ -1017,15 +1253,14 @@ def assemble_tiktok_video(
             detail={"error_code": "ASSEMBLE_FAILED", "message": f"Lỗi ghép nối video: {exc}"}
         ) from exc
 
-    data = out_path.read_bytes()
-    sha = hashlib.sha256(data).hexdigest()
+    sha, byte_size = hash_file(out_path)
 
     assembled_asset = MediaAsset(
         id=f"asset-{uuid.uuid4().hex[:12]}",
         workspace_id=tenant.workspace_id,
         storage_key=f"workspaces/{tenant.workspace_id}/media/{out_filename}",
         sha256=sha,
-        byte_size=len(data),
+        byte_size=byte_size,
         mime_detected="video/mp4",
         source_product="TIKTOK_ASSEMBLY",
         original_filename=out_filename,
@@ -1338,8 +1573,7 @@ def render_project_timeline(
             detail={"error_code": "RENDER_FAILED", "message": f"Lỗi render video: {exc}"}
         ) from exc
 
-    data = out_path.read_bytes()
-    sha = hashlib.sha256(data).hexdigest()
+    sha, byte_size = hash_file(out_path)
 
     rendered_asset = MediaAsset(
         id=f"asset-{uuid.uuid4().hex[:12]}",
@@ -1347,7 +1581,7 @@ def render_project_timeline(
         project_id=project_id,
         storage_key=f"workspaces/{tenant.workspace_id}/media/{out_filename}",
         sha256=sha,
-        byte_size=len(data),
+        byte_size=byte_size,
         mime_detected="video/mp4",
         source_product="TIMELINE_RENDER",
         original_filename=out_filename,

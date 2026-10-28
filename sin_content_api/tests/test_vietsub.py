@@ -42,7 +42,36 @@ def test_vietsub_model_loader_is_cpu_only(monkeypatch):
     monkeypatch.setitem(sys.modules, "faster_whisper", fake_module)
 
     assert vietsub._load_model() == "model"
-    assert calls == [(('small',), {"device": "cpu", "compute_type": "int8"})]
+    assert calls == [(('small',), {"device": "cpu", "compute_type": "int8", "cpu_threads": 2, "num_workers": 1})]
+
+
+def test_production_asr_times_out_in_child_process(monkeypatch, tmp_path):
+    import pytest
+
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.delenv("VIETSUB_INFERENCE_CHILD", raising=False)
+    calls = []
+
+    def timeout(command, **options):
+        calls.append((command, options))
+        raise subprocess.TimeoutExpired(command, options["timeout"])
+
+    monkeypatch.setattr(vietsub.subprocess, "run", timeout)
+    monkeypatch.setattr(vietsub, "_get_model", lambda: pytest.fail("worker must not load ASR in-process"))
+    with pytest.raises(vietsub.VietsubError, match="VIETSUB_ASR_TIMEOUT"):
+        vietsub.transcribe_vietnamese(tmp_path / "voice.wav")
+    assert calls[0][1]["timeout"] == 600
+    assert calls[0][1]["env"]["VIETSUB_INFERENCE_CHILD"] == "1"
+
+
+def test_production_asr_uses_durable_model_cache(monkeypatch, tmp_path):
+    calls = []
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("PRJ069_VIENU_HF_HOME", str(tmp_path / "vieneu"))
+    monkeypatch.setitem(sys.modules, "faster_whisper", SimpleNamespace(
+        WhisperModel=lambda *args, **options: calls.append(options)))
+    vietsub._load_model()
+    assert calls[0]["download_root"] == str(tmp_path / "whisper")
 
 
 def test_vietsub_cache_reuses_matching_audio_and_srt_is_valid(tmp_path, monkeypatch):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import uuid
 
@@ -130,6 +131,16 @@ def list_voice_profiles(db: Session, workspace_id: str) -> list[dict]:
 
 
 def submit_voice_job(db: Session, workspace_id: str, user_id: str, request: VoiceStudioCreateRequest) -> AIGenerationJob:
+    if os.getenv("APP_ENV", "").lower() == "production":
+        from src.model_runtime import require_provider, model_status
+        from src.modules.tao_video_noi_dung.tts_provider import TTSProviderError
+        try:
+            require_provider(request.provider)
+        except TTSProviderError as exc:
+            raise HTTPException(503, detail={"error_code": str(exc), "message": "Provider TTS chưa sẵn sàng trên NAS."}) from exc
+        if model_status()["state"] != "READY":
+            raise HTTPException(503, detail={"error_code": "TTS_MODEL_NOT_READY", "message": "Model TTS chưa được chuẩn bị xong."})
+
     dictionary = request.pronunciation_dictionary
     if dictionary is None:
         dictionary = get_voice_studio_settings(db, workspace_id)["pronunciation_dictionary"]

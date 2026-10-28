@@ -1,7 +1,5 @@
 import { AuthApi } from "@/lib/api/auth-api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
 export interface PlatformLLMConfig {
   is_configured: boolean;
   is_enabled: boolean;
@@ -58,8 +56,9 @@ export class PlatformConfigService {
    */
   static async getConfig(): Promise<PlatformLLMConfig> {
     const headers = AuthApi.getAuthHeaders();
-    const res = await fetch(`${API_BASE_URL}/v1/platform/llm-config`, {
+    const res = await fetch("/v1/platform/llm-config", {
       method: "GET",
+      credentials: "same-origin",
       headers,
       cache: "no-store",
     });
@@ -83,8 +82,9 @@ export class PlatformConfigService {
    */
   static async updateConfig(payload: PlatformLLMConfigUpdate): Promise<PlatformLLMConfig> {
     const headers = AuthApi.getAuthHeaders();
-    const res = await fetch(`${API_BASE_URL}/v1/platform/llm-config`, {
+    const res = await fetch("/v1/platform/llm-config", {
       method: "PUT",
+      credentials: "same-origin",
       headers,
       body: JSON.stringify(payload),
     });
@@ -103,8 +103,9 @@ export class PlatformConfigService {
    */
   static async probeGateway(payload: PlatformLLMProbeRequest): Promise<PlatformLLMProbeResult> {
     const headers = AuthApi.getAuthHeaders();
-    const res = await fetch(`${API_BASE_URL}/v1/platform/llm-config/probe`, {
+    const res = await fetch("/v1/platform/llm-config/probe", {
       method: "POST",
+      credentials: "same-origin",
       headers,
       body: JSON.stringify(payload),
     });
@@ -127,8 +128,9 @@ export class PlatformConfigService {
    * Đọc trạng thái công khai tối giản của Cổng LLM (Dành cho Non-Owner)
    */
   static async getPublicStatus(): Promise<PlatformLLMPublicStatus> {
-    const res = await fetch(`${API_BASE_URL}/v1/platform/llm-config/public-status`, {
+    const res = await fetch("/v1/platform/llm-config/public-status", {
       method: "GET",
+      credentials: "same-origin",
       cache: "no-store",
     });
 

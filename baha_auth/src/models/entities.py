@@ -26,6 +26,13 @@ class GlobalUser(Base):
     
     memberships = relationship("Membership", back_populates="user", cascade="all, delete-orphan")
 
+
+class LocalPasswordCredential(Base):
+    __tablename__ = "local_password_credentials"
+
+    user_id = Column(String(36), ForeignKey("global_users.id", ondelete="CASCADE"), primary_key=True)
+    password_hash = Column(String(512), nullable=False)
+
 class Workspace(Base):
     __tablename__ = "workspaces"
     

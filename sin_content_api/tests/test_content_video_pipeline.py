@@ -47,77 +47,6 @@ def test_content_video_migration_upgrades_existing_run_table(monkeypatch):
         engine.dispose()
 
 
-def test_tts_is_synthesized_per_shot_while_fake_video_generation_is_running(monkeypatch):
-    import threading
-    from concurrent.futures import ThreadPoolExecutor
-    import numpy as np
-    from src.modules.tao_video_noi_dung import runner
-
-    started = threading.Event()
-    release_tts = threading.Event()
-    release_video = threading.Event()
-    video_started = threading.Event()
-    video_finished = threading.Event()
-    calls = []
-
-    def synthesize(_config, text, _reference_path):
-        calls.append(text)
-        started.set()
-        assert release_tts.wait(5)
-        seconds = 11 if text == "Cảnh một" else 9
-        rate = 48000
-        return np.ones(seconds * rate, dtype=np.float32) * 0.01, rate
-
-    monkeypatch.setattr(runner.tts_provider_manager, "synthesize", synthesize)
-    shots = [
-        SimpleNamespace(narration="Cảnh một", duration_seconds=10),
-        SimpleNamespace(narration="Cảnh hai", duration_seconds=10),
-    ]
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        tts = runner._queue_tts_voice(executor, {"provider": "fake"}, shots, None)
-        assert started.wait(2)
-
-        def fake_video_generation():
-            video_started.set()
-            assert release_video.wait(5)
-            video_finished.set()
-
-        video = threading.Thread(target=fake_video_generation)
-        video.start()
-        assert video_started.wait(2)
-        release_tts.set()
-        audio, sample_rate = tts.result(timeout=5)
-        assert not video_finished.is_set()
-        release_video.set()
-        video.join(timeout=2)
-
-    assert calls == ["Cảnh một", "Cảnh hai"]
-    assert sample_rate == 48000
-    assert len(audio) == 20 * sample_rate
-    assert np.all(audio[:11 * sample_rate] == 0.01)
-    assert np.all(audio[11 * sample_rate:] == 0.01)
-
-
-def test_tts_keeps_natural_audio_duration_when_a_shot_is_longer(monkeypatch):
-    import numpy as np
-    from src.modules.tao_video_noi_dung import runner
-
-    monkeypatch.setattr(
-        runner.tts_provider_manager,
-        "synthesize",
-        lambda *_args: (np.ones(10 * 48000 + 24000, dtype=np.float32) * 0.01, 48000),
-    )
-
-    audio, sample_rate = runner._synthesize_tts_voice(
-        {"provider": "fake"},
-        [SimpleNamespace(shot_id="s1", narration="Lời dẫn", duration_seconds=10)],
-        None,
-    )
-
-    assert sample_rate == 48000
-    assert len(audio) == 10 * sample_rate + sample_rate // 2
-
-
 def test_tts_subtitles_follow_storyboard_shot_boundaries_without_asr(monkeypatch):
     from src.modules.tao_video_noi_dung import runner
 
@@ -135,10 +64,9 @@ def test_tts_subtitles_follow_storyboard_shot_boundaries_without_asr(monkeypatch
     ]
 
 
-def test_tts_and_fake_ten_second_video_render_together_without_flow(monkeypatch, tmp_path):
+def test_tts_and_ten_second_video_render_without_flow(monkeypatch, tmp_path):
     import subprocess
     import wave
-    from concurrent.futures import ThreadPoolExecutor
     import numpy as np
     from src.modules.tao_video_noi_dung import runner
     from src.schemas.contracts import TimelineAudioTrack, TimelineClip, TimelineDocument, TimelineMediaType
@@ -154,15 +82,12 @@ def test_tts_and_fake_ten_second_video_render_together_without_flow(monkeypatch,
     fake_video = tmp_path / "fake_video.mp4"
     fake_voice = tmp_path / "fake_voice.wav"
     rendered = tmp_path / "rendered.mp4"
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        tts = runner._queue_tts_voice(executor, {"provider": "fake"}, [shot], None)
-        video = executor.submit(subprocess.run, [
-            runner.video_processor.ffmpeg_bin, "-y", "-f", "lavfi", "-i",
-            "color=c=blue:s=360x640:r=24:d=10", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p",
-            "-t", "10", str(fake_video),
-        ], capture_output=True, check=True)
-        audio, sample_rate = tts.result(timeout=30)
-        video.result(timeout=30)
+    audio, sample_rate = runner.tts_provider_manager.synthesize({"provider": "fake"}, shot.narration, None)
+    subprocess.run([
+        runner.video_processor.ffmpeg_bin, "-y", "-f", "lavfi", "-i",
+        "color=c=blue:s=360x640:r=24:d=10", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        "-t", "10", str(fake_video),
+    ], capture_output=True, check=True, timeout=30)
 
     with wave.open(str(fake_voice), "wb") as wav:
         wav.setnchannels(1)
@@ -796,6 +721,24 @@ def test_harness_accepts_persisted_cleaning_state_for_safe_resume():
     assert cong_harness.verify_shot_receipt(run, plan, shot, step)["shot_id"] == shot.shot_id
 
 
+def test_tts_render_output_does_not_change_immutable_flow_command():
+    run, plan, shot, _ = _approved_harness_shot()
+    run.tts_config_json = '{"provider":"VIE_NEU_V3_TURBO"}'
+    step = build_shot_receipt(
+        run_id=run.id, workspace_id=run.workspace_id, project_id=run.project_id,
+        plan=plan, voice_asset_id=None, shot=shot,
+        style_snapshot=json.loads(plan.style_snapshot_json), continuity_anchor="same subject",
+        include_narration_audio=False,
+    )
+    original_hash = step["command_sha256"]
+    run.voice_asset_id = "generated-tts-output"
+    assert cong_harness.verify_shot_receipt(run, plan, shot, step)["voice_asset_id"] is None
+    assert step["command_sha256"] == original_hash
+    step["voice_asset_id"] = "unrelated-audio"
+    with pytest.raises(RuntimeError, match="HARNESS_COMMAND_RECEIPT_INVALID"):
+        cong_harness.verify_shot_receipt(run, plan, shot, step)
+
+
 def test_harness_accepts_approved_prompt_snapshot_after_prompt_builder_changes(monkeypatch):
     run, plan, shot, step = _approved_harness_shot()
     monkeypatch.setattr(cong_harness, "build_shot_prompt", lambda *args, **kwargs: "new prompt after approval")
@@ -1144,6 +1087,57 @@ def _seed_content_video_history(db, run_status="COMPLETED", unfinished_index=Non
     db.add(run)
     db.commit()
     return plan, storyboard, run
+
+
+def test_owner_direct_creation_is_atomic_and_audited():
+    from src.database import Base
+    from src.models.entities import AuditEvent
+    from src.modules.tao_video_noi_dung.service import create_run
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    with sessionmaker(bind=engine)() as db:
+        plan, storyboard, previous = _seed_content_video_history(db)
+        plan.status, plan.approved_by, plan.approved_at = "DRAFT", None, None
+        db.commit()
+        request = CreateRunRequest(plan_id=plan.id, idempotency_key="owner-direct-run")
+        with pytest.raises(Exception) as denied:
+            create_run(db, "project-1", "workspace-1", "creator-1", request)
+        assert denied.value.status_code == 409
+        invalid = request.model_copy(update={"voice_asset_id": "missing"})
+        with pytest.raises(Exception):
+            create_run(db, "project-1", "workspace-1", "creator-1", invalid, allow_direct_creation=True)
+        assert plan.status == "DRAFT"
+        result = create_run(db, "project-1", "workspace-1", "creator-1", request, allow_direct_creation=True)
+        assert result.status == "QUEUED"
+        assert plan.approved_by == "creator-1"
+        assert create_run(db, "project-1", "workspace-1", "creator-1", request, allow_direct_creation=True).id == result.id
+        event = db.query(AuditEvent).filter_by(event_type="OWNER_DIRECT_CONTENT_VIDEO").one()
+        assert json.loads(event.details)["storyboard_sha256"] == plan.storyboard_sha256
+
+
+def test_resume_account_switch_keeps_completed_shots_and_clears_unsent_project():
+    from src.database import Base
+    from src.modules.flow_sessions.service import create_profile
+    from src.modules.tao_video_noi_dung.service import resume_run
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    with sessionmaker(bind=engine)() as db:
+        plan, storyboard, run = _seed_content_video_history(db, run_status="BLOCKED_FLOW_SETUP", unfinished_index=1)
+        old = create_profile(db, "workspace-1", "Old account", "creator-1")
+        new = create_profile(db, "workspace-1", "New account", "creator-1")
+        steps = json.loads(run.steps_json)
+        for step in steps:
+            step['flow_profile_id'] = old.id
+            step['flow_project_url'] = 'https://flow.google.com/project/old'
+        run.steps_json = json.dumps(steps)
+        db.commit()
+        result = resume_run(db, "project-1", run.id, "workspace-1", profile_id=new.id)
+        assert result.steps[0]['asset_id'] == 'asset-s1'
+        assert result.steps[0]['flow_profile_id'] == old.id
+        assert result.steps[0]['flow_project_url'].endswith('/old')
+        assert result.steps[1]['flow_profile_id'] == new.id
+        assert not result.steps[1].get('flow_project_url')
+        assert result.status == "QUEUED"
 
 
 def test_retry_run_reuses_completed_shots_and_regenerates_only_selected_shot():

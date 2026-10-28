@@ -3,8 +3,6 @@
 
 import { AuthApi } from './auth-api';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-
 export interface IdeaCardDTO {
   id: string;
   workspace_id: string;
@@ -73,7 +71,7 @@ export class ContentApi {
   static async getIdeaCards(status?: string): Promise<IdeaCardDTO[]> {
     try {
       const q = status && status !== 'all' ? `?status=${encodeURIComponent(status)}` : '';
-      const res = await fetch(`${API_BASE_URL}/v1/ideation/cards${q}`, {
+      const res = await fetch(`/v1/ideation/cards${q}`, {
         headers: AuthApi.getAuthHeaders(),
       });
       if (!res.ok) return [];
@@ -87,7 +85,7 @@ export class ContentApi {
   static async getScripts(status?: string): Promise<ScriptDraftDTO[]> {
     try {
       const q = status && status !== 'all' ? `?status=${encodeURIComponent(status)}` : '';
-      const res = await fetch(`${API_BASE_URL}/v1/scripts${q}`, {
+      const res = await fetch(`/v1/scripts${q}`, {
         headers: AuthApi.getAuthHeaders(),
       });
       if (!res.ok) return [];
@@ -100,7 +98,7 @@ export class ContentApi {
 
   static async getScriptById(scriptId: string): Promise<ScriptDraftDTO | null> {
     try {
-      const res = await fetch(`${API_BASE_URL}/v1/scripts/${scriptId}`, {
+      const res = await fetch(`/v1/scripts/${scriptId}`, {
         headers: AuthApi.getAuthHeaders(),
       });
       if (!res.ok) return null;
@@ -112,7 +110,7 @@ export class ContentApi {
 
   static async approveScript(scriptId: string): Promise<{ success: boolean; data?: any; error?: string }> {
     try {
-      const res = await fetch(`${API_BASE_URL}/v1/scripts/${scriptId}/approve`, {
+      const res = await fetch(`/v1/scripts/${scriptId}/approve`, {
         method: 'POST',
         headers: AuthApi.getAuthHeaders(),
       });
@@ -128,7 +126,7 @@ export class ContentApi {
 
   static async getSourceRecords(): Promise<SourceRecordDTO[]> {
     try {
-      const res = await fetch(`${API_BASE_URL}/v1/sources/records`, {
+      const res = await fetch("/v1/sources/records", {
         headers: AuthApi.getAuthHeaders(),
       });
       if (!res.ok) return [];

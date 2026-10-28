@@ -7,6 +7,7 @@ import json
 import os
 import pathlib
 import subprocess
+from src.media_process import run_media_command
 from typing import Dict, Any, Optional
 
 class AudioProcessor:
@@ -34,7 +35,7 @@ class AudioProcessor:
             str(filepath)
         ]
 
-        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        res = run_media_command(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
         if res.returncode != 0:
             raise RuntimeError(f"Lỗi khi probe âm thanh: {res.stderr}")
 
@@ -70,7 +71,7 @@ class AudioProcessor:
             "-"
         ]
 
-        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        res = run_media_command(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
         output = res.stderr
         idx = output.find("{")
         if idx != -1:
@@ -186,7 +187,7 @@ class AudioProcessor:
             str(output_path)
         ]
 
-        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        res = run_media_command(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
         if res.returncode != 0:
             raise RuntimeError(f"Lỗi chuẩn hóa âm lượng: {res.stderr}")
 
@@ -232,7 +233,7 @@ class AudioProcessor:
             str(output_path)
         ]
 
-        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        res = run_media_command(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
         if res.returncode != 0:
             raise RuntimeError(f"Lỗi khi thực hiện auto-ducking: {res.stderr}")
 
@@ -264,7 +265,7 @@ class AudioProcessor:
             str(output_path)
         ]
 
-        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        res = run_media_command(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
         if res.returncode != 0:
             raise RuntimeError(f"Lỗi khi trim and fade âm thanh: {res.stderr}")
 

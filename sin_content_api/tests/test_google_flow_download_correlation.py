@@ -177,16 +177,27 @@ def test_localized_flow_agent_editor_is_accepted_without_legacy_video_mode_menu(
             self.first = self
 
         def wait_for(self, **_kwargs):
-            assert self.visible
+            pass
 
         def count(self):
             return int(self.visible)
+
+        def get_attribute(self, _name):
+            return "false"
 
         def is_visible(self):
             return self.visible
 
     class Page:
         def locator(self, selector):
+            if selector == "button.agent-mode-chip":
+                return Locator(False)
+            if "settings-trigger-button" in selector or "aria-label*='settings'" in selector:
+                return Locator(False)
+            if "Nano Banana" in selector or "button:has-text('Video')" in selector or "button:has-text('Veo')" in selector:
+                return Locator(False)
+            if selector == '[role="textbox"]':
+                return Locator(False)
             if "data-slate-editor" in selector or "ProseMirror" in selector:
                 return Locator(True)
             if "crop_16_9" in selector:
@@ -209,7 +220,11 @@ def test_flow_video_mode_selects_requested_portrait_ratio():
             self.found = found
 
         def wait_for(self, **_kwargs):
-            assert self.found
+            if not self.found:
+                raise flow_client.PlaywrightTimeoutError("Locator is not visible")
+
+        def get_attribute(self, _name):
+            return "false"
 
         def count(self):
             return int(self.found)
@@ -221,14 +236,22 @@ def test_flow_video_mode_selects_requested_portrait_ratio():
         url = "https://flow.google.com/project/test/edit/abc"
 
         def locator(self, selector):
+            if selector == "button.agent-mode-chip":
+                return Locator("agent-mode", found=False)
+            if "settings-trigger-button" in selector or "aria-label*='settings'" in selector:
+                return Locator("generation-settings", found=False)
+            if "Nano Banana" in selector or "button:has-text('Video')" in selector or "button:has-text('Veo')" in selector:
+                return Locator("model-button", found=False)
+            if selector == '[role="textbox"]':
+                return Locator("textbox", found=False)
             if "data-slate-editor" in selector or "ProseMirror" in selector:
                 return Locator("editor")
+            if "trigger-VIDEO" in selector:
+                return Locator("video-mode")
+            if "trigger-PORTRAIT" in selector:
+                return Locator("portrait")
             if "button[aria-haspopup='menu']" in selector:
                 return Locator("aspect-menu")
-            if "trigger-VIDEO" in selector or "play_circle" in selector:
-                return Locator("video-mode")
-            if "trigger-PORTRAIT" in selector or "crop_9_16" in selector:
-                return Locator("portrait")
             return Locator("missing", found=False)
 
         def wait_for_timeout(self, _milliseconds):

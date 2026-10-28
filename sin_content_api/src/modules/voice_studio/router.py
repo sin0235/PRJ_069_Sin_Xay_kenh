@@ -89,3 +89,13 @@ def get_voice_job(
     if not job:
         raise HTTPException(404, detail={"error_code": "VOICE_JOB_NOT_FOUND", "message": "Không tìm thấy tác vụ TTS."})
     return serialize_voice_job(db, job)
+
+
+@router.get("/capabilities")
+def get_capabilities(tenant: TenantContext = Depends(require_action("media.read"))):
+    from src.model_runtime import model_status
+    from src.runtime_status import worker_status
+    return {"providers": {
+        "VIE_NEU_V3_TURBO": model_status(),
+        "GWEN_TTS": {"state": "NOT_READY", "error_code": "TTS_PROVIDER_NOT_READY"},
+    }, "worker": worker_status()}

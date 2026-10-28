@@ -796,6 +796,8 @@ class AIGenerationJob(Base):
     provider_mode = Column(String(50), nullable=False) # OFFICIAL_API, SUBSCRIPTION_ASSISTED, TEST_MOCK
     model_id = Column(String(100), nullable=False)
     idempotency_key = Column(String(128), unique=True, nullable=False, index=True)
+    lease_token = Column(String(36), nullable=True)
+    lease_expires_at = Column(DateTime, nullable=True)
     state = Column(String(50), nullable=False, default="QUEUED") # DRAFT, QUEUED, RUNNING, SUCCEEDED, FAILED, CANCELLED, EXPIRED
     request_payload_json = Column(Text, nullable=False, default="{}")
     estimated_cost = Column(Float, nullable=False, default=0.0)

@@ -1333,7 +1333,9 @@ def test_timeline_save_concurrent_integrity_error_returns_409(video_fixture, mon
     # Monkeypatch db.commit trong save_project_timeline để ném IntegrityError
     orig_commit = Session.commit
     def mock_commit(self):
-        raise IntegrityError("UNIQUE constraint failed: timeline_versions.project_id, timeline_versions.version", params=[], orig=Exception("unique constraint"))
+        if self.get_bind() is engine:
+            raise IntegrityError("UNIQUE constraint failed: timeline_versions.project_id, timeline_versions.version", params=[], orig=Exception("unique constraint"))
+        return orig_commit(self)
 
     monkeypatch.setattr(Session, "commit", mock_commit)
 

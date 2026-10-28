@@ -1,0 +1,10 @@
+services:
+  init:
+    environment:
+      PRJ069_BOOTSTRAP_MODE: copy
+      PRJ069_BOOTSTRAP_SOURCE_DIR: /seed
+    volumes:
+      - type: bind
+        source: ${PRJ069_BOOTSTRAP_SOURCE_HOST_DIR:?Set PRJ069_BOOTSTRAP_SOURCE_HOST_DIR to an explicit migration source directory}
+        target: /seed
+        read_only: true

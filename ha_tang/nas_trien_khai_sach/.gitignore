@@ -1,0 +1,8 @@
+deploy.env
+deploy.env.*
+!deploy.env.example
+secrets/
+seed/*
+!seed/.gitkeep
+backups/
+releases/

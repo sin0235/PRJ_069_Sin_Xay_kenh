@@ -43,6 +43,8 @@ class SlowFlowPage:
 
 
 class SlowEditor:
+    first = property(lambda self: self)
+
     def __init__(self):
         self.wait_count = 0
 
@@ -60,10 +62,30 @@ class SlowEditorPage:
 
     def locator(self, selector):
         if "data-slate-editor" in selector:
-            return type("Locator", (), {"first": self.editor})()
+            return self.editor
         if "agent-action-button" in selector:
-            return type("Locator", (), {"first": type("Settings", (), {"count": lambda _self: 1, "is_visible": lambda _self: True})()})()
-        return type("Locator", (), {"first": type("Missing", (), {"count": lambda _self: 0})()})()
+            locator = type(
+                "Settings",
+                (),
+                {
+                    "first": property(lambda self: self),
+                    "count": lambda _self: 1,
+                    "is_visible": lambda _self: True,
+                    "wait_for": lambda _self, **_kwargs: None,
+                },
+            )()
+            return locator
+        locator = type(
+            "Missing",
+            (),
+            {
+                "first": property(lambda self: self),
+                "count": lambda _self: 0,
+                "wait_for": lambda _self, **_kwargs: None,
+                "get_attribute": lambda _self, _name: None,
+            },
+        )()
+        return locator
 
     def goto(self, url, **_kwargs):
         self.reloaded_urls.append(url)

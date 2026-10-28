@@ -3,13 +3,14 @@ from __future__ import annotations
 import json
 import hashlib
 import logging
+import os
 import subprocess
 import threading
 import tempfile
 import uuid
 import wave
 import zipfile
-from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -17,6 +18,8 @@ from fastapi import HTTPException, status
 from sqlalchemy import or_, update
 
 from src.database import SessionLocal
+from src.media_process import run_media_command
+from src.worker_fencing import fence_session, WorkerLeaseLost
 from src.models.entities import (
     ContentVideoPlan,
     ContentVideoRun,
@@ -29,7 +32,7 @@ from src.modules.media_studio.security import MEDIA_ROOT_DIR, get_workspace_stor
 from src.modules.media_studio.audio_processor import audio_processor
 from src.modules.media_studio.video_processor import VIETSUB_FONT_PATH, video_processor
 from src.schemas.contracts import TimelineAudioTrack, TimelineCaption, TimelineClip, TimelineDocument, TimelineMediaType
-from session_manager import FlowLoginRequired, FlowSubmissionNotSent
+from session_manager import FlowLoginRequired, FlowSubmissionNotSent, FlowQuotaExceeded
 from .cong_harness import approval_receipt_hash, dispatch_shot, verify_shot_receipt
 from .contracts import ReconcileShotRequest
 from .planner import Storyboard
@@ -73,7 +76,7 @@ def evaluate_shot_qc(meta: dict, used_duration_seconds: int, decode_ok: bool = T
 
 def _probe_shot_with_qc(path: Path, used_duration_seconds: int, aspect_ratio: str = "9:16") -> tuple[dict, list[str]]:
     meta = video_processor.probe_video(path)
-    decode = subprocess.run(
+    decode = run_media_command(
         [video_processor.ffmpeg_bin, "-v", "error", "-i", str(path), "-f", "null", "-"],
         capture_output=True, text=True, timeout=120, check=False,
     )
@@ -104,7 +107,7 @@ def _verified_asset_path(asset: MediaAsset, error_code: str) -> Path:
 def _extract_final_reference_frame(path: Path, workspace_id: str) -> tempfile.TemporaryDirectory:
     temp_dir = tempfile.TemporaryDirectory(prefix=f"flow_reference_{workspace_id}_")
     frame_path = Path(temp_dir.name) / "khung_hinh_cuoi.png"
-    result = subprocess.run(
+    result = run_media_command(
         [video_processor.ffmpeg_bin, "-y", "-sseof", "-0.15", "-i", str(path), "-frames:v", "1", str(frame_path)],
         capture_output=True, text=True, timeout=60, check=False,
     )
@@ -129,8 +132,9 @@ def _mark_flow_setup_blocked(run: ContentVideoRun, steps: list[dict], error: Exc
     if not active:
         return False
     active["state"] = "READY"
-    run.status = "BLOCKED_FLOW_SETUP"
-    run.error_code = "FLOW_CREDITS_INSUFFICIENT" if "FLOW_CREDITS_INSUFFICIENT" in str(error) else "FLOW_REQUEST_NOT_SUBMITTED"
+    quota = "FLOW_QUOTA_LIMITED" in str(error)
+    run.status = "BLOCKED_FLOW_QUOTA" if quota else "BLOCKED_FLOW_SETUP"
+    run.error_code = "FLOW_QUOTA_LIMITED" if quota else "FLOW_CREDITS_INSUFFICIENT" if "FLOW_CREDITS_INSUFFICIENT" in str(error) else "FLOW_REQUEST_NOT_SUBMITTED"
     run.error_message = str(error)[:1000]
     run.finished_at = None
     run.steps_json = json.dumps(steps, ensure_ascii=False, separators=(",", ":"))
@@ -219,8 +223,11 @@ class _RunHeartbeat:
 def _recover_expired_runs(db) -> None:
     stale_runs = db.query(ContentVideoRun).filter(
         ContentVideoRun.status == "RUNNING",
-        ContentVideoRun.lease_expires_at < _now(),
-    ).all()
+        or_(ContentVideoRun.lease_expires_at < _now(), ContentVideoRun.lease_expires_at.is_(None)),
+    )
+    if os.getenv("SIN_WORKSPACE_ID"):
+        stale_runs = stale_runs.filter(ContentVideoRun.workspace_id == os.environ["SIN_WORKSPACE_ID"])
+    stale_runs = stale_runs.all()
     for run in stale_runs:
         steps = json.loads(run.steps_json or "[]")
         active = next((step for step in steps if step.get("state") == "SUBMITTING"), None)
@@ -241,7 +248,10 @@ def _recover_expired_runs(db) -> None:
 
 def _claim_next_run(db, token: str) -> ContentVideoRun | None:
     _recover_expired_runs(db)
-    run = db.query(ContentVideoRun).filter(ContentVideoRun.status == "QUEUED").order_by(ContentVideoRun.created_at).first()
+    query = db.query(ContentVideoRun).filter(ContentVideoRun.status == "QUEUED")
+    if os.getenv("SIN_WORKSPACE_ID"):
+        query = query.filter(ContentVideoRun.workspace_id == os.environ["SIN_WORKSPACE_ID"])
+    run = query.order_by(ContentVideoRun.created_at).first()
     if not run:
         return None
     result = db.query(ContentVideoRun).filter(
@@ -423,28 +433,62 @@ def _tts_reference_path(db, run: ContentVideoRun) -> str | None:
     return str(_verified_asset_path(reference, "TTS_REFERENCE"))
 
 
-def _synthesize_tts_voice(config: dict, shots: list, reference_path: str | None) -> tuple[object, int]:
+def _prepare_run_tts(db, run: ContentVideoRun, shots: list, config: dict, token: str):
+    """Lưu từng đoạn đã hoàn tất; restart không phải sinh lại toàn bộ giọng đọc."""
     import numpy as np
-
-    sample_rate = None
-    segments = []
-    for shot in shots:
-        audio, source_rate = tts_provider_manager.synthesize(config, shot.narration, reference_path)
-        samples = np.asarray(audio, dtype=np.float32).reshape(-1)
-        if samples.size == 0 or not np.isfinite(samples).all() or source_rate <= 0:
+    reference = _tts_reference_path(db, run)
+    reference_hash = _file_sha256(Path(reference)) if reference else None
+    steps = json.loads(run.steps_json or "[]")
+    samples, rate = [], None
+    for index, shot in enumerate(shots):
+        fingerprint = hashlib.sha256(json.dumps([config, shot.narration, reference_hash],
+            sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        key = hashlib.sha256(f"{run.id}:{index}:{fingerprint}".encode()).hexdigest()
+        directory = f"workspaces/{run.workspace_id}/media/.tts/"
+        storage_key = f"{directory}{key}_{token[:8]}.npz"
+        checkpoint = steps[index].get("tts_audio", {})
+        cached_key = checkpoint.get("storage_key", "")
+        if checkpoint.get("input_hash") == fingerprint and isinstance(cached_key, str) and cached_key.startswith(f"{directory}{key}_"):
+            storage_key = cached_key
+        path = (MEDIA_ROOT_DIR / storage_key).resolve()
+        if not path.is_relative_to((MEDIA_ROOT_DIR / directory).resolve()):
+            raise TTSProviderError("TTS_CHECKPOINT_PATH_INVALID")
+        valid = (checkpoint.get("input_hash") == fingerprint and path.is_file()
+            and checkpoint.get("sha256") == _file_sha256(path))
+        if not valid:
+            storage_key = f"{directory}{key}_{token[:8]}.npz"
+            path = (MEDIA_ROOT_DIR / storage_key).resolve()
+        if valid:
+            with np.load(path, allow_pickle=False) as data:
+                audio, source_rate = data["audio"].copy(), int(data["sample_rate"])
+        else:
+            run.current_step = f"TTS:{shot.shot_id}"
+            db.commit()
+            audio, source_rate = tts_provider_manager.synthesize(config, shot.narration, reference)
+            audio = np.asarray(audio, dtype=np.float32).reshape(-1)
+            if not audio.size or source_rate <= 0 or not np.isfinite(audio).all():
+                raise TTSProviderError("TTS_AUDIO_INVALID")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            temporary = path.with_suffix(f".{token}.tmp")
+            try:
+                with temporary.open("wb") as stream:
+                    np.savez(stream, audio=audio, sample_rate=int(source_rate))
+                temporary.replace(path)
+            finally:
+                temporary.unlink(missing_ok=True)
+            steps[index]["tts_audio"] = {"storage_key": storage_key, "sha256": _file_sha256(path),
+                "input_hash": fingerprint, "sample_rate": int(source_rate),
+                "duration_ms": round(len(audio) * 1000 / source_rate)}
+            _save_run(db, run, steps)
+        if not audio.size or source_rate <= 0 or not np.isfinite(audio).all():
             raise TTSProviderError("TTS_AUDIO_INVALID")
-        if sample_rate is not None and source_rate != sample_rate:
+        if rate is not None and rate != source_rate:
             raise TTSProviderError("TTS_SAMPLE_RATE_MISMATCH")
-        sample_rate = int(source_rate)
-        segments.append(samples)
-
-    if not segments:
+        samples.append(audio)
+        rate = int(source_rate)
+    if not samples:
         raise TTSProviderError("TTS_AUDIO_INVALID")
-    return np.concatenate(segments), sample_rate
-
-
-def _queue_tts_voice(executor: ThreadPoolExecutor, config: dict, shots: list, reference_path: str | None):
-    return executor.submit(_synthesize_tts_voice, config, shots, reference_path)
+    return np.concatenate(samples), rate
 
 
 def _save_tts_voice(db, run: ContentVideoRun, audio, sample_rate: int) -> None:
@@ -456,7 +500,8 @@ def _save_tts_voice(db, run: ContentVideoRun, audio, sample_rate: int) -> None:
     ):
         raise TTSProviderError("TTS_AUDIO_INVALID")
     pcm = (np.clip(samples, -1.0, 1.0) * 32767).astype("<i2").tobytes()
-    filename = f"content_video_{run.id}_tts.wav"
+    token = (getattr(run, "lease_token", None) or uuid.uuid4().hex)[:8]
+    filename = f"content_video_{run.id}_tts_{token}.wav"
     storage_key = f"workspaces/{run.workspace_id}/media/{filename}"
     output_path = MEDIA_ROOT_DIR / storage_key
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -470,7 +515,6 @@ def _save_tts_voice(db, run: ContentVideoRun, audio, sample_rate: int) -> None:
         temporary_path.replace(output_path)
     finally:
         temporary_path.unlink(missing_ok=True)
-    data = output_path.read_bytes()
     meta = audio_processor.probe_audio(output_path)
     if meta.get("codec_name") not in {"pcm_s16le", "wav"} or float(meta.get("duration_seconds", 0)) <= 0:
         output_path.unlink(missing_ok=True)
@@ -478,7 +522,7 @@ def _save_tts_voice(db, run: ContentVideoRun, audio, sample_rate: int) -> None:
     asset = MediaAsset(
         id=f"asset-{uuid.uuid4().hex[:12]}", workspace_id=run.workspace_id,
         project_id=run.project_id, storage_key=storage_key,
-        sha256=hashlib.sha256(data).hexdigest(), byte_size=len(data),
+        sha256=_file_sha256(output_path), byte_size=output_path.stat().st_size,
         mime_detected="audio/wav", duration_ms=int(meta["duration_seconds"] * 1000),
         source_product="CONTENT_VIDEO_TTS", original_filename=filename,
         created_by=run.created_by, approval_state="UNREVIEWED",
@@ -490,11 +534,11 @@ def _save_tts_voice(db, run: ContentVideoRun, audio, sample_rate: int) -> None:
     db.refresh(run)
 
 
-def _tts_captions(shots: list, height: int = 1920, width: int = 1080) -> list[TimelineCaption]:
+def _tts_captions(shots: list, height: int = 1920, width: int = 1080, durations_ms: list[int] | None = None) -> list[TimelineCaption]:
     captions = []
     start_ms = 0
     for index, shot in enumerate(shots, start=1):
-        duration_ms = shot.duration_seconds * 1000
+        duration_ms = durations_ms[index - 1] if durations_ms is not None else shot.duration_seconds * 1000
         captions.append(TimelineCaption(
             caption_id=f"tts_{index:03d}",
             text=shot.narration,
@@ -601,7 +645,13 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     include_subtitles = getattr(run, "include_subtitles", True)
     is_tts_voice = bool(voice_asset and getattr(voice_asset, "source_product", None) == "CONTENT_VIDEO_TTS")
     if voice_input and include_subtitles and is_tts_voice:
-        caption_cues = _tts_captions(storyboard.shots, height=height, width=width)
+        measured = [step.get("tts_audio", {}).get("duration_ms") for step in json.loads(run.steps_json or "[]")]
+        durations = None
+        if len(measured) == len(storyboard.shots) and all(isinstance(item, (int, float)) and item > 0 for item in measured):
+            # Captions burn before the renderer retimes video; undo that scale here.
+            speed = min(1.1, max(0.9, plan.target_duration_seconds * 1000 / voice_asset.duration_ms))
+            durations = [max(1, round(item * speed)) for item in measured]
+        caption_cues = _tts_captions(storyboard.shots, height=height, width=width, durations_ms=durations)
     elif voice_input and include_subtitles:
         audio_sha256 = voice_asset.sha256 or _file_sha256(voice_input[1])
         cache_key = hashlib.sha256(f"{run.workspace_id}:{audio_sha256}:{VIETSUB_MODEL_SIZE}".encode("utf-8")).hexdigest()
@@ -690,7 +740,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     ):
         if key in render_meta:
             meta[key] = render_meta[key]
-    decode = subprocess.run(
+    decode = run_media_command(
         [video_processor.ffmpeg_bin, "-v", "error", "-i", str(output_path), "-f", "null", "-"],
         capture_output=True,
         text=True,
@@ -774,14 +824,13 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     report["export_asset_id"] = export_id
     package_path = out_dir / f"content_video_{run.id}_v{version}_export.zip"
     _write_export_package(package_path, output_path, run, plan, timeline, report, shot_asset_hashes, json.loads(run.steps_json or "[]"), voice_asset)
-    data = output_path.read_bytes()
     output = MediaAsset(
         id=f"asset-{uuid.uuid4().hex[:12]}",
         workspace_id=run.workspace_id,
         project_id=run.project_id,
         storage_key=f"workspaces/{run.workspace_id}/media/{filename}",
-        sha256=hashlib.sha256(data).hexdigest(),
-        byte_size=len(data),
+        sha256=_file_sha256(output_path),
+        byte_size=output_path.stat().st_size,
         mime_detected="video/mp4",
         duration_ms=int(meta["duration_seconds"] * 1000),
         source_product="CONTENT_VIDEO_RENDER",
@@ -819,23 +868,45 @@ def process_run(run_id: str, token: str | None = None) -> None:
     token = token or str(uuid.uuid4())
     with SessionLocal() as db:
         run = db.get(ContentVideoRun, run_id)
-        if not run:
+        if not run or run.lease_token != token or run.status != "RUNNING":
             return
+        fence_session(db, token)
         heartbeat = _RunHeartbeat(run_id, token)
         heartbeat.start()
-        tts_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="content-video-tts")
-        tts_future = None
         try:
+            if os.getenv("APP_ENV", "").lower() == "production":
+                from src.modules.media_queue.service import authorized_worker_tenant
+                with authorized_worker_tenant(run.workspace_id, run.created_by):
+                    pass
             plan, _ = _plan_and_project(db, run)
             storyboard = Storyboard.model_validate_json(plan.storyboard_json)
+            if os.getenv("APP_ENV", "").lower() == "production":
+                steps = json.loads(run.steps_json or "[]")
+                from src.modules.flow_sessions.service import resolve_profile
+                for step in steps:
+                    if step.get("state") != "READY":
+                        continue
+                    try:
+                        selected = resolve_profile(db, run.workspace_id, step.get("flow_profile_id"))
+                    except HTTPException:
+                        run.status = "BLOCKED_FLOW_SETUP"
+                        run.error_code = "FLOW_PROFILE_REQUIRED"
+                        run.error_message = "Chọn profile Flow rồi tiếp tục run."
+                        db.commit()
+                        return
+                    step["flow_profile_id"] = selected.id
+                _save_run(db, run, steps)
             tts_config = json.loads(run.tts_config_json) if run.tts_config_json else None
             if tts_config and not run.voice_asset_id:
-                tts_future = _queue_tts_voice(
-                    tts_executor, tts_config, storyboard.shots, _tts_reference_path(db, run),
-                )
+                run.current_step = "TTS"
+                db.commit()
+                audio, sample_rate = _prepare_run_tts(db, run, storyboard.shots, tts_config, token)
+                _save_tts_voice(db, run, audio, sample_rate)
             _voice_input(db, run, plan)
             steps = json.loads(run.steps_json or "[]")
-            flow_project_url = next((step.get("flow_project_url") for step in steps if step.get("flow_project_url")), None)
+            pending_profile = next((step.get("flow_profile_id") for step in steps if step.get("state") == "READY"), None)
+            flow_project_url = next((step.get("flow_project_url") for step in steps
+                if step.get("flow_project_url") and step.get("flow_profile_id") == pending_profile), None)
 
             def save_flow_project_url(project_url: str) -> None:
                 nonlocal flow_project_url
@@ -849,8 +920,6 @@ def process_run(run_id: str, token: str | None = None) -> None:
                 raise RuntimeError("WORKER_LEASE_LOST")
 
             for shot_index, (step, shot) in enumerate(zip(steps, storyboard.shots, strict=True)):
-                if tts_future and tts_future.done():
-                    tts_future.result()
                 verify_shot_receipt(run, plan, shot, step)
                 if step.get("state") == "SUCCEEDED":
                     continue
@@ -878,6 +947,9 @@ def process_run(run_id: str, token: str | None = None) -> None:
                     run.error_message = f"Không gửi lại shot {shot.shot_id} vì trạng thái nhà cung cấp chưa rõ."
                     db.commit()
                     return
+                if os.getenv("APP_ENV", "").lower() == "production":
+                    with authorized_worker_tenant(run.workspace_id, run.created_by):
+                        pass
                 reference_temp = None
                 reference_path = None
                 reference_asset_id = None
@@ -900,31 +972,62 @@ def process_run(run_id: str, token: str | None = None) -> None:
                     reference_asset_id = previous_asset.id
                 step["state"] = "SUBMITTING"
                 step["started_at"] = _now().isoformat()
+                step["provider_attempt_id"] = step["operation_id"]
                 run.current_step = shot.shot_id
                 _save_run(db, run, steps)
                 if not _heartbeat(db, token):
                     raise RuntimeError("WORKER_LEASE_LOST")
                 try:
                     try:
-                        asset = dispatch_shot(
-                            db=db,
-                            run=run,
-                            plan=plan,
-                            shot=shot,
-                            step=step,
-                            start_image_path=reference_path,
-                            start_image_asset_id=reference_asset_id,
-                            flow_project_url=flow_project_url,
-                            on_flow_project_created=save_flow_project_url,
-                        )
+                        from src.modules.flow_sessions.context import profile_context
+                        selected = step.get("flow_profile_id")
+                        if selected:
+                            from src.modules.flow_sessions.service import resolve_profile
+                            resolve_profile(db, run.workspace_id, selected)
+                        context = profile_context(run.workspace_id, selected, flow_project_url) if selected else nullcontext()
+                        with context:
+                            asset = dispatch_shot(
+                                db=db,
+                                run=run,
+                                plan=plan,
+                                shot=shot,
+                                step=step,
+                                start_image_path=reference_path,
+                                start_image_asset_id=reference_asset_id,
+                                flow_project_url=flow_project_url,
+                                on_flow_project_created=save_flow_project_url,
+                            )
                     finally:
                         if reference_temp:
                             reference_temp.cleanup()
+                except FlowQuotaExceeded as exc:
+                    if step.get("flow_profile_id"):
+                        from src.modules.flow_sessions.service import resolve_profile
+                        profile = resolve_profile(db, run.workspace_id, step["flow_profile_id"])
+                        profile.state = "QUOTA_LIMITED"
+                        profile.google_flow_state = "QUOTA_LIMITED"
+                    if exc.submitted:
+                        step["state"] = "NEEDS_RECONCILIATION"
+                        run.status = "NEEDS_RECONCILIATION"
+                        run.error_code = "PROVIDER_SUBMISSION_UNCERTAIN"
+                        run.error_message = "Flow báo hết hạn mức sau khi gửi. Cần đối soát trước khi đổi tài khoản và gửi tiếp."
+                    else:
+                        step["state"] = "READY"
+                        run.status = "BLOCKED_FLOW_QUOTA"
+                        run.error_code = "FLOW_QUOTA_LIMITED"
+                        run.error_message = "Chọn hoặc đăng nhập tài khoản Flow khác rồi tiếp tục run."
+                    _save_run(db, run, steps)
+                    return
                 except FlowLoginRequired:
                     step["state"] = "READY"
                     run.status = "BLOCKED_FLOW_LOGIN"
                     run.error_code = "FLOW_LOGIN_REQUIRED"
                     run.error_message = "Đăng nhập Google Flow rồi tiếp tục run."
+                    if step.get("flow_profile_id"):
+                        from src.modules.flow_sessions.service import resolve_profile
+                        profile = resolve_profile(db, run.workspace_id, step["flow_profile_id"])
+                        profile.state = "LOGIN_REQUIRED"
+                        profile.google_flow_state = "LOGIN_REQUIRED"
                     _save_run(db, run, steps)
                     return
                 if asset.workspace_id != run.workspace_id or asset.project_id != run.project_id:
@@ -943,9 +1046,6 @@ def process_run(run_id: str, token: str | None = None) -> None:
                 })
                 run.output_asset_ids_json = json.dumps([item.get("asset_id") for item in steps if item.get("asset_id")])
                 _save_run(db, run, steps)
-            if tts_future:
-                audio, sample_rate = tts_future.result()
-                _save_tts_voice(db, run, audio, sample_rate)
             asset_ids = [step["asset_id"] for step in steps]
             shot_assets = db.query(MediaAsset).filter(
                 MediaAsset.id.in_(asset_ids),
@@ -957,12 +1057,22 @@ def process_run(run_id: str, token: str | None = None) -> None:
             if _has_duplicate_shot_media([asset.sha256 for asset in shot_assets]):
                 raise RuntimeError("DUPLICATE_SHOT_MEDIA")
             _render_and_qc(db, run, plan, storyboard, asset_ids)
+        except WorkerLeaseLost:
+            db.rollback()
+            logger.warning("Discarding expired worker result: run_id=%s", run_id)
         except FlowSubmissionNotSent as exc:
             db.rollback()
             run = db.get(ContentVideoRun, run_id)
-            if run:
+            if run and run.lease_token == token and _heartbeat(db, token):
                 steps = json.loads(run.steps_json or "[]")
-                if not _mark_flow_setup_blocked(run, steps, exc):
+                if _mark_flow_setup_blocked(run, steps, exc):
+                    active = next((step for step in steps if step.get("state") == "READY" and step.get("flow_profile_id")), None)
+                    if active and run.error_code in {"FLOW_CREDITS_INSUFFICIENT", "FLOW_QUOTA_LIMITED"}:
+                        from src.modules.flow_sessions.service import resolve_profile
+                        profile = resolve_profile(db, run.workspace_id, active["flow_profile_id"])
+                        profile.state = "QUOTA_LIMITED"
+                        profile.google_flow_state = "QUOTA_LIMITED"
+                else:
                     run.status = "FAILED"
                     run.error_code = "CONTENT_VIDEO_RUN_FAILED"
                     run.error_message = str(exc)[:1000]
@@ -972,7 +1082,7 @@ def process_run(run_id: str, token: str | None = None) -> None:
         except Exception as exc:
             db.rollback()
             run = db.get(ContentVideoRun, run_id)
-            if run:
+            if run and run.lease_token == token and _heartbeat(db, token):
                 steps = json.loads(run.steps_json or "[]")
                 active = next((step for step in steps if step.get("state") == "SUBMITTING"), None)
                 if active:
@@ -988,7 +1098,6 @@ def process_run(run_id: str, token: str | None = None) -> None:
                 db.commit()
             logger.exception("Content video run failed: run_id=%s", run_id)
         finally:
-            tts_executor.shutdown(wait=True, cancel_futures=True)
             heartbeat.stop()
             _release_lease(db, token)
 
@@ -1029,7 +1138,10 @@ class ContentVideoWorker:
                                 worked = True
                                 process_voice_studio_job(voice_job.id, token)
                             else:
-                                _release_lease(db, token)
+                                from src.modules.media_queue.service import process_next_media_job
+                                worked = process_next_media_job(db, token)
+                                if not worked:
+                                    _release_lease(db, token)
             except Exception:
                 logger.exception("Content video worker poll failed")
             if not worked:

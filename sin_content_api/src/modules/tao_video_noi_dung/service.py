@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import uuid
 from datetime import datetime, timezone
 
@@ -9,7 +10,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.models.entities import ContentVideoPlan, ContentVideoRun, MediaAsset, ProductionProject
+from src.models.entities import AuditEvent, ContentVideoPlan, ContentVideoRun, MediaAsset, ProductionProject
 from src.modules.llm.client import LLMClient, LLMClientError
 from .contracts import (
     ContentVideoPlanResponse,
@@ -290,6 +291,8 @@ def create_run(
     workspace_id: str,
     user_id: str,
     request: CreateRunRequest,
+    *,
+    allow_direct_creation: bool = False,
 ) -> ContentVideoRunResponse:
     _project(db, project_id, workspace_id)
     plan = db.query(ContentVideoPlan).filter(
@@ -299,13 +302,21 @@ def create_run(
     ).first()
     if not plan:
         raise HTTPException(status_code=404, detail={"error_code": "PLAN_NOT_FOUND", "message": "Không tìm thấy storyboard."})
-    if plan.status != "APPROVED" or not plan.approved_by or not plan.approved_at:
-        raise HTTPException(status_code=409, detail={"error_code": "PLAN_NOT_APPROVED", "message": "Cần duyệt storyboard trước khi sản xuất."})
-
     tts_config = _tts_config(request)
+    if tts_config and os.getenv("APP_ENV", "").lower() == "production":
+        from src.model_runtime import require_provider, model_status
+        from .tts_provider import TTSProviderError
+        try:
+            require_provider(tts_config["provider"])
+        except TTSProviderError as exc:
+            raise HTTPException(503, detail={"error_code": str(exc), "message": "Provider TTS chưa sẵn sàng trên NAS."}) from exc
+        if model_status()["state"] != "READY":
+            raise HTTPException(503, detail={"error_code": "TTS_MODEL_NOT_READY", "message": "Cần chuẩn bị model TTS trước khi tạo video."})
     tts_config_json = json.dumps(tts_config, ensure_ascii=False, sort_keys=True, separators=(",", ":")) if tts_config else None
     existing = db.query(ContentVideoRun).filter(ContentVideoRun.idempotency_key == request.idempotency_key).first()
     if existing:
+        if request.flow_profile_id and any(step.get("flow_profile_id") != request.flow_profile_id for step in json.loads(existing.steps_json or "[]")):
+            raise HTTPException(409, detail={"error_code": "IDEMPOTENCY_KEY_REUSED", "message": "Khóa đã dùng với profile Flow khác."})
         if not _same_run_request(existing, workspace_id, project_id, plan.id, request.voice_asset_id, tts_config_json, request.include_subtitles):
             raise HTTPException(status_code=409, detail={"error_code": "IDEMPOTENCY_KEY_REUSED", "message": "Khóa idempotency đã được dùng cho một run khác."})
         return _run_response(existing)
@@ -328,9 +339,29 @@ def create_run(
         if not reference_asset or not (reference_asset.mime_detected or "").startswith("audio/"):
             raise HTTPException(status_code=404, detail={"error_code": "TTS_REFERENCE_NOT_FOUND", "message": "Audio tham chiếu không thuộc dự án này hoặc không phải tệp âm thanh."})
 
+    profile_id = request.flow_profile_id
+    if profile_id or os.getenv("APP_ENV", "").lower() == "production":
+        from src.modules.flow_sessions.service import resolve_profile
+        profile_id = resolve_profile(db, workspace_id, profile_id).id
     style = json.loads(plan.style_snapshot_json)
     StyleSnapshot.model_validate(style)
     storyboard = Storyboard.model_validate_json(plan.storyboard_json)
+    if plan.status == "DRAFT" and allow_direct_creation:
+        approved = db.query(ContentVideoPlan).filter(
+            ContentVideoPlan.id == plan.id, ContentVideoPlan.status == "DRAFT",
+            ContentVideoPlan.storyboard_sha256 == plan.storyboard_sha256,
+        ).update({"status": "APPROVED", "approved_by": user_id,
+            "approved_at": datetime.now(timezone.utc)}, synchronize_session=False)
+        db.refresh(plan)
+        if approved:
+            db.add(AuditEvent(workspace_id=workspace_id, actor_id=user_id,
+                event_type="OWNER_DIRECT_CONTENT_VIDEO", details=json.dumps({
+                    "plan_id": plan.id, "revision": plan.revision,
+                    "storyboard_sha256": plan.storyboard_sha256,
+                    "style_snapshot_sha256": plan.style_snapshot_sha256,
+                })))
+    if plan.status != "APPROVED" or not plan.approved_by or not plan.approved_at:
+        raise HTTPException(status_code=409, detail={"error_code": "PLAN_NOT_APPROVED", "message": "Cần duyệt storyboard trước khi sản xuất."})
     approval_hash = approval_receipt_hash(plan)
     run_id = str(uuid.uuid4())
     steps = []
@@ -346,6 +377,9 @@ def create_run(
             continuity_anchor=storyboard.continuity_anchor,
             include_narration_audio=not voice_asset and not tts_config,
         ))
+    if profile_id:
+        for step in steps:
+            step["flow_profile_id"] = profile_id
     run = ContentVideoRun(
         id=run_id,
         workspace_id=workspace_id,
@@ -462,10 +496,16 @@ def retry_run(
     for shot, old_step in zip(storyboard.shots, source_steps, strict=True):
         step = build_shot_receipt(
             run_id=retry_id, workspace_id=workspace_id, project_id=project_id, plan=plan,
-            voice_asset_id=source.voice_asset_id, shot=shot, style_snapshot=style,
+            voice_asset_id=None if tts_config_json else source.voice_asset_id, shot=shot, style_snapshot=style,
             continuity_anchor=storyboard.continuity_anchor,
             include_narration_audio=not source.voice_asset_id and not tts_config_json,
         )
+        if old_step.get("flow_profile_id"):
+            step["flow_profile_id"] = old_step["flow_profile_id"]
+        if old_step.get("tts_audio"):
+            step["tts_audio"] = old_step["tts_audio"]
+        if old_step.get("flow_project_url") and not request.new_flow_project:
+            step["flow_project_url"] = old_step["flow_project_url"]
         if old_step.get("state") == "CLEANING":
             raw_asset_id = old_step.get("raw_asset_id") or old_step.get("asset_id")
             raw_asset = db.query(MediaAsset).filter(
@@ -536,7 +576,7 @@ def retry_run(
     return _run_response(retry)
 
 
-def resume_run(db: Session, project_id: str, run_id: str, workspace_id: str) -> ContentVideoRunResponse:
+def resume_run(db: Session, project_id: str, run_id: str, workspace_id: str, profile_id: str | None = None) -> ContentVideoRunResponse:
     _project(db, project_id, workspace_id)
     run = db.query(ContentVideoRun).filter(
         ContentVideoRun.id == run_id,
@@ -568,10 +608,19 @@ def resume_run(db: Session, project_id: str, run_id: str, workspace_id: str) -> 
             MediaAsset.workspace_id == workspace_id,
         ).count()
         render_only_retry = bool(voice_asset) and shot_asset_count == len(set(asset_ids))
-    if run.status not in {"BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_SETUP"} and not render_only_retry:
+    tts_retry = run.status == "FAILED" and (run.error_code or "").startswith("TTS_")
+    if run.status not in {"BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_SETUP", "BLOCKED_FLOW_QUOTA"} and not render_only_retry and not tts_retry:
         raise HTTPException(status_code=409, detail={"error_code": "RUN_NOT_RESUMABLE", "message": "Run chưa ở trạng thái có thể tiếp tục an toàn."})
     if any(step.get("state") in {"SUBMITTING", "NEEDS_RECONCILIATION"} for step in steps):
         raise HTTPException(status_code=409, detail={"error_code": "RUN_HAS_UNCERTAIN_SHOT", "message": "Cần đối soát shot chưa rõ kết quả trước khi tiếp tục."})
+    if profile_id:
+        from src.modules.flow_sessions.service import resolve_profile
+        selected = resolve_profile(db, workspace_id, profile_id)
+        for step in steps:
+            if step.get("state") == "READY" and step.get("flow_profile_id") != selected.id:
+                step["flow_profile_id"] = selected.id
+                step.pop("flow_project_url", None)
+        run.steps_json = json.dumps(steps, ensure_ascii=False, separators=(",", ":"))
     run.status = "QUEUED"
     run.error_code = None
     run.error_message = None

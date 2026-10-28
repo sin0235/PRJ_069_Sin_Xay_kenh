@@ -24,7 +24,7 @@ def test_vieneu_loads_turbo_on_cpu_with_isolated_non_shared_cache(tmp_path, monk
 
     assert calls == [{
         "mode": "v3turbo", "device": "cpu", "backend": "onnx",
-        "precision": "fp32", "threads": 0,
+        "precision": "fp32", "threads": 2,
     }]
     assert os.environ["HF_HOME"] == str(tmp_path / "vieneu-hf")
     assert os.environ["HF_HUB_DISABLE_SYMLINKS"] == "1"

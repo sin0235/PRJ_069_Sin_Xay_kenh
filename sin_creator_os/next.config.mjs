@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
-const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+const apiBaseUrl = (process.env.API_INTERNAL_URL || "http://api:8000").replace(/\/+$/, "");
 
 const nextConfig = {
+  output: "standalone",
   reactCompiler: true,
   compiler: {
     removeConsole: process.env.NODE_ENV === "production",

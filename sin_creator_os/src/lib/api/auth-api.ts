@@ -19,6 +19,11 @@ export interface WorkspaceSession {
   name: string;
 }
 
+export interface AuthSession {
+  user: UserSession;
+  workspace: WorkspaceSession;
+}
+
 export interface LoginResult {
   success: boolean;
   token?: string;
@@ -27,131 +32,160 @@ export interface LoginResult {
   error?: string;
 }
 
+let currentUser: UserSession | null = null;
+let currentWorkspace: WorkspaceSession | null = null;
+
+function clearStoredSession(): void {
+  currentUser = null;
+  currentWorkspace = null;
+  const storage = browserStorage();
+  try {
+    storage?.removeItem("baha_workspace_id");
+    storage?.removeItem("baha_user_profile");
+  } catch {
+    // Browser storage is only a display cache; cookie validation remains authoritative.
+  }
+}
+
 export class AuthApi {
   static isAuthenticated(): boolean {
-    if (typeof window === "undefined") return false;
-    const storage = browserStorage();
-    const token = storage?.getItem("baha_auth_token") || storage?.getItem("baha_access_token");
-    if (token && token.length > 20) return true;
-    try {
-      return document.cookie.split(";").some((item) => item.trim().startsWith("baha_auth_token="));
-    } catch {
-      return false;
-    }
+    return Boolean(currentUser?.id && currentWorkspace?.id);
   }
 
   static getAuthToken(): string {
-    if (typeof window !== "undefined") {
-      const storage = browserStorage();
-      const stored = storage?.getItem("baha_auth_token") || storage?.getItem("baha_access_token");
-      if (stored && stored.length > 20) return stored;
-      // Trích xuất từ cookie nếu localStorage bị trống
-      try {
-        const match = document.cookie.match(/baha_auth_token=([^;]+)/);
-        if (match && match[1]) return decodeURIComponent(match[1]);
-      } catch {
-        return "";
-      }
-    }
     return "";
   }
 
   static getWorkspaceId(): string {
-    if (typeof window !== "undefined") {
-      const stored = browserStorage()?.getItem("baha_workspace_id");
-      if (stored) return stored;
+    if (currentWorkspace?.id) return currentWorkspace.id;
+    try {
+      return browserStorage()?.getItem("baha_workspace_id") || "";
+    } catch {
+      return "";
     }
-    return "default_ws";
   }
 
   static getCurrentUser(): UserSession {
-    if (typeof window !== "undefined") {
+    if (currentUser) return currentUser;
+    try {
       const raw = browserStorage()?.getItem("baha_user_profile");
       if (raw) {
-        try {
-          return JSON.parse(raw);
-        } catch {
-          // ignore
-        }
+        currentUser = JSON.parse(raw) as UserSession;
+        return currentUser;
       }
+    } catch {
+      // Invalid local profile is ignored; the server cookie remains authoritative.
     }
-    return {
-      id: "usr_sin_owner",
-      email: "sin@test.com",
-      full_name: "Sin Admin (Highest Privilege)",
-      role: "WORKSPACE_OWNER",
-    };
+    return { id: "", email: "", full_name: "", role: "" };
   }
 
   static getAuthHeaders(): Record<string, string> {
-    const token = this.getAuthToken();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": this.getWorkspaceId(),
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`,
-    };
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    const workspaceId = AuthApi.getWorkspaceId();
+    if (workspaceId) headers["X-Workspace-Id"] = workspaceId;
     return headers;
+  }
+
+  static async refreshSession(): Promise<AuthSession | null> {
+    const storage = browserStorage();
+
+    const workspaceId = AuthApi.getWorkspaceId();
+    const headers: Record<string, string> = {};
+    if (workspaceId) headers["X-Workspace-Id"] = workspaceId;
+
+    try {
+      const response = await fetch("/v1/auth/me", {
+        method: "GET",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers,
+      });
+      if (!response.ok) {
+        clearStoredSession();
+        return null;
+      }
+
+      const data = await response.json();
+      if (
+        !data.user?.id ||
+        !data.user?.email ||
+        !data.workspace?.id ||
+        !data.workspace?.name ||
+        (data.workspace_id && data.workspace_id !== data.workspace.id) ||
+        (workspaceId && workspaceId !== data.workspace.id)
+      ) {
+        clearStoredSession();
+        return null;
+      }
+
+      const session: AuthSession = {
+        user: {
+          id: data.user.id,
+          email: data.user.email,
+          full_name: data.user.full_name || data.user.email,
+          role: typeof data.user.role === "string" ? data.user.role : "",
+        },
+        workspace: {
+          id: data.workspace.id,
+          name: data.workspace.name,
+        },
+      };
+      currentUser = session.user;
+      currentWorkspace = session.workspace;
+      try {
+        storage?.setItem("baha_workspace_id", session.workspace.id);
+        storage?.setItem("baha_user_profile", JSON.stringify(session.user));
+      } catch {
+        // In-memory state still lets mounted UI render the verified profile.
+      }
+      return session;
+    } catch {
+      clearStoredSession();
+      return null;
+    }
   }
 
   static async login(email: string, pass: string): Promise<LoginResult> {
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password: pass }),
       });
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        return {
-          success: false,
-          error: data.error || "Email hoặc mật khẩu không chính xác.",
-        };
+        return { success: false, error: data.error || "Email hoặc mật khẩu không chính xác." };
+      }
+      if (!data.user?.id || !data.workspace?.id) {
+        return { success: false, error: "Máy chủ xác thực trả về hồ sơ không hợp lệ." };
       }
 
-      if (typeof window !== "undefined") {
-        const storage = browserStorage();
-        storage?.setItem("baha_auth_token", data.token);
-        storage?.setItem("baha_access_token", data.token);
-        storage?.setItem("baha_workspace_id", data.workspace?.id || "default_ws");
+      const storage = browserStorage();
+      currentUser = data.user;
+      currentWorkspace = data.workspace;
+      try {
+        storage?.setItem("baha_workspace_id", data.workspace.id);
         storage?.setItem("baha_user_profile", JSON.stringify(data.user));
-
-        try {
-          document.cookie = `baha_auth_token=${encodeURIComponent(data.token)}; path=/; max-age=2592000; SameSite=Lax`;
-        } catch {
-          // Cookie HTTP-only từ route đăng nhập vẫn được giữ.
-        }
+      } catch {
+        // The HttpOnly cookie remains the session source of truth.
       }
 
-      return {
-        success: true,
-        token: data.token,
-        user: data.user,
-        workspace: data.workspace,
-      };
-    } catch (e: any) {
-      return { success: false, error: e?.message || "Không thể kết nối đến máy chủ xác thực." };
+      return { success: true, user: data.user, workspace: data.workspace };
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Không thể kết nối đến máy chủ xác thực.";
+      return { success: false, error: message };
     }
   }
 
   static async logout(): Promise<void> {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
     } catch {
-      // ignore
+      // Clear the local display state even if the server is unavailable.
     }
 
-    if (typeof window !== "undefined") {
-      const storage = browserStorage();
-      storage?.removeItem("baha_auth_token");
-      storage?.removeItem("baha_access_token");
-      storage?.removeItem("baha_workspace_id");
-      storage?.removeItem("baha_user_profile");
-      try {
-        document.cookie = "baha_auth_token=; path=/; max-age=0; SameSite=Lax";
-      } catch {
-        // Cookie đã được xóa qua route logout.
-      }
-    }
+    clearStoredSession();
   }
 }

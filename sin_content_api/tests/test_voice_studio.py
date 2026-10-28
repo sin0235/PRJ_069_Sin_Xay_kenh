@@ -108,7 +108,8 @@ def test_voice_worker_writes_asset_without_video_project(db_session, workspace_a
         created_by=user_id,
     )
     token = str(uuid.uuid4())
-    db_session.add_all([job, ContentVideoWorkerLease(name=voice_worker.LEASE_NAME, token=token)])
+    job.lease_token = token
+    db_session.add_all([job, ContentVideoWorkerLease(name=voice_worker.LEASE_NAME, token=token, expires_at=voice_worker._now() + __import__("datetime").timedelta(minutes=8))])
     db_session.commit()
     monkeypatch.setattr(voice_worker, "MEDIA_ROOT_DIR", tmp_path)
     synthesis = []

@@ -1,40 +1,88 @@
-"""Xác thực người dùng là Platform Owner cho các API quản trị cấp toàn cục."""
+"""Xác thực owner nền tảng từ danh tính được cấu hình, không tin role trong JWT."""
 
-from __future__ import annotations
-
-import os
 from typing import Optional
-from fastapi import Header, HTTPException, Request, status
 
-from src.auth.tenancy import _canonical_auth_modules, dev_auth_bypass_enabled
+from fastapi import Cookie, Header, HTTPException, Request, status
+
+from baha_auth.src.models.entities import GlobalUser
+from src.auth.tenancy import _canonical_auth_modules, dev_auth_bypass_enabled, require_trusted_origin
 from src.config import settings
+
+
+def _is_configured_owner(user_id: str, workspace_id: Optional[str]) -> bool:
+    configured_by_id = user_id in settings.platform_owner_ids_set
+    if not configured_by_id and not settings.auth_owner_email:
+        return False
+    if not workspace_id:
+        return configured_by_id and settings.app_env.casefold() != "production"
+
+    auth = _canonical_auth_modules()
+    auth_db_generator = auth["get_auth_db"]()
+    auth_db = next(auth_db_generator)
+    try:
+        auth["set_tenant_context"](workspace_id, auth_db)
+        user = auth_db.get(GlobalUser, user_id)
+        actor = auth["load_actor_for_user"](auth_db, workspace_id=workspace_id, user_id=user_id)
+        return bool(
+            user
+            and user.status == "ACTIVE"
+            and (
+                configured_by_id
+                or user.email.casefold() == settings.auth_owner_email
+            )
+            and actor
+            and any(
+                grant.get("role_code") in {"WORKSPACE_OWNER", "PLATFORM_OWNER"}
+                and grant.get("scope_type") == "WORKSPACE"
+                and grant.get("scope_id") in {None, workspace_id}
+                and grant.get("assignment_status") == "ACTIVE"
+                and grant.get("role_status") == "ACTIVE"
+                and grant.get("is_active") is True
+                for grant in actor.roles
+            )
+        )
+    finally:
+        try:
+            auth["clear_tenant_context"](auth_db)
+        finally:
+            close = getattr(auth_db_generator, "close", None)
+            if close is not None:
+                close()
 
 
 def require_platform_owner(
     request: Request,
     authorization: Optional[str] = Header(None, alias="Authorization"),
+    baha_auth_token: Optional[str] = Cookie(None, alias="baha_auth_token"),
 ) -> str:
-    """
-    Xác minh JWT bearer token và đảm bảo người dùng có quyền Quản Trị Viên Nền Tảng (Platform Owner).
-    Trả về user_id của Platform Owner.
-    Từ chối mọi role khác (kể cả WORKSPACE_OWNER) với HTTP 403 Forbidden.
-    """
+    """Trả user_id khi JWT và danh tính owner được cấu hình còn hợp lệ."""
     if dev_auth_bypass_enabled(request):
         return "dev-user"
 
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Cần bearer token hợp lệ.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    token = authorization[len("Bearer "):].strip()
+    token = ""
+    used_cookie = False
+    if authorization is not None:
+        if not authorization.startswith("Bearer "):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Cần bearer token hợp lệ.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        token = authorization[len("Bearer "):].strip()
+        if not token and baha_auth_token:
+            token = baha_auth_token
+            used_cookie = True
+    elif baha_auth_token:
+        token = baha_auth_token
+        used_cookie = True
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Cần bearer token hợp lệ.",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    if used_cookie and request.method.upper() not in {"GET", "HEAD", "OPTIONS"}:
+        require_trusted_origin(request)
 
     auth = _canonical_auth_modules()
     try:
@@ -51,23 +99,9 @@ def require_platform_owner(
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
 
-    user_id = identity.user_id
-
-    # 1. Kiểm tra danh sách PLATFORM_OWNER_USER_IDS hoặc định danh Sin Admin (Quản trị viên nền tảng tối cao)
-    owner_ids = settings.platform_owner_ids_set
-
-    is_owner = False
-    if user_id in owner_ids or user_id in {"usr_sin_owner", "sin_owner"}:
-        is_owner = True
-    elif getattr(identity, "role", None) in {"PLATFORM_OWNER", "platform_owner"}:
-        is_owner = True
-    elif os.environ.get("TESTING") == "1" and (user_id.startswith("platform_owner") or user_id.startswith("owner_")):
-        is_owner = True
-
-    if not is_owner:
+    if not _is_configured_owner(identity.user_id, identity.workspace_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Yêu cầu quyền Quản Trị Viên Nền Tảng (Platform Owner). Thao tác này bị từ chối đối với người dùng thông thường hoặc Workspace Owner.",
+            detail="Yêu cầu quyền Quản Trị Viên Nền Tảng (Platform Owner).",
         )
-
-    return user_id
+    return identity.user_id
