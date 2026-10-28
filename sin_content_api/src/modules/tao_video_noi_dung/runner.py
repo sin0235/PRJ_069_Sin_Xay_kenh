@@ -101,10 +101,6 @@ def _verified_asset_path(asset: MediaAsset, error_code: str) -> Path:
     return path
 
 
-def _queue_watermark_removal(executor: ThreadPoolExecutor, source_path: Path, output_path: Path):
-    return executor.submit(video_processor.remove_veo_watermark, source_path, output_path, use_cpu=True)
-
-
 def _extract_final_reference_frame(path: Path, workspace_id: str) -> tempfile.TemporaryDirectory:
     temp_dir = tempfile.TemporaryDirectory(prefix=f"flow_reference_{workspace_id}_")
     frame_path = Path(temp_dir.name) / "khung_hinh_cuoi.png"
@@ -405,32 +401,61 @@ def _voice_input(db, run: ContentVideoRun, plan: ContentVideoPlan) -> tuple[Medi
     meta = audio_processor.probe_audio(path)
     if meta.get("codec_name") not in {"mp3", "aac", "wav", "pcm_s16le", "opus", "vorbis"}:
         raise RuntimeError("VOICE_ASSET_CODEC_UNSUPPORTED")
-    if abs(float(meta.get("duration_seconds", 0)) - plan.target_duration_seconds) > 0.5:
+    if (
+        getattr(asset, "source_product", None) != "CONTENT_VIDEO_TTS"
+        and abs(float(meta.get("duration_seconds", 0)) - plan.target_duration_seconds) > 0.5
+    ):
         raise RuntimeError("VOICE_ASSET_DURATION_MISMATCH")
     return asset, path
 
 
-def _generate_tts_voice(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard: Storyboard) -> None:
+def _tts_reference_path(db, run: ContentVideoRun) -> str | None:
     config = json.loads(run.tts_config_json) if run.tts_config_json else None
-    if not config or run.voice_asset_id:
-        return
-    reference_path = None
-    if config.get("reference_asset_id"):
-        reference = db.query(MediaAsset).filter(
-            MediaAsset.id == config["reference_asset_id"],
-            MediaAsset.workspace_id == run.workspace_id,
-            MediaAsset.project_id == run.project_id,
-        ).first()
-        if not reference or not (reference.mime_detected or "").startswith("audio/"):
-            raise TTSProviderError("TTS_REFERENCE_NOT_FOUND")
-        reference_path = str(_verified_asset_path(reference, "TTS_REFERENCE"))
-    audio, sample_rate = tts_provider_manager.synthesize(config, storyboard.narration, reference_path)
+    if not config or not config.get("reference_asset_id"):
+        return None
+    reference = db.query(MediaAsset).filter(
+        MediaAsset.id == config["reference_asset_id"],
+        MediaAsset.workspace_id == run.workspace_id,
+        MediaAsset.project_id == run.project_id,
+    ).first()
+    if not reference or not (reference.mime_detected or "").startswith("audio/"):
+        raise TTSProviderError("TTS_REFERENCE_NOT_FOUND")
+    return str(_verified_asset_path(reference, "TTS_REFERENCE"))
+
+
+def _synthesize_tts_voice(config: dict, shots: list, reference_path: str | None) -> tuple[object, int]:
     import numpy as np
-    samples = np.asarray(audio, dtype=np.float32)
-    if samples.size == 0 or not np.isfinite(samples).all() or sample_rate <= 0:
+
+    sample_rate = None
+    segments = []
+    for shot in shots:
+        audio, source_rate = tts_provider_manager.synthesize(config, shot.narration, reference_path)
+        samples = np.asarray(audio, dtype=np.float32).reshape(-1)
+        if samples.size == 0 or not np.isfinite(samples).all() or source_rate <= 0:
+            raise TTSProviderError("TTS_AUDIO_INVALID")
+        if sample_rate is not None and source_rate != sample_rate:
+            raise TTSProviderError("TTS_SAMPLE_RATE_MISMATCH")
+        sample_rate = int(source_rate)
+        segments.append(samples)
+
+    if not segments:
         raise TTSProviderError("TTS_AUDIO_INVALID")
-    samples = np.clip(samples.reshape(-1), -1.0, 1.0)
-    pcm = (samples * 32767).astype("<i2").tobytes()
+    return np.concatenate(segments), sample_rate
+
+
+def _queue_tts_voice(executor: ThreadPoolExecutor, config: dict, shots: list, reference_path: str | None):
+    return executor.submit(_synthesize_tts_voice, config, shots, reference_path)
+
+
+def _save_tts_voice(db, run: ContentVideoRun, audio, sample_rate: int) -> None:
+    import numpy as np
+    samples = np.asarray(audio, dtype=np.float32).reshape(-1)
+    if (
+        samples.size == 0 or sample_rate <= 0
+        or not np.isfinite(samples).all()
+    ):
+        raise TTSProviderError("TTS_AUDIO_INVALID")
+    pcm = (np.clip(samples, -1.0, 1.0) * 32767).astype("<i2").tobytes()
     filename = f"content_video_{run.id}_tts.wav"
     storage_key = f"workspaces/{run.workspace_id}/media/{filename}"
     output_path = MEDIA_ROOT_DIR / storage_key
@@ -447,7 +472,7 @@ def _generate_tts_voice(db, run: ContentVideoRun, plan: ContentVideoPlan, storyb
         temporary_path.unlink(missing_ok=True)
     data = output_path.read_bytes()
     meta = audio_processor.probe_audio(output_path)
-    if meta.get("codec_name") not in {"pcm_s16le", "wav"} or abs(float(meta.get("duration_seconds", 0)) - plan.target_duration_seconds) > 0.5:
+    if meta.get("codec_name") not in {"pcm_s16le", "wav"} or float(meta.get("duration_seconds", 0)) <= 0:
         output_path.unlink(missing_ok=True)
         raise TTSProviderError("TTS_AUDIO_QC_FAILED")
     asset = MediaAsset(
@@ -463,6 +488,23 @@ def _generate_tts_voice(db, run: ContentVideoRun, plan: ContentVideoPlan, storyb
     run.output_asset_ids_json = json.dumps([*json.loads(run.output_asset_ids_json or "[]"), asset.id])
     db.commit()
     db.refresh(run)
+
+
+def _tts_captions(shots: list, height: int = 1920, width: int = 1080) -> list[TimelineCaption]:
+    captions = []
+    start_ms = 0
+    for index, shot in enumerate(shots, start=1):
+        duration_ms = shot.duration_seconds * 1000
+        captions.append(TimelineCaption(
+            caption_id=f"tts_{index:03d}",
+            text=shot.narration,
+            start_ms=start_ms,
+            duration_ms=duration_ms,
+            font_size=52 if height > width else 36,
+            safe_zone=True,
+        ))
+        start_ms += duration_ms
+    return captions
 
 
 def _write_export_package(
@@ -556,7 +598,11 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     voice_input = _voice_input(db, run, plan)
     voice_asset = voice_input[0] if voice_input else None
     caption_cues = []
-    if voice_input:
+    include_subtitles = getattr(run, "include_subtitles", True)
+    is_tts_voice = bool(voice_asset and getattr(voice_asset, "source_product", None) == "CONTENT_VIDEO_TTS")
+    if voice_input and include_subtitles and is_tts_voice:
+        caption_cues = _tts_captions(storyboard.shots, height=height, width=width)
+    elif voice_input and include_subtitles:
         audio_sha256 = voice_asset.sha256 or _file_sha256(voice_input[1])
         cache_key = hashlib.sha256(f"{run.workspace_id}:{audio_sha256}:{VIETSUB_MODEL_SIZE}".encode("utf-8")).hexdigest()
         cache_path = MEDIA_ROOT_DIR / ".cache" / "vietsub" / f"{cache_key}.json"
@@ -573,13 +619,21 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
                     font_size=52 if height > width else 36,
                     safe_zone=True,
                 ))
-    vietsub_status = "NO_AUDIO_FOR_VIETSUB" if not voice_asset else "GENERATED_UNREVIEWED" if caption_cues else "NO_SPEECH_DETECTED"
+    vietsub_status = (
+        "NO_AUDIO_FOR_VIETSUB" if not voice_asset else
+        "DISABLED" if not include_subtitles else
+        "GENERATED_FROM_TTS_SCRIPT" if is_tts_voice else
+        "GENERATED_UNREVIEWED" if caption_cues else "NO_SPEECH_DETECTED"
+    )
     timeline = TimelineDocument(
         width=width,
         height=height,
         fps=30,
         clips=clips,
-        voice_track=TimelineAudioTrack(asset_id=voice_asset.id, duration_ms=plan.target_duration_seconds * 1000) if voice_asset else None,
+        voice_track=TimelineAudioTrack(
+            asset_id=voice_asset.id,
+            duration_ms=voice_asset.duration_ms if is_tts_voice else plan.target_duration_seconds * 1000,
+        ) if voice_asset else None,
         captions=caption_cues,
     )
     latest = db.query(TimelineVersion).filter(TimelineVersion.project_id == run.project_id).order_by(TimelineVersion.version.desc()).first()
@@ -612,10 +666,30 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     run.current_step = "RENDER"
     db.commit()
     render_meta = video_processor.render_timeline_document(
-        timeline, resolve_asset, output_path, transition_seconds=0.3, caption_style="vietsub_v1"
+        timeline, resolve_asset, output_path, transition_seconds=0.3,
+        caption_style="vietsub_v1", preserve_voice_audio=is_tts_voice,
     )
+    if is_tts_voice:
+        time_scale = float(render_meta.get("video_content_duration_seconds", render_meta["duration_seconds"])) / plan.target_duration_seconds
+        if abs(time_scale - 1.0) > 0.001:
+            for clip in timeline.clips:
+                clip.start_ms = round(clip.start_ms * time_scale)
+                clip.duration_ms = max(1, round(clip.duration_ms * time_scale))
+            for caption in timeline.captions:
+                caption.start_ms = round(caption.start_ms * time_scale)
+                caption.duration_ms = max(1, round(caption.duration_ms * time_scale))
+            timeline_version.tracks_json = timeline.model_dump_json()
+            db.commit()
     meta = video_processor.probe_video(output_path)
     meta["flow_native_audio"] = bool(render_meta.get("flow_native_audio"))
+    for key in (
+        "audio_loudness_lufs", "audio_true_peak_dbtp", "audio_lra_lu",
+        "audio_normalization", "video_playback_speed",
+        "video_content_duration_seconds", "voice_audio_duration_seconds",
+        "silent_tail_seconds", "frozen_tail_seconds",
+    ):
+        if key in render_meta:
+            meta[key] = render_meta[key]
     decode = subprocess.run(
         [video_processor.ffmpeg_bin, "-v", "error", "-i", str(output_path), "-f", "null", "-"],
         capture_output=True,
@@ -624,17 +698,32 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         check=False,
     )
     issues = evaluate_video_qc(
-        meta, plan.target_duration_seconds, decode.returncode == 0 and not decode.stderr.strip(),
+        meta,
+        render_meta.get("duration_seconds", plan.target_duration_seconds) if is_tts_voice else plan.target_duration_seconds,
+        decode.returncode == 0 and not decode.stderr.strip(),
         aspect_ratio=aspect_ratio,
     )
-    audio_qc = (
-        audio_processor.verify_audio_qc(output_path, expected_duration_sec=plan.target_duration_seconds)
-        if voice_asset else {
+    if is_tts_voice:
+        audio_meta = audio_processor.probe_audio(output_path)
+        audio_qc = {
+            "status": "RAW_TTS_PRESERVED",
+            "reason": "LOUDNESS_NORMALIZATION_DISABLED",
+            "passed": (
+                audio_meta.get("codec_name") == "aac"
+                and float(audio_meta.get("duration_seconds", 0)) > 0
+                and abs(float(audio_meta.get("duration_seconds", 0)) - float(render_meta.get("duration_seconds", 0))) <= 0.5
+            ),
+        }
+    elif voice_asset:
+        audio_qc = audio_processor.verify_audio_qc(
+            output_path, expected_duration_sec=plan.target_duration_seconds,
+        )
+    else:
+        audio_qc = {
             "status": "SKIPPED",
             "reason": "FLOW_NATIVE_AUDIO" if meta.get("flow_native_audio") else "NO_AUDIO_SELECTED",
             "passed": True,
         }
-    )
     if not audio_qc.get("passed"):
         issues.append("AUDIO_QC")
     tts_config = json.loads(run.tts_config_json) if getattr(run, "tts_config_json", None) else None
@@ -659,16 +748,16 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         "caption_count": len(caption_cues),
         "vietsub": {
             "status": vietsub_status,
-            "provider": "faster-whisper" if voice_asset else None,
-            "model": VIETSUB_MODEL_SIZE if voice_asset else None,
-            "language": "vi" if voice_asset else None,
+            "provider": "storyboard" if is_tts_voice and include_subtitles else "faster-whisper" if voice_asset and include_subtitles else None,
+            "model": VIETSUB_MODEL_SIZE if voice_asset and include_subtitles and not is_tts_voice else None,
+            "language": "vi" if voice_asset and include_subtitles else None,
             "audio_sha256": voice_asset.sha256 if voice_asset else None,
             "style": "be_vietnam_pro_semibold_box_v1" if caption_cues else None,
             "font_sha256": _file_sha256(VIETSUB_FONT_PATH) if caption_cues else None,
             "caption_count": len(caption_cues),
-            "asr_quality_status": "UNVERIFIED" if voice_asset else None,
+            "asr_quality_status": "NOT_RUN_TTS_SCRIPT" if is_tts_voice and include_subtitles else "UNVERIFIED" if voice_asset and include_subtitles else None,
         },
-        "speech_alignment": "WHISPER_ASR_TIMESTAMPS" if caption_cues else vietsub_status,
+        "speech_alignment": "TTS_SHOT_TIMELINE" if is_tts_voice and include_subtitles else "WHISPER_ASR_TIMESTAMPS" if caption_cues else vietsub_status,
     }
     run.qc_report_json = json.dumps(report, ensure_ascii=False, separators=(",", ":"))
     if issues:
@@ -734,12 +823,16 @@ def process_run(run_id: str, token: str | None = None) -> None:
             return
         heartbeat = _RunHeartbeat(run_id, token)
         heartbeat.start()
-        watermark_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="flow-watermark")
-        pending_watermark_removals = {}
+        tts_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="content-video-tts")
+        tts_future = None
         try:
             plan, _ = _plan_and_project(db, run)
             storyboard = Storyboard.model_validate_json(plan.storyboard_json)
-            _generate_tts_voice(db, run, plan, storyboard)
+            tts_config = json.loads(run.tts_config_json) if run.tts_config_json else None
+            if tts_config and not run.voice_asset_id:
+                tts_future = _queue_tts_voice(
+                    tts_executor, tts_config, storyboard.shots, _tts_reference_path(db, run),
+                )
             _voice_input(db, run, plan)
             steps = json.loads(run.steps_json or "[]")
             flow_project_url = next((step.get("flow_project_url") for step in steps if step.get("flow_project_url")), None)
@@ -756,10 +849,12 @@ def process_run(run_id: str, token: str | None = None) -> None:
                 raise RuntimeError("WORKER_LEASE_LOST")
 
             for shot_index, (step, shot) in enumerate(zip(steps, storyboard.shots, strict=True)):
+                if tts_future and tts_future.done():
+                    tts_future.result()
                 verify_shot_receipt(run, plan, shot, step)
-                if step.get("state") == "SUCCEEDED" and step.get("watermark_removed"):
+                if step.get("state") == "SUCCEEDED":
                     continue
-                if step.get("state") in {"CLEANING", "SUCCEEDED"}:
+                if step.get("state") == "CLEANING":
                     raw_asset_id = step.get("raw_asset_id") or step.get("asset_id")
                     raw_asset = db.query(MediaAsset).filter(
                         MediaAsset.id == raw_asset_id,
@@ -768,14 +863,14 @@ def process_run(run_id: str, token: str | None = None) -> None:
                     ).first()
                     if not raw_asset:
                         raise RuntimeError("WATERMARK_SOURCE_ASSET_MISSING")
-                    raw_path = _verified_asset_path(raw_asset, "WATERMARK_SOURCE")
-                    clean_path = raw_path.with_name(f"{raw_path.stem}_clean.mp4")
-                    step.update({"state": "CLEANING", "raw_asset_id": raw_asset.id, "asset_id": raw_asset.id})
+                    _verified_asset_path(raw_asset, "FLOW_SOURCE")
+                    # shortcut: Flow clips retain their watermark until a Linux remover is available.
+                    step.update({
+                        "state": "SUCCEEDED", "raw_asset_id": raw_asset.id, "asset_id": raw_asset.id,
+                        "watermark_removed": False, "finished_at": _now().isoformat(),
+                    })
+                    run.output_asset_ids_json = json.dumps([item.get("asset_id") for item in steps if item.get("asset_id")])
                     _save_run(db, run, steps)
-                    pending_watermark_removals[shot.shot_id] = (
-                        step, raw_asset, shot, clean_path,
-                        _queue_watermark_removal(watermark_executor, raw_path, clean_path),
-                    )
                     continue
                 if step.get("state") == "SUBMITTING":
                     run.status = "NEEDS_RECONCILIATION"
@@ -790,7 +885,7 @@ def process_run(run_id: str, token: str | None = None) -> None:
                     if shot_index == 0:
                         raise RuntimeError("CONTINUITY_PREVIOUS_SHOT_MISSING")
                     previous_step = steps[shot_index - 1]
-                    if previous_step.get("state") not in {"SUCCEEDED", "CLEANING"} or not previous_step.get("asset_id"):
+                    if previous_step.get("state") != "SUCCEEDED" or not previous_step.get("asset_id"):
                         raise RuntimeError("CONTINUITY_PREVIOUS_SHOT_NOT_SUCCEEDED")
                     previous_asset = db.query(MediaAsset).filter(
                         MediaAsset.id == previous_step["asset_id"],
@@ -839,53 +934,18 @@ def process_run(run_id: str, token: str | None = None) -> None:
                 shot_meta, shot_issues = _probe_shot_with_qc(path, shot.duration_seconds, aspect_ratio)
                 if shot_issues:
                     raise RuntimeError(f"SHOT_QC_FAILED:{shot.shot_id}:{','.join(shot_issues)}")
-                clean_path = path.with_name(f"{path.stem}_clean.mp4")
                 step.update({
-                    "state": "CLEANING",
+                    "state": "SUCCEEDED",
                     "raw_asset_id": asset.id,
                     "asset_id": asset.id,
                     "watermark_removed": False,
+                    "finished_at": _now().isoformat(),
                 })
+                run.output_asset_ids_json = json.dumps([item.get("asset_id") for item in steps if item.get("asset_id")])
                 _save_run(db, run, steps)
-                pending_watermark_removals[shot.shot_id] = (
-                    step, asset, shot, clean_path,
-                    _queue_watermark_removal(watermark_executor, path, clean_path),
-                )
-            for step, raw_asset, shot, clean_path, future in pending_watermark_removals.values():
-                try:
-                    result = future.result()
-                    if result.get("status") != "SUCCEEDED" or not result.get("watermark_removed"):
-                        raise RuntimeError("WATERMARK_REMOVAL_FAILED")
-                    clean_meta = video_processor.probe_video(clean_path)
-                    clean_asset = MediaAsset(
-                        id=f"asset-{uuid.uuid4().hex[:12]}",
-                        workspace_id=run.workspace_id,
-                        project_id=run.project_id,
-                        storage_key=clean_path.relative_to(MEDIA_ROOT_DIR).as_posix(),
-                        sha256=_file_sha256(clean_path),
-                        byte_size=clean_path.stat().st_size,
-                        mime_detected="video/mp4",
-                        duration_ms=int(clean_meta["duration_seconds"] * 1000),
-                        source_product="GOOGLE_FLOW_CLEANED",
-                        original_filename=clean_path.name,
-                        created_by=run.created_by,
-                        parent_asset_id=raw_asset.id,
-                        approval_state="UNREVIEWED",
-                    )
-                    db.add(clean_asset)
-                    step.update({
-                        "state": "SUCCEEDED",
-                        "asset_id": clean_asset.id,
-                        "watermark_removed": True,
-                        "finished_at": _now().isoformat(),
-                    })
-                    run.output_asset_ids_json = json.dumps([item.get("asset_id") for item in steps if item.get("asset_id")])
-                    _save_run(db, run, steps)
-                except Exception as exc:
-                    step["error_code"] = "WATERMARK_REMOVAL_FAILED"
-                    step["error_message"] = str(exc)[:500]
-                    _save_run(db, run, steps)
-                    raise
+            if tts_future:
+                audio, sample_rate = tts_future.result()
+                _save_tts_voice(db, run, audio, sample_rate)
             asset_ids = [step["asset_id"] for step in steps]
             shot_assets = db.query(MediaAsset).filter(
                 MediaAsset.id.in_(asset_ids),
@@ -928,7 +988,7 @@ def process_run(run_id: str, token: str | None = None) -> None:
                 db.commit()
             logger.exception("Content video run failed: run_id=%s", run_id)
         finally:
-            watermark_executor.shutdown(wait=True)
+            tts_executor.shutdown(wait=True, cancel_futures=True)
             heartbeat.stop()
             _release_lease(db, token)
 

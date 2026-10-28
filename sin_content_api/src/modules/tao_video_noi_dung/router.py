@@ -65,7 +65,8 @@ def approve_content_video_plan(
     tenant: TenantContext = Depends(require_resolved_resource_action("media.approve")),
 ):
     plan = get_plan(db, project_id, plan_id, tenant.workspace_id)
-    if not e2e_test_self_approval_enabled():
+    allow_self_approval = e2e_test_self_approval_enabled() or getattr(tenant, "dev_auth_bypass", False)
+    if not allow_self_approval:
         authorize_resource(
             tenant,
             "media.approve",
@@ -78,7 +79,10 @@ def approve_content_video_plan(
             project_id=project_id,
             require_creator=True,
         )
-    return approve_plan(db, project_id, plan_id, tenant.workspace_id, tenant.user_id)
+    return approve_plan(
+        db, project_id, plan_id, tenant.workspace_id, tenant.user_id,
+        allow_self_approval=allow_self_approval,
+    )
 
 
 @router.post("/runs", response_model=ContentVideoRunResponse, status_code=202)

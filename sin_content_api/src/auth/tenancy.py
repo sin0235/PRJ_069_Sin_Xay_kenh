@@ -6,16 +6,19 @@ import os
 import re
 import sys
 import uuid
+import ipaddress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterator, Optional
+from urllib.parse import urlparse
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
 
 from src.database import get_db as get_content_db
 from src.models.entities import Workspace
+from src.config import settings
 
 
 _WORKSPACE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
@@ -26,8 +29,34 @@ class TenantContext:
     workspace_id: str
     user_id: str
     actor: Any
-    auth_db: Session
+    auth_db: Optional[Session]
     request_id: str
+    dev_auth_bypass: bool = False
+
+
+def dev_auth_bypass_enabled(request: Request) -> bool:
+    """Allow auth bypass only for explicitly enabled local development requests."""
+    client_host = request.client.host if request.client else ""
+    try:
+        is_loopback = ipaddress.ip_address(client_host).is_loopback
+    except ValueError:
+        is_loopback = client_host.lower() == "localhost"
+    origin = request.headers.get("origin")
+    if origin:
+        try:
+            origin_host = urlparse(origin).hostname or ""
+        except ValueError:
+            return False
+        try:
+            is_local_origin = ipaddress.ip_address(origin_host).is_loopback
+        except ValueError:
+            is_local_origin = origin_host.lower() == "localhost"
+        is_loopback = is_loopback and is_local_origin
+    return (
+        os.getenv("DEV_AUTH_BYPASS") == "1"
+        and settings.app_env.lower() in {"offline", "development", "dev", "local", "test"}
+        and is_loopback
+    )
 
 
 def _canonical_auth_modules() -> dict[str, Any]:
@@ -95,11 +124,26 @@ def _close_generator(generator: Iterator[Session]) -> None:
 
 
 def get_current_tenant_context(
+    request: Request,
     authorization: Optional[str] = Header(None, alias="Authorization"),
     x_workspace_id: Optional[str] = Header(None, alias="X-Workspace-Id"),
     content_db: Session = Depends(get_content_db),
 ) -> Iterator[TenantContext]:
     """Lấy danh tính từ JWT và xác minh membership hiện hành cho workspace đã chọn."""
+    if dev_auth_bypass_enabled(request):
+        workspace_id = x_workspace_id or "default_ws"
+        if not _WORKSPACE_ID.fullmatch(workspace_id):
+            raise HTTPException(status_code=400, detail="Workspace không hợp lệ.")
+        yield TenantContext(
+            workspace_id=workspace_id,
+            user_id="dev-user",
+            actor=None,
+            auth_db=None,
+            request_id=str(uuid.uuid4()),
+            dev_auth_bypass=True,
+        )
+        return
+
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -138,7 +182,6 @@ def get_current_tenant_context(
     auth_db: Optional[Session] = None
     try:
         auth_db = next(auth_db_generator)
-        print(">>> DEBUG TENANCY auth_db.bind.url:", getattr(auth_db.bind, "url", None), flush=True)
         auth["set_tenant_context"](x_workspace_id, auth_db)
         actor = auth["load_actor_for_user"](
             auth_db,
@@ -226,6 +269,8 @@ def _audit_decision(
 
 def authorize_action(ctx: TenantContext, action_key: str, resource: Any = None) -> None:
     """Đánh giá action; request tổng hợp chỉ xét assignment cấp workspace."""
+    if ctx.dev_auth_bypass:
+        return
     auth = _canonical_auth_modules()
     try:
         actor = ctx.actor
@@ -291,6 +336,9 @@ def authorize_resource(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Không thể xác minh phạm vi hoặc nguồn tạo của tài nguyên.",
         )
+
+    if ctx.dev_auth_bypass:
+        return
 
     auth = _canonical_auth_modules()
     try:

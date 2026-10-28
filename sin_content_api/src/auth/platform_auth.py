@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import os
 from typing import Optional
-from fastapi import Header, HTTPException, status
+from fastapi import Header, HTTPException, Request, status
 
-from src.auth.tenancy import _canonical_auth_modules
+from src.auth.tenancy import _canonical_auth_modules, dev_auth_bypass_enabled
 from src.config import settings
 
 
 def require_platform_owner(
+    request: Request,
     authorization: Optional[str] = Header(None, alias="Authorization"),
 ) -> str:
     """
@@ -18,6 +19,9 @@ def require_platform_owner(
     Trả về user_id của Platform Owner.
     Từ chối mọi role khác (kể cả WORKSPACE_OWNER) với HTTP 403 Forbidden.
     """
+    if dev_auth_bypass_enabled(request):
+        return "dev-user"
+
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

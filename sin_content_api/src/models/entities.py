@@ -1,7 +1,7 @@
 import json
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, ForeignKey, Text, UniqueConstraint
+from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, ForeignKey, Text, UniqueConstraint, text
 from sqlalchemy.orm import relationship
 from src.database import Base
 
@@ -727,6 +727,7 @@ class ContentVideoRun(Base):
     plan_id = Column(String(36), ForeignKey("content_video_plans.id"), nullable=False, index=True)
     voice_asset_id = Column(String(36), ForeignKey("media_assets.id"), nullable=True)
     tts_config_json = Column(Text, nullable=True)
+    include_subtitles = Column(Boolean, nullable=False, default=True, server_default=text("true"))
     plan_revision = Column(Integer, nullable=False)
     storyboard_sha256 = Column(String(64), nullable=False)
     style_snapshot_sha256 = Column(String(64), nullable=False)

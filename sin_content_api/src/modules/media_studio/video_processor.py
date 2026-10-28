@@ -265,6 +265,7 @@ class VideoProcessor:
         temp_dir: Optional[pathlib.Path] = None,
         transition_seconds: float = 0.0,
         caption_style: str = "legacy",
+        preserve_voice_audio: bool = False,
     ) -> Dict[str, Any]:
         """
         Render toàn diện video MP4 từ timeline document (M-P5):
@@ -522,8 +523,24 @@ class VideoProcessor:
                 has_music = bool(music_asset_id)
 
                 final_audio = work_dir / "final_audio.wav"
+                final_duration_sec = total_duration_sec
+                video_playback_speed = 1.0
+                video_content_duration_sec = total_duration_sec
+                voice_duration = 0.0
 
-                if has_voice and has_music:
+                if preserve_voice_audio:
+                    if not has_voice or has_music:
+                        raise ValueError("RAW_TTS_REQUIRES_VOICE_WITHOUT_MUSIC")
+                    from .audio_processor import audio_processor
+                    final_audio = asset_path_resolver(voice_asset_id)
+                    voice_duration = float(audio_processor.probe_audio(final_audio)["duration_seconds"])
+                    if voice_duration <= 0:
+                        raise ValueError("RAW_TTS_DURATION_INVALID")
+                    video_playback_speed = min(1.1, max(0.9, total_duration_sec / voice_duration))
+                    video_content_duration_sec = total_duration_sec / video_playback_speed
+                    final_duration_sec = max(video_content_duration_sec, voice_duration)
+
+                elif has_voice and has_music:
                     voice_file = asset_path_resolver(voice_asset_id)
                     music_file = asset_path_resolver(music_asset_id)
                     cmd_audio = [
@@ -533,7 +550,7 @@ class VideoProcessor:
                         "-i", str(music_file),
                         "-filter_complex",
                         "[1:a]volume=0dB[m_in];"
-                        "[0:a]volume=0dB[v_in];"
+                        "[0:a]acompressor=threshold=0.1:ratio=4:attack=10:release=150,volume=0dB[v_in];"
                         "[m_in][v_in]sidechaincompress=threshold=0.1:ratio=4:attack=150:release=800[m_ducked];"
                         "[m_ducked][v_in]amix=inputs=2:duration=first:dropout_transition=2[mixed];"
                         "[mixed]loudnorm=I=-14:LRA=11:TP=-1.5[out_a]",
@@ -560,7 +577,7 @@ class VideoProcessor:
                         self.ffmpeg_bin, "-y",
                         "-t", f"{total_duration_sec:.3f}",
                         "-i", str(voice_file),
-                        "-af", "loudnorm=I=-14:LRA=11:TP=-1.5",
+                        "-af", "acompressor=threshold=0.1:ratio=4:attack=10:release=150,loudnorm=I=-14:LRA=11:TP=-1.5",
                         str(final_audio)
                     ]
                     subprocess.run(cmd_audio, capture_output=True, check=True)
@@ -580,19 +597,27 @@ class VideoProcessor:
                 cmd_final = [self.ffmpeg_bin, "-y", "-i", str(current_video)]
                 if has_voice or has_music:
                     cmd_final.extend([
-                        "-i", str(final_audio), "-c:a", "aac", "-b:a", "192k", "-ar", "44100",
+                        "-i", str(final_audio), "-c:a", "aac", "-b:a", "192k",
                     ])
+                    if not preserve_voice_audio:
+                        cmd_final.extend(["-ar", "44100"])
                 else:
                     cmd_final.append("-an")
+                if preserve_voice_audio:
+                    video_filter = f"setpts={1 / video_playback_speed:.8f}*PTS"
+                    frozen_tail_sec = max(0.0, final_duration_sec - video_content_duration_sec)
+                    if frozen_tail_sec > 0.01:
+                        video_filter += f",tpad=stop_mode=clone:stop_duration={frozen_tail_sec:.3f}"
+                    cmd_final.extend(["-vf", video_filter])
                 cmd_final.extend([
                     "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(fps),
-                    "-t", f"{total_duration_sec:.3f}", str(output_path),
+                    "-t", f"{final_duration_sec:.3f}", str(output_path),
                 ])
                 res_final = subprocess.run(cmd_final, capture_output=True, text=True)
                 if res_final.returncode != 0:
                     raise RuntimeError(f"Lỗi ghép hoàn chỉnh thành phẩm MP4: {res_final.stderr}")
 
-                flow_audio_present = self._preserve_native_clip_audio(
+                flow_audio_present = False if preserve_voice_audio else self._preserve_native_clip_audio(
                     output_path, native_audio_specs, work_dir, has_voice or has_music, total_duration_sec,
                 )
 
@@ -611,7 +636,7 @@ class VideoProcessor:
                     if measured_lufs is None:
                         raise RuntimeError("Kiểm định âm thanh thất bại: Không nhận được chỉ số measured_i_lufs từ bộ đo.")
 
-                    if not (-15.0 <= measured_lufs <= -13.0):
+                    if not preserve_voice_audio and not (-15.0 <= measured_lufs <= -13.0):
                         raise RuntimeError(
                             f"Kiểm định chất lượng âm lượng EBU R128 không đạt chuẩn phát sóng TikTok (-14.0 ± 1.0 LUFS): "
                             f"Đo được {measured_lufs} LUFS."
@@ -620,6 +645,13 @@ class VideoProcessor:
                     meta["audio_loudness_lufs"] = measured_lufs
                     meta["audio_true_peak_dbtp"] = measured_tp
                     meta["audio_lra_lu"] = measured_lra
+                    meta["audio_normalization"] = "SKIPPED_RAW_TTS" if preserve_voice_audio else "EBU_R128"
+                    if preserve_voice_audio:
+                        meta["video_playback_speed"] = round(video_playback_speed, 4)
+                        meta["video_content_duration_seconds"] = round(video_content_duration_sec, 3)
+                        meta["voice_audio_duration_seconds"] = round(voice_duration, 3)
+                        meta["silent_tail_seconds"] = round(max(0.0, video_content_duration_sec - voice_duration), 3)
+                        meta["frozen_tail_seconds"] = round(max(0.0, voice_duration - video_content_duration_sec), 3)
 
                 return meta
 

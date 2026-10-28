@@ -63,9 +63,13 @@ def migrate_content_video_up():
         with engine.begin() as connection:
             connection.execute(text("ALTER TABLE content_video_runs ADD COLUMN tts_config_json TEXT"))
         inspector = inspect(engine)
+    if "include_subtitles" not in {column["name"] for column in inspector.get_columns("content_video_runs")}:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE content_video_runs ADD COLUMN include_subtitles BOOLEAN NOT NULL DEFAULT TRUE"))
+        inspector = inspect(engine)
     return all(name in inspector.get_table_names() for name in (
         "content_video_plans", "content_video_runs", "content_video_worker_leases"
-    )) and {"voice_asset_id", "tts_config_json"} <= {column["name"] for column in inspector.get_columns("content_video_runs")}
+    )) and {"voice_asset_id", "tts_config_json", "include_subtitles"} <= {column["name"] for column in inspector.get_columns("content_video_runs")}
 
 
 def migrate_content_video_down():

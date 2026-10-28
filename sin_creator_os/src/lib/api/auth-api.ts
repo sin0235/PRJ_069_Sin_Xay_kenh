@@ -1,9 +1,4 @@
 // Client Service giao tiếp với Authentication API (PRJ_069)
-// Bắt buộc xác thực tài khoản thực quyền cao nhất sin@test.com / 121232
-
-export const DEFAULT_DEV_TOKEN =
-  "eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9.eyJzdWIiOiAidXNyX3Npbl9vd25lciIsICJpc3MiOiAiYmFoYS1hdXRoLWlzc3VlciIsICJhdWQiOiAic2luLWNvbnRlbnQtdGVzdCIsICJleHAiOiAxODkzNDU2MDAwLCAid29ya3NwYWNlX2lkIjogImRlZmF1bHRfd3MiLCAiZW1haWwiOiAic2luQHRlc3QuY29tIiwgIm5hbWUiOiAiU2luIEFkbWluIChIaWdoZXN0IFByaXZpbGVnZSkiLCAicm9sZSI6ICJQTEFURk9STV9PV05FUiJ9.4z6KRyymGYvOGltsTehDvG-rVMl_ggr6WTpmzby0Gzk";
-
 function browserStorage(): Storage | null {
   try {
     return typeof window === "undefined" ? null : window.localStorage || null;
@@ -55,10 +50,10 @@ export class AuthApi {
         const match = document.cookie.match(/baha_auth_token=([^;]+)/);
         if (match && match[1]) return decodeURIComponent(match[1]);
       } catch {
-        return DEFAULT_DEV_TOKEN;
+        return "";
       }
     }
-    return DEFAULT_DEV_TOKEN;
+    return "";
   }
 
   static getWorkspaceId(): string {
@@ -89,7 +84,7 @@ export class AuthApi {
   }
 
   static getAuthHeaders(): Record<string, string> {
-    const token = this.getAuthToken() || DEFAULT_DEV_TOKEN;
+    const token = this.getAuthToken();
     const headers: Record<string, string> = {
       "X-Workspace-Id": this.getWorkspaceId(),
       "Content-Type": "application/json",

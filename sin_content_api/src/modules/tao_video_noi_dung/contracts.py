@@ -61,6 +61,7 @@ class CreateRunRequest(BaseModel):
     tts_reference_asset_id: str | None = Field(default=None, min_length=1, max_length=36)
     tts_reference_text: str | None = Field(default=None, max_length=3000)
     voice_clone_consent: bool = False
+    include_subtitles: bool = True
     idempotency_key: str = Field(min_length=8, max_length=128)
 
     @model_validator(mode="after")
@@ -130,6 +131,7 @@ class ContentVideoRunResponse(BaseModel):
     voice_asset_id: str | None = None
     voice_source: Literal["NONE", "UPLOAD", "TTS"] = "NONE"
     tts_provider: Literal["GWEN_TTS", "VIE_NEU_V3_TURBO"] | None = None
+    include_subtitles: bool = True
     status: str
     current_step: str | None = None
     steps: list[dict]

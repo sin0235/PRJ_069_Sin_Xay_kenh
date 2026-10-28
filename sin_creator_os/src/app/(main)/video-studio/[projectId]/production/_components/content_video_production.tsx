@@ -30,6 +30,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
   const [projectAssets, setProjectAssets] = React.useState<MediaAssetResponse[]>([]);
   const [voiceAssets, setVoiceAssets] = React.useState<MediaAssetResponse[]>([]);
   const [voiceSource, setVoiceSource] = React.useState<"NONE" | "UPLOAD" | "TTS">("NONE");
+  const [includeSubtitles, setIncludeSubtitles] = React.useState(true);
   const [voiceAssetId, setVoiceAssetId] = React.useState("");
   const [ttsProvider, setTtsProvider] = React.useState<"GWEN_TTS" | "VIE_NEU_V3_TURBO">("VIE_NEU_V3_TURBO");
   const [ttsVoiceId, setTtsVoiceId] = React.useState("Hải Đăng");
@@ -72,7 +73,16 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
   }, [planId, projectId]);
 
   React.useEffect(() => {
-    if (planId || startNew) { setLoadingHistory(false); void reloadPlan(); return; }
+    if (planId || startNew) {
+      setLoadingHistory(false);
+      void reloadPlan();
+      if (planId && !runId && !startNew) {
+        void contentVideoApi.getLatestHistory(projectId).then(({ plan: latestPlan, run: latestRun }) => {
+          setRun(latestPlan?.id === planId ? latestRun : null);
+        }).catch((err) => showError(err, "Không tải được trạng thái run mới nhất."));
+      }
+      return;
+    }
     setLoadingHistory(true);
     void contentVideoApi.getLatestHistory(projectId).then(({ plan: latestPlan, run: latestRun }) => {
       if (!latestPlan) return;
@@ -81,7 +91,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
       setRun(latestRun);
       router.replace(`/video-studio/${projectId}/production?plan=${encodeURIComponent(latestPlan.id)}${latestRun ? `&run=${encodeURIComponent(latestRun.id)}` : ""}`);
     }).catch((err) => showError(err, "Không tải được video đã tạo trong dự án.")).finally(() => setLoadingHistory(false));
-  }, [planId, projectId, reloadPlan, router, startNew]);
+  }, [planId, projectId, reloadPlan, router, runId, startNew]);
   React.useEffect(() => {
     void mediaStudioApi.listAssets({ project_id: projectId }).then((assets) => {
       setProjectAssets(assets);
@@ -173,6 +183,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
         referenceAssetId: ttsReferenceAssetId || undefined,
         referenceText: ttsReferenceText.trim() || undefined,
         consent: voiceCloneConsent,
+        includeSubtitles,
       }, idempotencyKey.current);
       idempotencyKey.current = null;
       setConfirmedNoFlowClip(false);
@@ -282,7 +293,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
     finally { setBusy(false); }
   };
 
-  const uncertainShot = run?.steps.find((step) => step.state === "NEEDS_RECONCILIATION" || step.state === "SUBMITTING");
+  const uncertainShot = run?.steps.find((step) => step.state === "NEEDS_RECONCILIATION");
   const flowProjectUrl = run?.steps.find((step) => step.flow_project_url)?.flow_project_url;
   const uncertainStoryboardShot = plan?.storyboard.shots.find((shot) => shot.shot_id === uncertainShot?.shot_id);
   const reconciliationCandidates = projectAssets.filter((asset) =>
@@ -466,6 +477,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
             </label>}
             {ttsReferenceAssetId && <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={voiceCloneConsent} onChange={(event) => { setVoiceCloneConsent(event.target.checked); idempotencyKey.current = null; }} className="mt-1" />Tôi có quyền sử dụng audio tham chiếu để tạo giọng đọc.</label>}
           </>}
+          <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={includeSubtitles} onChange={(event) => { setIncludeSubtitles(event.target.checked); idempotencyKey.current = null; }} className="mt-1" /><span><span className="font-medium">Thêm phụ đề khi ghép video</span><span className="block text-xs text-muted-foreground">TTS dùng lời dẫn storyboard, không chạy nhận dạng giọng nói. Voiceover tải lên sẽ dùng ASR.</span></span></label>
           <p className="text-xs text-muted-foreground">Mỗi run chỉ dùng một nguồn lời đọc. Nếu TTS lỗi, hệ thống dừng run và không tự đổi nhà cung cấp.</p>
         </Card>}
         {plan.status === "DRAFT" && <p className="text-sm text-muted-foreground">Chia sẻ URL có mã plan này cho người duyệt. Người tạo không thể tự duyệt theo quy tắc phân quyền.</p>}

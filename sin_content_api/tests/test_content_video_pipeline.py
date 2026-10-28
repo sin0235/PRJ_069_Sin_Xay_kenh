@@ -31,6 +31,7 @@ def test_content_video_migration_upgrades_existing_run_table(monkeypatch):
     try:
         with engine.begin() as connection:
             connection.execute(text("CREATE TABLE content_video_runs (id VARCHAR(36) PRIMARY KEY)"))
+            connection.execute(text("INSERT INTO content_video_runs (id) VALUES ('legacy-run')"))
         monkeypatch.setattr(migration_runner, "engine", engine)
 
         migration_runner.migration_up()
@@ -38,38 +39,223 @@ def test_content_video_migration_upgrades_existing_run_table(monkeypatch):
         columns = {column["name"] for column in inspect(engine).get_columns("content_video_runs")}
         assert "voice_asset_id" in columns
         assert "tts_config_json" in columns
+        assert "include_subtitles" in columns
+        with engine.connect() as connection:
+            assert connection.execute(text("SELECT include_subtitles FROM content_video_runs WHERE id = 'legacy-run'")).scalar_one() == 1
         assert {"content_video_plans", "content_video_worker_leases"} <= set(inspect(engine).get_table_names())
     finally:
         engine.dispose()
 
 
-def test_watermark_removal_is_queued_off_worker_thread(monkeypatch, tmp_path):
+def test_tts_is_synthesized_per_shot_while_fake_video_generation_is_running(monkeypatch):
     import threading
     from concurrent.futures import ThreadPoolExecutor
+    import numpy as np
     from src.modules.tao_video_noi_dung import runner
 
     started = threading.Event()
-    release = threading.Event()
-    source = tmp_path / "flow.mp4"
-    output = tmp_path / "flow_clean.mp4"
-    source.write_bytes(b"source")
+    release_tts = threading.Event()
+    release_video = threading.Event()
+    video_started = threading.Event()
+    video_finished = threading.Event()
+    calls = []
 
-    def remove(_source, _output, *, use_cpu):
-        assert use_cpu is True
+    def synthesize(_config, text, _reference_path):
+        calls.append(text)
         started.set()
-        assert release.wait(2)
-        output.write_bytes(b"clean")
-        return {"status": "SUCCEEDED", "watermark_removed": True}
+        assert release_tts.wait(5)
+        seconds = 11 if text == "Cảnh một" else 9
+        rate = 48000
+        return np.ones(seconds * rate, dtype=np.float32) * 0.01, rate
 
-    monkeypatch.setattr(runner.video_processor, "remove_veo_watermark", remove)
+    monkeypatch.setattr(runner.tts_provider_manager, "synthesize", synthesize)
+    shots = [
+        SimpleNamespace(narration="Cảnh một", duration_seconds=10),
+        SimpleNamespace(narration="Cảnh hai", duration_seconds=10),
+    ]
     with ThreadPoolExecutor(max_workers=1) as executor:
-        future = runner._queue_watermark_removal(executor, source, output)
+        tts = runner._queue_tts_voice(executor, {"provider": "fake"}, shots, None)
         assert started.wait(2)
-        assert not future.done()
-        next_flow_download_started = True
-        assert next_flow_download_started
-        release.set()
-        assert future.result(timeout=2)["watermark_removed"] is True
+
+        def fake_video_generation():
+            video_started.set()
+            assert release_video.wait(5)
+            video_finished.set()
+
+        video = threading.Thread(target=fake_video_generation)
+        video.start()
+        assert video_started.wait(2)
+        release_tts.set()
+        audio, sample_rate = tts.result(timeout=5)
+        assert not video_finished.is_set()
+        release_video.set()
+        video.join(timeout=2)
+
+    assert calls == ["Cảnh một", "Cảnh hai"]
+    assert sample_rate == 48000
+    assert len(audio) == 20 * sample_rate
+    assert np.all(audio[:11 * sample_rate] == 0.01)
+    assert np.all(audio[11 * sample_rate:] == 0.01)
+
+
+def test_tts_keeps_natural_audio_duration_when_a_shot_is_longer(monkeypatch):
+    import numpy as np
+    from src.modules.tao_video_noi_dung import runner
+
+    monkeypatch.setattr(
+        runner.tts_provider_manager,
+        "synthesize",
+        lambda *_args: (np.ones(10 * 48000 + 24000, dtype=np.float32) * 0.01, 48000),
+    )
+
+    audio, sample_rate = runner._synthesize_tts_voice(
+        {"provider": "fake"},
+        [SimpleNamespace(shot_id="s1", narration="Lời dẫn", duration_seconds=10)],
+        None,
+    )
+
+    assert sample_rate == 48000
+    assert len(audio) == 10 * sample_rate + sample_rate // 2
+
+
+def test_tts_subtitles_follow_storyboard_shot_boundaries_without_asr(monkeypatch):
+    from src.modules.tao_video_noi_dung import runner
+
+    shots = [
+        SimpleNamespace(shot_id="s1", narration="Lời cảnh một", duration_seconds=10),
+        SimpleNamespace(shot_id="s2", narration="Lời cảnh hai", duration_seconds=5),
+    ]
+    monkeypatch.setattr(runner, "transcribe_cached", lambda *_args: pytest.fail("TTS captions must not use ASR"))
+
+    captions = runner._tts_captions(shots)
+
+    assert [(caption.text, caption.start_ms, caption.duration_ms) for caption in captions] == [
+        ("Lời cảnh một", 0, 10000),
+        ("Lời cảnh hai", 10000, 5000),
+    ]
+
+
+def test_tts_and_fake_ten_second_video_render_together_without_flow(monkeypatch, tmp_path):
+    import subprocess
+    import wave
+    from concurrent.futures import ThreadPoolExecutor
+    import numpy as np
+    from src.modules.tao_video_noi_dung import runner
+    from src.schemas.contracts import TimelineAudioTrack, TimelineClip, TimelineDocument, TimelineMediaType
+
+    shot = SimpleNamespace(shot_id="s1", narration="Lời dẫn thử nghiệm.", duration_seconds=10)
+
+    def fake_tts(_config, _text, _reference_path):
+        sample_count = int(9.3 * 24000)
+        samples = np.sin(2 * np.pi * 220 * np.arange(sample_count) / 24000) * 0.08
+        return samples.astype(np.float32), 24000
+
+    monkeypatch.setattr(runner.tts_provider_manager, "synthesize", fake_tts)
+    fake_video = tmp_path / "fake_video.mp4"
+    fake_voice = tmp_path / "fake_voice.wav"
+    rendered = tmp_path / "rendered.mp4"
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        tts = runner._queue_tts_voice(executor, {"provider": "fake"}, [shot], None)
+        video = executor.submit(subprocess.run, [
+            runner.video_processor.ffmpeg_bin, "-y", "-f", "lavfi", "-i",
+            "color=c=blue:s=360x640:r=24:d=10", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+            "-t", "10", str(fake_video),
+        ], capture_output=True, check=True)
+        audio, sample_rate = tts.result(timeout=30)
+        video.result(timeout=30)
+
+    with wave.open(str(fake_voice), "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(sample_rate)
+        wav.writeframes((np.clip(audio, -1, 1) * 32767).astype("<i2").tobytes())
+    timeline = TimelineDocument(
+        width=360, height=640, fps=24,
+        clips=[TimelineClip(
+            clip_id=shot.shot_id, asset_id="video", media_type=TimelineMediaType.VIDEO,
+            start_ms=0, duration_ms=10000, trim_in_ms=0, trim_out_ms=10000,
+        )],
+        voice_track=TimelineAudioTrack(asset_id="voice", duration_ms=10000),
+        captions=runner._tts_captions([shot], height=640, width=360),
+    )
+    meta = runner.video_processor.render_timeline_document(
+        timeline, lambda asset_id: fake_video if asset_id == "video" else fake_voice,
+        rendered, caption_style="vietsub_v1", preserve_voice_audio=True,
+    )
+
+    assert rendered.is_file()
+    assert abs(meta["duration_seconds"] - 9.3) <= 0.1
+    assert abs(runner.audio_processor.probe_audio(rendered)["duration_seconds"] - 9.3) <= 0.1
+    assert runner.audio_processor.probe_audio(rendered)["sample_rate_hz"] == sample_rate
+    assert meta["audio_normalization"] == "SKIPPED_RAW_TTS"
+    assert meta["video_playback_speed"] > 1.0
+    assert meta["audio_loudness_lufs"] < -18
+
+    slower_voice = tmp_path / "slower_voice.wav"
+    with wave.open(str(slower_voice), "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(sample_rate)
+        wav.writeframes(np.zeros(int(10.7 * sample_rate), dtype="<i2").tobytes())
+    slower_meta = runner.video_processor.render_timeline_document(
+        timeline, lambda asset_id: fake_video if asset_id == "video" else slower_voice,
+        tmp_path / "rendered_slower_video.mp4", caption_style="vietsub_v1", preserve_voice_audio=True,
+    )
+    assert abs(slower_meta["duration_seconds"] - 10.7) <= 0.1
+    assert slower_meta["video_playback_speed"] < 1.0
+
+
+def test_raw_tts_caps_video_retiming_at_ten_percent_without_changing_voice(tmp_path):
+    import wave
+    import numpy as np
+    import subprocess
+    from src.modules.media_studio.video_processor import video_processor
+    from src.schemas.contracts import TimelineAudioTrack, TimelineClip, TimelineDocument, TimelineMediaType
+
+    video = tmp_path / "video.mp4"
+    subprocess.run([
+        video_processor.ffmpeg_bin, "-y", "-v", "error", "-f", "lavfi", "-i",
+        "color=c=blue:s=360x640:r=24:d=10", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        "-t", "10", str(video),
+    ], check=True, capture_output=True)
+    voice = tmp_path / "voice.wav"
+    with wave.open(str(voice), "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(24000)
+        wav.writeframes(np.zeros(int(8.9 * 24000), dtype="<i2").tobytes())
+    timeline = TimelineDocument(
+        width=360, height=640, fps=24,
+        clips=[TimelineClip(
+            clip_id="s1", asset_id="video", media_type=TimelineMediaType.VIDEO,
+            start_ms=0, duration_ms=10000, trim_in_ms=0, trim_out_ms=10000,
+        )],
+        voice_track=TimelineAudioTrack(asset_id="voice", duration_ms=8900),
+    )
+
+    fast_path = tmp_path / "capped_fast_video.mp4"
+    fast_meta = video_processor.render_timeline_document(
+        timeline, lambda asset_id: video if asset_id == "video" else voice,
+        fast_path, preserve_voice_audio=True,
+    )
+    assert fast_meta["video_playback_speed"] == 1.1
+    assert abs(fast_meta["duration_seconds"] - 10 / 1.1) <= 0.1
+    assert abs(fast_meta["voice_audio_duration_seconds"] - 8.9) <= 0.1
+    assert fast_meta["silent_tail_seconds"] <= 0.3
+
+    long_voice = tmp_path / "long_voice.wav"
+    with wave.open(str(long_voice), "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(24000)
+        wav.writeframes(np.zeros(int(11.2 * 24000), dtype="<i2").tobytes())
+    slow_meta = video_processor.render_timeline_document(
+        timeline, lambda asset_id: video if asset_id == "video" else long_voice,
+        tmp_path / "capped_slow_video.mp4", preserve_voice_audio=True,
+    )
+    assert slow_meta["video_playback_speed"] == 0.9
+    assert abs(slow_meta["duration_seconds"] - 11.2) <= 0.1
+    assert slow_meta["frozen_tail_seconds"] <= 0.2
 
 
 def test_full_migration_rollback_preserves_content_video_records(tmp_path, monkeypatch):
@@ -347,7 +533,9 @@ def test_flow_credit_block_is_reported_without_submission():
 
 
 @pytest.mark.parametrize("flow_native_audio", [True, False])
-def test_content_video_render_does_not_gate_on_native_flow_audio_presence(monkeypatch, tmp_path, flow_native_audio):
+@pytest.mark.parametrize("with_tts_voice", [True, False])
+@pytest.mark.parametrize("include_subtitles", [True, False])
+def test_content_video_render_tracks_native_audio_and_tts_subtitles(monkeypatch, tmp_path, flow_native_audio, with_tts_voice, include_subtitles):
     from src.models.entities import MediaAsset, TimelineVersion
     from src.modules.tao_video_noi_dung import runner
 
@@ -390,15 +578,20 @@ def test_content_video_render_does_not_gate_on_native_flow_audio_presence(monkey
             pass
 
     captured = {}
-    def render(timeline, _resolver, output_path, transition_seconds, caption_style):
+    def render(timeline, _resolver, output_path, transition_seconds, caption_style, preserve_voice_audio=False):
         captured["timeline"] = timeline
         captured["transition_seconds"] = transition_seconds
         captured["caption_style"] = caption_style
+        captured["preserve_voice_audio"] = preserve_voice_audio
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_bytes(b"rendered video")
-        return {"flow_native_audio": flow_native_audio}
+        return {"flow_native_audio": flow_native_audio, "duration_seconds": 30.0}
 
-    monkeypatch.setattr(runner, "_voice_input", lambda *_args: None)
+    voice_asset = SimpleNamespace(
+        id="tts-asset", sha256="tts-hash", source_product="CONTENT_VIDEO_TTS", duration_ms=30000,
+    )
+    voice_input = (voice_asset, tmp_path / "tts.wav") if with_tts_voice else None
+    monkeypatch.setattr(runner, "_voice_input", lambda *_args: voice_input)
     monkeypatch.setattr(runner, "get_workspace_storage_dir", lambda _workspace: tmp_path)
     monkeypatch.setattr(runner.video_processor, "render_timeline_document", render)
     monkeypatch.setattr(runner.video_processor, "probe_video", lambda _path: {
@@ -408,11 +601,16 @@ def test_content_video_render_does_not_gate_on_native_flow_audio_presence(monkey
     monkeypatch.setattr(runner.subprocess, "run", lambda *_args, **_kwargs: SimpleNamespace(returncode=0, stderr=""))
     monkeypatch.setattr(
         runner.audio_processor, "verify_audio_qc",
-        lambda *_args, **_kwargs: pytest.fail("Flow audio không chạy qua AUDIO_QC"),
+        lambda *_args, **_kwargs: {"passed": True},
     )
+    monkeypatch.setattr(
+        runner.audio_processor, "probe_audio",
+        lambda _path: {"codec_name": "aac", "duration_seconds": 30.0},
+    )
+    monkeypatch.setattr(runner, "transcribe_cached", lambda *_args: pytest.fail("TTS subtitles must not use ASR"))
     monkeypatch.setattr(runner, "_write_export_package", lambda path, *_args: path.write_bytes(b"export"))
 
-    shots = [SimpleNamespace(shot_id=f"shot-{index}", duration_seconds=10, prompt_contract_version=3) for index in range(1, 4)]
+    shots = [SimpleNamespace(shot_id=f"shot-{index}", narration=f"Lời cảnh {index}", duration_seconds=10, prompt_contract_version=3) for index in range(1, 4)]
     storyboard = SimpleNamespace(shots=shots)
     plan = SimpleNamespace(
         target_duration_seconds=30, style_snapshot_sha256="style-hash", source_content="source",
@@ -420,20 +618,33 @@ def test_content_video_render_does_not_gate_on_native_flow_audio_presence(monkey
     )
     run = SimpleNamespace(
         id="run", workspace_id="ws", project_id="project", created_by="creator",
-        voice_asset_id=None, steps_json="[]", output_asset_ids_json="[]",
+        voice_asset_id="tts-asset" if with_tts_voice else None,
+        include_subtitles=include_subtitles, steps_json="[]", output_asset_ids_json="[]",
     )
 
     runner._render_and_qc(DB(), run, plan, storyboard, list(shot_assets))
 
-    assert captured["timeline"].captions == []
+    if with_tts_voice and include_subtitles:
+        assert [(caption.text, caption.start_ms, caption.duration_ms) for caption in captured["timeline"].captions] == [
+            ("Lời cảnh 1", 0, 10000), ("Lời cảnh 2", 10000, 10000), ("Lời cảnh 3", 20000, 10000),
+        ]
+    else:
+        assert captured["timeline"].captions == []
     assert (captured["timeline"].width, captured["timeline"].height) == (1920, 1080)
-    assert captured["timeline"].voice_track is None
+    assert (captured["timeline"].voice_track is not None) is with_tts_voice
     assert captured["transition_seconds"] == 0.3
     assert captured["caption_style"] == "vietsub_v1"
+    assert captured["preserve_voice_audio"] is with_tts_voice
     report = json.loads(run.qc_report_json)
-    assert report["voice_source"] == ("FLOW_NATIVE" if flow_native_audio else "NONE")
+    assert report["voice_source"] == ("TTS" if with_tts_voice else "FLOW_NATIVE" if flow_native_audio else "NONE")
     assert report["flow_native_audio"] is flow_native_audio
+    assert report["speech_alignment"] == (
+        "TTS_SHOT_TIMELINE" if with_tts_voice and include_subtitles else
+        "DISABLED" if with_tts_voice else "NO_AUDIO_FOR_VIETSUB"
+    )
     assert report["audio_qc"] == {
+        "status": "RAW_TTS_PRESERVED", "reason": "LOUDNESS_NORMALIZATION_DISABLED", "passed": True,
+    } if with_tts_voice else {
         "status": "SKIPPED",
         "reason": "FLOW_NATIVE_AUDIO" if flow_native_audio else "NO_AUDIO_SELECTED",
         "passed": True,
@@ -723,7 +934,7 @@ def test_plan_approval_authorizes_the_persisted_plan_as_a_resource(monkeypatch):
             tenant=tenant, action=action, **resource
         ),
     )
-    monkeypatch.setattr(content_video_router, "approve_plan", lambda *args: "approved")
+    monkeypatch.setattr(content_video_router, "approve_plan", lambda *args, **_kwargs: "approved")
     tenant = SimpleNamespace(workspace_id="workspace-1", user_id="reviewer-1")
 
     result = content_video_router.approve_content_video_plan(
@@ -748,7 +959,7 @@ def test_plan_approval_authorizes_the_persisted_plan_as_a_resource(monkeypatch):
 def test_plan_creator_can_self_approve_only_in_explicit_e2e_test_mode(monkeypatch):
     plan = SimpleNamespace(id="plan-1", created_by="creator-1", revision=1, storyboard_sha256="hash")
     monkeypatch.setattr(content_video_router, "get_plan", lambda *args: plan)
-    monkeypatch.setattr(content_video_router, "approve_plan", lambda *args: "approved")
+    monkeypatch.setattr(content_video_router, "approve_plan", lambda *args, **_kwargs: "approved")
     monkeypatch.setattr(content_video_router, "authorize_resource", lambda *_args, **_kwargs: pytest.fail("test mode should allow self-approval"))
     monkeypatch.setenv("TESTING", "1")
     monkeypatch.setenv("BAHA_AUTH_APP_ENV", "test")
@@ -758,6 +969,29 @@ def test_plan_creator_can_self_approve_only_in_explicit_e2e_test_mode(monkeypatc
     tenant = SimpleNamespace(workspace_id="workspace-1", user_id="creator-1")
 
     assert content_video_router.approve_content_video_plan("project-1", "plan-1", db=object(), tenant=tenant) == "approved"
+
+
+def test_local_dev_auth_bypass_allows_storyboard_creator_self_approval(monkeypatch):
+    plan = SimpleNamespace(id="plan-1", created_by="dev-user", revision=1, storyboard_sha256="hash")
+    approved = {}
+    monkeypatch.setattr(content_video_router, "get_plan", lambda *args: plan)
+    monkeypatch.setattr(content_video_router, "e2e_test_self_approval_enabled", lambda: False)
+    monkeypatch.setattr(
+        content_video_router,
+        "authorize_resource",
+        lambda *_args, **_kwargs: pytest.fail("local dev bypass must not invoke four-eyes authorization"),
+    )
+    monkeypatch.setattr(
+        content_video_router,
+        "approve_plan",
+        lambda *args, **kwargs: approved.update(allow_self_approval=kwargs.get("allow_self_approval")) or "approved",
+    )
+    tenant = SimpleNamespace(workspace_id="workspace-1", user_id="dev-user", dev_auth_bypass=True)
+
+    result = content_video_router.approve_content_video_plan("project-1", "plan-1", db=object(), tenant=tenant)
+
+    assert result == "approved"
+    assert approved == {"allow_self_approval": True}
 
 
 def test_creator_can_edit_draft_storyboard_and_updates_hash(monkeypatch):
@@ -952,10 +1186,10 @@ def test_retry_run_all_shots_discards_every_old_shot_result():
         engine.dispose()
 
 
-def test_retry_run_resumes_watermark_cleanup_without_resubmitting_flow():
+def test_retry_run_reuses_raw_clips_and_tts_after_watermark_failure():
     from src.modules.tao_video_noi_dung.contracts import RetryRunRequest
     from src.modules.tao_video_noi_dung.service import retry_run
-    from src.models.entities import ContentVideoRun
+    from src.models.entities import ContentVideoRun, MediaAsset
 
     engine, Session = _content_video_test_database()
     try:
@@ -963,17 +1197,60 @@ def test_retry_run_resumes_watermark_cleanup_without_resubmitting_flow():
             _seed_content_video_history(db, run_status="FAILED")
             run = db.query(ContentVideoRun).filter_by(id="run-1").first()
             steps = json.loads(run.steps_json)
-            steps[1].update({"state": "CLEANING", "raw_asset_id": "asset-s2", "asset_id": "asset-s2"})
+            for step in steps:
+                step.update({"state": "CLEANING", "raw_asset_id": step["asset_id"], "watermark_removed": False})
+            db.add(MediaAsset(
+                id="voice-asset", workspace_id="workspace-1", project_id="project-1",
+                storage_key="test/voice.wav", sha256="sha256-voice", byte_size=20,
+                mime_detected="audio/wav", duration_ms=30000,
+                source_product="CONTENT_VIDEO_TTS", created_by="creator-1",
+            ))
+            run.voice_asset_id = "voice-asset"
+            run.tts_config_json = json.dumps({"provider": "VIE_NEU_V3_TURBO"})
             run.steps_json = json.dumps(steps)
             db.commit()
 
             result = retry_run(db, "project-1", "run-1", "workspace-1", "operator-1", RetryRunRequest(
-                shot_ids=["s2"], idempotency_key="retry-cleaning-shot-001",
+                shot_ids=["s1"], idempotency_key="retry-cleaning-shot-001",
             ))
 
-            assert result.steps[1]["state"] == "CLEANING"
-            assert result.steps[1]["raw_asset_id"] == "asset-s2"
-            assert result.steps[1]["asset_id"] == "asset-s2"
+            assert [step["state"] for step in result.steps] == ["SUCCEEDED"] * 3
+            assert [step["asset_id"] for step in result.steps] == ["asset-s1", "asset-s2", "asset-s3"]
+            assert all(step["watermark_removed"] is False for step in result.steps)
+            assert result.voice_asset_id == "voice-asset"
+            assert result.tts_provider == "VIE_NEU_V3_TURBO"
+            assert result.output_asset_ids == ["asset-s1", "asset-s2", "asset-s3", "voice-asset"]
+    finally:
+        engine.dispose()
+
+
+def test_resume_run_requeues_saved_tts_render_without_resubmitting_shots():
+    from src.models.entities import ContentVideoRun, MediaAsset
+    from src.modules.tao_video_noi_dung.service import resume_run
+
+    engine, Session = _content_video_test_database()
+    try:
+        with Session() as db:
+            _seed_content_video_history(db, run_status="FAILED")
+            run = db.query(ContentVideoRun).filter_by(id="run-1").first()
+            db.add(MediaAsset(
+                id="voice-asset", workspace_id="workspace-1", project_id="project-1",
+                storage_key="test/voice.wav", sha256="sha256-voice", byte_size=20,
+                mime_detected="audio/wav", duration_ms=28000,
+                source_product="CONTENT_VIDEO_TTS", created_by="creator-1",
+            ))
+            run.voice_asset_id = "voice-asset"
+            run.tts_config_json = json.dumps({"provider": "VIE_NEU_V3_TURBO"})
+            run.error_code = "CONTENT_VIDEO_RUN_FAILED"
+            run.error_message = "VOICE_ASSET_DURATION_MISMATCH"
+            db.commit()
+
+            result = resume_run(db, "project-1", "run-1", "workspace-1")
+
+            assert result.status == "QUEUED"
+            assert result.voice_asset_id == "voice-asset"
+            assert result.tts_provider == "VIE_NEU_V3_TURBO"
+            assert [step["state"] for step in result.steps] == ["SUCCEEDED"] * 3
     finally:
         engine.dispose()
 
@@ -1136,6 +1413,10 @@ def test_tts_run_contract_requires_one_explicit_provider_and_gwen_reference():
     )
     assert request.voice_asset_id is None
     assert request.tts_provider == "GWEN_TTS"
+    assert request.include_subtitles is True
+    assert CreateRunRequest(
+        plan_id="plan-1", idempotency_key="tts-contract-005", include_subtitles=False,
+    ).include_subtitles is False
 
 
 def test_tts_provider_manager_switches_one_loaded_model_without_fallback():
@@ -1162,29 +1443,28 @@ def test_tts_provider_manager_switches_one_loaded_model_without_fallback():
         manager.synthesize({"provider": "OTHER"}, "Xin chào")
 
 
-def test_tts_worker_saves_one_project_scoped_asset_and_reuses_it(tmp_path, monkeypatch):
+def test_tts_worker_saves_raw_duration_and_level_project_scoped_asset(tmp_path, monkeypatch):
+    import wave
     import numpy as np
 
     added = []
-    generated = []
     db = SimpleNamespace(add=added.append, commit=lambda: None, refresh=lambda _item: None)
     run = SimpleNamespace(
         id="run-tts-1", workspace_id="workspace-1", project_id="project-1", created_by="creator-1",
         tts_config_json='{"provider":"VIE_NEU_V3_TURBO","voice_id":"Hải Đăng"}',
         voice_asset_id=None, output_asset_ids_json="[]",
     )
-    storyboard = SimpleNamespace(narration="Lời dẫn đã duyệt.")
     monkeypatch.setattr("src.modules.tao_video_noi_dung.runner.MEDIA_ROOT_DIR", tmp_path)
-    monkeypatch.setattr("src.modules.tao_video_noi_dung.runner.audio_processor.probe_audio", lambda _path: {"codec_name": "pcm_s16le", "duration_seconds": 20})
-    monkeypatch.setattr("src.modules.tao_video_noi_dung.runner.tts_provider_manager.synthesize", lambda *args: generated.append(args) or (np.zeros(20 * 100), 100))
-    plan = SimpleNamespace(target_duration_seconds=20)
 
-    from src.modules.tao_video_noi_dung.runner import _generate_tts_voice
-    _generate_tts_voice(db, run, plan, storyboard)
+    from src.modules.tao_video_noi_dung.runner import _save_tts_voice
+    _save_tts_voice(db, run, np.full(19 * 48000, 0.02, dtype=np.float32), 48000)
     asset = added[0]
-    _generate_tts_voice(db, run, plan, storyboard)
+    with wave.open(str(tmp_path / asset.storage_key), "rb") as wav:
+        saved = np.frombuffer(wav.readframes(wav.getnframes()), dtype="<i2")
+        assert wav.getframerate() == 48000
+        assert wav.getnframes() == 19 * 48000
+        assert abs(float(saved[0]) / 32767 - 0.02) < 1 / 32767
 
-    assert len(generated) == 1
     assert asset.workspace_id == run.workspace_id and asset.project_id == run.project_id
     assert asset.source_product == "CONTENT_VIDEO_TTS"
     assert run.voice_asset_id == asset.id
@@ -1204,8 +1484,10 @@ def test_tts_run_idempotency_and_response_keep_reference_text_private():
         created_at=datetime.now(timezone.utc), started_at=None, finished_at=None,
     )
 
-    assert _same_run_request(run, "workspace-1", "project-1", "plan-1", None, config)
-    assert not _same_run_request(run, "workspace-1", "project-1", "plan-1", None, json.dumps({"provider": "VIE_NEU_V3_TURBO"}))
+    assert _same_run_request(run, "workspace-1", "project-1", "plan-1", None, config, True)
+    assert not _same_run_request(run, "workspace-1", "project-1", "plan-1", None, config, False)
+    assert not _same_run_request(run, "workspace-1", "project-1", "plan-1", None, json.dumps({"provider": "VIE_NEU_V3_TURBO"}), True)
     response = _run_response(run).model_dump_json()
     assert '"tts_provider":"GWEN_TTS"' in response
+    assert '"include_subtitles":true' in response
     assert "transcript kín" not in response
