@@ -41,62 +41,13 @@ interface ScheduledPost {
   durationSec: number;
 }
 
-const scheduledPosts: ScheduledPost[] = [
-  {
-    id: "post_01",
-    day: 19,
-    dateStr: "19/10/2026",
-    time: "19:30",
-    title: "Cách 1 AI Agent tự động viết 30 kịch bản TikTok trong 60 giây",
-    thumbnailUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80",
-    status: "published",
-    channel: "@bahagroup.creator",
-    pillar: "AI Workflow",
-    durationSec: 28,
-  },
-  {
-    id: "post_02",
-    day: 21,
-    dateStr: "21/10/2026",
-    time: "18:00",
-    title: "Bí Mật Đằng Sau Video Triệu View Bằng Voice Clone ElevenLabs",
-    thumbnailUrl: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400&auto=format&fit=crop&q=80",
-    status: "scheduled",
-    channel: "@bahagroup.creator",
-    pillar: "AI Audio",
-    durationSec: 31,
-  },
-  {
-    id: "post_03",
-    day: 22,
-    dateStr: "22/10/2026",
-    time: "11:30",
-    title: "Cách Setup Safe Zone TikTok Để Không Bị Che Chữ & Nút Like",
-    thumbnailUrl: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=400&auto=format&fit=crop&q=80",
-    status: "scheduled",
-    channel: "@bahagroup.creator",
-    pillar: "Technical Tips",
-    durationSec: 22,
-  },
-  {
-    id: "post_04",
-    day: 24,
-    dateStr: "24/10/2026",
-    time: "20:15",
-    title: "Lộ Trình Tự Động Hóa Kênh TikTok Từ Con Số 0 Với AI Agent",
-    thumbnailUrl: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400&auto=format&fit=crop&q=80",
-    status: "scheduled",
-    channel: "@bahagroup.creator",
-    pillar: "Automation",
-    durationSec: 32,
-  },
-];
+const scheduledPosts: ScheduledPost[] = [];
 
 export default function CalendarPage() {
   const router = useRouter();
   const [view, setView] = React.useState<"month" | "week" | "list">("month");
   const [selectedPost, setSelectedPost] = React.useState<ScheduledPost | null>(null);
-  const [posts, setPosts] = React.useState<ScheduledPost[]>(scheduledPosts);
+  const [posts, setPosts] = React.useState<ScheduledPost[]>([]);
 
   // Nạp bài đăng thật từ Backend Publishing API
   React.useEffect(() => {
@@ -124,10 +75,14 @@ export default function CalendarPage() {
               durationSec: 28,
             };
           });
-          setPosts([...mapped, ...scheduledPosts]);
+          setPosts(mapped);
+        } else {
+          setPosts([]);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setPosts([]);
+      });
   }, []);
 
   // Calendar days grid for October 2026
@@ -241,49 +196,56 @@ export default function CalendarPage() {
       {/* List View */}
       {view === "list" && (
         <Card className="rounded-2xl border-border/80 shadow-xs overflow-hidden">
-          <div className="divide-y divide-border/60">
-            {posts.map((post) => (
-              <div
-                key={post.id}
-                onClick={() => setSelectedPost(post)}
-                className="p-4 flex items-center justify-between gap-4 hover:bg-muted/30 cursor-pointer transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="relative size-14 rounded-lg overflow-hidden bg-muted shrink-0">
-                    <img src={post.thumbnailUrl} alt={post.title} className="size-full object-cover" />
-                    <span className="absolute bottom-1 right-1 text-[9px] bg-black/70 text-white px-1 rounded font-mono">
-                      {post.durationSec}s
-                    </span>
-                  </div>
+          {posts.length === 0 ? (
+            <div className="p-12 text-center text-xs text-muted-foreground flex flex-col items-center justify-center gap-2">
+              <CalendarIcon className="size-8 text-muted-foreground/40" />
+              <span>Không có dữ liệu lịch xuất bản video</span>
+            </div>
+          ) : (
+            <div className="divide-y divide-border/60">
+              {posts.map((post) => (
+                <div
+                  key={post.id}
+                  onClick={() => setSelectedPost(post)}
+                  className="p-4 flex items-center justify-between gap-4 hover:bg-muted/30 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="relative size-14 rounded-lg overflow-hidden bg-muted shrink-0">
+                      <img src={post.thumbnailUrl} alt={post.title} className="size-full object-cover" />
+                      <span className="absolute bottom-1 right-1 text-[9px] bg-black/70 text-white px-1 rounded font-mono">
+                        {post.durationSec}s
+                      </span>
+                    </div>
 
-                  <div>
-                    <h4 className="text-xs font-bold text-foreground line-clamp-1">{post.title}</h4>
-                    <div className="text-[11px] text-muted-foreground mt-0.5">
-                      Kênh {post.channel} • Trụ cột: {post.pillar}
+                    <div>
+                      <h4 className="text-xs font-bold text-foreground line-clamp-1">{post.title}</h4>
+                      <div className="text-[11px] text-muted-foreground mt-0.5">
+                        Kênh {post.channel} • Trụ cột: {post.pillar}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-4 text-xs font-mono shrink-0">
-                  <span className="text-primary font-semibold flex items-center gap-1">
-                    <Clock className="size-3.5" />
-                    {post.dateStr} - {post.time}
-                  </span>
+                  <div className="flex items-center gap-4 text-xs font-mono shrink-0">
+                    <span className="text-primary font-semibold flex items-center gap-1">
+                      <Clock className="size-3.5" />
+                      {post.dateStr} - {post.time}
+                    </span>
 
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] ${
-                      post.status === "published"
-                        ? "border-emerald-500/40 text-emerald-600 bg-emerald-500/10"
-                        : "border-primary/40 text-primary bg-primary/5"
-                    }`}
-                  >
-                    {post.status === "published" ? "Đã phát" : "Đã lên lịch"}
-                  </Badge>
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] ${
+                        post.status === "published"
+                          ? "border-emerald-500/40 text-emerald-600 bg-emerald-500/10"
+                          : "border-primary/40 text-primary bg-primary/5"
+                      }`}
+                    >
+                      {post.status === "published" ? "Đã phát" : "Đã lên lịch"}
+                    </Badge>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
       )}
 

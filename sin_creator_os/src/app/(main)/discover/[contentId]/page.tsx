@@ -21,6 +21,7 @@ import {
   Bookmark,
   RefreshCw,
   Copy,
+  Database,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -29,13 +30,21 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 
-import { mockContentAnalysis, mockEvidences } from "@/data/mock-creator-data";
 import { EvidenceCard } from "@/components/creator/evidence-card";
+import { ContentAnalysisReport, EvidenceSource } from "@/types";
 
 export default function ContentAnalysisPage() {
   const router = useRouter();
   const params = useParams();
-  const report = mockContentAnalysis;
+  const contentId = (params?.contentId as string) || "";
+  const [report, setReport] = React.useState<ContentAnalysisReport | null>(null);
+  const [evidence, setEvidence] = React.useState<EvidenceSource | null>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    // Không tự động gán dữ liệu mock nếu không có dữ liệu thật từ hệ thống
+    setLoading(false);
+  }, [contentId]);
 
   const [copiedPattern, setCopiedPattern] = React.useState<string | null>(null);
 
@@ -44,6 +53,30 @@ export default function ContentAnalysisPage() {
     setCopiedPattern(patternName);
     setTimeout(() => setCopiedPattern(null), 2000);
   };
+
+  if (loading) {
+    return (
+      <div className="py-24 flex flex-col items-center justify-center text-xs text-muted-foreground gap-2">
+        <RefreshCw className="size-6 animate-spin text-primary" />
+        <span>Đang nạp phân tích nội dung...</span>
+      </div>
+    );
+  }
+
+  if (!report) {
+    return (
+      <div className="flex flex-col items-center justify-center p-16 border border-dashed rounded-2xl text-center bg-card/40 my-12">
+        <Database className="size-12 text-muted-foreground mb-3 opacity-60" />
+        <h3 className="text-base font-semibold text-foreground">Không có dữ liệu phân tích</h3>
+        <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+          Không tìm thấy thông tin bóc tách hoặc phân tích cho video này.
+        </p>
+        <Button variant="outline" size="sm" onClick={() => router.push("/discover")} className="mt-4 text-xs">
+          Quay lại trang Khám phá
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 pb-16">
@@ -215,7 +248,13 @@ export default function ContentAnalysisPage() {
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Nguồn Bằng Chứng Xác Thực (Evidence Provenance)
             </h3>
-            <EvidenceCard evidence={mockEvidences[0]} />
+            {evidence ? (
+              <EvidenceCard evidence={evidence} />
+            ) : (
+              <div className="p-4 border border-dashed rounded-xl text-center text-xs text-muted-foreground">
+                Không có dữ liệu bằng chứng trích dẫn
+              </div>
+            )}
           </div>
         </div>
 

@@ -19,6 +19,7 @@ from fastapi.testclient import TestClient
 from src.main import app
 from src.database import Base, SessionLocal, engine
 from src.models.entities import Workspace, User, Membership
+from src.models.entities import ProductionProject
 from baha_auth.src.database import Base as AuthBase, SessionLocal as AuthSessionLocal, engine as AuthEngine
 from baha_auth.src.models.entities import (
     GlobalUser,
@@ -43,6 +44,7 @@ from src.modules.dieu_phoi_dung.sua_bang_flow import QuanLySuaCanh, CapabilityPr
 from src.modules.dieu_phoi_dung.ket_noi_phan_mem_dung import BoKetNoiPhanMemDung
 from src.modules.dieu_phoi_dung.kho_luu_tru import KhoLuuTruDung
 from src.modules.dieu_phoi_dung.bo_render import BoRenderDung
+from src.modules.dieu_phoi_dung.bo_dinh_tuyen import _kiem_tra_quyen_du_an
 from tests.conftest import tao_bearer_token, setup_test_auth_user
 
 
@@ -90,6 +92,14 @@ def tao_sample_timeline_chuan() -> TimelineV2:
         text="Trà sữa Sin nguyên bản"
     )
     return TimelineV2(tracks=[track_v], captions=[cap])
+
+
+def test_dieu_phoi_tu_choi_project_khong_co_trong_database(du_lieu_hai_workspace):
+    from fastapi import HTTPException
+
+    with SessionLocal() as db, pytest.raises(HTTPException) as exc_info:
+        _kiem_tra_quyen_du_an(db, "project-missing", "ws_alpha")
+    assert exc_info.value.status_code == 404
 
 
 # ==============================================================================

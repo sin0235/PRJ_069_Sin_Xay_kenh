@@ -24,11 +24,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 
-import { mockTrends } from "@/data/mock-creator-data";
-
 export default function TrendsPage() {
   const router = useRouter();
   const [selectedType, setSelectedType] = React.useState("all");
+  const [trends, setTrends] = React.useState<any[]>([]);
 
   const getStageBadge = (stage: string) => {
     switch (stage) {
@@ -92,70 +91,80 @@ export default function TrendsPage() {
 
       {/* Trends Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {mockTrends.map((trend) => (
-          <Card
-            key={trend.id}
-            className="rounded-2xl border-border/80 shadow-xs p-5 space-y-4 hover:border-primary/40 transition-all bg-card"
-          >
-            {/* Header: Trend Name, Type, Stage */}
-            <div className="flex items-start justify-between gap-2">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className={`text-[10px] font-bold ${getStageBadge(trend.stage)}`}>
-                    Giai đoạn: {trend.stage}
-                  </Badge>
-                  <Badge variant="secondary" className="text-[10px] font-mono">
-                    {trend.type}
-                  </Badge>
-                </div>
-                <h3 className="text-sm font-bold text-foreground">{trend.name}</h3>
-              </div>
-
-              <div className="text-right">
-                <div className="text-xs font-bold font-mono text-primary flex items-center justify-end gap-1">
-                  <Flame className="size-3 text-rose-500 fill-current" />
-                  <span>Momentum: {trend.momentum}/100</span>
-                </div>
-                <span className="text-[10px] font-mono text-emerald-600 block">
-                  {trend.growthCurve}
-                </span>
-              </div>
-            </div>
-
-            {/* Description */}
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              {trend.description}
+        {trends.length === 0 ? (
+          <div className="col-span-full flex flex-col items-center justify-center p-12 border border-dashed rounded-2xl text-center bg-card/40">
+            <TrendingUp className="size-10 text-muted-foreground mb-3 opacity-60" />
+            <h3 className="text-sm font-semibold text-foreground">Không có dữ liệu xu hướng</h3>
+            <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+              Hiện tại chưa thu thập được dữ liệu xu hướng mới từ thuật toán TikTok. Vui lòng thử lại sau.
             </p>
+          </div>
+        ) : (
+          trends.map((trend) => (
+            <Card
+              key={trend.id}
+              className="rounded-2xl border-border/80 shadow-xs p-5 space-y-4 hover:border-primary/40 transition-all bg-card"
+            >
+              {/* Header: Trend Name, Type, Stage */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={`text-[10px] font-bold ${getStageBadge(trend.stage)}`}>
+                      Giai đoạn: {trend.stage}
+                    </Badge>
+                    <Badge variant="secondary" className="text-[10px] font-mono">
+                      {trend.type}
+                    </Badge>
+                  </div>
+                  <h3 className="text-sm font-bold text-foreground">{trend.name}</h3>
+                </div>
 
-            {/* Metadata & Signals */}
-            <div className="grid grid-cols-2 gap-2 text-[11px] p-2.5 rounded-xl bg-muted/40 border border-border/50">
-              <div>
-                <span className="text-muted-foreground block text-[10px]">Quy mô lượt xem:</span>
-                <span className="font-bold text-foreground font-mono">{trend.volume}</span>
+                <div className="text-right">
+                  <div className="text-xs font-bold font-mono text-primary flex items-center justify-end gap-1">
+                    <Flame className="size-3 text-rose-500 fill-current" />
+                    <span>Momentum: {trend.momentum}/100</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-emerald-600 block">
+                    {trend.growthCurve}
+                  </span>
+                </div>
               </div>
-              <div>
-                <span className="text-muted-foreground block text-[10px]">Độ phù hợp tệp người xem:</span>
-                <span className="font-bold text-primary">{trend.audienceMatch}</span>
+
+              {/* Description */}
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {trend.description}
+              </p>
+
+              {/* Metadata & Signals */}
+              <div className="grid grid-cols-2 gap-2 text-[11px] p-2.5 rounded-xl bg-muted/40 border border-border/50">
+                <div>
+                  <span className="text-muted-foreground block text-[10px]">Quy mô lượt xem:</span>
+                  <span className="font-bold text-foreground font-mono">{trend.volume}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground block text-[10px]">Độ phù hợp tệp người xem:</span>
+                  <span className="font-bold text-primary">{trend.audienceMatch}</span>
+                </div>
               </div>
-            </div>
 
-            {/* Action */}
-            <div className="flex items-center justify-between pt-2 border-t border-border/50">
-              <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-mono">
-                <Zap className="size-3 text-amber-500" /> Tín hiệu tươi mới: {trend.freshness}
-              </span>
+              {/* Action */}
+              <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                <span className="text-[11px] text-muted-foreground flex items-center gap-1 font-mono">
+                  <Zap className="size-3 text-amber-500" /> Tín hiệu tươi mới: {trend.freshness}
+                </span>
 
-              <Button
-                size="sm"
-                onClick={() => router.push(`/ideas/generate?trend=${trend.id}`)}
-                className="h-8 text-xs font-semibold rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground gap-1"
-              >
-                <Sparkles className="size-3" />
-                <span>Bắt Trend Này</span>
-              </Button>
-            </div>
-          </Card>
-        ))}
+                <Button
+                  size="sm"
+                  onClick={() => router.push(`/ideas/generate?trend=${trend.id}`)}
+                  className="h-8 text-xs font-semibold rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground gap-1"
+                >
+                  <Sparkles className="size-3" />
+                  <span>Bắt Trend Này</span>
+                </Button>
+              </div>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );

@@ -304,9 +304,9 @@ export default function DiscoverPage() {
       ) : filteredVideos.length === 0 ? (
         <div className="text-center py-20 border rounded-2xl bg-card space-y-3">
           <Layers className="size-10 mx-auto text-muted-foreground/60" />
-          <h3 className="font-semibold text-sm">Chưa có video nguồn phù hợp</h3>
+          <h3 className="font-semibold text-sm">Không có dữ liệu video nguồn</h3>
           <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-            Không tìm thấy video nào phù hợp với bộ lọc hiện tại. Thử thay đổi từ khóa hoặc bộ lọc tìm kiếm.
+            Không có dữ liệu video nào được ghi nhận hoặc phù hợp với bộ lọc hiện tại.
           </p>
         </div>
       ) : (

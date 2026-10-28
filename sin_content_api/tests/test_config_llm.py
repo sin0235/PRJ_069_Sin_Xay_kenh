@@ -5,6 +5,7 @@ from src.config import API_ROOT, Settings
 
 def test_settings_env_file_is_stable_from_any_working_directory():
     assert Settings.model_config["env_file"] == API_ROOT / ".env"
+    assert Settings().llm_api_key_file == API_ROOT.parent / "9router.env"
 
 def test_gate1_default_config_offline_compatible():
     """Gate 1: Mac dinh an toan la chua bat LLM khi thieu cau hinh bat buoc."""
@@ -12,6 +13,8 @@ def test_gate1_default_config_offline_compatible():
         llm_model="",
         llm_api_key="",
         llm_enabled=False,
+        llm_timeout_seconds=30.0,
+        llm_max_output_tokens=1500,
         _env_file=None
     )
     assert s.is_llm_enabled is False
@@ -140,3 +143,12 @@ def test_gate1_loads_router_key_from_private_file(tmp_path):
     )
     assert s.llm_api_key == "router-secret"
     assert s.is_llm_enabled is True
+
+def test_crypto_vault_reads_master_key_from_settings(monkeypatch):
+    from src.config import settings
+    from src.modules.platform_config.crypto_vault import decrypt_secret, encrypt_secret
+
+    monkeypatch.delenv("LLM_ENCRYPTION_MASTER_KEY", raising=False)
+    monkeypatch.setattr(settings, "llm_encryption_master_key", "configured-in-settings")
+    encrypted = encrypt_secret("router-secret")
+    assert decrypt_secret(encrypted) == "router-secret"

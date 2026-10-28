@@ -32,6 +32,7 @@ import {
   BookOpen,
   Wand2,
   Layers,
+  Database,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -42,7 +43,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { mockAIJobs } from "@/data/mock-creator-data";
 import { AIJob } from "@/types";
 import { mediaStudioApi, MediaAssetResponse, CompiledVideoPromptResponse } from "@/lib/api/media-studio-api";
 
@@ -132,7 +132,7 @@ const AI_TOOLS = [
 export default function AIStudioPage() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = React.useState("all");
-  const [jobs, setJobs] = React.useState<AIJob[]>(mockAIJobs);
+  const [jobs, setJobs] = React.useState<AIJob[]>([]);
 
   const handleRetry = (id: string) => {
     setJobs((prev) =>
@@ -848,7 +848,14 @@ export default function AIStudioPage() {
         </div>
 
         <div className="space-y-2">
-          {jobs.map((job) => {
+          {jobs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-xl text-center bg-card/40">
+              <Database className="size-8 text-muted-foreground mb-2 opacity-60" />
+              <p className="text-sm font-semibold text-foreground">Không có dữ liệu tiến trình nền</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Chưa có tác vụ AI nào đang xếp hàng hoặc đang chạy.</p>
+            </div>
+          ) : (
+            jobs.map((job) => {
             const isProcessing = job.status === "processing";
             const isCompleted = job.status === "completed";
             const isFailed = job.status === "failed";
@@ -913,7 +920,7 @@ export default function AIStudioPage() {
                 </div>
               </div>
             );
-          })}
+          }))}
         </div>
       </div>
     </div>

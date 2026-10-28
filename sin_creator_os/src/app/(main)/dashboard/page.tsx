@@ -56,32 +56,14 @@ import { DiscoverService } from "@/services/discover-service";
 import { IdeaService } from "@/services/idea-service";
 import { ScriptService } from "@/services/script-service";
 
-const REAL_AI_RECOMMENDATIONS = [
-  {
-    id: "rec_01",
-    category: "Âm Thanh & LUFS",
-    title: "Chuẩn hóa âm lượng EBU R128 (-14 LUFS)",
-    impact: "+25% Phân Phối",
-    description: "Các video áp dụng đúng chuẩn -14 LUFS và Auto-ducking giữ chân người xem cao hơn 3.2 lần so với video bị rè âm thanh.",
-    actionUrl: "/discover/src_baha_03",
-  },
-  {
-    id: "rec_02",
-    category: "Bố Cục Video",
-    title: "Thiết lập Safe Zone 9:16 chuẩn hóa",
-    impact: "+18% CTR Xem Hết",
-    description: "Chừa khoảng trống 150px mép trên và 320px mép dưới giúp phụ đề không bị nút tương tác và thanh điều hướng TikTok che lấp.",
-    actionUrl: "/discover/src_baha_04",
-  },
-  {
-    id: "rec_03",
-    category: "Hook & Giữ Chân",
-    title: "Quy tắc 3 giây vàng Hook tương phản",
-    impact: "+40% Tỉ Lệ Dừng Lướt",
-    description: "Đưa ra vấn đề gây tò mò ngay trong 3s đầu tiên giúp tăng tỉ lệ giữ chân khán giả trên 65% ở mốc 15 giây.",
-    actionUrl: "/ideas",
-  },
-];
+const REAL_AI_RECOMMENDATIONS: Array<{
+  id: string;
+  category: string;
+  title: string;
+  impact: string;
+  description: string;
+  actionUrl: string;
+}> = [];
 
 export default function CreatorDashboardPage() {
   const router = useRouter();
@@ -91,22 +73,22 @@ export default function CreatorDashboardPage() {
   const [timeRange, setTimeRange] = React.useState<"today" | "7d" | "30d" | "90d">("7d");
   const [chartMetric, setChartMetric] = React.useState<"views" | "followers" | "engagementRate">("views");
   const [kpis, setKpis] = React.useState({
-    followers: { value: 154200, changePercent: 12.4 },
-    views: { value: 45200, changePercent: 18.2 },
-    engagement: { value: 7.8, changePercent: 2.3 },
-    posts: { value: 128, changePercent: 5.0 },
-    avgWatchTime: { value: 18.5, changePercent: 4.1 },
-    growthRate: { value: 8.2, changePercent: 1.5 },
+    followers: { value: 0, changePercent: 0 },
+    views: { value: 0, changePercent: 0 },
+    engagement: { value: 0, changePercent: 0 },
+    posts: { value: 0, changePercent: 0 },
+    avgWatchTime: { value: 0, changePercent: 0 },
+    growthRate: { value: 0, changePercent: 0 },
   });
   const [recentVideos, setRecentVideos] = React.useState<any[]>([]);
   const [growthData, setGrowthData] = React.useState<any[]>([]);
   const [isLiveConnected, setIsLiveConnected] = React.useState(false);
   const [pipelineState, setPipelineState] = React.useState({
-    idea: 6,
-    script: 2,
-    production: 1,
-    review: 2,
-    scheduled: 2,
+    idea: 0,
+    script: 0,
+    production: 0,
+    review: 0,
+    scheduled: 0,
   });
 
   React.useEffect(() => {
@@ -416,57 +398,65 @@ export default function CreatorDashboardPage() {
           </CardHeader>
 
           <CardContent className="px-5 pb-5">
-            <div className="h-[280px] w-full pt-4">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={growthData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.35} />
-                      <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.4} />
-                  <XAxis
-                    dataKey="date"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(val) =>
-                      chartMetric === "engagementRate" ? `${val}%` : formatViews(val)
-                    }
-                    tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "var(--card)",
-                      borderColor: "var(--border)",
-                      borderRadius: "0.75rem",
-                      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-                      fontSize: "12px",
-                      color: "var(--foreground)",
-                    }}
-                    formatter={(val: any) => [
-                      chartMetric === "engagementRate"
-                        ? `${val}%`
-                        : Number(val).toLocaleString("vi-VN"),
-                      chartMetric.toUpperCase(),
-                    ]}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey={chartMetric}
-                    stroke="var(--primary)"
-                    strokeWidth={2.5}
-                    fillOpacity={1}
-                    fill="url(#colorMetric)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            {growthData.length === 0 ? (
+              <div className="h-[280px] w-full flex flex-col items-center justify-center border border-dashed rounded-xl text-center bg-muted/10 my-4">
+                <TrendingUp className="size-8 text-muted-foreground mb-2 opacity-60" />
+                <p className="text-xs font-semibold text-foreground">Không có dữ liệu tăng trưởng</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Chưa có đủ số liệu lịch sử để hiển thị biểu đồ.</p>
+              </div>
+            ) : (
+              <div className="h-[280px] w-full pt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={growthData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.35} />
+                        <stop offset="95%" stopColor="var(--primary)" stopOpacity={0.0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" opacity={0.4} />
+                    <XAxis
+                      dataKey="date"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tickFormatter={(val) =>
+                        chartMetric === "engagementRate" ? `${val}%` : formatViews(val)
+                      }
+                      tick={{ fontSize: 11, fill: "currentColor", opacity: 0.6 }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "var(--card)",
+                        borderColor: "var(--border)",
+                        borderRadius: "0.75rem",
+                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                        fontSize: "12px",
+                        color: "var(--foreground)",
+                      }}
+                      formatter={(val: any) => [
+                        chartMetric === "engagementRate"
+                          ? `${val}%`
+                          : Number(val).toLocaleString("vi-VN"),
+                        chartMetric.toUpperCase(),
+                      ]}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey={chartMetric}
+                      stroke="var(--primary)"
+                      strokeWidth={2.5}
+                      fillOpacity={1}
+                      fill="url(#colorMetric)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -484,46 +474,52 @@ export default function CreatorDashboardPage() {
                 </div>
               </div>
               <Badge variant="secondary" className="text-[10px] text-primary font-semibold">
-                3 Khuyến Nghị
+                {REAL_AI_RECOMMENDATIONS.length} Khuyến Nghị
               </Badge>
             </div>
           </CardHeader>
 
           <CardContent className="px-5 space-y-3 flex-1 flex flex-col justify-between">
             <div className="space-y-2.5">
-              {REAL_AI_RECOMMENDATIONS.map((rec) => (
-                <div
-                  key={rec.id}
-                  className="p-3 rounded-xl border border-border/70 bg-muted/20 hover:bg-muted/40 transition-colors space-y-1.5"
-                >
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">
-                      {rec.category}
-                    </span>
-                    <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-primary/30 text-primary bg-primary/5">
-                      {rec.impact}
-                    </Badge>
-                  </div>
-
-                  <h4 className="text-xs font-semibold text-foreground leading-snug">
-                    {rec.title}
-                  </h4>
-
-                  <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
-                    {rec.description}
-                  </p>
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => router.push(rec.actionUrl)}
-                    className="h-6 text-[10px] px-2 font-semibold text-primary hover:text-primary gap-1 p-0 hover:bg-transparent"
-                  >
-                    <span>Xem chi tiết tư liệu</span>
-                    <ChevronRight className="size-3" />
-                  </Button>
+              {REAL_AI_RECOMMENDATIONS.length === 0 ? (
+                <div className="py-8 text-center text-xs text-muted-foreground border border-dashed rounded-xl">
+                  Không có dữ liệu khuyến nghị
                 </div>
-              ))}
+              ) : (
+                REAL_AI_RECOMMENDATIONS.map((rec) => (
+                  <div
+                    key={rec.id}
+                    className="p-3 rounded-xl border border-border/70 bg-muted/20 hover:bg-muted/40 transition-colors space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">
+                        {rec.category}
+                      </span>
+                      <Badge variant="outline" className="text-[9px] px-1.5 py-0 border-primary/30 text-primary bg-primary/5">
+                        {rec.impact}
+                      </Badge>
+                    </div>
+
+                    <h4 className="text-xs font-semibold text-foreground leading-snug">
+                      {rec.title}
+                    </h4>
+
+                    <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">
+                      {rec.description}
+                    </p>
+
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => router.push(rec.actionUrl)}
+                      className="h-6 text-[10px] px-2 font-semibold text-primary hover:text-primary gap-1 p-0 hover:bg-transparent"
+                    >
+                      <span>Xem chi tiết tư liệu</span>
+                      <ChevronRight className="size-3" />
+                    </Button>
+                  </div>
+                ))
+              )}
             </div>
 
             <Button
@@ -581,7 +577,14 @@ export default function CreatorDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {recentVideos.map((video) => (
+                {recentVideos.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="py-12 text-center text-xs text-muted-foreground">
+                      Không có dữ liệu video nào được ghi nhận
+                    </td>
+                  </tr>
+                ) : (
+                  recentVideos.map((video) => (
                   <tr key={video.id} className="hover:bg-muted/30 transition-colors group">
                     <td className="py-3 px-3">
                       <div className="flex items-center gap-3 max-w-sm">
@@ -663,7 +666,7 @@ export default function CreatorDashboardPage() {
                       </DropdownMenu>
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>

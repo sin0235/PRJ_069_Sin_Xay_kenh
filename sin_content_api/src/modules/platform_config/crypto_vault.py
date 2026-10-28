@@ -19,6 +19,9 @@ def _get_master_key(master_key: Optional[str] = None) -> str:
     env_key = os.environ.get("LLM_ENCRYPTION_MASTER_KEY")
     if env_key and env_key.strip():
         return env_key.strip()
+    from src.config import settings
+    if settings.llm_encryption_master_key.strip():
+        return settings.llm_encryption_master_key.strip()
     # Che do kiem thu offline
     if os.environ.get("TESTING") == "1" or os.environ.get("PYTEST_CURRENT_TEST"):
         return DEFAULT_TEST_MASTER_KEY

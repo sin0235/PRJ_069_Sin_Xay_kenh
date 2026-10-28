@@ -167,31 +167,24 @@ export class TikTokService {
       });
       if (res.ok) {
         const cohortData = await res.json();
-        const totalViews = cohortData.organic_cohort?.total_views || 100000;
-
-        const baseViewsPerDay = Math.round(totalViews / 7);
-        const dates = ["16/10", "17/10", "18/10", "19/10", "20/10", "21/10", "22/10"];
-        return dates.map((date, idx) => ({
-          date,
-          views: Math.round(baseViewsPerDay * (0.8 + idx * 0.08)),
-          followers: 1000 + idx * 50,
-          engagementRate: Number((7.2 + idx * 0.15).toFixed(1)),
-          watchTimeSec: 18.5,
-          completionRate: 42,
-        }));
+        const totalViews = cohortData.organic_cohort?.total_views;
+        if (totalViews && totalViews > 0) {
+          const baseViewsPerDay = Math.round(totalViews / 7);
+          const dates = ["16/10", "17/10", "18/10", "19/10", "20/10", "21/10", "22/10"];
+          return dates.map((date, idx) => ({
+            date,
+            views: Math.round(baseViewsPerDay * (0.8 + idx * 0.08)),
+            followers: 1000 + idx * 50,
+            engagementRate: Number((7.2 + idx * 0.15).toFixed(1)),
+            watchTimeSec: 18.5,
+            completionRate: 42,
+          }));
+        }
       }
     } catch {
       // Fallback
     }
 
-    const dates = ["16/10", "17/10", "18/10", "19/10", "20/10", "21/10", "22/10"];
-    return dates.map((date, idx) => ({
-      date,
-      views: 10000 + idx * 2500,
-      followers: 1000 + idx * 50,
-      engagementRate: 7.8,
-      watchTimeSec: 18.5,
-      completionRate: 42,
-    }));
+    return [];
   }
 }

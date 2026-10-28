@@ -3,9 +3,11 @@ from __future__ import annotations
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from src.auth.tenancy import TenantContext, require_action
 from src.database import get_db as get_content_db
+from src.models.entities import ProductionProject
 from .hop_dong import (
     TimelineV2,
     DinhDanhPhien,
@@ -60,8 +62,14 @@ class XuatGoiBanGiaoRequest(BaseModel):
     adapter_id: str = "FINAL_CUT_XML"
 
 
-def _kiem_tra_quyen_du_an(project_id: str, workspace_id: str) -> None:
-    """Xác minh dự án thuộc workspace của tenant hiện hành."""
+def _kiem_tra_quyen_du_an(db: Session, project_id: str, workspace_id: str) -> None:
+    """Xác minh project thật thuộc workspace trước khi đọc hoặc đổi state Harness."""
+    exists = db.query(ProductionProject.id).filter(
+        ProductionProject.id == project_id,
+        ProductionProject.workspace_id == workspace_id,
+    ).first()
+    if not exists:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy dự án trong workspace.")
     try:
         QuanLyPhienDung.kiem_tra_so_huu_du_an(project_id, workspace_id)
     except ValueError as e:
@@ -77,9 +85,10 @@ def _kiem_tra_quyen_du_an(project_id: str, workspace_id: str) -> None:
 def tao_phien(
     project_id: str,
     req: TaoPhienRequest,
+    db: Session = Depends(get_content_db),
     ctx: TenantContext = Depends(require_action("media.upload"))
 ):
-    _kiem_tra_quyen_du_an(project_id, ctx.workspace_id)
+    _kiem_tra_quyen_du_an(db, project_id, ctx.workspace_id)
     try:
         phien = QuanLyPhienDung.tao_phien(
             project_id=project_id,
@@ -102,9 +111,10 @@ def tao_phien(
 def lay_trang_thai_phien(
     project_id: str,
     run_id: str,
+    db: Session = Depends(get_content_db),
     ctx: TenantContext = Depends(require_action("media.read"))
 ):
-    _kiem_tra_quyen_du_an(project_id, ctx.workspace_id)
+    _kiem_tra_quyen_du_an(db, project_id, ctx.workspace_id)
     try:
         QuanLyPhienDung.xac_thuc_run(run_id, project_id, ctx.workspace_id)
         return QuanLyPhienDung.tiep_tuc_phien(run_id)
@@ -118,9 +128,10 @@ def lay_trang_thai_phien(
 def tiep_tuc_phien(
     project_id: str,
     run_id: str,
+    db: Session = Depends(get_content_db),
     ctx: TenantContext = Depends(require_action("media.upload"))
 ):
-    _kiem_tra_quyen_du_an(project_id, ctx.workspace_id)
+    _kiem_tra_quyen_du_an(db, project_id, ctx.workspace_id)
     try:
         QuanLyPhienDung.xac_thuc_run(run_id, project_id, ctx.workspace_id)
         return QuanLyPhienDung.tiep_tuc_phien(run_id)
@@ -134,9 +145,10 @@ def tiep_tuc_phien(
 def huy_phien(
     project_id: str,
     run_id: str,
+    db: Session = Depends(get_content_db),
     ctx: TenantContext = Depends(require_action("media.upload"))
 ):
-    _kiem_tra_quyen_du_an(project_id, ctx.workspace_id)
+    _kiem_tra_quyen_du_an(db, project_id, ctx.workspace_id)
     try:
         QuanLyPhienDung.xac_thuc_run(run_id, project_id, ctx.workspace_id)
         QuanLyPhienDung.huy_phien(run_id)
@@ -151,9 +163,10 @@ def huy_phien(
 def tao_ban_nhap(
     project_id: str,
     req: TaoBanNhapRequest,
+    db: Session = Depends(get_content_db),
     ctx: TenantContext = Depends(require_action("media.upload"))
 ):
-    _kiem_tra_quyen_du_an(project_id, ctx.workspace_id)
+    _kiem_tra_quyen_du_an(db, project_id, ctx.workspace_id)
     try:
         QuanLyPhienDung.xac_thuc_run(req.run_id, project_id, ctx.workspace_id)
         return QuanLyPhienDung.tao_ban_nhap(req.run_id, req.timeline_base)
@@ -167,9 +180,10 @@ def tao_ban_nhap(
 def lay_ban_nhap(
     project_id: str,
     draft_id: str,
+    db: Session = Depends(get_content_db),
     ctx: TenantContext = Depends(require_action("media.read"))
 ):
-    _kiem_tra_quyen_du_an(project_id, ctx.workspace_id)
+    _kiem_tra_quyen_du_an(db, project_id, ctx.workspace_id)
     try:
         return QuanLyPhienDung.xac_thuc_draft(draft_id, project_id, ctx.workspace_id)
     except ValueError as e:
@@ -183,9 +197,10 @@ def thuc_hien_lenh(
     project_id: str,
     draft_id: str,
     req: ThucHienLenhRequest,
+    db: Session = Depends(get_content_db),
     ctx: TenantContext = Depends(require_action("media.upload"))
 ):
-    _kiem_tra_quyen_du_an(project_id, ctx.workspace_id)
+    _kiem_tra_quyen_du_an(db, project_id, ctx.workspace_id)
     try:
         # Xac thuc draft thuoc project va workspace
         QuanLyPhienDung.xac_thuc_draft(draft_id, project_id, ctx.workspace_id)
@@ -208,9 +223,10 @@ def commit_ban_nhap(
     project_id: str,
     draft_id: str,
     req: CommitBanNhapRequest,
+    db: Session = Depends(get_content_db),
     ctx: TenantContext = Depends(require_action("media.upload"))
 ):
-    _kiem_tra_quyen_du_an(project_id, ctx.workspace_id)
+    _kiem_tra_quyen_du_an(db, project_id, ctx.workspace_id)
     try:
         QuanLyPhienDung.xac_thuc_draft(draft_id, project_id, ctx.workspace_id)
         new_version = QuanLyPhienDung.commit_ban_nhap(
@@ -231,9 +247,10 @@ def commit_ban_nhap(
 def tao_don_sua_canh(
     project_id: str,
     don: DonSuaCanh,
+    db: Session = Depends(get_content_db),
     ctx: TenantContext = Depends(require_action("media.upload"))
 ):
-    _kiem_tra_quyen_du_an(project_id, ctx.workspace_id)
+    _kiem_tra_quyen_du_an(db, project_id, ctx.workspace_id)
     if don.project_id != project_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -259,9 +276,10 @@ def nhan_ket_qua_canh(
     project_id: str,
     request_id: str,
     req: NhanKetQuaCanhRequest,
+    db: Session = Depends(get_content_db),
     ctx: TenantContext = Depends(require_action("media.upload"))
 ):
-    _kiem_tra_quyen_du_an(project_id, ctx.workspace_id)
+    _kiem_tra_quyen_du_an(db, project_id, ctx.workspace_id)
     try:
         return QuanLySuaCanh.nhan_ket_qua_canh(
             request_id=request_id,
@@ -281,9 +299,10 @@ def nhan_ket_qua_canh(
 def xuat_goi_ban_giao(
     project_id: str,
     req: XuatGoiBanGiaoRequest,
+    db: Session = Depends(get_content_db),
     ctx: TenantContext = Depends(require_action("media.upload"))
 ):
-    _kiem_tra_quyen_du_an(project_id, ctx.workspace_id)
+    _kiem_tra_quyen_du_an(db, project_id, ctx.workspace_id)
 
     # Lay timeline snapshot da luu tru tu draft hoac committed revision
     draft_record = KhoLuuTruDung.tim_ban_nhap_theo_project_revision(

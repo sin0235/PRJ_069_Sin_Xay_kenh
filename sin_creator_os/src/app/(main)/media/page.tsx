@@ -20,6 +20,7 @@ import {
   Play,
   ShieldCheck,
   CheckCircle2,
+  Database,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -50,59 +51,12 @@ interface MediaItem {
   sha256?: string;
 }
 
-const initialMockAssets: MediaItem[] = [
-  {
-    id: "med_01",
-    name: "b_roll_typing_laptop_zoom_in.mp4",
-    type: "video",
-    thumbnailUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80",
-    duration: "00:08",
-    resolution: "1080x1920 (9:16)",
-    isAiGenerated: false,
-    projectUsageCount: 4,
-    tags: ["B-Roll", "Laptop", "Tech"],
-    createdAt: "20/10/2026",
-  },
-  {
-    id: "med_02",
-    name: "flowmusic_acoustic_guitar_chill.mp3",
-    type: "audio",
-    thumbnailUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&auto=format&fit=crop&q=80",
-    duration: "01:00",
-    isAiGenerated: true,
-    projectUsageCount: 5,
-    tags: ["Flow Music", "-14 LUFS", "Acoustic"],
-    createdAt: "22/10/2026",
-  },
-  {
-    id: "med_03",
-    name: "google_flow_coffee_broll_9x16.mp4",
-    type: "video",
-    thumbnailUrl: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&auto=format&fit=crop&q=80",
-    duration: "00:03",
-    resolution: "1080x1920 (9:16)",
-    isAiGenerated: true,
-    projectUsageCount: 3,
-    tags: ["Google Flow", "9:16 TikTok", "Safe Zone"],
-    createdAt: "22/10/2026",
-  },
-  {
-    id: "med_04",
-    name: "thumbnail_safe_zone_mockup_01.png",
-    type: "image",
-    thumbnailUrl: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400&auto=format&fit=crop&q=80",
-    resolution: "1080x1920 (9:16)",
-    isAiGenerated: true,
-    projectUsageCount: 1,
-    tags: ["Cover", "Safe Zone"],
-    createdAt: "21/10/2026",
-  },
-];
+const initialMockAssets: MediaItem[] = [];
 
 export default function MediaLibraryPage() {
   const [selectedType, setSelectedType] = React.useState("all");
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [assets, setAssets] = React.useState<MediaItem[]>(initialMockAssets);
+  const [assets, setAssets] = React.useState<MediaItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
 
   const fetchLiveAssets = async () => {
@@ -130,10 +84,12 @@ export default function MediaLibraryPage() {
             sha256: item.sha256,
           };
         });
-        setAssets([...mappedLive, ...initialMockAssets]);
+        setAssets(mappedLive);
+      } else {
+        setAssets([]);
       }
     } catch {
-      // Giữ mock assets nếu backend chưa bật
+      setAssets([]);
     } finally {
       setIsLoading(false);
     }
@@ -220,79 +176,89 @@ export default function MediaLibraryPage() {
 
       {/* Asset Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {filteredAssets.map((asset) => (
-          <Card
-            key={asset.id}
-            className="group rounded-2xl border-border/80 bg-card hover:border-primary/40 transition-all overflow-hidden shadow-xs hover:shadow-md flex flex-col justify-between"
-          >
-            {/* Visual Preview */}
-            <div className="relative aspect-[16/10] bg-muted overflow-hidden">
-              <img
-                src={asset.thumbnailUrl}
-                alt={asset.name}
-                className="size-full object-cover group-hover:scale-105 transition-transform"
-              />
+        {filteredAssets.length === 0 ? (
+          <div className="col-span-full flex flex-col items-center justify-center p-12 border border-dashed rounded-2xl text-center bg-card/40">
+            <Database className="size-10 text-muted-foreground mb-3 opacity-60" />
+            <h3 className="text-sm font-semibold text-foreground">Không có dữ liệu tài nguyên media</h3>
+            <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+              Chưa có video, âm thanh hay hình ảnh nào được lưu trữ trong kho media.
+            </p>
+          </div>
+        ) : (
+          filteredAssets.map((asset) => (
+            <Card
+              key={asset.id}
+              className="group rounded-2xl border-border/80 bg-card hover:border-primary/40 transition-all overflow-hidden shadow-xs hover:shadow-md flex flex-col justify-between"
+            >
+              {/* Visual Preview */}
+              <div className="relative aspect-[16/10] bg-muted overflow-hidden">
+                <img
+                  src={asset.thumbnailUrl}
+                  alt={asset.name}
+                  className="size-full object-cover group-hover:scale-105 transition-transform"
+                />
 
-              <div className="absolute top-2 left-2 flex gap-1">
-                {asset.isAiGenerated && (
-                  <Badge variant="outline" className="text-[9px] bg-primary/80 text-white backdrop-blur-xs border-none font-semibold">
-                    <Sparkles className="size-2 mr-0.5 inline" /> AI Zero-Cost
+                <div className="absolute top-2 left-2 flex gap-1">
+                  {asset.isAiGenerated && (
+                    <Badge variant="outline" className="text-[9px] bg-primary/80 text-white backdrop-blur-xs border-none font-semibold">
+                      <Sparkles className="size-2 mr-0.5 inline" /> AI Zero-Cost
+                    </Badge>
+                  )}
+                  <Badge variant="secondary" className="text-[9px] uppercase font-mono">
+                    {asset.type}
                   </Badge>
+                </div>
+
+                {asset.duration && (
+                  <span className="absolute bottom-1 right-1 text-[9px] bg-black/70 text-white px-1.5 py-0.5 rounded font-mono">
+                    {asset.duration}
+                  </span>
                 )}
-                <Badge variant="secondary" className="text-[9px] uppercase font-mono">
-                  {asset.type}
-                </Badge>
               </div>
 
-              {asset.duration && (
-                <span className="absolute bottom-1 right-1 text-[9px] bg-black/70 text-white px-1.5 py-0.5 rounded font-mono">
-                  {asset.duration}
-                </span>
-              )}
-            </div>
+              {/* Details */}
+              <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between">
+                <div>
+                  <h4 className="text-xs font-semibold text-foreground line-clamp-1 leading-snug">
+                    {asset.name}
+                  </h4>
+                  <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center justify-between">
+                    <span>Dùng: {asset.projectUsageCount} dự án</span>
+                    <span>{asset.createdAt}</span>
+                  </div>
 
-            {/* Details */}
-            <div className="p-3.5 space-y-2 flex-1 flex flex-col justify-between">
-              <div>
-                <h4 className="text-xs font-semibold text-foreground line-clamp-1 leading-snug">
-                  {asset.name}
-                </h4>
-                <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center justify-between">
-                  <span>Dùng: {asset.projectUsageCount} dự án</span>
-                  <span>{asset.createdAt}</span>
                 </div>
 
-              </div>
-
-              <div className="flex flex-wrap gap-1 pt-1">
-                {asset.tags.map((t) => (
-                  <span
-                    key={t}
-                    className="text-[9px] px-1.5 py-0.5 rounded bg-muted/70 text-muted-foreground font-mono"
-                  >
-                    #{t}
-                  </span>
-                ))}
-              </div>
-
-              {asset.url && (
-                <div className="pt-2 border-t border-border/50 flex items-center justify-between">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 text-[10px] px-2 text-primary"
-                    onClick={() => mediaStudioApi.downloadAsset(asset.url!, asset.name).catch((error) => toast.error(error.message))}
-                  >
-                    <Download className="size-3 mr-1" /> Tải về
-                  </Button>
-                  <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-0.5">
-                    <ShieldCheck className="size-3" /> QC Verified
-                  </span>
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {asset.tags.map((t) => (
+                    <span
+                      key={t}
+                      className="text-[9px] px-1.5 py-0.5 rounded bg-muted/70 text-muted-foreground font-mono"
+                    >
+                      #{t}
+                    </span>
+                  ))}
                 </div>
-              )}
-            </div>
-          </Card>
-        ))}
+
+                {asset.url && (
+                  <div className="pt-2 border-t border-border/50 flex items-center justify-between">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 text-[10px] px-2 text-primary"
+                      onClick={() => mediaStudioApi.downloadAsset(asset.url!, asset.name).catch((error) => toast.error(error.message))}
+                    >
+                      <Download className="size-3 mr-1" /> Tải về
+                    </Button>
+                    <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-0.5">
+                      <ShieldCheck className="size-3" /> QC Verified
+                    </span>
+                  </div>
+                )}
+              </div>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );
