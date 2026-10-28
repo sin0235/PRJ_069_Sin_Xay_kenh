@@ -1,8 +1,7 @@
 import { AIJob } from '@/types';
-import { mockAIJobs } from '@/data/mock-creator-data';
 
 export class JobService {
-  private static jobs: AIJob[] = [...mockAIJobs];
+  private static jobs: AIJob[] = [];
 
   static async getJobs(): Promise<AIJob[]> {
     return Promise.resolve([...this.jobs]);

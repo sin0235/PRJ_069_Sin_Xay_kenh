@@ -21,6 +21,7 @@ import {
   Volume2,
   Film,
   Zap,
+  FileText,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 
-import { mockScriptDetail } from "@/data/mock-creator-data";
 import { ScriptBlock, ScriptBlockType, Script } from "@/types";
 import { ScriptService } from "@/services/script-service";
 
@@ -42,8 +42,8 @@ export default function ScriptStudioPage() {
   const searchParams = useSearchParams();
   const sourceIdeaId = searchParams?.get("source_idea");
 
-  const [script, setScript] = React.useState<Script>(mockScriptDetail);
-  const [blocks, setBlocks] = React.useState<ScriptBlock[]>(mockScriptDetail.blocks);
+  const [script, setScript] = React.useState<Script | null>(null);
+  const [blocks, setBlocks] = React.useState<ScriptBlock[]>([]);
   const [activeCopilotTab, setActiveCopilotTab] = React.useState<"hook" | "tone" | "broll">("hook");
   const [isCopilotThinking, setIsCopilotThinking] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -62,11 +62,10 @@ export default function ScriptStudioPage() {
           if (existingList && existingList.length > 0) {
             if (isMounted) {
               setScript(existingList[0]);
-              setBlocks(existingList[0].blocks || mockScriptDetail.blocks);
+              setBlocks(existingList[0].blocks || []);
             }
             return;
           }
-          // Neu chua co kich ban cho y tuong nay, tao moi ngay tren backend
           try {
             const created = await ScriptService.createScript({
               idea_id: sourceIdeaId,
@@ -79,16 +78,22 @@ export default function ScriptStudioPage() {
               return;
             }
           } catch {
-            // Tiep tuc dung template mock neu backend offline
+            // Error
           }
         }
         const liveScript = await ScriptService.getScriptById(scriptId);
         if (isMounted && liveScript) {
           setScript(liveScript);
-          setBlocks(liveScript.blocks || mockScriptDetail.blocks);
+          setBlocks(liveScript.blocks || []);
+        } else if (isMounted) {
+          setScript(null);
+          setBlocks([]);
         }
       } catch {
-        // Fallback mock
+        if (isMounted) {
+          setScript(null);
+          setBlocks([]);
+        }
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -103,6 +108,7 @@ export default function ScriptStudioPage() {
   const totalDuration = blocks.reduce((acc, b) => acc + (b.durationSec || 0), 0);
 
   const handleSave = async () => {
+    if (!script) return;
     setIsSaving(true);
     setStatusMessage(null);
     try {
@@ -122,6 +128,7 @@ export default function ScriptStudioPage() {
   };
 
   const handleApprove = async () => {
+    if (!script) return;
     setIsApproving(true);
     setStatusMessage(null);
     try {
@@ -195,6 +202,30 @@ export default function ScriptStudioPage() {
       }
     }, 700);
   };
+
+  if (isLoading) {
+    return (
+      <div className="py-24 flex flex-col items-center justify-center text-xs text-muted-foreground gap-2">
+        <RotateCw className="size-6 animate-spin text-primary" />
+        <span>Đang nạp dữ liệu kịch bản...</span>
+      </div>
+    );
+  }
+
+  if (!script) {
+    return (
+      <div className="flex flex-col items-center justify-center p-16 border border-dashed rounded-2xl text-center bg-card/40 my-12">
+        <FileText className="size-12 text-muted-foreground mb-3 opacity-60" />
+        <h3 className="text-base font-semibold text-foreground">Không có dữ liệu kịch bản</h3>
+        <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+          Không tìm thấy kịch bản tương ứng hoặc kịch bản chưa được khởi tạo.
+        </p>
+        <Button variant="outline" size="sm" onClick={() => router.push("/ideas")} className="mt-4 text-xs">
+          Quay lại danh sách ý tưởng
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5 pb-20">

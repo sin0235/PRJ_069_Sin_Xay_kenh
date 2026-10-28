@@ -340,7 +340,7 @@ export default function IdeasPage() {
         </div>
       ) : filteredIdeas.length === 0 ? (
         <div className="text-center py-12 text-xs text-muted-foreground bg-muted/20 rounded-2xl border border-dashed border-border/70">
-          Không tìm thấy thẻ ý tưởng nào phù hợp với bộ lọc hiện tại.
+          Không có dữ liệu ý tưởng nào phù hợp.
         </div>
       ) : viewMode === "board" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

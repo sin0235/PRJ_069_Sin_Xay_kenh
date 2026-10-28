@@ -1,5 +1,4 @@
 import { Script, ScriptBlock } from '@/types';
-import { mockScriptDetail } from '@/data/mock-creator-data';
 import { AuthApi } from '@/lib/api/auth-api';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
@@ -57,13 +56,13 @@ function mapBackendScriptToFrontend(s: any): Script {
       referenceLinks: [],
       keyTakeaway: 'Nội dung chuẩn 5 block tối ưu Safe Zone TikTok',
     },
-    blocks: blocks.length > 0 ? blocks : mockScriptDetail.blocks,
+    blocks: blocks.length > 0 ? blocks : [],
     updatedAt: s.created_at || new Date().toISOString(),
   };
 }
 
 export class ScriptService {
-  static async getScriptById(id: string, workspaceId: string = 'default_ws'): Promise<Script> {
+  static async getScriptById(id: string, workspaceId: string = 'default_ws'): Promise<Script | null> {
     try {
       const res = await fetch(`${API_BASE_URL}/v1/scripts/${id}`, {
         headers: getAuthHeaders(workspaceId),
@@ -73,9 +72,9 @@ export class ScriptService {
         return mapBackendScriptToFrontend(data);
       }
     } catch {
-      // Fallback local memory mock khi server offline
+      // API error
     }
-    return Promise.resolve(mockScriptDetail);
+    return null;
   }
 
   static async listScripts(
@@ -100,7 +99,7 @@ export class ScriptService {
     } catch {
       // Fallback
     }
-    return Promise.resolve([mockScriptDetail]);
+    return Promise.resolve([]);
   }
 
   static async createScript(

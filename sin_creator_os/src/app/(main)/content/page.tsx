@@ -51,44 +51,6 @@ interface PipelineCardItem {
   itemType?: "idea" | "script" | "media";
 }
 
-const fallbackPipelineItems: PipelineCardItem[] = [
-  {
-    id: "pip_01",
-    title: "Lộ Trình Tự Động Hóa Kênh TikTok Từ Con Số 0 Với AI Agent",
-    thumbnailUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80",
-    channel: "@bahagroup.creator",
-    owner: "Founder",
-    dueDate: "24/10",
-    contentPillar: "AI Workflow",
-    status: "idea",
-    isAiGenerated: true,
-  },
-  {
-    id: "pip_02",
-    title: "Công Thức Viết Hook 3 Giây Khiến Người Xem Không Thể Lướt Qua",
-    thumbnailUrl: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400&auto=format&fit=crop&q=80",
-    channel: "@bahagroup.creator",
-    owner: "Copywriter",
-    dueDate: "23/10",
-    contentPillar: "Case Study",
-    status: "script",
-    isAiGenerated: false,
-    durationSec: 32,
-  },
-  {
-    id: "pip_03",
-    title: "Cách Setup Safe Zone TikTok Để Không Bị Che Chữ & Nút Like",
-    thumbnailUrl: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=400&auto=format&fit=crop&q=80",
-    channel: "@bahagroup.creator",
-    owner: "Video Editor",
-    dueDate: "22/10",
-    contentPillar: "Technical",
-    status: "production",
-    isAiGenerated: false,
-    durationSec: 22,
-  },
-];
-
 const COLUMNS = [
   { id: "idea", title: "Idea (Ý Tưởng)", color: "text-amber-500", bg: "bg-amber-500/10" },
   { id: "script", title: "Script (Kịch Bản)", color: "text-blue-500", bg: "bg-blue-500/10" },
@@ -100,7 +62,7 @@ const COLUMNS = [
 
 export default function ContentPipelinePage() {
   const router = useRouter();
-  const [items, setItems] = React.useState<PipelineCardItem[]>(fallbackPipelineItems);
+  const [items, setItems] = React.useState<PipelineCardItem[]>([]);
   const [filterOwner, setFilterOwner] = React.useState("all");
   const [isLiveConnected, setIsLiveConnected] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
@@ -183,12 +145,12 @@ export default function ContentPipelinePage() {
         });
       });
 
+      setItems(realItems);
       if (realItems.length > 0) {
-        setItems(realItems);
         setIsLiveConnected(true);
       }
     } catch {
-      // Giữ fallback
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -311,12 +273,17 @@ export default function ContentPipelinePage() {
 
               {/* Column Item List */}
               <div className="space-y-2.5 flex-1 overflow-y-auto max-h-[calc(100vh-280px)] pr-0.5">
-                {colItems.map((item) => (
-                  <Card
-                    key={item.id}
-                    onClick={() => handleCardClick(item)}
-                    className="p-3 rounded-xl border border-border/70 bg-card hover:border-primary/50 transition-all cursor-pointer shadow-xs hover:shadow-md space-y-2.5"
-                  >
+                {colItems.length === 0 ? (
+                  <div className="py-8 text-center text-[11px] text-muted-foreground/60 border border-dashed rounded-xl">
+                    Không có dữ liệu
+                  </div>
+                ) : (
+                  colItems.map((item) => (
+                    <Card
+                      key={item.id}
+                      onClick={() => handleCardClick(item)}
+                      className="p-3 rounded-xl border border-border/70 bg-card hover:border-primary/50 transition-all cursor-pointer shadow-xs hover:shadow-md space-y-2.5"
+                    >
                     {/* Thumbnail & Badges */}
                     <div className="relative aspect-[16/9] rounded-lg overflow-hidden bg-muted">
                       <img
@@ -367,7 +334,7 @@ export default function ContentPipelinePage() {
                       </div>
                     </div>
                   </Card>
-                ))}
+                )))}
               </div>
             </div>
           );

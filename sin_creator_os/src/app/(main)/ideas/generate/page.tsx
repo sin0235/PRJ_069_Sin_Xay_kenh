@@ -18,6 +18,7 @@ import {
   Layers,
   ChevronRight,
   TrendingUp,
+  Lightbulb,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -34,10 +35,9 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 
-import { mockIdeas, mockEvidences } from "@/data/mock-creator-data";
 import { IdeaService } from "@/services/idea-service";
 import { EvidenceCard } from "@/components/creator/evidence-card";
-import { ContentIdea } from "@/types";
+import { ContentIdea, EvidenceSource } from "@/types";
 
 export default function IdeaGeneratorPage() {
   const router = useRouter();
@@ -61,6 +61,7 @@ export default function IdeaGeneratorPage() {
 
   const [isGenerating, setIsGenerating] = React.useState(false);
   const [generatedList, setGeneratedList] = React.useState<ContentIdea[]>([]);
+  const [evidences, setEvidences] = React.useState<EvidenceSource[]>([]);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
   const [generationSource, setGenerationSource] = React.useState<string | null>(null);
 
@@ -275,7 +276,16 @@ export default function IdeaGeneratorPage() {
           </div>
 
           <div className="space-y-4">
-            {generatedList.map((idea) => (
+            {generatedList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-12 border border-dashed rounded-2xl text-center bg-card/40">
+                <Lightbulb className="size-10 text-muted-foreground mb-3 opacity-60" />
+                <h3 className="text-sm font-semibold text-foreground">Không có dữ liệu ý tưởng</h3>
+                <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                  Chưa có ý tưởng nào được tạo hoặc lưu trong hệ thống. Hãy bấm nút "Khởi Chạy Sinh Ý Tưởng" ở cột bên trái để bắt đầu.
+                </p>
+              </div>
+            ) : (
+              generatedList.map((idea) => (
               <Card
                 key={idea.id}
                 className="rounded-2xl border-border/80 shadow-xs p-5 space-y-4 hover:border-primary/50 transition-all bg-card"
@@ -383,7 +393,7 @@ export default function IdeaGeneratorPage() {
                   </Button>
                 </div>
               </Card>
-            ))}
+            )))}
           </div>
         </div>
 
@@ -404,9 +414,15 @@ export default function IdeaGeneratorPage() {
             </p>
 
             <div className="space-y-3 pt-1">
-              {mockEvidences.map((ev) => (
-                <EvidenceCard key={ev.id} evidence={ev} compact />
-              ))}
+              {evidences.length === 0 ? (
+                <div className="py-6 text-center text-xs text-muted-foreground border border-dashed rounded-xl">
+                  Không có dữ liệu bằng chứng trích dẫn
+                </div>
+              ) : (
+                evidences.map((ev) => (
+                  <EvidenceCard key={ev.id} evidence={ev} compact />
+                ))
+              )}
             </div>
 
             <Button

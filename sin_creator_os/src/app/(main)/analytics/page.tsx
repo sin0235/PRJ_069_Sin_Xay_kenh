@@ -35,20 +35,9 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { PublishingService, LearningSignalItem } from "@/services/publishing-service";
 
-const initialRetentionByLength = [
-  { length: "< 15s", completionRate: 62, views: 180000 },
-  { length: "15-25s", completionRate: 56, views: 540000 },
-  { length: "25-35s", completionRate: 51, views: 1250000 },
-  { length: "35-45s", completionRate: 38, views: 320000 },
-  { length: "> 45s", completionRate: 24, views: 160000 },
-];
+const initialRetentionByLength: Array<{ length: string; completionRate: number; views: number }> = [];
 
-const performanceByPillar = [
-  { pillar: "AI Workflow", views: 980000, er: 9.8, count: 8 },
-  { pillar: "Case Study", views: 720000, er: 9.4, count: 6 },
-  { pillar: "Tool Tips", views: 490000, er: 8.2, count: 5 },
-  { pillar: "Audio/Voice", views: 260000, er: 7.9, count: 4 },
-];
+const performanceByPillar: Array<{ pillar: string; views: number; er: number; count: number }> = [];
 
 export default function AnalyticsPage() {
   const router = useRouter();
@@ -140,25 +129,33 @@ export default function AnalyticsPage() {
             </CardDescription>
           </div>
 
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={initialRetentionByLength} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.08} />
-                <XAxis dataKey="length" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "var(--card)",
-                    borderColor: "var(--border)",
-                    borderRadius: "0.75rem",
-                    fontSize: "12px",
-                  }}
-                  formatter={(val: any) => [`${val}%`, "Completion Rate"]}
-                />
-                <Bar dataKey="completionRate" fill="var(--primary)" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          {initialRetentionByLength.length === 0 ? (
+            <div className="h-64 w-full flex flex-col items-center justify-center border border-dashed rounded-xl text-center bg-muted/10">
+              <BarChart3 className="size-8 text-muted-foreground mb-2 opacity-60" />
+              <p className="text-xs font-semibold text-foreground">Không có dữ liệu tỉ lệ xem hết</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Chưa có đủ số liệu video để phân tích theo khung thời lượng.</p>
+            </div>
+          ) : (
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={initialRetentionByLength} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.08} />
+                  <XAxis dataKey="length" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
+                  <YAxis axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "var(--card)",
+                      borderColor: "var(--border)",
+                      borderRadius: "0.75rem",
+                      fontSize: "12px",
+                    }}
+                    formatter={(val: any) => [`${val}%`, "Completion Rate"]}
+                  />
+                  <Bar dataKey="completionRate" fill="var(--primary)" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </Card>
 
         {/* Performance by Content Pillar */}
@@ -171,15 +168,23 @@ export default function AnalyticsPage() {
           </div>
 
           <div className="space-y-3">
-            {performanceByPillar.map((p) => (
-              <div key={p.pillar} className="p-3 rounded-xl border border-border/60 bg-muted/20 space-y-1.5">
-                <div className="flex items-center justify-between text-xs font-semibold">
-                  <span className="text-foreground">{p.pillar} ({p.count} videos)</span>
-                  <span className="text-primary font-mono">{p.views.toLocaleString("vi-VN")} views • {p.er}% ER</span>
-                </div>
-                <Progress value={(p.views / 1000000) * 100} className="h-2" />
+            {performanceByPillar.length === 0 ? (
+              <div className="py-12 flex flex-col items-center justify-center border border-dashed rounded-xl text-center bg-muted/10">
+                <PieChart className="size-8 text-muted-foreground mb-2 opacity-60" />
+                <p className="text-xs font-semibold text-foreground">Không có dữ liệu hiệu suất trụ cột</p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Chưa có video được phân nhóm theo trụ cột nội dung.</p>
               </div>
-            ))}
+            ) : (
+              performanceByPillar.map((p) => (
+                <div key={p.pillar} className="p-3 rounded-xl border border-border/60 bg-muted/20 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs font-semibold">
+                    <span className="text-foreground">{p.pillar} ({p.count} videos)</span>
+                    <span className="text-primary font-mono">{p.views.toLocaleString("vi-VN")} views • {p.er}% ER</span>
+                  </div>
+                  <Progress value={(p.views / 1000000) * 100} className="h-2" />
+                </div>
+              ))
+            )}
           </div>
         </Card>
       </div>

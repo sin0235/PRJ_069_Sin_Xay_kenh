@@ -52,5 +52,5 @@ def test_vieneu_clone_uses_reference_denoising_and_sdk_sample_rate():
     assert model.request == ("Xin chào", {
         "ref_audio": "voice.wav", "denoise": True, "use_ref_codes": True,
         "temperature": 0.8, "top_k": 25, "top_p": 0.95,
-        "repetition_penalty": 1.2,
+        "repetition_penalty": 1.2, "max_new_frames": 300, "max_chars": 256,
     })
