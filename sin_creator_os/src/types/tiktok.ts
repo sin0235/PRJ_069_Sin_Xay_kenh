@@ -4,11 +4,11 @@ export interface TikTokChannel {
   displayName: string;
   avatarUrl: string;
   bio: string;
-  followersCount: number;
-  followingCount: number;
-  likesCount: number;
-  videoCount: number;
-  engagementRate: number;
+  followersCount: number | null;
+  followingCount: number | null;
+  likesCount: number | null;
+  videoCount: number | null;
+  engagementRate: number | null;
   connectedAt: string;
   status: 'connected' | 'expired' | 'error';
   niche: string;
@@ -33,10 +33,10 @@ export interface AudienceDemographic {
 }
 
 export interface ChannelKPIs {
-  followers: { value: number; changePercent: number };
-  views: { value: number; changePercent: number };
-  engagement: { value: number; changePercent: number };
-  posts: { value: number; changePercent: number };
-  avgWatchTime: { value: number; changePercent: number };
-  growthRate: { value: number; changePercent: number };
+  followers: { value: number | null; changePercent?: number };
+  views: { value: number | null; changePercent?: number };
+  engagement: { value: number | null; changePercent?: number };
+  posts: { value: number | null; changePercent?: number };
+  avgWatchTime: { value: number | null; changePercent?: number };
+  growthRate: { value: number | null; changePercent?: number };
 }

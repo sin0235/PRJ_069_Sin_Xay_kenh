@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import threading
 import uuid
 import wave
@@ -29,21 +30,31 @@ def _now():
 
 def claim_next_voice_job(db, token: str) -> AIGenerationJob | None:
     # Acquiring the shared lease means any remaining RUNNING voice job lost its worker.
-    db.query(AIGenerationJob).filter(
+    workspace_id = os.getenv("SIN_WORKSPACE_ID", "").strip()
+    running_jobs = db.query(AIGenerationJob).filter(
         AIGenerationJob.provider == "VOICE_STUDIO",
         AIGenerationJob.state == "RUNNING",
-    ).update({"state": "QUEUED", "retry_count": AIGenerationJob.retry_count + 1}, synchronize_session=False)
+    )
+    if workspace_id:
+        running_jobs = running_jobs.filter(AIGenerationJob.workspace_id == workspace_id)
+    running_jobs.update({"state": "QUEUED", "retry_count": AIGenerationJob.retry_count + 1}, synchronize_session=False)
     db.commit()
-    job = db.query(AIGenerationJob).filter(
+    queued_jobs = db.query(AIGenerationJob).filter(
         AIGenerationJob.provider == "VOICE_STUDIO",
         AIGenerationJob.state == "QUEUED",
-    ).order_by(AIGenerationJob.created_at).first()
+    )
+    if workspace_id:
+        queued_jobs = queued_jobs.filter(AIGenerationJob.workspace_id == workspace_id)
+    job = queued_jobs.order_by(AIGenerationJob.created_at).first()
     if not job:
         return None
-    updated = db.query(AIGenerationJob).filter(
+    claim = db.query(AIGenerationJob).filter(
         AIGenerationJob.id == job.id,
         AIGenerationJob.state == "QUEUED",
-    ).update({"state": "RUNNING"}, synchronize_session=False)
+    )
+    if workspace_id:
+        claim = claim.filter(AIGenerationJob.workspace_id == workspace_id)
+    updated = claim.update({"state": "RUNNING"}, synchronize_session=False)
     db.commit()
     return db.get(AIGenerationJob, job.id) if updated == 1 else None
 
@@ -99,11 +110,15 @@ def process_voice_studio_job(job_id: str, token: str) -> None:
     output_path = None
     try:
         with SessionLocal() as db:
-            job = db.query(AIGenerationJob).filter(
+            query = db.query(AIGenerationJob).filter(
                 AIGenerationJob.id == job_id,
                 AIGenerationJob.provider == "VOICE_STUDIO",
                 AIGenerationJob.state == "RUNNING",
-            ).first()
+            )
+            workspace_id = os.getenv("SIN_WORKSPACE_ID", "").strip()
+            if workspace_id:
+                query = query.filter(AIGenerationJob.workspace_id == workspace_id)
+            job = query.first()
             if not job:
                 return
             config = json.loads(job.request_payload_json)
@@ -154,7 +169,11 @@ def process_voice_studio_job(job_id: str, token: str) -> None:
         if output_path:
             output_path.unlink(missing_ok=True)
         with SessionLocal() as db:
-            job = db.query(AIGenerationJob).filter(AIGenerationJob.id == job_id).first()
+            query = db.query(AIGenerationJob).filter(AIGenerationJob.id == job_id)
+            workspace_id = os.getenv("SIN_WORKSPACE_ID", "").strip()
+            if workspace_id:
+                query = query.filter(AIGenerationJob.workspace_id == workspace_id)
+            job = query.first()
             if job and job.state == "RUNNING":
                 job.state = "FAILED"
                 job.error_code = str(exc)[:100] if isinstance(exc, TTSProviderError) else "VOICE_STUDIO_JOB_FAILED"

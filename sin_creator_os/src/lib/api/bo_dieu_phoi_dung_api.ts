@@ -3,6 +3,8 @@
  * Tuan thu BAHA_PROJECT_OS_STANDARD_TEMPLATE_V2 & AGENTS.md (100% SVG, NO EMOJI)
  */
 
+import { AuthApi } from "@/lib/api/auth-api";
+
 export interface DinhDanhPhien {
   run_id: string;
   project_id: string;
@@ -64,13 +66,13 @@ export interface GoiBanGiao {
   loss_report: Record<string, string[]>;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_CONTENT_API_URL || "http://127.0.0.1:20128";
+const API_BASE = "";
 
 export const boDieuPhoiDungApi = {
   async taoPhien(projectId: string, baseRevision: number, baseHash: string): Promise<DinhDanhPhien> {
     const res = await fetch(`${API_BASE}/v1/media/projects/${projectId}/dung/phien`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: AuthApi.getAuthHeaders(),
       body: JSON.stringify({ base_revision: baseRevision, base_hash: baseHash }),
     });
     if (!res.ok) {
@@ -81,7 +83,9 @@ export const boDieuPhoiDungApi = {
   },
 
   async layTrangThaiPhien(projectId: string, runId: string): Promise<CheckpointPhien> {
-    const res = await fetch(`${API_BASE}/v1/media/projects/${projectId}/dung/phien/${runId}`);
+    const res = await fetch(`${API_BASE}/v1/media/projects/${projectId}/dung/phien/${runId}`, {
+      headers: AuthApi.getAuthHeaders(),
+    });
     if (!res.ok) {
       throw new Error(`Khong tim thay phien ${runId}`);
     }
@@ -91,6 +95,7 @@ export const boDieuPhoiDungApi = {
   async tiepTucPhien(projectId: string, runId: string): Promise<CheckpointPhien> {
     const res = await fetch(`${API_BASE}/v1/media/projects/${projectId}/dung/phien/${runId}/tiep-tuc`, {
       method: "POST",
+      headers: AuthApi.getAuthHeaders(),
     });
     if (!res.ok) {
       throw new Error(`Khong the tiep tuc phien ${runId}`);
@@ -101,13 +106,14 @@ export const boDieuPhoiDungApi = {
   async huyPhien(projectId: string, runId: string): Promise<void> {
     await fetch(`${API_BASE}/v1/media/projects/${projectId}/dung/phien/${runId}/huy`, {
       method: "POST",
+      headers: AuthApi.getAuthHeaders(),
     });
   },
 
   async taoBanNhap(projectId: string, runId: string, timelineBase: Record<string, unknown>): Promise<BanNhapDung> {
     const res = await fetch(`${API_BASE}/v1/media/projects/${projectId}/dung/ban-nhap`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: AuthApi.getAuthHeaders(),
       body: JSON.stringify({ run_id: runId, timeline_base: timelineBase }),
     });
     if (!res.ok) {
@@ -125,7 +131,7 @@ export const boDieuPhoiDungApi = {
   ): Promise<KetQuaCongCu> {
     const res = await fetch(`${API_BASE}/v1/media/projects/${projectId}/dung/ban-nhap/${draftId}/lenh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: AuthApi.getAuthHeaders(),
       body: JSON.stringify({ expected_draft_revision: expectedRevision, commands }),
     });
     if (!res.ok) {
@@ -138,7 +144,7 @@ export const boDieuPhoiDungApi = {
   async commitBanNhap(projectId: string, draftId: string, expectedRevision: number, approvalId: string): Promise<{ status: string; committed_version: number }> {
     const res = await fetch(`${API_BASE}/v1/media/projects/${projectId}/dung/ban-nhap/${draftId}/ghi-nhan`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: AuthApi.getAuthHeaders(),
       body: JSON.stringify({ expected_revision: expectedRevision, approval_id: approvalId }),
     });
     if (!res.ok) {
@@ -151,7 +157,7 @@ export const boDieuPhoiDungApi = {
   async xuatGoiBanGiao(projectId: string, revision: number, adapterId = "FINAL_CUT_XML"): Promise<GoiBanGiao> {
     const res = await fetch(`${API_BASE}/v1/media/projects/${projectId}/dung/ban-giao`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: AuthApi.getAuthHeaders(),
       body: JSON.stringify({ revision, adapter_id: adapterId }),
     });
     if (!res.ok) {
@@ -161,3 +167,4 @@ export const boDieuPhoiDungApi = {
     return res.json();
   },
 };
+

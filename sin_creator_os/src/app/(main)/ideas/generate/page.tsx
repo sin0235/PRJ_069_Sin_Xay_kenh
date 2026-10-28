@@ -34,21 +34,19 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
 
-import { mockIdeas, mockEvidences } from "@/data/mock-creator-data";
 import { IdeaService } from "@/services/idea-service";
-import { EvidenceCard } from "@/components/creator/evidence-card";
 import { ContentIdea } from "@/types";
 
 export default function IdeaGeneratorPage() {
   const router = useRouter();
 
   // Generator Config State
-  const [niche, setNiche] = React.useState("AI & Công Nghệ");
-  const [audience, setAudience] = React.useState("Creator, Marketer, Freelancer 18-34 tuổi");
-  const [objective, setObjective] = React.useState("Tăng nhận diện & Follower");
-  const [pillar, setPillar] = React.useState("AI Workflow & Automation");
-  const [tone, setTone] = React.useState("Dứt khoát, chuyên nghiệp, truyền cảm hứng");
-  const [videoLength, setVideoLength] = React.useState("24-32 giây (Optimal)");
+  const [niche, setNiche] = React.useState("");
+  const [audience, setAudience] = React.useState("");
+  const [objective, setObjective] = React.useState("");
+  const [pillar, setPillar] = React.useState("");
+  const [tone, setTone] = React.useState("");
+  const [videoLength, setVideoLength] = React.useState("");
   const [quantity, setQuantity] = React.useState("3");
 
   const [sources, setSources] = React.useState({
@@ -288,10 +286,10 @@ export default function IdeaGeneratorPage() {
                         {idea.topic}
                       </Badge>
                       <Badge variant="secondary" className="text-[10px] font-mono text-emerald-600">
-                        {idea.freshness}
+                        {idea.freshness || "—"}
                       </Badge>
                       <span className="text-[11px] text-muted-foreground font-mono">
-                        Dựng: {idea.estimatedProductionEffort}
+                        Dựng: {idea.estimatedProductionEffort || "—"}
                       </span>
                     </div>
 
@@ -302,7 +300,7 @@ export default function IdeaGeneratorPage() {
 
                   <div className="flex flex-col items-end shrink-0">
                     <div className="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-bold text-xs font-mono">
-                      {idea.scores.overall}/100
+                      {idea.scores?.overall == null ? "—" : `${idea.scores.overall}/100`}
                     </div>
                     <span className="text-[9px] text-muted-foreground">Điểm khả thi</span>
                   </div>
@@ -394,8 +392,8 @@ export default function IdeaGeneratorPage() {
               <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                 <ShieldCheck className="size-3.5 text-primary" /> Bằng Chứng Dữ Liệu
               </span>
-              <Badge variant="outline" className="text-[10px] text-emerald-600 bg-emerald-500/10">
-                Live Evidence
+              <Badge variant="outline" className="text-[10px]">
+                Nguồn dữ liệu
               </Badge>
             </div>
 
@@ -403,11 +401,9 @@ export default function IdeaGeneratorPage() {
               Các video và tín hiệu thực tế được nạp vào AI để tạo ra các ý tưởng trên:
             </p>
 
-            <div className="space-y-3 pt-1">
-              {mockEvidences.map((ev) => (
-                <EvidenceCard key={ev.id} evidence={ev} compact />
-              ))}
-            </div>
+            <p className="pt-1 text-[11px] text-muted-foreground">
+              Chưa có bằng chứng thực được liên kết với phiên tạo ý tưởng này.
+            </p>
 
             <Button
               variant="outline"

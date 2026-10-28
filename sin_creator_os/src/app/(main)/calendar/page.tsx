@@ -13,6 +13,7 @@ import {
   Share2,
   CheckCircle2,
   Flame,
+  Film,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -34,104 +35,44 @@ interface ScheduledPost {
   dateStr: string;
   time: string;
   title: string;
-  thumbnailUrl: string;
   status: "scheduled" | "published" | "draft";
-  channel: string;
-  pillar: string;
-  durationSec: number;
+  channel?: string;
+  externalPostId?: string;
+  externalPostUrl?: string;
 }
-
-const scheduledPosts: ScheduledPost[] = [
-  {
-    id: "post_01",
-    day: 19,
-    dateStr: "19/10/2026",
-    time: "19:30",
-    title: "Cách 1 AI Agent tự động viết 30 kịch bản TikTok trong 60 giây",
-    thumbnailUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80",
-    status: "published",
-    channel: "@bahagroup.creator",
-    pillar: "AI Workflow",
-    durationSec: 28,
-  },
-  {
-    id: "post_02",
-    day: 21,
-    dateStr: "21/10/2026",
-    time: "18:00",
-    title: "Bí Mật Đằng Sau Video Triệu View Bằng Voice Clone ElevenLabs",
-    thumbnailUrl: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400&auto=format&fit=crop&q=80",
-    status: "scheduled",
-    channel: "@bahagroup.creator",
-    pillar: "AI Audio",
-    durationSec: 31,
-  },
-  {
-    id: "post_03",
-    day: 22,
-    dateStr: "22/10/2026",
-    time: "11:30",
-    title: "Cách Setup Safe Zone TikTok Để Không Bị Che Chữ & Nút Like",
-    thumbnailUrl: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=400&auto=format&fit=crop&q=80",
-    status: "scheduled",
-    channel: "@bahagroup.creator",
-    pillar: "Technical Tips",
-    durationSec: 22,
-  },
-  {
-    id: "post_04",
-    day: 24,
-    dateStr: "24/10/2026",
-    time: "20:15",
-    title: "Lộ Trình Tự Động Hóa Kênh TikTok Từ Con Số 0 Với AI Agent",
-    thumbnailUrl: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400&auto=format&fit=crop&q=80",
-    status: "scheduled",
-    channel: "@bahagroup.creator",
-    pillar: "Automation",
-    durationSec: 32,
-  },
-];
 
 export default function CalendarPage() {
   const router = useRouter();
   const [view, setView] = React.useState<"month" | "week" | "list">("month");
   const [selectedPost, setSelectedPost] = React.useState<ScheduledPost | null>(null);
-  const [posts, setPosts] = React.useState<ScheduledPost[]>(scheduledPosts);
+  const [posts, setPosts] = React.useState<ScheduledPost[]>([]);
 
-  // Nạp bài đăng thật từ Backend Publishing API
+  const currentDate = new Date();
+  const daysInMonth = Array.from({ length: new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate() }, (_, i) => i + 1);
+
   React.useEffect(() => {
     PublishingService.listPublishedLinks()
       .then((items) => {
-        if (items && items.length > 0) {
-          const mapped: ScheduledPost[] = items.map((item, idx) => {
-            const pubDate = item.published_at ? new Date(item.published_at) : new Date(item.created_at);
-            const day = pubDate.getDate() || 22;
-            const hours = String(pubDate.getHours()).padStart(2, "0");
-            const mins = String(pubDate.getMinutes()).padStart(2, "0");
-            return {
-              id: item.id,
-              day,
-              dateStr: `${day}/10/2026`,
-              time: `${hours}:${mins}`,
-              title: `Video TikTok #${item.external_post_id} (${item.script_draft_version_id || "Bản nháp"})`,
-              thumbnailUrl:
-                idx % 2 === 0
-                  ? "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80"
-                  : "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400&auto=format&fit=crop&q=80",
-              status: item.status === "ACTIVE" ? "published" : "scheduled",
-              channel: item.channel_id ? `@${item.channel_id}` : "@bahagroup.creator",
-              pillar: "AI Workflow",
-              durationSec: 28,
-            };
-          });
-          setPosts([...mapped, ...scheduledPosts]);
-        }
+        const mapped = items.flatMap((item) => {
+          if (!item.published_at) return [];
+          const publishedAt = new Date(item.published_at);
+          if (publishedAt.getMonth() !== currentDate.getMonth() || publishedAt.getFullYear() !== currentDate.getFullYear()) return [];
+          return [{
+            id: item.id,
+            day: publishedAt.getDate(),
+            dateStr: publishedAt.toLocaleDateString("vi-VN"),
+            time: publishedAt.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" }),
+            title: item.external_post_id,
+            status: item.status === "ACTIVE" ? "published" as const : "draft" as const,
+            channel: item.channel_id || undefined,
+            externalPostId: item.external_post_id,
+            externalPostUrl: item.external_post_url,
+          }];
+        });
+        setPosts(mapped);
       })
-      .catch(() => {});
+      .catch(() => setPosts([]));
   }, []);
-
-  // Calendar days grid for October 2026
-  const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1);
 
   return (
     <div className="space-y-6 pb-20">
@@ -143,7 +84,7 @@ export default function CalendarPage() {
               Lịch Xuất Bản Video (Content Calendar)
             </h1>
             <Badge variant="outline" className="border-primary/40 text-primary bg-primary/5 text-xs font-semibold">
-              Tháng 10, 2026
+              {currentDate.toLocaleDateString("vi-VN", { month: "long", year: "numeric" })}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -187,7 +128,7 @@ export default function CalendarPage() {
           <div className="grid grid-cols-7 gap-2 pt-3">
             {daysInMonth.map((day) => {
               const postsOnDay = posts.filter((p) => p.day === day);
-              const isToday = day === 21;
+              const isToday = day === currentDate.getDate();
 
               return (
                 <div
@@ -223,7 +164,6 @@ export default function CalendarPage() {
                       >
                         <div className="flex items-center justify-between text-[10px]">
                           <span className="font-mono text-primary font-bold">{post.time}</span>
-                          <span className="text-[9px] font-mono text-muted-foreground">{post.durationSec}s</span>
                         </div>
                         <div className="text-[11px] font-semibold text-foreground line-clamp-1 leading-tight">
                           {post.title}
@@ -250,16 +190,13 @@ export default function CalendarPage() {
               >
                 <div className="flex items-center gap-3">
                   <div className="relative size-14 rounded-lg overflow-hidden bg-muted shrink-0">
-                    <img src={post.thumbnailUrl} alt={post.title} className="size-full object-cover" />
-                    <span className="absolute bottom-1 right-1 text-[9px] bg-black/70 text-white px-1 rounded font-mono">
-                      {post.durationSec}s
-                    </span>
+                    <div className="size-full flex items-center justify-center text-muted-foreground"><Film className="size-5" aria-hidden="true" /></div>
                   </div>
 
                   <div>
                     <h4 className="text-xs font-bold text-foreground line-clamp-1">{post.title}</h4>
                     <div className="text-[11px] text-muted-foreground mt-0.5">
-                      Kênh {post.channel} • Trụ cột: {post.pillar}
+                      Kênh {post.channel || "—"}
                     </div>
                   </div>
                 </div>
@@ -278,7 +215,7 @@ export default function CalendarPage() {
                         : "border-primary/40 text-primary bg-primary/5"
                     }`}
                   >
-                    {post.status === "published" ? "Đã phát" : "Đã lên lịch"}
+                    {post.status === "published" ? "Đã phát" : "Bản nháp"}
                   </Badge>
                 </div>
               </div>
@@ -296,23 +233,19 @@ export default function CalendarPage() {
                 Chi Tiết Bài Đăng Đã Lên Lịch
               </DialogTitle>
               <DialogDescription className="text-xs">
-                Kênh {selectedPost.channel} • Xuất bản lúc {selectedPost.time} ngày {selectedPost.dateStr}
+                Kênh {selectedPost.channel || "—"} • Xuất bản lúc {selectedPost.time} ngày {selectedPost.dateStr}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 pt-2">
               <div className="relative aspect-[16/9] rounded-xl overflow-hidden bg-black/80">
-                <img
-                  src={selectedPost.thumbnailUrl}
-                  alt={selectedPost.title}
-                  className="size-full object-cover"
-                />
+                <div className="size-full flex items-center justify-center text-white/70"><Film className="size-8" aria-hidden="true" /></div>
               </div>
 
               <div className="space-y-1.5 text-xs">
                 <span className="font-bold text-foreground text-sm block">{selectedPost.title}</span>
                 <p className="text-muted-foreground leading-relaxed text-xs">
-                  Video chuẩn tỉ lệ dọc 9:16, âm lượng -14 LUFS, Safe zone chuẩn TikTok 2026.
+                  Mã bài đăng: {selectedPost.externalPostId || "—"}
                 </p>
               </div>
 

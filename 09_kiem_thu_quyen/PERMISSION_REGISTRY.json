@@ -1,0 +1,311 @@
+{
+  "schema_version": "1.0",
+  "permission_count": 61,
+  "permissions": [
+    {
+      "action": "workspace.read",
+      "risk_tier": "LOW",
+      "constraints": "safe_metadata_only"
+    },
+    {
+      "action": "workspace.settings.update",
+      "risk_tier": "HIGH",
+      "constraints": "step_up_and_audit"
+    },
+    {
+      "action": "org.read",
+      "risk_tier": "MEDIUM",
+      "constraints": "redacted_roster_by_scope"
+    },
+    {
+      "action": "org.manage",
+      "risk_tier": "HIGH",
+      "constraints": "no_cycle_no_cross_tenant_no_self_escalation"
+    },
+    {
+      "action": "members.invite",
+      "risk_tier": "HIGH",
+      "constraints": "grantable_roles_subset_of_actor_policy"
+    },
+    {
+      "action": "members.suspend",
+      "risk_tier": "HIGH",
+      "constraints": "cannot_suspend_last_owner_or_higher_grant"
+    },
+    {
+      "action": "roles.read",
+      "risk_tier": "MEDIUM",
+      "constraints": "scope_filtered_role_catalog"
+    },
+    {
+      "action": "roles.assign",
+      "risk_tier": "CRITICAL",
+      "constraints": "grantable_role_allowlist_no_self_elevation_step_up_or_dual_approval"
+    },
+    {
+      "action": "roles.custom_manage",
+      "risk_tier": "CRITICAL",
+      "constraints": "no_immutable_permission_mutation_step_up"
+    },
+    {
+      "action": "delegation.issue",
+      "risk_tier": "HIGH",
+      "constraints": "strict_subset_scope_ttl_reason_and_approval"
+    },
+    {
+      "action": "brand.read",
+      "risk_tier": "MEDIUM",
+      "constraints": "resource_scope"
+    },
+    {
+      "action": "brand.update",
+      "risk_tier": "HIGH",
+      "constraints": "no_cross_tenant_or_unapproved_brand_policy"
+    },
+    {
+      "action": "channel.read",
+      "risk_tier": "MEDIUM",
+      "constraints": "never_return_oauth_secrets"
+    },
+    {
+      "action": "channel.connect",
+      "risk_tier": "CRITICAL",
+      "constraints": "oauth_consent_proof_step_up_channel_owner_authorization"
+    },
+    {
+      "action": "channel.manage_connection",
+      "risk_tier": "CRITICAL",
+      "constraints": "oauth_consent_and_audit_no_plaintext_secrets"
+    },
+    {
+      "action": "project.read",
+      "risk_tier": "MEDIUM",
+      "constraints": "resource_scope"
+    },
+    {
+      "action": "project.create",
+      "risk_tier": "HIGH",
+      "constraints": "brand_department_scope_and_budget"
+    },
+    {
+      "action": "project.assign",
+      "risk_tier": "HIGH",
+      "constraints": "cannot_assign_beyond_authority"
+    },
+    {
+      "action": "brief.read",
+      "risk_tier": "MEDIUM",
+      "constraints": "approved_fields_only"
+    },
+    {
+      "action": "brief.edit",
+      "risk_tier": "MEDIUM",
+      "constraints": "draft_or_rework_and_version_lock"
+    },
+    {
+      "action": "brief.approve",
+      "risk_tier": "HIGH",
+      "constraints": "cannot_approve_own_final_work"
+    },
+    {
+      "action": "research.run",
+      "risk_tier": "MEDIUM",
+      "constraints": "provider_rights_and_budget_and_scope"
+    },
+    {
+      "action": "research.read",
+      "risk_tier": "MEDIUM",
+      "constraints": "evidence_tenant_scope"
+    },
+    {
+      "action": "provider.configure",
+      "risk_tier": "CRITICAL",
+      "constraints": "license_entitlement_and_step_up"
+    },
+    {
+      "action": "evidence.read",
+      "risk_tier": "MEDIUM",
+      "constraints": "provider_usage_rights_and_provenance"
+    },
+    {
+      "action": "evidence.export",
+      "risk_tier": "HIGH",
+      "constraints": "export_redaction_and_rights"
+    },
+    {
+      "action": "ideas.read",
+      "risk_tier": "LOW",
+      "constraints": "resource_scope"
+    },
+    {
+      "action": "ideas.create",
+      "risk_tier": "MEDIUM",
+      "constraints": "research_evidence_requirement_and_budget"
+    },
+    {
+      "action": "ideas.edit",
+      "risk_tier": "MEDIUM",
+      "constraints": "version_lock_and_edit_state"
+    },
+    {
+      "action": "ideas.submit",
+      "risk_tier": "MEDIUM",
+      "constraints": "current_version_only"
+    },
+    {
+      "action": "ideas.approve_team",
+      "risk_tier": "HIGH",
+      "constraints": "no_self_approval_and_assigned_review_stage"
+    },
+    {
+      "action": "ideas.approve_final",
+      "risk_tier": "HIGH",
+      "constraints": "no_self_approval_and_stage_order"
+    },
+    {
+      "action": "script.read",
+      "risk_tier": "LOW",
+      "constraints": "resource_scope_and_brand_fact_redaction"
+    },
+    {
+      "action": "script.create",
+      "risk_tier": "MEDIUM",
+      "constraints": "approved_brief_or_explicit_draft_state"
+    },
+    {
+      "action": "script.edit",
+      "risk_tier": "MEDIUM",
+      "constraints": "invalidates_downstream_approvals"
+    },
+    {
+      "action": "script.submit",
+      "risk_tier": "MEDIUM",
+      "constraints": "current_version_only"
+    },
+    {
+      "action": "script.approve_team",
+      "risk_tier": "HIGH",
+      "constraints": "no_self_approval_and_stage_order"
+    },
+    {
+      "action": "script.approve_final",
+      "risk_tier": "HIGH",
+      "constraints": "no_self_approval_fact_check_and_stage_order"
+    },
+    {
+      "action": "media.read",
+      "risk_tier": "MEDIUM",
+      "constraints": "signed_urls_per_resource_expire"
+    },
+    {
+      "action": "media.edit",
+      "risk_tier": "MEDIUM",
+      "constraints": "asset_rights_and_versions"
+    },
+    {
+      "action": "media.approve",
+      "risk_tier": "HIGH",
+      "constraints": "no_self_approval_and_version_lock"
+    },
+    {
+      "action": "client.review",
+      "risk_tier": "HIGH",
+      "constraints": "assigned_stage_only_client_no_internal_data"
+    },
+    {
+      "action": "publishing.schedule",
+      "risk_tier": "HIGH",
+      "constraints": "approved_version_and_channel_ownership"
+    },
+    {
+      "action": "publishing.execute",
+      "risk_tier": "CRITICAL",
+      "constraints": "step_up_approved_version_valid_tiktok_scope_and_job_recheck"
+    },
+    {
+      "action": "publishing.cancel",
+      "risk_tier": "HIGH",
+      "constraints": "channel_scope_and_audit"
+    },
+    {
+      "action": "analytics.read",
+      "risk_tier": "MEDIUM",
+      "constraints": "scoped_aggregations_no_leak"
+    },
+    {
+      "action": "analytics.export",
+      "risk_tier": "HIGH",
+      "constraints": "export_fields_retention_and_safe_link"
+    },
+    {
+      "action": "ai_budget.read",
+      "risk_tier": "MEDIUM",
+      "constraints": "scoped_budget_and_costs"
+    },
+    {
+      "action": "ai_budget.update",
+      "risk_tier": "CRITICAL",
+      "constraints": "step_up_grant_budget_limits_and_audit"
+    },
+    {
+      "action": "billing.read",
+      "risk_tier": "HIGH",
+      "constraints": "financial_scope_and_redaction"
+    },
+    {
+      "action": "billing.manage",
+      "risk_tier": "CRITICAL",
+      "constraints": "step_up_secondary_approval_policy"
+    },
+    {
+      "action": "audit.read",
+      "risk_tier": "HIGH",
+      "constraints": "redacted_tenant_only_append_only"
+    },
+    {
+      "action": "audit.export",
+      "risk_tier": "CRITICAL",
+      "constraints": "step_up_data_minimization_retention"
+    },
+    {
+      "action": "security.support_access",
+      "risk_tier": "CRITICAL",
+      "constraints": "customer_consent_or_break_glass_dual_approval_ttl_audit"
+    },
+    {
+      "action": "data.export_sensitive",
+      "risk_tier": "CRITICAL",
+      "constraints": "step_up_dual_approval_approved_fields"
+    },
+    {
+      "action": "comment.read",
+      "risk_tier": "HIGH",
+      "constraints": "tiktok_entitlement_privacy_and_pii"
+    },
+    {
+      "action": "comment.reply",
+      "risk_tier": "HIGH",
+      "constraints": "provider_permission_and_response_approval"
+    },
+    {
+      "action": "platform.ops.manage",
+      "risk_tier": "CRITICAL",
+      "constraints": "platform_config_only_without_customer_content"
+    },
+    {
+      "action": "media.upload",
+      "risk_tier": "MEDIUM",
+      "constraints": "media_asset_upload"
+    },
+    {
+      "action": "ai_job.create",
+      "risk_tier": "MEDIUM",
+      "constraints": "ai_generation_job_create"
+    },
+    {
+      "action": "ai_job.read",
+      "risk_tier": "LOW",
+      "constraints": "ai_generation_job_read"
+    }
+  ]
+}

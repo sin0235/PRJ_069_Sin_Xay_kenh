@@ -42,8 +42,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-import { mockAIJobs } from "@/data/mock-creator-data";
-import { AIJob } from "@/types";
 import { mediaStudioApi, MediaAssetResponse, CompiledVideoPromptResponse } from "@/lib/api/media-studio-api";
 
 const AI_TOOLS = [
@@ -132,13 +130,6 @@ const AI_TOOLS = [
 export default function AIStudioPage() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = React.useState("all");
-  const [jobs, setJobs] = React.useState<AIJob[]>(mockAIJobs);
-
-  const handleRetry = (id: string) => {
-    setJobs((prev) =>
-      prev.map((j) => (j.id === id ? { ...j, status: "processing", progress: 20, error: undefined } : j))
-    );
-  };
 
   // States cho Interactive Generative Studio
   const [activeMediaTab, setActiveMediaTab] = React.useState<"music" | "video">("music");
@@ -827,94 +818,8 @@ export default function AIStudioPage() {
         })}
       </div>
 
-      {/* Active AI Generation Jobs Tracker */}
-      <div className="space-y-3 pt-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold text-foreground">Hàng Đợi Xử Lý Nền (Background Jobs)</h2>
-            <Badge variant="secondary" className="text-[10px] font-mono">
-              {jobs.filter((j) => j.status === "processing").length} Đang chạy
-            </Badge>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setJobs([...jobs])}
-            className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1"
-          >
-            <RotateCw className="size-3" />
-            <span>Làm mới trạng thái</span>
-          </Button>
-        </div>
-
-        <div className="space-y-2">
-          {jobs.map((job) => {
-            const isProcessing = job.status === "processing";
-            const isCompleted = job.status === "completed";
-            const isFailed = job.status === "failed";
-
-            return (
-              <div
-                key={job.id}
-                className="flex flex-col md:flex-row md:items-center justify-between p-3.5 rounded-xl border border-border/70 bg-card gap-3 text-xs"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="size-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                    {isProcessing && <RotateCw className="size-4 text-primary animate-spin" />}
-                    {isCompleted && <CheckCircle2 className="size-4 text-emerald-500" />}
-                    {isFailed && <AlertCircle className="size-4 text-destructive" />}
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-foreground">{job.title}</span>
-                      <span className="text-[10px] font-mono text-muted-foreground">ID: {job.id}</span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">{(job.meta?.prompt || job.type)}</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-4 justify-between md:justify-end">
-                  {isProcessing && (
-                    <div className="w-32 space-y-1">
-                      <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
-                        <span>Đang xử lý</span>
-                        <span>{job.progress}%</span>
-                      </div>
-                      <Progress value={job.progress} className="h-1.5" />
-                    </div>
-                  )}
-
-                  {isCompleted && (
-                    <Badge variant="outline" className="border-emerald-500/30 text-emerald-600 bg-emerald-500/5 text-[10px]">
-                      Hoàn thành
-                    </Badge>
-                  )}
-
-                  {isFailed && (
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="border-destructive/30 text-destructive bg-destructive/5 text-[10px]">
-                        Thất bại
-                      </Badge>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleRetry(job.id)}
-                        className="h-6 px-2 text-[10px] text-primary hover:bg-primary/10"
-                      >
-                        Thử lại
-                      </Button>
-                    </div>
-                  )}
-
-                  <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
-                    <Clock className="size-3" /> {job.createdAt}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+        Chưa có dữ liệu lịch sử tác vụ AI từ máy chủ.
       </div>
     </div>
   );

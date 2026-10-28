@@ -1,0 +1,10 @@
+FROM prj069-sin-api:kiem-thu-nas11
+USER root
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN python -m pip install --no-cache-dir "playwright==1.63.0" && \
+    python -m playwright install --with-deps chromium && \
+    chmod -R a+rX /ms-playwright && \
+    mkdir -p /flow_profiles && chown appuser:appgroup /flow_profiles
+COPY cong_cu_tu_dong/flow_bridge/*.py /app/cong_cu_tu_dong/flow_bridge/
+RUN chown -R appuser:appgroup /app/cong_cu_tu_dong/flow_bridge
+USER appuser

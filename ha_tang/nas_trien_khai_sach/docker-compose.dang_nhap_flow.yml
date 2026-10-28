@@ -1,0 +1,33 @@
+# Dự án phụ, chỉ bật khi cần đăng nhập Google Flow (Chromium qua noVNC).
+# Dùng chung volume hồ sơ với API. Chỉ chạy một trong hai: tắt dự án này sau khi đăng nhập xong để nhả khóa hồ sơ.
+# Yêu cầu: dự án chính prj069_v2 đã được tạo ít nhất một lần (volume prj069_v2_flow_profiles tồn tại).
+name: prj069_v2_flow_login
+
+services:
+  flow_login:
+    build:
+      context: ../..
+      dockerfile: ha_tang/nas_flow_login/Dockerfile
+    image: prj069-flow-login:1.63.0-v2
+    container_name: prj069-v2-flow-login
+    init: true
+    restart: "no"
+    # Mặc định chỉ loopback. Không có SSH tunnel thì đặt FLOW_VNC_BIND=<IP_NAS> và BẮT BUỘC đặt FLOW_VNC_PASSWORD trong .env.
+    ports:
+      - "${FLOW_VNC_BIND:-127.0.0.1}:6080:6080"
+    environment:
+      DISPLAY: ":99"
+      BROWSER_CHANNEL: chromium
+      FLOW_PROFILE_ROOT: /var/lib/prj069/flow_profiles
+      FLOW_PROFILE_ID: ${FLOW_PROFILE_ID:-mac_dinh}
+      VNC_PASSWORD: ${FLOW_VNC_PASSWORD:-}
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - flow_profiles:/var/lib/prj069/flow_profiles
+    shm_size: 512m
+    mem_limit: 2g
+
+volumes:
+  flow_profiles:
+    external: true
+    name: prj069_v2_flow_profiles

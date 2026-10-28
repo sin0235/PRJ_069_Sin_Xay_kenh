@@ -20,6 +20,7 @@ class ActorContext:
     team_ids: List[str]
     user_status: str = "ACTIVE"
     workspace_status: str = "ACTIVE"
+    is_founder: bool = False
 
 
 @dataclass
@@ -75,6 +76,16 @@ def _active_grant(grant: Dict[str, Any], now: datetime) -> bool:
     starts_at = _utc(grant.get("valid_from"))
     expires_at = _utc(grant.get("valid_until"))
     return (starts_at is None or starts_at <= now) and (expires_at is None or expires_at > now)
+
+
+def founder_workspace_owner(actor: ActorContext) -> bool:
+    now = datetime.now(timezone.utc)
+    return actor.is_founder and any(
+        grant.get("role_code") == "WORKSPACE_OWNER"
+        and grant.get("scope_type") == "WORKSPACE"
+        and _active_grant(grant, now)
+        for grant in actor.roles
+    )
 
 
 def _assignment_scope_matches(
@@ -144,7 +155,9 @@ def evaluate_permission(
         if not resource.owner_id and not resource.creator_id:
             return _deny("RESOURCE_ATTRIBUTION_REQUIRED", "Phê duyệt cần chủ sở hữu hoặc người tạo đã xác minh")
         interested_parties = {user_id for user_id in (resource.owner_id, resource.creator_id) if user_id}
-        if actor.user_id in interested_parties and not e2e_test_self_approval_enabled():
+        if actor.user_id in interested_parties and not (
+            e2e_test_self_approval_enabled() or founder_workspace_owner(actor)
+        ):
             return _deny("SELF_FINAL_APPROVAL_DENIED", "Bên có lợi ích không được tự duyệt tài nguyên của mình")
 
     now = datetime.now(timezone.utc)

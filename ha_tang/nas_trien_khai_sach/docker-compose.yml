@@ -1,0 +1,143 @@
+# PRJ_069 - Dự án triển khai mới trên NAS (v2, production nội bộ LAN)
+# Khác bản kiểm thử cũ: không bypass xác thực, không --reload, không mount mã nguồn,
+# DB tạo mới sạch (PRJ069_BOOTSTRAP_MODE=sach), cấu hình bí mật nằm trong .env và secrets/ (không commit).
+name: prj069_v2
+
+x-ghi-nhat-ky: &ghi_nhat_ky
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-api-build: &api_build
+  context: ../..
+  dockerfile: sin_content_api/Dockerfile
+  args:
+    CAI_TRINH_DUYET: "1"
+
+services:
+  # Bước khởi tạo một lần: tạo DB sạch, Founder, workspace, quyền, cấu hình LLM mã hóa. Chạy lại an toàn (idempotent).
+  khoi_tao:
+    build: *api_build
+    image: prj069-sin-api:v2
+    container_name: prj069-v2-khoi-tao
+    user: "0:0"
+    restart: "no"
+    command: ["python", "/app/sin_content_api/scripts/khoi_tao_production_noi_bo.py"]
+    env_file: .env
+    environment:
+      APP_ENV: production
+      TESTING: "0"
+      DEV_AUTH_BYPASS: "0"
+      AUTH_MODE: local_password
+      LLM_ENABLED: "false"
+      PRJ069_BOOTSTRAP_MODE: sach
+      PRJ069_BOOTSTRAP_SEED_DIR: /seed
+      PRJ069_BOOTSTRAP_DATA_DIR: /data
+      PRJ069_FLOW_PROFILE_DIR: /flow_profiles
+      LLM_API_KEY_FILE: /run/secrets/9rt.env
+    volumes:
+      - du_lieu:/data
+      - flow_profiles:/flow_profiles
+      - ./secrets/9rt.env:/run/secrets/9rt.env:ro
+    logging: *ghi_nhat_ky
+    networks:
+      - mang_noi_bo
+
+  api:
+    build: *api_build
+    image: prj069-sin-api:v2
+    container_name: prj069-v2-api
+    init: true
+    user: "10001:10001"
+    restart: unless-stopped
+    depends_on:
+      khoi_tao:
+        condition: service_completed_successfully
+    env_file: .env
+    environment:
+      APP_ENV: production
+      DEBUG: "false"
+      TESTING: "0"
+      DEV_AUTH_BYPASS: "0"
+      SYNTHETIC_DATA_ALLOWED: "false"
+      AUTH_MODE: local_password
+      AUTH_COOKIE_SECURE: "false"      # Truy cập HTTP trong LAN; đặt true khi đứng sau HTTPS.
+      DATABASE_URL: sqlite:////data/sin_content_production.db
+      BAHA_AUTH_DATABASE_URL: sqlite:////data/baha_auth_production.db
+      BAHA_AUTH_APP_ENV: production
+      SIN_DUNG_DB_PATH: /data/sin_dieu_phoi_dung.db
+      MEDIA_ROOT_DIR: /data/media_assets
+      SIN_NLE_BUNDLE_DIR: /data/nle_bundles
+      # LLM: khóa đọc từ tệp bí mật, không đặt trong biến môi trường.
+      LLM_ENABLED: "true"
+      LLM_API_KEY_FILE: /run/secrets/9rt.env
+      # TTS VieNeu: giữ model tải từ Hugging Face trong volume, không tải lại khi dựng lại container.
+      PRJ069_VIENU_HF_HOME: /data/cache/vieneu
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      # Flow: dùng Chromium của Playwright và hồ sơ đăng nhập chung với container đăng nhập.
+      BROWSER_CHANNEL: chromium
+      FLOW_PROFILE_ROOT: /flow_profiles
+      FLOW_PROFILE_ID: ${FLOW_PROFILE_ID:-mac_dinh}
+      CORS_ALLOWED_ORIGINS: http://${NAS_HOST:?Thiếu NAS_HOST trong .env}:${WEB_PORT:-3069}
+      TZ: Asia/Ho_Chi_Minh
+    command: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+    volumes:
+      - du_lieu:/data
+      - flow_profiles:/flow_profiles
+      - ./secrets/9rt.env:/run/secrets/9rt.env:ro
+    mem_limit: 4g
+    shm_size: 1g
+    ports:
+      - "${API_PORT:-8069}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--max-time", "10", "http://127.0.0.1:8000/healthz"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 180s
+    logging: *ghi_nhat_ky
+    networks:
+      - mang_noi_bo
+
+  web:
+    build:
+      context: ../../sin_creator_os
+      dockerfile: Dockerfile
+      args:
+        # Next.js ghi cố định đích rewrite /v1/* lúc build: tên dịch vụ "api" phải khớp bên dưới.
+        NEXT_PUBLIC_API_URL: http://api:8000
+        INTERNAL_API_URL: http://api:8000
+        NEXT_PUBLIC_AUTH_MODE: local_password
+    image: prj069-sin-fe:v2
+    container_name: prj069-v2-web
+    init: true
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      TZ: Asia/Ho_Chi_Minh
+    mem_limit: 2g
+    ports:
+      - "${WEB_PORT:-3069}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+    logging: *ghi_nhat_ky
+    networks:
+      - mang_noi_bo
+
+networks:
+  mang_noi_bo:
+    name: prj069_v2_mang
+
+volumes:
+  du_lieu:
+    name: prj069_v2_du_lieu
+  flow_profiles:
+    name: prj069_v2_flow_profiles

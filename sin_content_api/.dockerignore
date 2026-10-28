@@ -1,0 +1,13 @@
+.env
+.env.*
+**/.env
+**/.env.*
+**/*.db
+**/*.db-*
+**/*.log
+scratch/
+**/scratch/
+08_kiem_thu/
+**/08_kiem_thu/
+**/.pytest_cache/
+**/__pycache__/

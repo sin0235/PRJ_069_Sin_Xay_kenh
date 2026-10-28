@@ -1,15 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { AuthApi } from "@/lib/api/auth-api";
 import { ShieldAlert, Loader2 } from "lucide-react";
 
 export function AuthGuard({ children, devAuthBypass = false }: { children: React.ReactNode; devAuthBypass?: boolean }) {
-  const router = useRouter();
   const pathname = usePathname();
-  const [isChecking, setIsChecking] = React.useState(true);
-  const [authorized, setAuthorized] = React.useState(false);
+  const isAuthPage = pathname.startsWith("/auth/");
+  const [isChecking, setIsChecking] = React.useState(!devAuthBypass && !isAuthPage);
+  const [authorized, setAuthorized] = React.useState(devAuthBypass || isAuthPage);
+  const [error, setError] = React.useState("");
 
   React.useEffect(() => {
     if (devAuthBypass) {
@@ -25,21 +26,20 @@ export function AuthGuard({ children, devAuthBypass = false }: { children: React
       return;
     }
 
-    let isAuthed = false;
-    try {
-      isAuthed = AuthApi.isAuthenticated();
-    } catch {
-      isAuthed = false;
-    }
-    if (!isAuthed) {
-      setAuthorized(false);
+    let cancelled = false;
+    void AuthApi.loadSession().then((session) => {
+      if (!cancelled && session) {
+        setAuthorized(true);
+      }
+    }).catch((reason: unknown) => {
+      if (!cancelled) {
+        setError(reason instanceof Error ? reason.message : "Không xác minh được phiên Cloudflare Access.");
+      }
+    }).finally(() => {
       setIsChecking(false);
-      router.replace(`/auth/v1/login?redirect=${encodeURIComponent(pathname)}`);
-    } else {
-      setAuthorized(true);
-      setIsChecking(false);
-    }
-  }, [devAuthBypass, pathname, router]);
+    });
+    return () => { cancelled = true; };
+  }, [devAuthBypass, pathname]);
 
   if (isChecking) {
     return (
@@ -61,7 +61,7 @@ export function AuthGuard({ children, devAuthBypass = false }: { children: React
           </div>
           <h2 className="text-base font-bold text-foreground">Yêu Cầu Xác Thực Danh Tính</h2>
           <p className="text-xs text-muted-foreground">
-            Bạn chưa đăng nhập vào hệ thống SIN Creator OS. Đang chuyển hướng bạn đến màn hình đăng nhập...
+            {error || "Tài khoản chưa được cấp quyền truy cập SIN Creator OS. Hãy kiểm tra chính sách Cloudflare Access và quyền workspace."}
           </p>
         </div>
       </div>

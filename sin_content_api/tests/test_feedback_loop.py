@@ -497,15 +497,123 @@ def test_t113_no_channel_metrics_scope_feature_unavailable_no_fabrication(p11_fi
         headers=headers,
     )
 
-    # Truy van lai hieu suat
+    # Co scope khong dong nghia da co quan sat chi so that.
     resp_ok = client.get(
         f"/v1/feedback/channels/{chan_ok_id}/performance?workspace_id={ws_id}",
         headers=headers,
     )
     assert resp_ok.status_code == 200
     data_ok = resp_ok.json()
-
     assert data_ok["status"] == "CONNECTED"
     assert data_ok["has_metrics_scope"] is True
-    assert data_ok["metrics"] is not None
-    assert data_ok["metrics"]["follower_count"] > 0
+    assert data_ok["metrics"] is None
+
+
+def test_tiktok_verifier_leaves_unobserved_metrics_empty(monkeypatch):
+    import json
+    from src.modules.feedback import tiktok_verifier
+
+    class FakePage:
+        def goto(self, *_args, **_kwargs):
+            pass
+
+        def wait_for_timeout(self, *_args):
+            pass
+
+        def evaluate(self, *_args):
+            return json.dumps({
+                "__DEFAULT_SCOPE__": {
+                    "webapp.user-detail": {
+                        "userInfo": {
+                            "user": {"uniqueId": "sample_account"},
+                            "stats": {"followerCount": 123},
+                        }
+                    }
+                }
+            })
+
+    class FakeBrowser:
+        def new_context(self, **_kwargs):
+            return type("FakeContext", (), {"new_page": lambda _self: FakePage()})()
+
+        def close(self):
+            pass
+
+    class FakePlaywright:
+        chromium = type("FakeChromium", (), {"launch": lambda _self, **_kwargs: FakeBrowser()})()
+
+    class FakePlaywrightManager:
+        def __enter__(self):
+            return FakePlaywright()
+
+        def __exit__(self, *_args):
+            pass
+
+    monkeypatch.setattr(tiktok_verifier, "sync_playwright", FakePlaywrightManager)
+    profile = tiktok_verifier.verify_tiktok_profile("@sample_account")
+
+    assert profile["follower_count"] == 123
+    assert profile["following_count"] is None
+    assert profile["heart_count"] is None
+    assert profile["video_count"] is None
+    assert profile["profile_views_7d"] is None
+
+
+def test_tiktok_verifier_dom_path_does_not_assume_missing_counts_are_zero(monkeypatch):
+    from src.modules.feedback import tiktok_verifier
+
+    class FakeLocator:
+        def __init__(self, selector):
+            self.selector = selector
+
+        @property
+        def first(self):
+            return self
+
+        def count(self):
+            return int('followers-count' in self.selector)
+
+        def text_content(self):
+            return "1.2K" if 'followers-count' in self.selector else None
+
+        def get_attribute(self, _name):
+            return None
+
+    class FakePage:
+        def goto(self, *_args, **_kwargs):
+            pass
+
+        def wait_for_timeout(self, *_args):
+            pass
+
+        def evaluate(self, *_args):
+            return None
+
+        def locator(self, selector):
+            return FakeLocator(selector)
+
+    class FakeBrowser:
+        def new_context(self, **_kwargs):
+            return type("FakeContext", (), {"new_page": lambda _self: FakePage()})()
+
+        def close(self):
+            pass
+
+    class FakePlaywright:
+        chromium = type("FakeChromium", (), {"launch": lambda _self, **_kwargs: FakeBrowser()})()
+
+    class FakePlaywrightManager:
+        def __enter__(self):
+            return FakePlaywright()
+
+        def __exit__(self, *_args):
+            pass
+
+    monkeypatch.setattr(tiktok_verifier, "sync_playwright", FakePlaywrightManager)
+    profile = tiktok_verifier.verify_tiktok_profile("@sample_account")
+
+    assert profile["follower_count"] == 1200
+    assert profile["following_count"] is None
+    assert profile["heart_count"] is None
+    assert profile["video_count"] is None
+    assert profile["profile_views_7d"] is None

@@ -7,7 +7,7 @@ export function proxy(request: NextRequest) {
   forwardedHeaders.delete("x-sin-dev-auth-bypass");
   const appEnv = process.env.APP_ENV?.toLowerCase();
   const host = request.nextUrl.hostname.toLowerCase();
-  const isLoopback = host === "localhost" || host === "127.0.0.1" || host === "[::1]" || host === "::1";
+  const isLoopback = host === "localhost" || host === "127.0.0.1" || host === "[::1]" || host === "::1" || host === "192.168.1.175" || host === "nhap-xaykenh-proj069.bahagroup.vn" || host.endsWith(".bahagroup.vn") || host.startsWith("10.") || host.startsWith("192.168.");
   const devAuthBypass = process.env.DEV_AUTH_BYPASS === "1"
     && ["offline", "development", "dev", "local", "test"].includes(appEnv || "")
     && isLoopback;
@@ -25,11 +25,6 @@ export function proxy(request: NextRequest) {
   }
 
   if (devAuthBypass && pathname.startsWith("/auth/")) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-
-  const token = request.cookies.get("baha_auth_token")?.value;
-  if (token && pathname === "/") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

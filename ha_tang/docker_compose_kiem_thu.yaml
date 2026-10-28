@@ -1,0 +1,38 @@
+services:
+  api_kiem_thu:
+    build:
+      context: ../sin_content_api
+      dockerfile: Dockerfile
+    image: prj069-sin-api:kiem-thu
+    container_name: prj069-sin-api-kiem-thu
+    init: true
+    restart: "no"
+    environment:
+      APP_ENV: test
+      TESTING: "1"
+      DATABASE_URL: sqlite:////tmp/prj069_api_kiem_thu.db
+      DEBUG: "false"
+      SYNTHETIC_DATA_ALLOWED: "true"
+      LLM_ENABLED: "false"
+    ports:
+      - "127.0.0.1:8001:8000"
+    tmpfs:
+      - /tmp:rw,size=256m
+    mem_limit: 2g
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8000/healthz >/dev/null && curl -fsS http://127.0.0.1:8000/readyz >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 45s
+    networks:
+      - api_kiem_thu_noi_bo
+
+networks:
+  api_kiem_thu_noi_bo:
+    name: prj069_api_kiem_thu_noi_bo
+    driver: bridge
+    internal: true
+    ipam:
+      config:
+        - subnet: 10.255.70.0/24

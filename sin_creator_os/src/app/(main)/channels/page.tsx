@@ -38,6 +38,13 @@ import { TikTokService } from "@/services/tiktok-service";
 import { TikTokChannel } from "@/types";
 import { useCreatorStore } from "@/stores/use-creator-store";
 
+function formatCount(value: number | null) {
+  if (value == null) return "—";
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return value.toLocaleString("vi-VN");
+}
+
 export default function ChannelsPage() {
   const router = useRouter();
   const { activeChannelId, setActiveChannelId } = useCreatorStore();
@@ -57,8 +64,8 @@ export default function ChannelsPage() {
     try {
       const data = await TikTokService.getConnectedChannels();
       setChannels(data);
+      setIsLiveDb(data.some((channel) => channel.status === "connected"));
       if (data.length > 0) {
-        setIsLiveDb(true);
         if (!activeChannelId) {
           setActiveChannelId(data[0].id);
         }
@@ -112,7 +119,7 @@ export default function ChannelsPage() {
               Quản Lý Kênh TikTok (Channels)
             </h1>
             <Badge variant="outline" className="border-primary/40 text-primary bg-primary/5 text-xs font-semibold">
-              Xác thực thời gian thực
+              Quản lý kết nối
             </Badge>
             {isLiveDb && (
               <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 bg-emerald-500/10 text-xs font-semibold gap-1">
@@ -157,12 +164,12 @@ export default function ChannelsPage() {
         <div className="flex items-center gap-2.5">
           <ShieldCheck className="size-4 text-emerald-500 shrink-0" />
           <span className="text-muted-foreground">
-            Hệ thống cam kết: 100% dữ liệu người theo dõi, tương tác, video và ảnh đại diện được đồng bộ trực tiếp từ TikTok thật.
+            Chỉ số chỉ hiển thị khi backend có dữ liệu xác minh; thông tin còn thiếu sẽ được để trống.
           </span>
         </div>
 
         <span className="text-[10px] text-primary font-medium">
-          Đồng bộ tự động
+          Dữ liệu từ backend
         </span>
       </div>
 
@@ -207,7 +214,7 @@ export default function ChannelsPage() {
                     <Avatar className="size-12 border-2 border-primary/20">
                       <AvatarImage src={channel.avatarUrl} alt={channel.username} />
                       <AvatarFallback className="font-bold text-primary">
-                        {channel.username.slice(1, 3).toUpperCase()}
+                      {channel.username ? channel.username.slice(1, 3).toUpperCase() : <Smartphone className="size-4" aria-hidden="true" />}
                       </AvatarFallback>
                     </Avatar>
 
@@ -217,14 +224,15 @@ export default function ChannelsPage() {
                     </div>
                   </div>
 
-                  <span className="flex items-center gap-1 text-[10px] text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full font-semibold">
-                    <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live TikTok
+                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground px-2 py-0.5 rounded-full font-semibold">
+                    <span className={`size-1.5 rounded-full ${channel.status === "connected" ? "bg-emerald-500" : "bg-muted-foreground"}`} />
+                    {channel.status === "connected" ? "Đã kết nối" : channel.status === "expired" ? "Hết hạn" : "Chưa khả dụng"}
                   </span>
                 </div>
 
                 {/* Bio */}
                 <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-                  {channel.bio || "Kênh TikTok chính thức đã được xác thực từ nền tảng."}
+                  {channel.bio || "Chưa có mô tả kênh."}
                 </p>
 
                 {/* Core Stats (Ground Truth) */}
@@ -232,34 +240,26 @@ export default function ChannelsPage() {
                   <div>
                     <span className="text-[10px] text-muted-foreground block">Followers</span>
                     <span className="text-xs font-bold text-foreground">
-                      {channel.followersCount >= 1000000
-                        ? `${(channel.followersCount / 1000000).toFixed(1)}M`
-                        : channel.followersCount >= 1000
-                        ? `${(channel.followersCount / 1000).toFixed(1)}K`
-                        : channel.followersCount}
+                      {formatCount(channel.followersCount)}
                     </span>
                   </div>
                   <div>
                     <span className="text-[10px] text-muted-foreground block">Video</span>
                     <span className="text-xs font-bold text-foreground">
-                      {channel.videoCount}
+                      {formatCount(channel.videoCount)}
                     </span>
                   </div>
                   <div>
                     <span className="text-[10px] text-muted-foreground block">Tổng Likes</span>
                     <span className="text-xs font-bold text-primary">
-                      {channel.likesCount >= 1000000
-                        ? `${(channel.likesCount / 1000000).toFixed(1)}M`
-                        : channel.likesCount >= 1000
-                        ? `${(channel.likesCount / 1000).toFixed(1)}K`
-                        : channel.likesCount}
+                      {formatCount(channel.likesCount)}
                     </span>
                   </div>
                 </div>
 
                 <div className="text-[10px] text-muted-foreground font-mono flex items-center justify-between">
-                  <span>Xác thực: Dữ liệu thực</span>
-                  <span>Vùng: VN</span>
+                  <span>{channel.connectedAt ? `Xác minh: ${new Date(channel.connectedAt).toLocaleDateString("vi-VN")}` : "Chưa có thời điểm xác minh"}</span>
+                  <span>{channel.status === "connected" ? "Đã xác thực" : "Chưa xác thực"}</span>
                 </div>
               </div>
 

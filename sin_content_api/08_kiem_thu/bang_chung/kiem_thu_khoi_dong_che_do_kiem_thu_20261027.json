@@ -1,0 +1,27 @@
+﻿[
+    {
+        "endpoint":  "API /healthz",
+        "status":  200,
+        "bytes":  57
+    },
+    {
+        "endpoint":  "API /readyz",
+        "status":  200,
+        "bytes":  82
+    },
+    {
+        "endpoint":  "Giao diện /dashboard",
+        "status":  200,
+        "bytes":  27847
+    },
+    {
+        "endpoint":  "Giao diện /channels",
+        "status":  200,
+        "bytes":  27363
+    },
+    {
+        "endpoint":  "Giao diện /publishing",
+        "status":  200,
+        "bytes":  27615
+    }
+]

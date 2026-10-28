@@ -1,6 +1,6 @@
 import { AuthApi } from "@/lib/api/auth-api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_BASE_URL = "";
 
 export class ContentVideoApiError extends Error {
   constructor(message: string, readonly code?: string) {
@@ -49,7 +49,6 @@ async function request<T>(projectId: string, path: string, init?: RequestInit): 
     headers: {
       "Content-Type": "application/json",
       "X-Workspace-Id": AuthApi.getWorkspaceId(),
-      Authorization: `Bearer ${AuthApi.getAuthToken()}`,
       ...init?.headers,
     },
   });

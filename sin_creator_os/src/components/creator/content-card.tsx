@@ -38,8 +38,8 @@ interface ContentCardProps {
 export function ContentCard({ content, onSave, onGenerateIdea }: ContentCardProps) {
   const router = useRouter();
 
-  const formatNum = (num?: number) => {
-    if (!num) return "0";
+  const formatNum = (num?: number | null) => {
+    if (num == null) return "?";
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
@@ -79,12 +79,13 @@ export function ContentCard({ content, onSave, onGenerateIdea }: ContentCardProp
     <div className="group flex flex-col rounded-2xl border border-border/70 bg-card hover:border-primary/50 transition-all duration-200 overflow-hidden shadow-xs hover:shadow-md">
       {/* 9:16 Thumbnail Container with Overlay Information */}
       <div className="relative aspect-[9/13] w-full overflow-hidden bg-muted/80">
-        <img
-          src={content.thumbnailUrl}
-          alt={content.title}
-          className="size-full object-cover group-hover:scale-105 transition-transform duration-300"
-          loading="lazy"
-        />
+        {content.thumbnailUrl ? (
+          <img src={content.thumbnailUrl} alt={content.title} className="size-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" />
+        ) : (
+          <div className="size-full flex items-center justify-center text-muted-foreground">
+            <Play className="size-8" aria-hidden="true" />
+          </div>
+        )}
 
         {/* Gradient backdrop */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/40" />
@@ -153,15 +154,11 @@ export function ContentCard({ content, onSave, onGenerateIdea }: ContentCardProp
         <div className="absolute bottom-2.5 left-2.5 right-2.5 text-white z-10 space-y-1">
           <div className="flex items-center justify-between text-xs font-semibold">
             <span className="flex items-center gap-1 text-white">
-              <img
-                src={content.channelAvatar}
-                alt={content.channelName}
-                className="size-5 rounded-full object-cover border border-white/40"
-              />
-              <span className="truncate max-w-[120px]">{content.channelName}</span>
+              {content.channelAvatar ? <img src={content.channelAvatar} alt={content.channelName} className="size-5 rounded-full object-cover border border-white/40" /> : null}
+              <span className="truncate max-w-[120px]">{content.channelName || "?"}</span>
             </span>
             <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-black/50 backdrop-blur-xs text-amber-300">
-              {content.durationSec}s
+              {content.durationSec ? `${content.durationSec}s` : "?"}
             </span>
           </div>
 
@@ -171,7 +168,7 @@ export function ContentCard({ content, onSave, onGenerateIdea }: ContentCardProp
             </span>
             <span className="flex items-center gap-1 text-emerald-300">
               <Zap className="size-3" />
-              {content.growthVelocity}
+              {content.growthVelocity || "?"}
             </span>
           </div>
         </div>
@@ -204,10 +201,10 @@ export function ContentCard({ content, onSave, onGenerateIdea }: ContentCardProp
           <div className="flex items-center justify-between text-[10px] text-muted-foreground">
             <span className="flex items-center gap-1">
               <ShieldCheck className="size-3 text-primary" />
-              {content.evidence?.length || 1} Bằng chứng
+              {content.evidence?.length ?? 0} Bằng chứng
             </span>
             <span className="font-medium text-primary">
-              ER: {content.metrics?.engagementRate || 8.5}%
+              ER: {content.metrics?.engagementRate == null ? "—" : `${content.metrics.engagementRate}%`}
             </span>
           </div>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronsUpDown, Smartphone, RefreshCw } from "lucide-react";
+import { Check, ChevronsUpDown, Smartphone } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,14 +19,16 @@ export function ChannelSelector() {
   const { channels, setChannels, activeChannelId, setActiveChannelId } = useCreatorStore();
 
   React.useEffect(() => {
-    TikTokService.getConnectedChannels().then((data) => {
-      if (data.length > 0) {
-        setChannels(data);
-      }
-    }).catch(() => {});
+    TikTokService.getConnectedChannels().then(setChannels).catch(() => setChannels([]));
   }, [setChannels]);
 
   const activeChannel = channels.find((c) => c.id === activeChannelId) || channels[0];
+  const formatFollowers = (count: number | null | undefined) => {
+    if (count == null) return "";
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
+    return count.toString();
+  };
 
   return (
     <DropdownMenu>
@@ -37,31 +39,34 @@ export function ChannelSelector() {
           className="h-8 gap-2 rounded-lg border-border/60 hover:border-border font-medium text-xs px-2.5 bg-background/80"
         >
           <Avatar className="size-5 border border-primary/20">
-            <AvatarImage src={activeChannel?.avatarUrl} alt={activeChannel?.username} />
+            <AvatarImage src={activeChannel?.avatarUrl || undefined} alt={activeChannel?.username || ""} />
             <AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-              {activeChannel?.username.slice(1, 3).toUpperCase()}
+              {activeChannel?.username ? activeChannel.username.slice(1, 3).toUpperCase() : <Smartphone className="size-3" aria-hidden="true" />}
             </AvatarFallback>
           </Avatar>
           <span className="max-w-[120px] truncate text-foreground font-semibold">
-            {activeChannel?.username}
+            {activeChannel?.username || "Chưa kết nối kênh"}
           </span>
-          <span className="text-[10px] text-muted-foreground font-normal hidden sm:inline-block">
-            {activeChannel?.followersCount >= 1000000
-              ? `${(activeChannel.followersCount / 1000000).toFixed(1)}M`
-              : activeChannel?.followersCount >= 1000
-              ? `${(activeChannel.followersCount / 1000).toFixed(1)}K`
-              : activeChannel?.followersCount}
-          </span>
+          {formatFollowers(activeChannel?.followersCount) && (
+            <span className="text-[10px] text-muted-foreground font-normal hidden sm:inline-block">
+              {formatFollowers(activeChannel.followersCount)}
+            </span>
+          )}
           <ChevronsUpDown className="size-3 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-64 rounded-xl shadow-lg border-border/80" align="end">
         <DropdownMenuLabel className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-1.5 flex items-center justify-between">
           <span>Kênh TikTok Đang Chọn</span>
-          <span className="text-emerald-500 font-semibold flex items-center gap-1">
-            <span className="size-1.5 rounded-full bg-emerald-500" /> Live TikTok
+          <span className="text-muted-foreground font-semibold">
+            {activeChannel?.status === "connected" ? "Đã kết nối" : activeChannel ? "Cần kết nối lại" : "Chưa có kênh"}
           </span>
         </DropdownMenuLabel>
+        {channels.length === 0 && (
+          <DropdownMenuItem disabled className="text-xs text-muted-foreground">
+            Chưa có kênh TikTok được kết nối.
+          </DropdownMenuItem>
+        )}
         {channels.map((chan) => (
           <DropdownMenuItem
             key={chan.id}
@@ -78,12 +83,7 @@ export function ChannelSelector() {
               <div className="flex flex-col">
                 <span className="font-semibold text-xs text-foreground">{chan.username}</span>
                 <span className="text-[11px] text-muted-foreground">
-                  {chan.followersCount >= 1000000
-                    ? `${(chan.followersCount / 1000000).toFixed(1)}M`
-                    : chan.followersCount >= 1000
-                    ? `${(chan.followersCount / 1000).toFixed(1)}K`
-                    : chan.followersCount}{" "}
-                  followers • Live
+                  {formatFollowers(chan.followersCount) || "—"} • {chan.status === "connected" ? "Đã kết nối" : chan.status === "expired" ? "Cần kết nối lại" : "Chưa khả dụng"}
                 </span>
               </div>
             </div>

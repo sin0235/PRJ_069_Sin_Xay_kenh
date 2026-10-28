@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.agents
+.env*
+*.log
+coverage
+.vercel
+media
+tests
+du_lieu_mau_da_cach_ly_20261027
+# Loại tệp middleware cũ chỉ có trên NAS, trùng chức năng với src/proxy.ts
+src/middleware.ts
