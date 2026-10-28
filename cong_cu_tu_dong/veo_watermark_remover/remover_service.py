@@ -122,6 +122,7 @@ class VeoWatermarkRemover:
             staged_output = tmp_dir_path / f"out_{output_video_path.name}"
             processed_segments = []
             watermark_detected = False
+            all_segments_processed = True
             print(f"[VEO REMOVER] Bắt đầu khử logo watermark: {input_video_path.name} -> {output_video_path.name} ({len(segments)} đoạn)", flush=True)
 
             for index, (start_sec, duration_sec) in enumerate(segments):
@@ -161,6 +162,7 @@ class VeoWatermarkRemover:
                     ) from exc
                 tool_output = f"{res.stdout}\n{res.stderr}".lower()
                 if "no gemini 3.5 diamond detected" in tool_output:
+                    all_segments_processed = False
                     shutil.copy2(segment_input, segment_output)
                     processed_segments.append(segment_output)
                     continue
@@ -211,13 +213,13 @@ class VeoWatermarkRemover:
             with open(output_video_path, "rb") as f:
                 sha256_hash = hashlib.sha256(f.read()).hexdigest()
 
-        print(f"[VEO REMOVER HOÀN TẤT] Đã khử sạch watermark trong {elapsed_sec:.2f}s ({final_size} bytes)", flush=True)
+        print(f"[VEO REMOVER HOÀN TẤT] Đã xử lý video trong {elapsed_sec:.2f}s ({final_size} bytes)", flush=True)
 
         return {
             "status": "SUCCEEDED",
             "output_path": str(output_video_path),
             "watermark_detected": watermark_detected,
-            "watermark_removed": True,
+            "watermark_removed": watermark_detected and all_segments_processed,
             "byte_size": final_size,
             "sha256": sha256_hash,
             "duration_sec": round(elapsed_sec, 2),

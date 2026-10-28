@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { CircleUser, CreditCard, EllipsisVertical, LogOut, MessageSquareDot } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -29,9 +29,8 @@ export function NavUser({
   const router = useRouter();
   const { isMobile } = useSidebar();
 
-  const handleLogout = () => {
-    AuthApi.logout();
-    router.push("/auth/v1/login");
+  const handleLogout = async () => {
+    await AuthApi.logout();
   };
 
   return (

@@ -2,9 +2,9 @@
 // Tuan thu Golden Rule 9 (NO EMOJI - SVG ONLY) va Zero-Cost Local First
 import { AuthApi } from "@/lib/api/auth-api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_BASE_URL = "";
 
-function getAuthHeaders(workspaceId: string = "default_ws"): Record<string, string> {
+function getAuthHeaders(workspaceId: string = "b6102190-1f6f-5624-bfb8-2e1091fa2560"): Record<string, string> {
   const headers = AuthApi.getAuthHeaders();
   if (workspaceId) {
     headers["X-Workspace-Id"] = workspaceId;
@@ -55,7 +55,7 @@ export class PublishingService {
    */
   static async createPublishedLink(
     payload: CreatePublishedLinkPayload,
-    workspaceId: string = "default_ws"
+    workspaceId: string = "b6102190-1f6f-5624-bfb8-2e1091fa2560"
   ): Promise<{ success: boolean; data?: PublishedLinkItem; error?: string }> {
     try {
       const res = await fetch(`${API_BASE_URL}/v1/feedback/published-links`, {
@@ -96,7 +96,7 @@ export class PublishingService {
   static async listPublishedLinks(
     opts: { scriptId?: string; status?: string; workspaceId?: string } = {}
   ): Promise<PublishedLinkItem[]> {
-    const { scriptId, status, workspaceId = "default_ws" } = opts;
+    const { scriptId, status, workspaceId = "b6102190-1f6f-5624-bfb8-2e1091fa2560" } = opts;
     try {
       const params = new URLSearchParams();
       if (scriptId) params.append("script_id", scriptId);
@@ -125,7 +125,7 @@ export class PublishingService {
   static async detachPublishedLink(
     linkId: string,
     reason: string = "USER_REQUESTED_DETACH",
-    workspaceId: string = "default_ws"
+    workspaceId: string = "b6102190-1f6f-5624-bfb8-2e1091fa2560"
   ): Promise<boolean> {
     try {
       const res = await fetch(
@@ -146,7 +146,7 @@ export class PublishingService {
    */
   static async listLearningSignals(
     linkId?: string,
-    workspaceId: string = "default_ws"
+    workspaceId: string = "b6102190-1f6f-5624-bfb8-2e1091fa2560"
   ): Promise<LearningSignalItem[]> {
     try {
       const param = linkId ? `?link_id=${encodeURIComponent(linkId)}` : "";

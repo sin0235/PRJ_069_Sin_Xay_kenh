@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import hashlib
 import logging
+import os
 import subprocess
 import threading
 import tempfile
@@ -217,10 +218,14 @@ class _RunHeartbeat:
 
 
 def _recover_expired_runs(db) -> None:
-    stale_runs = db.query(ContentVideoRun).filter(
+    query = db.query(ContentVideoRun).filter(
         ContentVideoRun.status == "RUNNING",
         ContentVideoRun.lease_expires_at < _now(),
-    ).all()
+    )
+    workspace_id = os.getenv("SIN_WORKSPACE_ID", "").strip()
+    if workspace_id:
+        query = query.filter(ContentVideoRun.workspace_id == workspace_id)
+    stale_runs = query.all()
     for run in stale_runs:
         steps = json.loads(run.steps_json or "[]")
         active = next((step for step in steps if step.get("state") == "SUBMITTING"), None)
@@ -241,13 +246,20 @@ def _recover_expired_runs(db) -> None:
 
 def _claim_next_run(db, token: str) -> ContentVideoRun | None:
     _recover_expired_runs(db)
-    run = db.query(ContentVideoRun).filter(ContentVideoRun.status == "QUEUED").order_by(ContentVideoRun.created_at).first()
+    query = db.query(ContentVideoRun).filter(ContentVideoRun.status == "QUEUED")
+    workspace_id = os.getenv("SIN_WORKSPACE_ID", "").strip()
+    if workspace_id:
+        query = query.filter(ContentVideoRun.workspace_id == workspace_id)
+    run = query.order_by(ContentVideoRun.created_at).first()
     if not run:
         return None
-    result = db.query(ContentVideoRun).filter(
+    claim = db.query(ContentVideoRun).filter(
         ContentVideoRun.id == run.id,
         ContentVideoRun.status == "QUEUED",
-    ).update({
+    )
+    if workspace_id:
+        claim = claim.filter(ContentVideoRun.workspace_id == workspace_id)
+    result = claim.update({
         "status": "RUNNING",
         "lease_token": token,
         "lease_expires_at": _now() + timedelta(seconds=LEASE_SECONDS),
@@ -819,7 +831,8 @@ def process_run(run_id: str, token: str | None = None) -> None:
     token = token or str(uuid.uuid4())
     with SessionLocal() as db:
         run = db.get(ContentVideoRun, run_id)
-        if not run:
+        workspace_id = os.getenv("SIN_WORKSPACE_ID", "").strip()
+        if not run or (workspace_id and run.workspace_id != workspace_id):
             return
         heartbeat = _RunHeartbeat(run_id, token)
         heartbeat.start()

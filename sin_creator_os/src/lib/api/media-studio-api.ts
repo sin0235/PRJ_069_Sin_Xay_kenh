@@ -2,7 +2,9 @@
 // Tích hợp Flow Music Plus, Google Flow 9:16 và FFmpeg Auto-Ducking
 import { AuthApi } from "@/lib/api/auth-api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_BASE_URL = "";
+
+const workspaceHeaders = () => ({ "X-Workspace-Id": AuthApi.getWorkspaceId() });
 
 function formatAsset(asset: MediaAssetResponse): MediaAssetResponse {
   if (asset && asset.url && asset.url.startsWith("/")) {
@@ -13,10 +15,7 @@ function formatAsset(asset: MediaAssetResponse): MediaAssetResponse {
 
 async function fetchAssetBlob(url: string): Promise<Blob> {
   const res = await fetch(url, {
-    headers: {
-      "X-Workspace-Id": AuthApi.getWorkspaceId(),
-      Authorization: `Bearer ${AuthApi.getAuthToken()}`,
-    },
+    headers: workspaceHeaders(),
   });
   if (!res.ok) throw new Error(`Không thể tải tệp media (${res.status}).`);
   return res.blob();
@@ -100,7 +99,6 @@ export interface UploadAssetParams {
   expected_category?: "audio" | "image" | "video";
   source_product?: string;
   workspace_id?: string;
-  token?: string;
 }
 
 export interface CompiledVideoPromptResponse {
@@ -151,7 +149,6 @@ export interface GenerateMusicParams {
   idempotency_key?: string;
   normalize_tiktok?: boolean;
   workspace_id?: string;
-  token?: string;
 }
 
 interface MusicJobStatusResponse {
@@ -166,7 +163,6 @@ export interface MixAudioParams {
   music_asset_id: string;
   music_attenuation_db?: number;
   workspace_id?: string;
-  token?: string;
 }
 
 export interface GenerateVideoParams {
@@ -177,23 +173,18 @@ export interface GenerateVideoParams {
   remove_watermark?: boolean;
   project_id?: string;
   workspace_id?: string;
-  token?: string;
 }
 
 export interface AssembleVideoParams {
   scene_asset_ids: string[];
   audio_asset_id: string;
   workspace_id?: string;
-  token?: string;
 }
 
 export const mediaStudioApi = {
   async listProjects(): Promise<ProductionProjectResponse[]> {
     const res = await fetch(`${API_BASE_URL}/v1/media/projects`, {
-      headers: {
-        "X-Workspace-Id": AuthApi.getWorkspaceId(),
-        Authorization: `Bearer ${AuthApi.getAuthToken()}`,
-      },
+      headers: workspaceHeaders(),
     });
     if (!res.ok) throw new Error(`Không thể tải dự án (${res.status}).`);
     return res.json();
@@ -215,10 +206,7 @@ export const mediaStudioApi = {
   async openGoogleFlowLogin(): Promise<void> {
     const res = await fetch(`${API_BASE_URL}/v1/media/flow/login`, {
       method: "POST",
-      headers: {
-        "X-Workspace-Id": AuthApi.getWorkspaceId(),
-        Authorization: `Bearer ${AuthApi.getAuthToken()}`,
-      },
+      headers: workspaceHeaders(),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -229,10 +217,7 @@ export const mediaStudioApi = {
   async getMusicCapabilities(): Promise<MusicCapabilitiesResponse> {
     const res = await fetch(`${API_BASE_URL}/v1/media/music/capabilities`, {
       method: "GET",
-      headers: {
-        "X-Workspace-Id": AuthApi.getWorkspaceId(),
-        Authorization: `Bearer ${AuthApi.getAuthToken()}`,
-      },
+      headers: workspaceHeaders(),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -248,10 +233,7 @@ export const mediaStudioApi = {
 
     const res = await fetch(`${API_BASE_URL}/v1/media/assets/${assetId}/review`, {
       method: "POST",
-      headers: {
-        "X-Workspace-Id": AuthApi.getWorkspaceId(),
-        Authorization: `Bearer ${AuthApi.getAuthToken()}`,
-      },
+      headers: workspaceHeaders(),
       body: formData,
     });
     if (!res.ok) {
@@ -277,12 +259,8 @@ export const mediaStudioApi = {
     if (params.idempotency_key) formData.append("idempotency_key", params.idempotency_key);
     formData.append("normalize_tiktok", String(params.normalize_tiktok !== false));
 
-    const authToken = params.token || AuthApi.getAuthToken();
     const wsId = params.workspace_id || AuthApi.getWorkspaceId();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      "Authorization": `Bearer ${authToken}`,
-    };
+    const headers = { "X-Workspace-Id": wsId };
 
     const res = await fetch(`${API_BASE_URL}/v1/media/music/generate`, {
       method: "POST",
@@ -303,10 +281,7 @@ export const mediaStudioApi = {
     while (Date.now() - startedAt < 10 * 60 * 1000) {
       try {
         const res = await fetch(`${API_BASE_URL}/v1/media/music/jobs/${encodeURIComponent(idempotencyKey)}`, {
-          headers: {
-            "X-Workspace-Id": AuthApi.getWorkspaceId(),
-            Authorization: `Bearer ${AuthApi.getAuthToken()}`,
-          },
+          headers: workspaceHeaders(),
           signal,
         });
         if (res.status === 404) {
@@ -338,12 +313,8 @@ export const mediaStudioApi = {
     formData.append("music_asset_id", params.music_asset_id);
     formData.append("music_attenuation_db", String(params.music_attenuation_db ?? -18.0));
 
-    const authToken = params.token || AuthApi.getAuthToken();
     const wsId = params.workspace_id || AuthApi.getWorkspaceId();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      "Authorization": `Bearer ${authToken}`,
-    };
+    const headers = { "X-Workspace-Id": wsId };
 
     const res = await fetch(`${API_BASE_URL}/v1/media/audio/mix`, {
       method: "POST",
@@ -368,12 +339,8 @@ export const mediaStudioApi = {
     formData.append("aspect_ratio", params.aspect_ratio || "16:9");
     formData.append("duration_seconds", String(params.duration_seconds || 10));
 
-    const authToken = AuthApi.getAuthToken();
     const wsId = AuthApi.getWorkspaceId();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      "Authorization": `Bearer ${authToken}`,
-    };
+    const headers = { "X-Workspace-Id": wsId };
 
     const res = await fetch(`${API_BASE_URL}/v1/media/video/prompt/compile`, {
       method: "POST",
@@ -397,12 +364,8 @@ export const mediaStudioApi = {
     formData.append("remove_watermark", String(params.remove_watermark === true));
     if (params.project_id) formData.append("project_id", params.project_id);
 
-    const authToken = params.token || AuthApi.getAuthToken();
     const wsId = params.workspace_id || AuthApi.getWorkspaceId();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      "Authorization": `Bearer ${authToken}`,
-    };
+    const headers = { "X-Workspace-Id": wsId };
 
     const res = await fetch(`${API_BASE_URL}/v1/media/video/generate`, {
       method: "POST",
@@ -427,12 +390,8 @@ export const mediaStudioApi = {
     formData.append("blur_strength", String(params.blur_strength ?? 25));
     formData.append("remove_watermark", String(params.remove_watermark !== false));
 
-    const authToken = AuthApi.getAuthToken();
     const wsId = AuthApi.getWorkspaceId();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      "Authorization": `Bearer ${authToken}`,
-    };
+    const headers = { "X-Workspace-Id": wsId };
 
     const res = await fetch(`${API_BASE_URL}/v1/media/video/expand`, {
       method: "POST",
@@ -456,12 +415,8 @@ export const mediaStudioApi = {
     if (params.asset_id) formData.append("asset_id", params.asset_id);
     formData.append("use_cpu", "true");
 
-    const authToken = AuthApi.getAuthToken();
     const wsId = AuthApi.getWorkspaceId();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      "Authorization": `Bearer ${authToken}`,
-    };
+    const headers = { "X-Workspace-Id": wsId };
 
     const res = await fetch(`${API_BASE_URL}/v1/media/video/remove-watermark`, {
       method: "POST",
@@ -483,12 +438,8 @@ export const mediaStudioApi = {
     formData.append("scene_asset_ids_json", JSON.stringify(params.scene_asset_ids));
     formData.append("audio_asset_id", params.audio_asset_id);
 
-    const authToken = params.token || AuthApi.getAuthToken();
     const wsId = params.workspace_id || AuthApi.getWorkspaceId();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      "Authorization": `Bearer ${authToken}`,
-    };
+    const headers = { "X-Workspace-Id": wsId };
 
     const res = await fetch(`${API_BASE_URL}/v1/media/video/assemble`, {
       method: "POST",
@@ -520,15 +471,10 @@ export const mediaStudioApi = {
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
   },
 
-  async listAssets(opts: string | { workspace_id?: string; project_id?: string; token?: string } = "default_ws", token?: string): Promise<MediaAssetResponse[]> {
-    const wsId = typeof opts === "string" ? opts : (opts.workspace_id || AuthApi.getWorkspaceId());
-    const tok = typeof opts === "string" ? token : opts.token;
-    const authToken = tok || AuthApi.getAuthToken();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      "Authorization": `Bearer ${authToken}`,
-    };
-    const projectId = typeof opts === "string" ? undefined : opts.project_id;
+  async listAssets(opts: { workspace_id?: string; project_id?: string } = {}): Promise<MediaAssetResponse[]> {
+    const wsId = opts.workspace_id || AuthApi.getWorkspaceId();
+    const headers = { "X-Workspace-Id": wsId };
+    const projectId = opts.project_id;
     const query = projectId ? `?project_id=${encodeURIComponent(projectId)}` : "";
 
     const res = await fetch(`${API_BASE_URL}/v1/media/assets${query}`, {
@@ -548,12 +494,8 @@ export const mediaStudioApi = {
     formData.append("expected_category", params.expected_category || "video");
     formData.append("source_product", params.source_product || "UPLOAD");
 
-    const authToken = params.token || AuthApi.getAuthToken();
     const wsId = params.workspace_id || AuthApi.getWorkspaceId();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      Authorization: `Bearer ${authToken}`,
-    };
+    const headers = { "X-Workspace-Id": wsId };
 
     const res = await fetch(`${API_BASE_URL}/v1/media/upload`, {
       method: "POST",
@@ -571,13 +513,8 @@ export const mediaStudioApi = {
 
   // 7. Lấy phiên bản timeline mới nhất của dự án
   async getTimeline(projectId: string): Promise<TimelineVersionResponse> {
-    const authToken = AuthApi.getAuthToken();
-    const wsId = AuthApi.getWorkspaceId();
     const res = await fetch(`${API_BASE_URL}/v1/media/projects/${projectId}/timeline`, {
-      headers: {
-        "X-Workspace-Id": wsId,
-        Authorization: `Bearer ${authToken}`,
-      },
+      headers: workspaceHeaders(),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -588,14 +525,11 @@ export const mediaStudioApi = {
 
   // 8. Lưu phiên bản timeline mới (OCC Versioning)
   async saveTimeline(projectId: string, document: TimelineDocument, expectedVersion?: number): Promise<TimelineVersionResponse> {
-    const authToken = AuthApi.getAuthToken();
-    const wsId = AuthApi.getWorkspaceId();
     const res = await fetch(`${API_BASE_URL}/v1/media/projects/${projectId}/timeline`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "X-Workspace-Id": wsId,
-        Authorization: `Bearer ${authToken}`,
+        ...workspaceHeaders(),
       },
       body: JSON.stringify({
         timeline: document,
@@ -614,13 +548,10 @@ export const mediaStudioApi = {
     const formData = new FormData();
     if (timelineVersionId) formData.append("timeline_version_id", timelineVersionId);
 
-    const authToken = AuthApi.getAuthToken();
-    const wsId = AuthApi.getWorkspaceId();
     const res = await fetch(`${API_BASE_URL}/v1/media/projects/${projectId}/render-timeline`, {
       method: "POST",
       headers: {
-        "X-Workspace-Id": wsId,
-        Authorization: `Bearer ${authToken}`,
+        ...workspaceHeaders(),
       },
       body: formData,
     });

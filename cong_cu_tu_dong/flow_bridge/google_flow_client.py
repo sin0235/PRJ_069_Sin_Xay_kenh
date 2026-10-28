@@ -42,7 +42,7 @@ from config import (
     sync_browser_profile,
     sync_local_to_nas,
 )
-from profile_guard import ensure_profile_free
+from profile_guard import ensure_profile_free, profile_locked
 from session_manager import FlowLoginRequired, FlowSubmissionNotSent
 
 _FLOW_MUTEX = threading.Lock()
@@ -164,6 +164,7 @@ class GoogleFlowClient:
         page.wait_for_url("**/edit/**", timeout=20000)
         return GoogleFlowClient._download_current_flow_video(page, target_dir)
 
+    @profile_locked(lambda: LOCAL_BROWSER_PROFILE_DIR)
     def create_video(
         self,
         prompt: str,

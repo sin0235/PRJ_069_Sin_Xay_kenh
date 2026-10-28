@@ -8,7 +8,6 @@ export interface ScriptBlock {
   durationSec: number;
   visualCue: string;
   audioCue?: string;
-  tone: 'energetic' | 'curious' | 'dramatic' | 'authoritative' | 'casual';
 }
 
 export interface ScriptContext {

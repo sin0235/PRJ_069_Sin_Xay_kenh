@@ -133,7 +133,7 @@ export default function VoiceStudioPage() {
         voice_clone_consent: false,
         pronunciation_dictionary: dictionary,
         advanced,
-        idempotency_key: crypto.randomUUID(),
+        idempotency_key: Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join(""),
       });
       setJobs((current) => [job, ...current.filter((item) => item.job_id !== job.job_id)]);
       setActiveJobId(job.job_id);

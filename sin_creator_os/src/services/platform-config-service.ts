@@ -1,6 +1,6 @@
 import { AuthApi } from "@/lib/api/auth-api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = "";
 
 export interface PlatformLLMConfig {
   is_configured: boolean;

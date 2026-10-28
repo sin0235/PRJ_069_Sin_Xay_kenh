@@ -27,7 +27,7 @@ class BoKetNoiPhanMemDung:
     @classmethod
     def _lay_thu_muc_xuat(cls, project_id: str, bundle_id: str) -> Path:
         api_root = Path(__file__).resolve().parents[3]
-        export_dir = api_root / "exports" / "nle_bundles" / bundle_id
+        export_dir = Path(os.getenv("SIN_NLE_BUNDLE_DIR", api_root / "exports" / "nle_bundles")) / bundle_id
         export_dir.mkdir(parents=True, exist_ok=True)
         return export_dir
 

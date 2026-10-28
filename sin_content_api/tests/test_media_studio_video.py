@@ -499,9 +499,29 @@ def test_watermark_remover_preserves_clip_when_tool_detects_no_watermark(monkeyp
     result = remover_service.VeoWatermarkRemover(executable).remove_watermark(source, output)
 
     assert result["status"] == "SUCCEEDED"
-    assert result["watermark_removed"] is True
+    assert result["watermark_removed"] is False
     assert result["watermark_detected"] is False
     assert output.read_bytes() == source.read_bytes()
+
+
+def test_watermark_remover_does_not_claim_success_when_one_segment_is_skipped(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+    from cong_cu_tu_dong.veo_watermark_remover import remover_service
+
+    executable, source, output = (tmp_path / name for name in ("remover.exe", "source.mp4", "clean.mp4"))
+    executable.write_bytes(b"exe")
+    source.write_bytes(b"source")
+    monkeypatch.setattr(remover_service.VeoWatermarkRemover, "_probe_video_duration", lambda self, path: 7.0 if "000" in path.name else 3.0 if "001" in path.name else 10.0)
+    monkeypatch.setattr(remover_service.VeoWatermarkRemover, "_run_ffmpeg", staticmethod(lambda args: pathlib.Path(args[-1]).write_bytes(b"segment")))
+    def run(command, **_kwargs):
+        if "input_001" in command[1]:
+            return SimpleNamespace(returncode=0, stdout="no Gemini 3.5 diamond detected", stderr="")
+        pathlib.Path(command[command.index("-o") + 1]).write_bytes(b"clean")
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+    monkeypatch.setattr(remover_service.subprocess, "run", run)
+    result = remover_service.VeoWatermarkRemover(executable).remove_watermark(source, output)
+    assert result["watermark_detected"] is True
+    assert result["watermark_removed"] is False
 
 
 def test_watermark_remover_timeout_reports_last_progress(monkeypatch, tmp_path):

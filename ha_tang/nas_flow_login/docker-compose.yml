@@ -1,0 +1,35 @@
+services:
+  flow_login:
+    build:
+      context: ../..
+      dockerfile: ha_tang/nas_flow_login/Dockerfile
+    image: prj069-flow-login:1.63.0-nas3
+    init: true
+    restart: "no"
+    ports:
+      - "127.0.0.1:6080:6080"
+    environment:
+      DISPLAY: ":99"
+      BROWSER_CHANNEL: chromium
+      FLOW_PROFILE_ROOT: /var/lib/prj069/flow_profiles
+      FLOW_PROFILE_ID: ${FLOW_PROFILE_ID:-mac_dinh}
+      TZ: Asia/Ho_Chi_Minh
+    volumes:
+      - prj069_flow_profiles:/var/lib/prj069/flow_profiles
+    shm_size: 512m
+    mem_limit: 2g
+    networks:
+      - flow_login_internal
+
+volumes:
+  prj069_flow_profiles:
+    external: true
+    name: prj069_flow_profiles
+
+networks:
+  flow_login_internal:
+    name: prj069_flow_login_net
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.255.69.0/24

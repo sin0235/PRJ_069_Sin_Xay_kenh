@@ -1,6 +1,6 @@
 import { AuthApi } from "@/lib/api/auth-api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_BASE_URL = "";
 
 export interface VoiceStudioAsset {
   id: string;
@@ -75,7 +75,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: {
       "Content-Type": "application/json",
       "X-Workspace-Id": AuthApi.getWorkspaceId(),
-      Authorization: `Bearer ${AuthApi.getAuthToken()}`,
       ...init?.headers,
     },
   });

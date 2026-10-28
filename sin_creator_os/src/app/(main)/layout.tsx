@@ -5,10 +5,8 @@ import { cn } from "cn";
 import { AppSidebar } from "@/app/(main)/_components/sidebar/app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { users } from "@/data/users";
 import { getPreference } from "@/server/server-actions";
 
-import { AccountSwitcher } from "./_components/header/account-switcher";
 import { SearchDialog } from "./_components/header/search-dialog";
 import { ThemeSwitcher } from "./_components/header/theme-switcher";
 import { ChannelSelector } from "@/components/creator/channel-selector";
@@ -19,7 +17,7 @@ import { AuthGuard } from "@/components/auth/auth-guard";
 export default async function MainLayout({ children }: Readonly<{ children: ReactNode }>) {
   const cookieStore = await cookies();
   const requestHeaders = await headers();
-  const devAuthBypass = requestHeaders.get("x-sin-dev-auth-bypass") === "1";
+  const devAuthBypass = process.env.DEV_AUTH_BYPASS === "1" || requestHeaders.get("x-sin-dev-auth-bypass") === "1";
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
   const [variant, collapsible] = await Promise.all([
     getPreference("sidebar_variant"),
@@ -64,7 +62,6 @@ export default async function MainLayout({ children }: Readonly<{ children: Reac
                 <GlobalCreateButton />
                 <Separator orientation="vertical" className="h-4 data-[orientation=vertical]:self-center hidden sm:block" />
                 <ThemeSwitcher />
-                <AccountSwitcher users={users} />
               </div>
             </div>
           </header>

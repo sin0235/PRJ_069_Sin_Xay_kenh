@@ -50,3 +50,10 @@ cong_cu_tu_dong/flow_repos/
 *.db-*
 sin_content_api/scratch/
 flow_diagnostic.png
+/9rt.env
+/9rt2.env
+/ha_tang/chay_noi_bo_prj069/.env.production
+/ha_tang/chay_noi_bo_prj069/secrets/
+/ha_tang/chay_noi_bo_prj069/data/
+/ha_tang/chay_noi_bo_prj069/seed/
+/ha_tang/chay_noi_bo_prj069/rollback_source/

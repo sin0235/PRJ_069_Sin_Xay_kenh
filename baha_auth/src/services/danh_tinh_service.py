@@ -1,6 +1,7 @@
 """Nạp ngữ cảnh phân quyền hiện tại cho người dùng đã xác minh trong workspace."""
 
 from datetime import datetime, timezone
+import os
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -94,6 +95,11 @@ def load_actor(db: Session, workspace_id: str, membership_id: str) -> Optional[A
         team_ids=sorted(set(teams)),
         user_status=user.status,
         workspace_status=workspace.status,
+        is_founder=bool(
+            os.getenv("FOUNDER_EMAIL", "").strip()
+            and user.email
+            and user.email.casefold() == os.getenv("FOUNDER_EMAIL", "").strip().casefold()
+        ),
     )
 
 

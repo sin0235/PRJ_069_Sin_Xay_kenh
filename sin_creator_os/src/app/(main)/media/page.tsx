@@ -39,101 +39,43 @@ interface MediaItem {
   id: string;
   name: string;
   type: "video" | "image" | "audio" | "voice";
-  thumbnailUrl: string;
   duration?: string;
   resolution?: string;
-  isAiGenerated: boolean;
-  projectUsageCount: number;
+  isAiGenerated?: boolean;
   tags: string[];
   createdAt: string;
   url?: string;
   sha256?: string;
 }
 
-const initialMockAssets: MediaItem[] = [
-  {
-    id: "med_01",
-    name: "b_roll_typing_laptop_zoom_in.mp4",
-    type: "video",
-    thumbnailUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80",
-    duration: "00:08",
-    resolution: "1080x1920 (9:16)",
-    isAiGenerated: false,
-    projectUsageCount: 4,
-    tags: ["B-Roll", "Laptop", "Tech"],
-    createdAt: "20/10/2026",
-  },
-  {
-    id: "med_02",
-    name: "flowmusic_acoustic_guitar_chill.mp3",
-    type: "audio",
-    thumbnailUrl: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&auto=format&fit=crop&q=80",
-    duration: "01:00",
-    isAiGenerated: true,
-    projectUsageCount: 5,
-    tags: ["Flow Music", "-14 LUFS", "Acoustic"],
-    createdAt: "22/10/2026",
-  },
-  {
-    id: "med_03",
-    name: "google_flow_coffee_broll_9x16.mp4",
-    type: "video",
-    thumbnailUrl: "https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?w=400&auto=format&fit=crop&q=80",
-    duration: "00:03",
-    resolution: "1080x1920 (9:16)",
-    isAiGenerated: true,
-    projectUsageCount: 3,
-    tags: ["Google Flow", "9:16 TikTok", "Safe Zone"],
-    createdAt: "22/10/2026",
-  },
-  {
-    id: "med_04",
-    name: "thumbnail_safe_zone_mockup_01.png",
-    type: "image",
-    thumbnailUrl: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400&auto=format&fit=crop&q=80",
-    resolution: "1080x1920 (9:16)",
-    isAiGenerated: true,
-    projectUsageCount: 1,
-    tags: ["Cover", "Safe Zone"],
-    createdAt: "21/10/2026",
-  },
-];
-
 export default function MediaLibraryPage() {
   const [selectedType, setSelectedType] = React.useState("all");
   const [searchQuery, setSearchQuery] = React.useState("");
-  const [assets, setAssets] = React.useState<MediaItem[]>(initialMockAssets);
+  const [assets, setAssets] = React.useState<MediaItem[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
 
   const fetchLiveAssets = async () => {
     setIsLoading(true);
     try {
-      const liveList = await mediaStudioApi.listAssets("default_ws");
-      if (liveList.length > 0) {
-        const mappedLive: MediaItem[] = liveList.map((item) => {
-          const isVideo = item.mime_detected.includes("video");
-          const isAudio = item.mime_detected.includes("audio");
-          return {
-            id: item.id,
-            name: item.original_filename || item.storage_key.split("/").pop() || "asset",
-            type: isVideo ? "video" : isAudio ? "audio" : "image",
-            thumbnailUrl: isVideo
-              ? "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80"
-              : "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&auto=format&fit=crop&q=80",
-            duration: item.duration_ms ? `00:${String(Math.round(item.duration_ms / 1000)).padStart(2, "0")}` : "00:05",
-            resolution: isVideo ? "1080x1920 (9:16)" : undefined,
-            isAiGenerated: item.source_product.includes("FLOW") || item.source_product.includes("GEMINI") || item.source_product.includes("LYRIA"),
-            projectUsageCount: 1,
-            tags: [item.source_product, isVideo ? "9:16 TikTok" : "-14 LUFS"],
-            createdAt: new Date(item.created_at).toLocaleDateString("vi-VN"),
-            url: item.url,
-            sha256: item.sha256,
-          };
-        });
-        setAssets([...mappedLive, ...initialMockAssets]);
-      }
-    } catch {
-      // Giữ mock assets nếu backend chưa bật
+      const liveList = await mediaStudioApi.listAssets();
+      setAssets(liveList.map((item) => {
+        const isVideo = item.mime_detected.includes("video");
+        const isAudio = item.mime_detected.includes("audio");
+        return {
+          id: item.id,
+          name: item.original_filename || item.storage_key.split("/").pop() || "asset",
+          type: isVideo ? "video" : isAudio ? "audio" : "image",
+          duration: item.duration_ms ? `00:${String(Math.round(item.duration_ms / 1000)).padStart(2, "0")}` : undefined,
+          isAiGenerated: ["FLOW", "GEMINI", "LYRIA"].some((source) => item.source_product.includes(source)),
+          tags: [item.source_product],
+          createdAt: new Date(item.created_at).toLocaleDateString("vi-VN"),
+          url: item.url,
+          sha256: item.sha256,
+        };
+      }));
+    } catch (error) {
+      setAssets([]);
+      toast.error(error instanceof Error ? error.message : "Không tải được thư viện tư liệu.");
     } finally {
       setIsLoading(false);
     }
@@ -220,6 +162,9 @@ export default function MediaLibraryPage() {
 
       {/* Asset Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {filteredAssets.length === 0 && (
+          <div className="col-span-full py-12 text-center text-sm text-muted-foreground">Chưa có tư liệu phù hợp.</div>
+        )}
         {filteredAssets.map((asset) => (
           <Card
             key={asset.id}
@@ -227,11 +172,9 @@ export default function MediaLibraryPage() {
           >
             {/* Visual Preview */}
             <div className="relative aspect-[16/10] bg-muted overflow-hidden">
-              <img
-                src={asset.thumbnailUrl}
-                alt={asset.name}
-                className="size-full object-cover group-hover:scale-105 transition-transform"
-              />
+              <div className="size-full flex items-center justify-center text-muted-foreground">
+                {asset.type === "video" ? <Film className="size-8" aria-hidden="true" /> : asset.type === "audio" ? <Music className="size-8" aria-hidden="true" /> : <ImageIcon className="size-8" aria-hidden="true" />}
+              </div>
 
               <div className="absolute top-2 left-2 flex gap-1">
                 {asset.isAiGenerated && (
@@ -258,7 +201,6 @@ export default function MediaLibraryPage() {
                   {asset.name}
                 </h4>
                 <div className="text-[10px] text-muted-foreground mt-0.5 flex items-center justify-between">
-                  <span>Dùng: {asset.projectUsageCount} dự án</span>
                   <span>{asset.createdAt}</span>
                 </div>
 

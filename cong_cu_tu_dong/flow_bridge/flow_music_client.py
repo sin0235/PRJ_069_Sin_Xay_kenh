@@ -36,7 +36,7 @@ from config import (
     POLL_INTERVAL_SEC,
     sync_browser_profile,
 )
-from profile_guard import ensure_profile_free
+from profile_guard import ensure_profile_free, profile_locked
 from session_manager import FlowLoginRequired
 
 
@@ -44,6 +44,7 @@ class FlowMusicClient:
     def __init__(self, headless: bool = True):
         self.headless = headless
 
+    @profile_locked(lambda: LOCAL_BROWSER_PROFILE_DIR)
     def create_track(
         self,
         prompt: str,

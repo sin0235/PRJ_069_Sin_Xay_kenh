@@ -8,13 +8,11 @@ import {
   Filter,
   Search,
   Sparkles,
-  Calendar,
   Clock,
   MoreVertical,
   CheckCircle2,
   Layers,
   ArrowRight,
-  User,
   Film,
   FileText,
   Database,
@@ -25,13 +23,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 import { IdeaService } from "@/services/idea-service";
 import { ScriptService } from "@/services/script-service";
@@ -40,54 +31,12 @@ import { PublishingService } from "@/services/publishing-service";
 interface PipelineCardItem {
   id: string;
   title: string;
-  thumbnailUrl: string;
-  channel: string;
-  owner: string;
-  dueDate: string;
-  contentPillar: string;
+  contentPillar?: string;
   status: "idea" | "script" | "production" | "review" | "scheduled" | "published";
-  isAiGenerated: boolean;
+  isAiGenerated?: boolean;
   durationSec?: number;
   itemType?: "idea" | "script" | "media";
 }
-
-const fallbackPipelineItems: PipelineCardItem[] = [
-  {
-    id: "pip_01",
-    title: "Lộ Trình Tự Động Hóa Kênh TikTok Từ Con Số 0 Với AI Agent",
-    thumbnailUrl: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80",
-    channel: "@bahagroup.creator",
-    owner: "Founder",
-    dueDate: "24/10",
-    contentPillar: "AI Workflow",
-    status: "idea",
-    isAiGenerated: true,
-  },
-  {
-    id: "pip_02",
-    title: "Công Thức Viết Hook 3 Giây Khiến Người Xem Không Thể Lướt Qua",
-    thumbnailUrl: "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400&auto=format&fit=crop&q=80",
-    channel: "@bahagroup.creator",
-    owner: "Copywriter",
-    dueDate: "23/10",
-    contentPillar: "Case Study",
-    status: "script",
-    isAiGenerated: false,
-    durationSec: 32,
-  },
-  {
-    id: "pip_03",
-    title: "Cách Setup Safe Zone TikTok Để Không Bị Che Chữ & Nút Like",
-    thumbnailUrl: "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=400&auto=format&fit=crop&q=80",
-    channel: "@bahagroup.creator",
-    owner: "Video Editor",
-    dueDate: "22/10",
-    contentPillar: "Technical",
-    status: "production",
-    isAiGenerated: false,
-    durationSec: 22,
-  },
-];
 
 const COLUMNS = [
   { id: "idea", title: "Idea (Ý Tưởng)", color: "text-amber-500", bg: "bg-amber-500/10" },
@@ -100,95 +49,58 @@ const COLUMNS = [
 
 export default function ContentPipelinePage() {
   const router = useRouter();
-  const [items, setItems] = React.useState<PipelineCardItem[]>(fallbackPipelineItems);
-  const [filterOwner, setFilterOwner] = React.useState("all");
+  const [items, setItems] = React.useState<PipelineCardItem[]>([]);
   const [isLiveConnected, setIsLiveConnected] = React.useState(false);
   const [loading, setLoading] = React.useState(true);
 
   const loadPipelineData = React.useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Nạp danh sách thẻ ý tưởng từ CSDL thật
-      const ideas = await IdeaService.getIdeas("all");
-      // 2. Nạp danh sách kịch bản từ CSDL thật
-      const scripts = await ScriptService.listScripts();
-      // 3. Nạp danh sách bài đã lên lịch / phát sóng từ CSDL thật
-      const publishedLinks = await PublishingService.listPublishedLinks();
-
+      const [ideas, scripts, publishedLinks] = await Promise.all([
+        IdeaService.getIdeas("all"),
+        ScriptService.listScripts(),
+        PublishingService.listPublishedLinks(),
+      ]);
       const realItems: PipelineCardItem[] = [];
 
-      // Map ý tưởng vào cột tương ứng
-      ideas.forEach((idea, idx) => {
-        let colStatus: PipelineCardItem["status"] = "idea";
-        if (idea.status === "APPROVED") {
-          colStatus = "idea"; // Sẵn sàng chuyển sang kịch bản
-        }
-
+      ideas.forEach((idea) => {
         realItems.push({
           id: idea.id,
           title: idea.title,
-          thumbnailUrl:
-            idx % 2 === 0
-              ? "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80"
-              : "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400&auto=format&fit=crop&q=80",
-          channel: "@bahagroup.official",
-          owner: idea.createdBy || "Sin Admin",
-          dueDate: "24/10",
-          contentPillar: idea.contentPillar || "Chiến Lược Nội Dung",
-          status: colStatus,
-          isAiGenerated: true,
+          contentPillar: idea.contentPillar,
+          status: "idea",
           itemType: "idea",
         });
       });
 
-      // Map kịch bản vào cột tương ứng
       scripts.forEach((script) => {
-        let colStatus: PipelineCardItem["status"] = "script";
-        if (script.status === "reviewed") colStatus = "review";
-        else if (script.status === "approved") colStatus = "production";
-
+        const status: PipelineCardItem["status"] = script.status === "reviewed"
+          ? "review"
+          : script.status === "approved" ? "production" : "script";
         realItems.push({
           id: script.id,
           title: script.title,
-          thumbnailUrl:
-            "https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=400&auto=format&fit=crop&q=80",
-          channel: "@bahagroup.official",
-          owner: "Kịch Bản Viên",
-          dueDate: "23/10",
-          contentPillar: script.niche || "Kịch Bản TikTok",
-          status: colStatus,
-          isAiGenerated: false,
-          durationSec: script.targetDurationSec || 45,
+          contentPillar: script.niche || undefined,
+          status,
+          durationSec: script.targetDurationSec || undefined,
           itemType: "script",
         });
       });
 
-      // Map bài đăng thực tế vào cột scheduled và published
-      publishedLinks.forEach((link, idx) => {
-        const isLive = link.status === "ACTIVE";
+      publishedLinks.forEach((link) => {
         realItems.push({
           id: link.id,
-          title: `Bài đăng TikTok #${link.external_post_id}`,
-          thumbnailUrl:
-            idx % 2 === 0
-              ? "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80"
-              : "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400&auto=format&fit=crop&q=80",
-          channel: "@bahagroup.official",
-          owner: "Founder",
-          dueDate: "22/10",
-          contentPillar: "Xuất Bản Đa Kênh",
-          status: isLive ? "published" : "scheduled",
-          isAiGenerated: true,
+          title: link.external_post_id,
+          status: link.status === "ACTIVE" ? "published" : "scheduled",
           itemType: "media",
         });
       });
 
-      if (realItems.length > 0) {
-        setItems(realItems);
-        setIsLiveConnected(true);
-      }
+      setItems(realItems);
+      setIsLiveConnected(true);
     } catch {
-      // Giữ fallback
+      setItems([]);
+      setIsLiveConnected(false);
     } finally {
       setLoading(false);
     }
@@ -258,31 +170,6 @@ export default function ContentPipelinePage() {
 
       {/* Filter Bar */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl border border-border/80 bg-card shadow-xs">
-        <div className="flex items-center gap-2">
-          <Select value={filterOwner} onValueChange={setFilterOwner}>
-            <SelectTrigger className="h-8 text-xs rounded-lg min-w-[140px] bg-background">
-              <SelectValue placeholder="Người phụ trách" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-              <SelectItem value="all">Tất cả phụ trách</SelectItem>
-              <SelectItem value="founder">Founder / Sin Admin</SelectItem>
-              <SelectItem value="editor">Video Editor</SelectItem>
-              <SelectItem value="ai">AI Agent</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select defaultValue="all">
-            <SelectTrigger className="h-8 text-xs rounded-lg min-w-[140px] bg-background">
-              <SelectValue placeholder="Kênh TikTok" />
-            </SelectTrigger>
-            <SelectContent className="rounded-xl">
-              <SelectItem value="all">Tất cả kênh</SelectItem>
-              <SelectItem value="baha_official">@bahagroup.official</SelectItem>
-              <SelectItem value="baha_creator">@baha.creator</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
         <div className="text-xs text-muted-foreground font-medium">
           Tổng cộng: <span className="font-bold text-foreground">{items.length} thẻ nội dung thực tế</span>
         </div>
@@ -319,11 +206,9 @@ export default function ContentPipelinePage() {
                   >
                     {/* Thumbnail & Badges */}
                     <div className="relative aspect-[16/9] rounded-lg overflow-hidden bg-muted">
-                      <img
-                        src={item.thumbnailUrl}
-                        alt={item.title}
-                        className="size-full object-cover"
-                      />
+                      <div className="size-full flex items-center justify-center text-muted-foreground">
+                        <Film className="size-8" aria-hidden="true" />
+                      </div>
                       <div className="absolute top-1.5 left-1.5 flex gap-1">
                         {item.isAiGenerated && (
                           <Badge variant="outline" className="text-[9px] px-1 py-0 bg-primary/80 text-white backdrop-blur-xs border-none font-semibold">
@@ -351,15 +236,11 @@ export default function ContentPipelinePage() {
                     {/* Metadata: Channel, Owner, Due Date */}
                     <div className="space-y-1.5 pt-1 border-t border-border/50 text-[10px] text-muted-foreground">
                       <div className="flex items-center justify-between">
-                        <span className="truncate">{item.contentPillar}</span>
-                        <span className="font-mono text-foreground font-medium flex items-center gap-1">
-                          <Calendar className="size-2.5" /> {item.dueDate}
-                        </span>
+                        <span className="truncate">{item.contentPillar || ""}</span>
                       </div>
 
                       <div className="flex items-center justify-between pt-0.5">
                         <span className="flex items-center gap-1 truncate max-w-[120px]">
-                          <User className="size-2.5" /> {item.owner}
                         </span>
                         <span className="text-[9px] text-primary font-medium flex items-center gap-0.5 shrink-0">
                           Chi tiết <ArrowRight className="size-2.5" />

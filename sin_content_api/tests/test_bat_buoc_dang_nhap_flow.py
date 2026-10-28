@@ -133,10 +133,21 @@ def test_google_flow_enters_video_mode_before_attaching_image():
             self.first = self
 
         def wait_for(self, **kwargs):
-            calls.append(("ready", kwargs["state"]))
+            if "agent-mode-chip" in self.selector:
+                calls.append(("ready", kwargs["state"]))
 
         def count(self):
-            return 1
+            return int(
+                "agent-mode-chip" in self.selector
+                or "data-slate-editor" in self.selector
+                or "ProseMirror" in self.selector
+                or "crop_16_9" in self.selector
+                or "trigger-VIDEO" in self.selector
+                or "trigger-LANDSCAPE" in self.selector
+            )
+
+        def get_attribute(self, name):
+            return "false" if name == "aria-pressed" else None
 
         def click(self, **kwargs):
             calls.append(("click", self.selector))
@@ -153,9 +164,9 @@ def test_google_flow_enters_video_mode_before_attaching_image():
     google_flow_client.GoogleFlowClient._ensure_video_mode(Page())
 
     assert calls[0] == ("ready", "visible")
-    assert calls[1][0] == "click"
-    assert "crop_16_9" in calls[1][1]
-    video_click = next(call for call in calls if call[0] == "click" and "role='tab'" in call[1])
+    clicks = [call for call in calls if call[0] == "click"]
+    assert "crop_16_9" in clicks[0][1]
+    video_click = next(call for call in clicks if "role='tab'" in call[1])
     assert "trigger-VIDEO" in video_click[1]
 
 

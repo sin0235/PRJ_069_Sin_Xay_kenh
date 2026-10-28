@@ -35,7 +35,7 @@ from src.modules.tao_video_noi_dung.runner import content_video_worker
 def _auto_start_9router_if_needed():
     """Tu dong kiem tra va khoi dong 9Router Gateway tren cong 20128 khi backend chay."""
     import os, socket, subprocess, shutil
-    if os.environ.get("TESTING") == "1":
+    if os.environ.get("TESTING") == "1" or settings.app_env.lower() == "production":
         return
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -84,7 +84,7 @@ app = FastAPI(
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[origin.strip() for origin in os.getenv("CORS_ALLOWED_ORIGINS", "*").split(",") if origin.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

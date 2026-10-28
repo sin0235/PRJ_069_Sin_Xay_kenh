@@ -20,6 +20,7 @@ if sys.platform == "win32":
         pass
 
 from playwright.sync_api import sync_playwright
+from profile_guard import profile_locked
 
 from config import (
     BROWSER_PROFILE_DIR,
@@ -40,6 +41,7 @@ class FlowSubmissionNotSent(RuntimeError):
     """Flow UI failed before the generation request was submitted."""
 
 
+@profile_locked(lambda: LOCAL_BROWSER_PROFILE_DIR)
 def open_login_session(wait_for_close: bool = False):
     """Mở cửa sổ Chrome có giao diện để người dùng đăng nhập tài khoản Google AI Pro."""
     print("=" * 70)
@@ -96,6 +98,7 @@ def open_login_session(wait_for_close: bool = False):
         print("Từ bây giờ, hệ thống BAHA có thể tự động chạy ngầm mà không cần đăng nhập lại.")
 
 
+@profile_locked(lambda: LOCAL_BROWSER_PROFILE_DIR)
 def check_login_status() -> dict:
     """Kiểm tra xem hồ sơ trình duyệt đã có phiên đăng nhập hợp lệ hay chưa."""
     sync_browser_profile(BROWSER_PROFILE_DIR, LOCAL_BROWSER_PROFILE_DIR)

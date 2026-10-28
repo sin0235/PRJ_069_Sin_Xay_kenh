@@ -20,7 +20,7 @@ from baha_auth.src.models.entities import (
     Membership,
     Role,
 )
-from baha_auth.src.policy.evaluator import ActorContext, ResourceContext, evaluate_permission
+from baha_auth.src.policy.evaluator import ActorContext, ResourceContext, evaluate_permission, founder_workspace_owner
 from baha_auth.src.policy.registry import registry
 from baha_auth.src.services.danh_tinh_service import load_actor
 from baha_auth.src.services.nhat_ky_kiem_toan import write_audit_event
@@ -402,7 +402,9 @@ class ApprovalService:
         ):
             _deny(db, actor, "STALE_ARTIFACT_VERSION", action_key="approval.step.decide", status_code=412, resource=resource, policy_version=str(policy.version))
         interested_parties = {user_id for user_id in (resource.creator_id, resource.owner_id) if user_id}
-        if actor.membership_id == run.created_by or actor.user_id in interested_parties:
+        founder_self_approval = actor.user_id in interested_parties and founder_workspace_owner(actor)
+        self_approval = actor.membership_id == run.created_by or actor.user_id in interested_parties
+        if self_approval and not founder_self_approval:
             _deny(db, actor, "SELF_APPROVAL_DENIED", action_key="approval.step.decide", resource=resource, policy_version=str(policy.version))
 
         ordered_steps = db.query(ApprovalStep).filter(
@@ -418,6 +420,8 @@ class ApprovalService:
         stage = stages[step.ordinal - 1] if 1 <= step.ordinal <= len(stages) else None
         if not stage:
             _deny(db, actor, "APPROVAL_POLICY_INVALID", action_key="approval.step.decide", status_code=503, resource=resource, policy_version=str(policy.version))
+        if founder_self_approval and (stage["kind"] != "role" or stage["assignee"] != "WORKSPACE_OWNER"):
+            _deny(db, actor, "SELF_APPROVAL_DENIED", action_key="approval.step.decide", resource=resource, policy_version=str(policy.version))
         try:
             action_key = _stage_action(run.artifact_type, stage["stage_key"], stage["action_key"])
         except ApprovalServiceError as exc:
@@ -509,7 +513,7 @@ class ApprovalService:
 
         _audit(
             db, actor, action_key=action_key, decision="ALLOW",
-            reason="APPROVAL_DECISION_RECORDED", resource=resource,
+            reason="FOUNDER_SELF_APPROVAL_EXCEPTION" if founder_self_approval else "APPROVAL_DECISION_RECORDED", resource=resource,
             policy_version=str(policy.version), metadata={"run_id": run.id, "step_id": step.id, "result": result},
         )
         db.flush()
