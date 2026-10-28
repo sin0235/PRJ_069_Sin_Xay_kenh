@@ -313,7 +313,8 @@ def create_flow_desktop_access(
         samesite="strict",
         path=cookie_path,
     )
-    path = f"/v1/media/flow/desktop/{session_id}/websockify"
+    # noVNC prepends "/" to this value, so a leading slash would produce "//v1/..." and lose the scoped cookie.
+    path = f"v1/media/flow/desktop/{session_id}/websockify"
     desktop_url = f"/v1/media/flow/desktop/{session_id}/vnc.html?{urlencode({'autoconnect': '1', 'resize': 'scale', 'path': path})}"
     return {"url": desktop_url, "expires_at": grant.expires_at}
 

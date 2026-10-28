@@ -301,3 +301,14 @@ def test_fresh_bootstrap_provisions_isolated_databases_and_is_idempotent(tmp_pat
     assert second.returncode == 0, second.stderr
     with sqlite3.connect(data_dir / DATABASES[0]) as db:
         assert db.execute("SELECT value FROM bootstrap_preservation_check").fetchone() == ("keep me",)
+
+
+def test_changing_allowed_origins_does_not_block_rerun(tmp_path):
+    assert _run_bootstrap(tmp_path, mode="fresh", seed_dir=None).returncode == 0
+
+    result = _run_bootstrap(
+        tmp_path, mode="fresh", seed_dir=None,
+        allowed_origins="https://studio.example.test,https://other.example.test",
+    )
+
+    assert result.returncode == 0, result.stderr

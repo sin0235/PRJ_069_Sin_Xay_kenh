@@ -208,7 +208,7 @@ def _config_fingerprint(config: dict[str, str | set[str]]) -> str:
         "owner_email": config["owner_email"],
         "workspace_id": config["workspace_id"],
         "workspace_name": config["workspace_name"],
-        "origins": sorted(config["origins"]),
+        # Origins are runtime config; including them blocked init whenever the public domain changed.
     }
     encoded = json.dumps(safe_fields, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()

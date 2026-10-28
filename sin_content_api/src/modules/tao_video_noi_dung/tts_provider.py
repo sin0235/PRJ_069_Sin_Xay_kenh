@@ -116,7 +116,8 @@ class TTSProviderManager:
             top_p=advanced.get("top_p", 0.95),
             max_new_frames=advanced.get("max_new_frames", 300),
             repetition_penalty=advanced.get("repetition_penalty", 1.2),
-            max_chars=advanced.get("max_chars", 256),
+            # 256 pushed a 233-char voice-clone shot past the 3.5 GiB worker limit (OOM); 100 keeps the peak bounded.
+            max_chars=advanced.get("max_chars", 100),
         )
         return audio, model.sample_rate
 

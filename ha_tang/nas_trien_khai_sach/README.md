@@ -65,6 +65,8 @@ PRJ069_RUNTIME_ENV_FILE=/absolute/path/to/deploy.env.infra-test \
   python3 tests/test_gateway_readiness_runtime.py
 ```
 
+When binding a public domain (for example through a Cloudflare Tunnel to `127.0.0.1:${WEB_PORT}`), add its exact `https://` origin to `AUTH_ALLOWED_ORIGINS`, keep `AUTH_COOKIE_SECURE=true`, then run `docker compose up -d`. Changing origins does not require a new bootstrap. Cloudflare limits request bodies (100 MB on the free plan) below the Nginx ceiling, so large uploads through the domain can be rejected upstream.
+
 The gateway and frontend are public entry points. Do not publish API, worker, CDP, VNC, or Docker socket ports.
 
 ## Preflight, backup, and restore

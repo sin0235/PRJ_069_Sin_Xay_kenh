@@ -99,6 +99,12 @@ class ProductionStackContractTests(unittest.TestCase):
         self.assertEqual(self.services["init"]["entrypoint"], ["/app/ha_tang/nas_runtime/init-entrypoint.sh"])
         self.assertEqual(self.services["init"]["command"], ["python", "/app/scripts/khoi_tao_production_noi_bo.py"])
 
+    def test_gateway_has_a_non_internal_network_so_its_host_port_is_published(self):
+        networks = self.services["gateway"]["networks"]
+        self.assertTrue(any(not self.config["networks"][name].get("internal") for name in networks))
+        for service in ("api", "web", "flow-session-worker"):
+            self.assertTrue(all(name != "public-edge" for name in self.services[service]["networks"]))
+
     def test_default_bootstrap_adopts_existing_volume_without_seed_mount(self):
         init = self.services["init"]
         self.assertEqual(init["environment"]["PRJ069_BOOTSTRAP_MODE"], "adopt")

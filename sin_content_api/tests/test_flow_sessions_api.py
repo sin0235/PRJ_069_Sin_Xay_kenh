@@ -150,6 +150,8 @@ def test_desktop_cookie_is_bounded_and_revoked_when_owner_membership_ends(monkey
     )
     assert access.status_code == 200
     assert access.json()["url"].startswith(f"/v1/media/flow/desktop/{session['id']}/vnc.html?")
+    # noVNC prepends "/" to the path parameter; a leading slash would yield "//v1/..." and lose the cookie.
+    assert f"path=v1%2Fmedia%2Fflow%2Fdesktop%2F{session['id']}%2Fwebsockify" in access.json()["url"]
     assert "flow_desktop=" in access.headers["set-cookie"]
     cookie = access.headers["set-cookie"].lower()
     assert "httponly" in cookie
