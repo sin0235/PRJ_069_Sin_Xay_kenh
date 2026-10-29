@@ -1,5 +1,7 @@
 # PRJ_069 NAS runtime
 
+For the day-to-day workflow (local work, GitHub, and releasing to the Synology NAS with `nas_release.py`) see `HUONG_DAN_NAS.md`.
+
 This Compose stack runs the API, Flow browser worker, Next.js web app, and same-origin gateway from pinned image artifacts. Runtime containers use UID 10001 (Nginx uses 101). The one-shot `init` container runs as root only to read a host mode-0600 owner-password secret and then assigns `/data` to UID 10001. The API and worker never mount that password secret.
 
 ## Configure and build
