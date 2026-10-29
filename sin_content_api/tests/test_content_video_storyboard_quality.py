@@ -92,14 +92,13 @@ def test_generate_storyboard_retries_once_on_weak_storyboard():
     assert "NO_PAIN_BEAT" in client.calls[-1][0][-1]["content"]
 
 
-def test_generate_storyboard_fails_with_clear_code_after_retry():
+def test_generate_storyboard_accepts_weak_storyboard_after_one_retry():
     from src.modules.tao_video_noi_dung.planner import generate_storyboard
     weak = v4_data()
     weak["shots"][0]["message_ids"] = []
     client = Client(brief_data() | {"needs_ui_demo": False}, weak, weak)
-    with pytest.raises(ValueError, match="LOW_COVERAGE"):
-        generate_storyboard("Nội dung về trợ lý hỗ trợ khách hàng.", 20, STYLE, client)
-    assert len(client.calls) == 3
+    board, _ = generate_storyboard("Nội dung về trợ lý hỗ trợ khách hàng.", 20, STYLE, client)
+    assert board.shots[0].message_ids == [] and len(client.calls) == 3
 
 
 @pytest.mark.parametrize("content", ["Nội dung thuần thông tin về cách dùng tài liệu.", "a" * 12000])
@@ -131,8 +130,8 @@ def test_generate_storyboard_rejects_narration_digits_but_allows_written_ui_text
     board, _ = generate_storyboard("Trợ lý hỗ trợ khách hàng.", 20, STYLE, Client(brief_data(), data))
     assert "24/7" in board.shots[1].ui_scene.messages[1].text
     data["shots"][1]["narration"] = "Hỗ trợ 24/7."
-    with pytest.raises(ValueError, match="TTS"):
-        generate_storyboard("Trợ lý hỗ trợ khách hàng.", 20, STYLE, Client(brief_data(), data))
+    with pytest.raises(ValueError, match="TTS"):  # lỗi lời đọc được thử lại một lần; vẫn sai thì báo lỗi
+        generate_storyboard("Trợ lý hỗ trợ khách hàng.", 20, STYLE, Client(brief_data(), data, data))
 
 
 @pytest.mark.parametrize("bad_root", [[], None, "không phải đối tượng"])
@@ -168,8 +167,8 @@ def test_new_plan_style_allows_object_only_scenes_without_changing_saved_plans()
     assert "nếu có nhân vật" in _PILOT_STYLE_SNAPSHOT.visual_rules
 
 
-@pytest.mark.parametrize("narration", ["AI will answer customer requests.", "Dùng chatbot để marketing.", "Tăng 20% doanh thu."])
-def test_v4_edit_rejects_unresolved_narration_but_allows_original_ui_text(narration):
+@pytest.mark.parametrize("narration", ["Tăng 20% doanh thu.", "Hỗ trợ 24/7."])
+def test_v4_edit_rejects_digits_and_symbols_in_narration_but_allows_original_ui_text(narration):
     data = v4_data()
     data["shots"][1].update(shot_kind="UI_SIM", action_beats=[], ui_scene={"layout": "CHAT", "messages": [
         {"role": "customer", "text": "AI will answer customer requests 24/7?", "at_s": 0},
@@ -186,19 +185,40 @@ def test_v4_phonetic_vietnamese_and_ascii_vietnamese_words_remain_legal():
     assert Storyboard.model_validate(data).shots[0].narration == data["shots"][0]["narration"]
 
 
-def test_v4_uppercase_acronyms_are_left_for_the_tts_engine_but_english_words_still_need_phonetics():
+def test_unresolved_pronunciations_skip_acronyms_and_report_english_words():
+    from src.modules.tao_video_noi_dung.planner import unresolved_pronunciations
+    assert unresolved_pronunciations("Công nghệ AI giúp CEO bán hàng.") == []
+    assert unresolved_pronunciations("Công nghệ AI và chatbot giúp CEO.") == ["chatbot"]
     data = v4_data()
-    data["shots"][0]["narration"] = "Công nghệ AI giúp CEO bán hàng."
-    assert Storyboard.model_validate(data).shots[0].narration == data["shots"][0]["narration"]
     data["shots"][0]["narration"] = "Công nghệ AI và chatbot giúp CEO."
-    with pytest.raises(ValueError, match="TTS_PRONUNCIATION_REQUIRED"):
-        Storyboard.model_validate(data)
+    assert Storyboard.model_validate(data)  # chỉ cảnh báo, không chặn lưu hay chạy
 
 
-def test_v4_brand_baha_is_legal_but_unknown_uppercase_words_are_not():
+def test_brand_baha_is_not_reported_but_unknown_uppercase_words_are():
+    from src.modules.tao_video_noi_dung.planner import unresolved_pronunciations
+    assert unresolved_pronunciations("BAHA và BaHa giúp CEO dùng AI.") == []
+    assert unresolved_pronunciations("Dùng ABC để bán hàng.") == ["ABC"]
+
+
+def test_generate_storyboard_retries_with_the_offending_english_word():
+    from src.modules.tao_video_noi_dung.planner import generate_storyboard
+    bad = v4_data()
+    bad["shots"][1]["narration"] = "Ba-ha Group giúp doanh nghiệp."
+    client = Client(brief_data() | {"needs_ui_demo": False}, bad, v4_data())
+    board, _ = generate_storyboard("Nội dung về trợ lý hỗ trợ khách hàng.", 20, STYLE, client)
+    assert "Group" not in board.shots[1].narration
+    feedback = client.calls[-1][0][-1]["content"]
+    assert "TTS_PRONUNCIATION_REQUIRED" in feedback and "Group" in feedback
+
+
+def test_generate_storyboard_repairs_mechanical_mistakes_instead_of_rejecting():
+    from src.modules.tao_video_noi_dung.planner import generate_storyboard
     data = v4_data()
-    data["shots"][0]["narration"] = "BAHA và BaHa giúp CEO dùng AI."
-    assert Storyboard.model_validate(data).shots[0].narration == data["shots"][0]["narration"]
-    data["shots"][0]["narration"] = "Dùng ABC để bán hàng."
-    with pytest.raises(ValueError, match="TTS_PRONUNCIATION_REQUIRED"):
-        Storyboard.model_validate(data)
+    data["shots"][0]["message_ids"] = ["p1", "khong-co"]
+    data["shots"][0]["action_beats"] = [{"start_s": 1, "end_s": 4, "action": "A."}, {"start_s": 4, "end_s": 9, "action": "B."}]
+    data["shots"][1]["duration_seconds"] = 7
+    client = Client(brief_data() | {"needs_ui_demo": False}, data)
+    board, _ = generate_storyboard("Nội dung về trợ lý hỗ trợ khách hàng.", 20, STYLE, client)
+    assert board.shots[0].message_ids == ["p1"]
+    assert [(b.start_s, b.end_s) for b in board.shots[0].action_beats] == [(0, 4), (4, 10)]
+    assert sum(shot.duration_seconds for shot in board.shots) == 20 and len(client.calls) == 2

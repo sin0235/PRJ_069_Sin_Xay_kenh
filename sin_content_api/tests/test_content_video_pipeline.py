@@ -66,19 +66,17 @@ def test_v4_ui_sim_requires_ui_scene():
 
 
 def test_v4_pain_must_precede_solution():
-    from src.modules.tao_video_noi_dung.planner import Storyboard
+    from src.modules.tao_video_noi_dung.planner import Storyboard, _soft_problems
     data = _v4_storyboard_data()
     data["shots"][0]["beat"], data["shots"][2]["beat"] = "SOLUTION", "PAIN"
-    with pytest.raises(ValueError, match="PAIN_AFTER_SOLUTION"):
-        Storyboard.model_validate(data)
+    assert "PAIN_AFTER_SOLUTION" in _soft_problems(Storyboard.model_validate(data))
 
 
-def test_v4_uncovered_message_id_rejected():
-    from src.modules.tao_video_noi_dung.planner import Storyboard
+def test_v4_uncovered_message_id_is_reported_not_rejected():
+    from src.modules.tao_video_noi_dung.planner import Storyboard, _soft_problems
     data = _v4_storyboard_data()
     data["shots"][0]["message_ids"] = []
-    with pytest.raises(ValueError, match="LOW_COVERAGE"):
-        Storyboard.model_validate(data)
+    assert "LOW_COVERAGE" in _soft_problems(Storyboard.model_validate(data))
 
 
 def test_v4_cannot_bypass_contract_by_omitting_brief_or_downgrading_one_shot():

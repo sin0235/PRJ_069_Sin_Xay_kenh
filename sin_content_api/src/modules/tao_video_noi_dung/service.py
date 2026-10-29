@@ -97,7 +97,11 @@ def create_plan(db: Session, project_id: str, workspace_id: str, user_id: str, r
             client,
         )
     except LLMClientError as exc:
-        message = "Hạn mức sử dụng 9Router đã đạt. Hãy đợi giới hạn làm mới rồi thử lại." if exc.error_code == "UPSTREAM_RATE_LIMITED" else "LLM chưa tạo được storyboard hợp lệ."
+        message = {
+            "UPSTREAM_RATE_LIMITED": "Hạn mức sử dụng 9Router đã đạt. Hãy đợi giới hạn làm mới rồi thử lại.",
+            "INPUT_TOO_LARGE": "Prompt gửi LLM vượt giới hạn max_input_bytes trong cấu hình LLM (bị chặn trước khi gọi 9Router); hãy tăng giới hạn này.",
+            "UPSTREAM_TIMEOUT": "LLM không phản hồi kịp thời gian chờ (LLM_TIMEOUT_SECONDS); chưa có storyboard nào được tạo hay kiểm tra.",
+        }.get(exc.error_code, f"LLM Gateway lỗi ({exc.error_code}); chưa có storyboard nào được tạo hay kiểm tra.")
         raise HTTPException(status_code=503, detail={"error_code": exc.error_code, "message": message}) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail={"error_code": "INVALID_STORYBOARD", "message": str(exc)}) from exc
