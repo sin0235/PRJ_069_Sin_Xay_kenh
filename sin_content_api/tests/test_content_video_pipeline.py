@@ -130,6 +130,35 @@ def test_tts_and_ten_second_video_render_without_flow(monkeypatch, tmp_path):
     assert slower_meta["video_playback_speed"] < 1.0
 
 
+def test_crossfade_keeps_every_shot_when_clips_are_slightly_shorter_than_nominal(tmp_path):
+    import subprocess
+    from src.modules.media_studio.video_processor import video_processor
+    from src.schemas.contracts import TimelineClip, TimelineDocument, TimelineMediaType
+
+    # Flow clips are 299 frames at 30 fps (9.967s), not exactly 10s; the render must still keep all six.
+    video = tmp_path / "video.mp4"
+    subprocess.run([
+        video_processor.ffmpeg_bin, "-y", "-v", "error", "-f", "lavfi", "-i",
+        "testsrc2=s=360x640:r=30", "-frames:v", "299", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(video),
+    ], check=True, capture_output=True)
+    timeline = TimelineDocument(
+        width=360, height=640, fps=30,
+        clips=[TimelineClip(
+            clip_id=f"s{i}", asset_id="video", media_type=TimelineMediaType.VIDEO,
+            start_ms=i * 10000, duration_ms=10000, trim_in_ms=0, trim_out_ms=10000,
+        ) for i in range(6)],
+    )
+    out = tmp_path / "rendered.mp4"
+    video_processor.render_timeline_document(timeline, lambda _asset_id: video, out, transition_seconds=0.3)
+
+    frames = subprocess.run(
+        [video_processor.ffprobe_bin, "-v", "error", "-count_frames", "-select_streams", "v",
+         "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", str(out)],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    assert int(frames) >= 6 * 299 - 5
+
+
 def test_raw_tts_caps_video_retiming_at_ten_percent_without_changing_voice(tmp_path):
     import wave
     import numpy as np

@@ -393,20 +393,24 @@ class VideoProcessor:
                         native_audio_specs.append((asset_file, media_type, in_s, dur_s))
                         total_duration_sec += dur_s
 
-                # 2. Ghép các phân cảnh video; tail freeze keeps the timeline duration during crossfade.
+                # 2. Ghép các phân cảnh video. Mỗi đoạn (trừ đoạn cuối) được tpad ngay trên đầu vào để xfade
+                # còn đủ hình; tpad đặt sau xfade không kéo dài luồng nên các đoạn sau bị cắt mất.
                 if transition_seconds > 0 and len(seg_files) > 1:
                     transition = min(transition_seconds, 0.5)
-                    filter_parts = []
-                    previous = "0:v"
+                    # Offset phải theo độ dài thực của đoạn (có thể ngắn hơn danh nghĩa vài frame), nếu không xfade bị cắt.
+                    measured = [float(self.probe_video(seg)["duration_seconds"]) for seg in seg_files]
+                    last = len(seg_files) - 1
+                    filter_parts = [
+                        f"[{idx}:v]tpad=stop_mode=clone:stop_duration={transition:.3f}[p{idx}]"
+                        for idx in range(last)
+                    ]
+                    previous = "p0"
                     offset = 0.0
-                    for idx, duration in enumerate(seg_durations[:-1]):
-                        padded = f"p{idx}"
-                        filter_parts.append(
-                            f"[{previous}]tpad=stop_mode=clone:stop_duration={transition:.3f}[{padded}]"
-                        )
+                    for idx, duration in enumerate(measured[:-1]):
+                        nxt = f"p{idx + 1}" if idx + 1 < last else f"{last}:v"
                         output = f"x{idx}"
                         filter_parts.append(
-                            f"[{padded}][{idx + 1}:v]xfade=transition=fade:duration={transition:.3f}:offset={offset + duration:.3f}[{output}]"
+                            f"[{previous}][{nxt}]xfade=transition=fade:duration={transition:.3f}:offset={offset + duration:.3f}[{output}]"
                         )
                         previous = output
                         offset += duration
