@@ -87,6 +87,10 @@ def test_v4_cannot_bypass_contract_by_omitting_brief_or_downgrading_one_shot():
     data["shots"][0]["prompt_contract_version"] = 3
     with pytest.raises(ValueError):
         Storyboard.model_validate(data)
+    data = _v4_storyboard_data()
+    data.pop("brief")
+    with pytest.raises(ValueError):
+        Storyboard.model_validate(data)
 
 
 def test_v4_prompt_lists_action_beats_with_timestamps_and_drops_single_action_rule():
@@ -102,10 +106,6 @@ def test_v4_prompt_lists_action_beats_with_timestamps_and_drops_single_action_ru
     assert "không biến hình" in prompt
     assert shot.narration in prompt
     assert shot.narration not in build_shot_prompt(style, shot, "Nhân viên áo xanh.", False)
-    data = _v4_storyboard_data()
-    data.pop("brief")
-    with pytest.raises(ValueError):
-        Storyboard.model_validate(data)
 
 
 def test_content_video_migration_upgrades_existing_run_table(monkeypatch):
@@ -414,86 +414,38 @@ def test_create_plan_explains_gateway_rate_limit(monkeypatch):
     assert "Hạn mức" in exc_info.value.detail["message"]
 
 
-def test_storyboard_prompt_requires_three_shots_for_twenty_seconds():
+def test_storyboard_prompt_leaves_shot_count_to_llm():
+    data = _v4_storyboard_data()
+    data["shots"] = [data["shots"][0], data["shots"][2]]
     class RecordingClient:
         max_output_tokens = 6000
-
         def complete(self, messages, max_tokens):
             self.messages = messages
-            return SimpleNamespace(
-                content=(
-                    '{"title":"RAG","narration":"Tìm đúng nguồn.",'
-                    '"continuity_anchor":"Trợ lý giấy xanh navy cạnh tủ tài liệu, cùng một bối cảnh.","shots":['
-                    '{"shot_id":"s1","scene":"Tìm","narration":"Tìm nguồn.","prompt":"Thẻ tài liệu bay ra.","flow_prompt_en":"One paper card glides from the shelf and settles on the desk.","duration_seconds":7,"continues_previous":false},'
-                    '{"shot_id":"s2","scene":"Trả lời","narration":"Trả lời có căn cứ.","prompt":"Trợ lý đọc tài liệu.","flow_prompt_en":"The paper assistant reads one card, then looks toward the viewer.","duration_seconds":7,"continues_previous":false},'
-                    '{"shot_id":"s3","scene":"Kết","narration":"Thử RAG.","prompt":"Nguồn và câu trả lời.","flow_prompt_en":"The source card rests beside the completed answer card.","duration_seconds":6,"continues_previous":false}]}'
-                ),
-                model="test-model",
-            )
-
+            payload = data["brief"] if len(messages) == 2 and "required_schema" not in json.loads(messages[1]["content"]) else data
+            return SimpleNamespace(content=json.dumps(payload), model="test-model")
     client = RecordingClient()
-    generate_storyboard(
-        "RAG truy xuất tài liệu trước khi trả lời có căn cứ.",
-        20,
-        {"style_name": "Origami", "visual_rules": "Phong cách giấy thống nhất.", "palette": ["navy"]},
-        client,
-    )
-
+    board, _ = generate_storyboard("Trợ lý tìm nguồn trước khi trả lời.", 20,
+        {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]}, client)
     request = json.loads(client.messages[1]["content"])
-    assert request["required_shot_durations"] == [7, 7, 6]
+    assert "required_shot_durations" not in request
+    assert len(board.shots) == 2
+    assert request["target_duration_seconds"] == 20
 
 
 def test_storyboard_prompts_prevent_distortion_and_allow_optional_flow_audio():
-    class RecordingClient:
-        max_output_tokens = 6000
-
-        def complete(self, messages, max_tokens):
-            self.messages = messages
-            return SimpleNamespace(
-                content=(
-                    '{"title":"RAG","narration":"Tìm nguồn.",'
-                    '"continuity_anchor":"Trợ lý giấy xanh navy cạnh tủ tài liệu, cùng một bối cảnh.","shots":['
-                    '{"shot_id":"s1","scene":"Tìm","narration":"Tìm nguồn.","prompt":"Một thẻ trượt tới.","flow_prompt_en":"A single paper card slides toward the assistant and stops.","duration_seconds":7,"continues_previous":false},'
-                    '{"shot_id":"s2","scene":"Trả lời","narration":"Trả lời.","prompt":"Trợ lý đọc thẻ.","flow_prompt_en":"The assistant lifts one card, reads it, and lowers it back onto the desk.","duration_seconds":7,"continues_previous":false},'
-                    '{"shot_id":"s3","scene":"Kết","narration":"Xong.","prompt":"Đặt thẻ lại.","flow_prompt_en":"The assistant places the card beside the answer and holds still.","duration_seconds":6,"continues_previous":false}]}'
-                ),
-                model="test-model",
-            )
-
-    client = RecordingClient()
-    storyboard, _ = generate_storyboard(
-        "RAG tìm nguồn trước khi trả lời.",
-        20,
-        {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]},
-        client,
-    )
-    system_prompt = client.messages[0]["content"].lower()
-    shot_prompt = build_shot_prompt(
-        {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]},
-        storyboard.shots[0],
-        storyboard.continuity_anchor,
-    ).lower()
-
-    assert "một hành động chính" in system_prompt
-    assert "không biến hình" in system_prompt
-    assert "flow_prompt_en" not in system_prompt
-    assert "mô hình giấy gấp nếp đã hoàn thiện" in system_prompt
-    assert "điểm tiếp xúc/phản ứng vật lý" in system_prompt
-    assert "không biến hình" in shot_prompt
-    assert "không nhân đôi" in shot_prompt
-    assert "một hành động chính" in shot_prompt
-    assert "hai mắt cùng kích thước và cao độ" in shot_prompt
-    assert "biểu cảm thân thiện tự nhiên" in shot_prompt
-    assert "âm thanh flow tùy chọn" in shot_prompt
-    assert 'nếu flow tạo giọng dẫn thì đọc nguyên văn bằng tiếng việt: "tìm nguồn."' in shot_prompt
-    assert "bắt buộc bật" not in shot_prompt
-    no_flow_narration = build_shot_prompt(
-        {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]},
-        storyboard.shots[0], storyboard.continuity_anchor, include_narration_audio=False,
-    ).lower()
-    assert "âm thanh flow tùy chọn" in no_flow_narration
-    assert "clip im lặng vẫn chấp nhận" in no_flow_narration
-    assert 'giọng dẫn đọc nguyên văn' not in no_flow_narration
+    data = _v4_storyboard_data()
+    shot = StoryboardShot.model_validate(data["shots"][0])
+    style = {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]}
+    prompt = build_shot_prompt(style, shot, data["continuity_anchor"]).lower()
+    assert "không biến hình" in prompt and "không nhân đôi" in prompt
+    assert "hai mắt cùng kích thước và cao độ" in prompt
+    assert "biểu cảm thân thiện tự nhiên" in prompt
+    assert "âm thanh flow tùy chọn" in prompt
+    assert shot.narration.lower() in prompt
+    assert "chỉ một hành động chính" not in prompt
+    no_audio = build_shot_prompt(style, shot, data["continuity_anchor"], False).lower()
+    assert "clip im lặng vẫn chấp nhận" in no_audio
+    assert shot.narration.lower() not in no_audio
 
 
 def test_flow_prompt_uses_vietnamese_and_ignores_legacy_english_prompt():

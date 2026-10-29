@@ -65,3 +65,71 @@ def test_brief_rejects_duplicate_message_ids():
     data["solutions"][0]["id"] = "p1"
     with pytest.raises(ValueError, match="MESSAGE_ID_DUPLICATE"):
         ContentBrief.model_validate(data)
+
+
+def v4_data():
+    data = baseline()
+    data["brief"] = brief_data()
+    data["brief"]["needs_ui_demo"] = False
+    data["shots"] = data["shots"][:2]
+    for shot, beat, mid in zip(data["shots"], ["PAIN", "SOLUTION"], ["p1", "s1"]):
+        shot.update(prompt_contract_version=4, beat=beat, message_ids=[mid],
+                    action_beats=[{"start_s": 0, "end_s": 10, "action": "Nhân viên trả lời khách."}])
+    return data
+
+
+STYLE = {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"], "aspect_ratio": "9:16"}
+
+
+def test_generate_storyboard_retries_once_on_weak_storyboard():
+    from src.modules.tao_video_noi_dung.planner import generate_storyboard
+    weak = v4_data()
+    weak["shots"][0]["beat"] = "HOOK"
+    client = Client(brief_data() | {"needs_ui_demo": False}, weak, v4_data())
+    board, model = generate_storyboard("Trợ lý giúp nhân viên hỗ trợ khách hỏi ngoài giờ làm việc.", 20, STYLE, client)
+    assert board.shots[0].beat == "PAIN" and model == "test-model"
+    assert len(client.calls) == 3
+    assert "NO_PAIN_BEAT" in client.calls[-1][0][-1]["content"]
+
+
+def test_generate_storyboard_fails_with_clear_code_after_retry():
+    from src.modules.tao_video_noi_dung.planner import generate_storyboard
+    weak = v4_data()
+    weak["shots"][0]["message_ids"] = []
+    client = Client(brief_data() | {"needs_ui_demo": False}, weak, weak)
+    with pytest.raises(ValueError, match="LOW_COVERAGE"):
+        generate_storyboard("Nội dung về trợ lý hỗ trợ khách hàng.", 20, STYLE, client)
+    assert len(client.calls) == 3
+
+
+@pytest.mark.parametrize("content", ["Nội dung thuần thông tin về cách dùng tài liệu.", "a" * 12000])
+def test_generate_storyboard_signature_unchanged(content):
+    from src.modules.tao_video_noi_dung.planner import generate_storyboard
+    client = Client(brief_data() | {"needs_ui_demo": False}, v4_data())
+    board, model = generate_storyboard(content, 20, STYLE, client)
+    assert model == "test-model" and sum(s.duration_seconds for s in board.shots) == 20
+    request = json.loads(client.calls[1][0][1]["content"])
+    assert "required_shot_durations" not in request
+    assert request["target_duration_seconds"] == 20
+    assert board.brief.pains[0].source == "inferred"
+
+
+def test_generate_storyboard_rejects_bad_duration_before_spending_llm_quota():
+    from src.modules.tao_video_noi_dung.planner import generate_storyboard
+    client = Client()
+    with pytest.raises(ValueError):
+        generate_storyboard("Nội dung đủ dài để tạo một bản thử nghiệm.", 19, STYLE, client)
+    assert not client.calls
+
+
+def test_generate_storyboard_rejects_narration_digits_but_allows_written_ui_text():
+    from src.modules.tao_video_noi_dung.planner import generate_storyboard
+    data = v4_data()
+    data["shots"][1].update(shot_kind="UI_SIM", action_beats=[], ui_scene={"layout": "CHAT", "messages": [
+        {"role": "customer", "text": "AI hoạt động lúc 2 giờ?", "at_s": 0},
+        {"role": "ai", "text": "Tôi hỗ trợ 24/7.", "at_s": 3}]})
+    board, _ = generate_storyboard("Trợ lý hỗ trợ khách hàng.", 20, STYLE, Client(brief_data(), data))
+    assert "24/7" in board.shots[1].ui_scene.messages[1].text
+    data["shots"][1]["narration"] = "Hỗ trợ 24/7."
+    with pytest.raises(ValueError, match="TTS"):
+        generate_storyboard("Trợ lý hỗ trợ khách hàng.", 20, STYLE, Client(brief_data(), data))
