@@ -28,17 +28,19 @@ def _validate_narration_for_tts(text: str) -> None:
     punctuation = "-–—.,!?;:'\"“”‘’…"
     if any(not (char.isalpha() or char.isspace() or char in punctuation) for char in text):
         raise ValueError("TTS_NARRATION_SYMBOLS: Viết số và ký hiệu thành chữ cách đọc.")
-    words = re.findall(r"[^\W\d_]+", unicodedata.normalize("NFC", text))
-    if not words:
+    if not re.findall(r"[^\W\d_]+", unicodedata.normalize("NFC", text)):
         raise ValueError("TTS_NARRATION_EMPTY")
+
+
+def unresolved_pronunciations(text: str) -> list[str]:
+    """Từ chưa phiên âm: chỉ cảnh báo/yêu cầu LLM sửa, không chặn storyboard (engine vẫn đọc được tiếng Anh)."""
+    words = re.findall(r"[^\W\d_]+", unicodedata.normalize("NFC", text))
     # Viết tắt đọc từng chữ cái (AI, CEO): VieNeu tự đọc tiếng Anh, "ây ai" bị đọc như hai âm tiết Việt. Chữ hoa khác (BAHA) bị đọc
     # từng chữ cái nên không cho qua; Baha được runner đổi thành Ba-ha trước khi đọc.
     # shortcut: chưa phân biệt từ đồng hình, dùng bộ kiểm theo ngữ cảnh khi cần duyệt ngôn ngữ tự động.
-    unresolved = [word for word in words
-                  if word not in _SPELLED_ACRONYMS and word.lower() != "baha"
-                  and not _SPOKEN_SYLLABLE.fullmatch(word.lower())]
-    if unresolved:
-        raise ValueError("TTS_PRONUNCIATION_REQUIRED: Phiên âm tiếng Việt: " + ", ".join(unresolved[:5]))
+    return [word for word in words
+            if word not in _SPELLED_ACRONYMS and word.lower() != "baha"
+            and not _SPOKEN_SYLLABLE.fullmatch(word.lower())]
 
 
 class ActionBeat(BaseModel):
@@ -163,11 +165,6 @@ class Storyboard(BaseModel):
             ids = {message.id for message in self.brief.all_messages()}
             if any(set(shot.message_ids) - ids for shot in self.shots):
                 raise ValueError("UNKNOWN_MESSAGE_ID")
-            issues = score_storyboard(self, self.brief).issues
-            if issues:
-                raise ValueError(",".join(issues))
-            if self.brief.needs_ui_demo and not any(shot.shot_kind == "UI_SIM" for shot in self.shots):
-                raise ValueError("UI_DEMO_REQUIRED")
             for previous, shot in zip(self.shots, self.shots[1:]):
                 if shot.continues_previous and previous.shot_kind == "UI_SIM":
                     raise ValueError("FLOW_CANNOT_CONTINUE_UI_SIM")
@@ -263,6 +260,56 @@ def build_shot_prompt(
     )
 
 
+def _soft_problems(storyboard: Storyboard) -> list[str]:
+    problems = list(score_storyboard(storyboard, storyboard.brief).issues)
+    if storyboard.brief and storyboard.brief.needs_ui_demo and not any(shot.shot_kind == "UI_SIM" for shot in storyboard.shots):
+        problems.append("UI_DEMO_REQUIRED")
+    words = sorted({word for shot in storyboard.shots for word in unresolved_pronunciations(shot.narration)})
+    if words:
+        problems.append("TTS_PRONUNCIATION_REQUIRED: " + ", ".join(words[:8]))
+    return problems
+
+
+def _repair_storyboard_data(data: dict, brief: ContentBrief, target_seconds: int) -> None:
+    """Sửa các sai lệch cơ học LLM hay mắc (mã thông điệp lạ, mốc beat hở, tổng giây lệch) thay vì từ chối cả storyboard."""
+    shots = data.get("shots")
+    if not isinstance(shots, list) or not all(isinstance(shot, dict) for shot in shots):
+        return
+    known = {message.id for message in brief.all_messages()}
+    for shot in shots:
+        if isinstance(shot.get("message_ids"), list):
+            shot["message_ids"] = [mid for mid in shot["message_ids"] if mid in known]
+    durations = [shot.get("duration_seconds") for shot in shots]
+    if all(isinstance(value, int) for value in durations):
+        gap = target_seconds - sum(durations)
+        for shot in reversed(shots):
+            if not gap:
+                break
+            if shot.get("shot_kind") == "UI_SIM":
+                continue
+            new = min(10, max(1, shot["duration_seconds"] + gap))
+            gap -= new - shot["duration_seconds"]
+            shot["duration_seconds"] = new
+    for shot in shots:
+        beats = shot.get("action_beats")
+        duration = shot.get("duration_seconds")
+        if shot.get("shot_kind") == "UI_SIM" or not isinstance(beats, list) or not beats \
+                or not isinstance(duration, int) or not all(isinstance(b, dict) for b in beats):
+            continue
+        beats = sorted((b for b in beats if isinstance(b.get("start_s"), (int, float))), key=lambda b: b["start_s"])
+        fixed, cursor = [], 0.0
+        for beat in beats:
+            end = beat.get("end_s")
+            if cursor >= duration or not isinstance(end, (int, float)):
+                break
+            beat["start_s"], beat["end_s"] = cursor, min(float(duration), max(float(end), cursor + 0.1))
+            cursor = beat["end_s"]
+            fixed.append(beat)
+        if fixed:
+            fixed[-1]["end_s"] = float(duration)
+            shot["action_beats"] = fixed
+
+
 def generate_storyboard(content: str, target_duration_seconds: int, style_snapshot: dict[str, Any], client: Any) -> tuple[Storyboard, str]:
     content = content.strip()
     if not content or len(content.encode("utf-8")) > 12000:
@@ -330,7 +377,7 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
             "content": content,
         }, ensure_ascii=False)},
     ]
-    retryable = {"NO_PAIN_BEAT", "LOW_COVERAGE", "PAIN_AFTER_SOLUTION", "UI_DEMO_REQUIRED", "TTS_PRONUNCIATION_REQUIRED", "TTS_NARRATION_SYMBOLS"}
+    log = logging.getLogger(__name__)
     for attempt in range(2):
         completion = client.complete(messages, max_tokens=min(14000, client.max_output_tokens))
         try:
@@ -339,20 +386,27 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
                 raise ValueError("STORYBOARD_JSON_OBJECT_REQUIRED")
             # Brief server phân tích là nguồn chuẩn, không cho lượt viết storyboard sửa nhãn suy ra.
             data["brief"] = brief.model_dump(mode="json")
+            _repair_storyboard_data(data, brief, target_duration_seconds)
             storyboard = parse_storyboard(json.dumps(data, ensure_ascii=False), target_duration_seconds)
             if any(shot.prompt_contract_version != 4 for shot in storyboard.shots):
                 raise ValueError("V4_SHOTS_REQUIRED")
         except ValueError as exc:
-            codes = sorted(code for code in retryable if code in str(exc))
-            if not codes or attempt:
-                raise ValueError(",".join(codes) if codes else str(exc)) from exc
-            messages.extend([
-                {"role": "user", "content": "Sửa storyboard theo các lỗi: " + ",".join(codes) + ". "
-                    + " ".join(line.strip() for line in str(exc).splitlines() if "TTS_" in line)[:400]
-                    + " Chỉ sửa lời narration, giữ nguyên phần còn lại. Trả lại toàn bộ JSON."},
-            ])
-            continue
-        if score_storyboard(storyboard).static_shot_ratio > 0.5:
-            logging.getLogger(__name__).warning("STORYBOARD_STATIC_SHOTS_HIGH")
-        return storyboard, completion.model
+            if "TTS_NARRATION_SYMBOLS" not in str(exc) or attempt:
+                raise
+            problems = ["TTS_NARRATION_SYMBOLS: Viết số và ký hiệu thành chữ cách đọc."]
+        else:
+            problems = _soft_problems(storyboard)
+            if not problems:
+                if score_storyboard(storyboard).static_shot_ratio > 0.5:
+                    log.warning("STORYBOARD_STATIC_SHOTS_HIGH")
+                return storyboard, completion.model
+            if attempt:
+                # Lỗi chất lượng chỉ cảnh báo để người dùng duyệt; không bỏ cả storyboard vì một thiếu sót nhỏ.
+                log.warning("STORYBOARD_SOFT_ISSUES: %s", "; ".join(problems))
+                return storyboard, completion.model
+        messages.extend([
+            {"role": "assistant", "content": completion.content},
+            {"role": "user", "content": "Sửa storyboard theo các lỗi: " + "; ".join(problems)[:600]
+                + ". Với từ tiếng Anh chưa phiên âm, viết cách đọc tiếng Việt. Giữ nguyên phần không liên quan. Trả lại toàn bộ JSON."},
+        ])
     raise ValueError("STORYBOARD_QUALITY_FAILED")
