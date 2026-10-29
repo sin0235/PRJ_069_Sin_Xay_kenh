@@ -33,7 +33,8 @@ COPY baha_auth/ /app/baha_auth/
 COPY 09_kiem_thu_quyen/ /app/09_kiem_thu_quyen/
 COPY cong_cu_tu_dong/flow_bridge/ /app/cong_cu_tu_dong/flow_bridge/
 COPY cong_cu_tu_dong/veo_watermark_remover/ /app/cong_cu_tu_dong/veo_watermark_remover/
-RUN python -m compileall -q /app
+# Files synced from the NAS share can arrive without world-read bits; the runtime user is not root.
+RUN chmod -R a+rX /app && python -m compileall -q /app
 
 WORKDIR /app/sin_content_api
 USER 10001:10001
