@@ -200,10 +200,17 @@ class ProductionStackContractTests(unittest.TestCase):
 
     def test_backend_build_retries_slow_pypi_downloads_without_baking_cache(self):
         dockerfile = (ROOT / "ha_tang/nas_runtime/Dockerfile.backend").read_text(encoding="utf-8")
-        self.assertIn("type=cache,id=prj069-nas-pip,target=/root/.cache/pip", dockerfile)
-        self.assertIn("--cache-dir=/root/.cache/pip", dockerfile)
+        # DSM Container Manager uses the classic builder: no BuildKit-only syntax.
+        self.assertNotIn("--mount=", dockerfile)
+        self.assertNotIn("COPY --chmod", dockerfile)
+        self.assertIn("--no-cache-dir", dockerfile)
         self.assertIn("--timeout 120", dockerfile)
         self.assertIn("--retries 8", dockerfile)
+
+    def test_networks_use_explicit_subnets_for_nas_with_exhausted_default_pools(self):
+        compose = (ROOT / "ha_tang/nas_trien_khai_sach/compose.yaml").read_text(encoding="utf-8")
+        for index in range(6):
+            self.assertIn(f"subnet: 10.69.{index}.0/24", compose)
 
 
 if __name__ == "__main__":

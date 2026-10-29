@@ -223,13 +223,32 @@ secrets:
     file: ${AUTH_OWNER_PASSWORD_SECRET_FILE:?Set AUTH_OWNER_PASSWORD_SECRET_FILE to a read-only secret file}
 
 networks:
+  # Explicit subnets: the NAS Docker default address pools are exhausted by other projects (10.<project>.0.0/24 is the local convention).
   # Published ports need a non-internal network; only the gateway joins it.
-  public-edge: {}
+  public-edge:
+    ipam:
+      config:
+        - subnet: 10.69.0.0/24
   api-gateway:
     internal: true
+    ipam:
+      config:
+        - subnet: 10.69.1.0/24
   web-gateway:
     internal: true
-  api-web: {}
+    ipam:
+      config:
+        - subnet: 10.69.2.0/24
+  api-web:
+    ipam:
+      config:
+        - subnet: 10.69.3.0/24
   api-worker:
     internal: true
-  worker-egress: {}
+    ipam:
+      config:
+        - subnet: 10.69.4.0/24
+  worker-egress:
+    ipam:
+      config:
+        - subnet: 10.69.5.0/24
