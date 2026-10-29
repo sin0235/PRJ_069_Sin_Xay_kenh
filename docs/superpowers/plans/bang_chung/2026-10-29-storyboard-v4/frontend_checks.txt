@@ -1,0 +1,2 @@
+PASS: editing and updatePlan preserve v4 JSON; desktop/mobile/dark screenshots captured; no page errors.
+PASS: v3 plan opens and edits without injecting v4 fields.

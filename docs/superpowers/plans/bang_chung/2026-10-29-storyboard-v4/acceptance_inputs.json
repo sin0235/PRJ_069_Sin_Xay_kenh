@@ -1,0 +1,17 @@
+[
+  {
+    "id": "ai_sales",
+    "duration": 60,
+    "content": "AI trong Sales giúp doanh nghiệp tổ chức thông tin khách hàng, gợi ý cách trả lời và hỗ trợ nhân viên theo dõi nhu cầu. Chatbot có thể tiếp nhận câu hỏi ngoài giờ, tìm thông tin sản phẩm và chuyển cuộc hội thoại cho nhân viên khi cần tư vấn thêm. Nhân viên vẫn kiểm tra câu trả lời quan trọng trước khi gửi. Hãy bắt đầu bằng một nhóm câu hỏi thường gặp để đánh giá mức phù hợp."
+  },
+  {
+    "id": "pain_explicit",
+    "duration": 30,
+    "content": "Khách thường nhắn hỏi cửa hàng vào buổi tối khi nhân viên đã nghỉ. Sáng hôm sau, tin nhắn cũ bị lẫn trong nhiều cuộc hội thoại mới và có khách không được trả lời. Cửa hàng có thể gom các câu hỏi vào một hộp thư chung, đánh dấu người phụ trách và rà lại danh sách chưa xử lý trước khi kết thúc ca. Cách làm này giúp đội bán hàng nhìn rõ việc còn chờ và bàn giao ca thuận tiện hơn."
+  },
+  {
+    "id": "information_only",
+    "duration": 20,
+    "content": "Tài liệu trong tủ có thể được phân loại theo chủ đề, ngày ban hành và đơn vị tạo. Nhãn phân loại nên thống nhất để người dùng tra cứu cùng một cách. Khi có bản cập nhật, cần giữ thông tin phiên bản cũ và ghi rõ bản nào đang được sử dụng. Việc đặt tên rõ ràng giúp tìm đúng tài liệu khi cần."
+  }
+]

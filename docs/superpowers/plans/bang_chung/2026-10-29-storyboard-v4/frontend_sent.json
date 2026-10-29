@@ -1,0 +1,114 @@
+{
+  "title": "AI trong Sales — fixture tái dựng từ review, không phải bản API",
+  "narration": "Lời dẫn đã sửa để duyệt. Trợ lý hỗ trợ nhân viên trả lời khách hàng. Trợ lý hỗ trợ nhân viên trả lời khách hàng.",
+  "continuity_anchor": "Nhân viên giấy áo navy, mô hình origami hoàn chỉnh, ánh sáng mềm.",
+  "shots": [
+    {
+      "shot_id": "shot_01",
+      "scene": "Văn phòng giấy yên tĩnh",
+      "narration": "Lời dẫn đã sửa để duyệt.",
+      "prompt": "Nhân viên đưa tay tới thiết bị.",
+      "duration_seconds": 10,
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "negative_prompt": "",
+      "beat": "PAIN",
+      "message_ids": [
+        "p1"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "ui_scene": null,
+      "action_beats": [
+        {
+          "start_s": 0,
+          "end_s": 4,
+          "action": "Hồ sơ chưa được xử lý chất đầy khay."
+        },
+        {
+          "start_s": 4,
+          "end_s": 10,
+          "action": "Những hồ sơ đã được giao người phụ trách chuyển sang khay bên cạnh."
+        }
+      ]
+    },
+    {
+      "shot_id": "shot_02",
+      "scene": "Bàn làm việc",
+      "narration": "Trợ lý hỗ trợ nhân viên trả lời khách hàng.",
+      "prompt": "Nhân viên chỉ vào một thẻ giấy.",
+      "duration_seconds": 10,
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "negative_prompt": "",
+      "beat": "SOLUTION",
+      "message_ids": [
+        "s1"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "ui_scene": null,
+      "action_beats": [
+        {
+          "start_s": 0,
+          "end_s": 4,
+          "action": "Hồ sơ chưa được xử lý chất đầy khay."
+        },
+        {
+          "start_s": 4,
+          "end_s": 10,
+          "action": "Những hồ sơ đã được giao người phụ trách chuyển sang khay bên cạnh."
+        }
+      ]
+    },
+    {
+      "shot_id": "shot_03",
+      "scene": "Tập tài liệu",
+      "narration": "Trợ lý hỗ trợ nhân viên trả lời khách hàng.",
+      "prompt": "Nhân viên đẩy tập giấy tới trước.",
+      "duration_seconds": 10,
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "negative_prompt": "",
+      "beat": "DEMO",
+      "message_ids": [],
+      "shot_kind": "UI_SIM",
+      "ui_scene": {
+        "layout": "CHAT",
+        "messages": [
+          {
+            "role": "customer",
+            "text": "Tôi cần báo giá cho doanh nghiệp.",
+            "at_s": 0
+          },
+          {
+            "role": "ai",
+            "text": "Tôi đã nhận yêu cầu tư vấn giải pháp.",
+            "at_s": 3
+          }
+        ],
+        "highlight": "Tiếp nhận và bàn giao rõ ràng"
+      },
+      "action_beats": []
+    }
+  ],
+  "brief": {
+    "pains": [
+      {
+        "id": "p1",
+        "text": "Nhân viên bỏ sót khách hỏi ban đêm.",
+        "source": "inferred"
+      }
+    ],
+    "consequences": [],
+    "insights": [],
+    "solutions": [
+      {
+        "id": "s1",
+        "text": "Trợ lý nhận tin rồi chuyển cho nhân viên.",
+        "source": "content"
+      }
+    ],
+    "outcomes": [],
+    "cta": null,
+    "needs_ui_demo": true
+  }
+}
