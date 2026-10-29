@@ -131,8 +131,8 @@ def test_generate_storyboard_rejects_narration_digits_but_allows_written_ui_text
     board, _ = generate_storyboard("Trợ lý hỗ trợ khách hàng.", 20, STYLE, Client(brief_data(), data))
     assert "24/7" in board.shots[1].ui_scene.messages[1].text
     data["shots"][1]["narration"] = "Hỗ trợ 24/7."
-    with pytest.raises(ValueError, match="TTS"):
-        generate_storyboard("Trợ lý hỗ trợ khách hàng.", 20, STYLE, Client(brief_data(), data))
+    with pytest.raises(ValueError, match="TTS"):  # lỗi lời đọc được thử lại một lần; vẫn sai thì báo lỗi
+        generate_storyboard("Trợ lý hỗ trợ khách hàng.", 20, STYLE, Client(brief_data(), data, data))
 
 
 @pytest.mark.parametrize("bad_root", [[], None, "không phải đối tượng"])
@@ -202,3 +202,14 @@ def test_v4_brand_baha_is_legal_but_unknown_uppercase_words_are_not():
     data["shots"][0]["narration"] = "Dùng ABC để bán hàng."
     with pytest.raises(ValueError, match="TTS_PRONUNCIATION_REQUIRED"):
         Storyboard.model_validate(data)
+
+
+def test_generate_storyboard_retries_with_the_offending_english_word():
+    from src.modules.tao_video_noi_dung.planner import generate_storyboard
+    bad = v4_data()
+    bad["shots"][1]["narration"] = "Ba-ha Group giúp doanh nghiệp."
+    client = Client(brief_data() | {"needs_ui_demo": False}, bad, v4_data())
+    board, _ = generate_storyboard("Nội dung về trợ lý hỗ trợ khách hàng.", 20, STYLE, client)
+    assert "Group" not in board.shots[1].narration
+    feedback = client.calls[-1][0][-1]["content"]
+    assert "TTS_PRONUNCIATION_REQUIRED" in feedback and "Group" in feedback

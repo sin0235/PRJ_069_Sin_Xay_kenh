@@ -330,7 +330,7 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
             "content": content,
         }, ensure_ascii=False)},
     ]
-    retryable = {"NO_PAIN_BEAT", "LOW_COVERAGE", "PAIN_AFTER_SOLUTION", "UI_DEMO_REQUIRED"}
+    retryable = {"NO_PAIN_BEAT", "LOW_COVERAGE", "PAIN_AFTER_SOLUTION", "UI_DEMO_REQUIRED", "TTS_PRONUNCIATION_REQUIRED", "TTS_NARRATION_SYMBOLS"}
     for attempt in range(2):
         completion = client.complete(messages, max_tokens=min(14000, client.max_output_tokens))
         try:
@@ -347,7 +347,9 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
             if not codes or attempt:
                 raise ValueError(",".join(codes) if codes else str(exc)) from exc
             messages.extend([
-                {"role": "user", "content": "Sửa storyboard theo các lỗi: " + ",".join(codes) + ". Trả lại toàn bộ JSON."},
+                {"role": "user", "content": "Sửa storyboard theo các lỗi: " + ",".join(codes) + ". "
+                    + " ".join(line.strip() for line in str(exc).splitlines() if "TTS_" in line)[:400]
+                    + " Chỉ sửa lời narration, giữ nguyên phần còn lại. Trả lại toàn bộ JSON."},
             ])
             continue
         if score_storyboard(storyboard).static_shot_ratio > 0.5:
