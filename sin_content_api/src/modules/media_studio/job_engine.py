@@ -16,6 +16,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from src.models.entities import AIGenerationJob, WorkspaceBudget, CostLedger
+from src.modules.media_queue.service import enqueue_media_job, is_production, media_idempotency_hash, resolve_profile_id, TEST_PROVIDERS
 from src.modules.staging_reliability.budget_guard import budget_guard
 from src.schemas.contracts import AIGenerationJobCreate
 
@@ -109,10 +110,19 @@ class JobEngine:
         - GF05-08: Tôn trọng cờ tính năng Flow Pilot (FEATURE_FLAG_DISABLED).
         - B08: Chặn khi thiếu khóa API nhà cung cấp (BLOCKED_CREDENTIALS).
         """
-        # 1. Kiểm tra tính lũy đẳng (Idempotency check - B03 & GF05-05)
-        existing_job = db.query(AIGenerationJob).filter(
-            AIGenerationJob.idempotency_key == payload.idempotency_key
-        ).first()
+        production = is_production()
+        flow_providers = ("FLOW_MUSIC_ASSISTED", "GOOGLE_FLOW", "GOOGLE_FLOW_ASSISTED")
+        queue_provider = "MEDIA_VIDEO" if payload.asset_type == "VIDEO" else "MEDIA_MUSIC"
+        queue_key = media_idempotency_hash(workspace_id, queue_provider, payload.idempotency_key) if production and payload.provider in flow_providers else None
+        if production and payload.provider.upper() in TEST_PROVIDERS:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"error_code": "TEST_PROVIDER_DISABLED", "message": "Nhà cung cấp kiểm thử không được phép trong môi trường production."},
+            )
+
+        # 1. Kiểm tra tính lũy đẳng (Idempotency key is hashed for queued media jobs).
+        lookup_keys = (payload.idempotency_key, queue_key) if queue_key else (payload.idempotency_key,)
+        existing_job = db.query(AIGenerationJob).filter(AIGenerationJob.idempotency_key.in_(lookup_keys)).first()
 
         if existing_job:
             # Chặn truy cập chéo tenant (GF05-01: No cross-tenant metadata leakage)
@@ -121,6 +131,26 @@ class JobEngine:
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail={"error_code": "JOB_NOT_FOUND", "message": "Không tìm thấy tác vụ AI."}
                 )
+
+            if queue_key and existing_job.idempotency_key == queue_key:
+                requested_profile_id = resolve_profile_id(None, payload.parameters, workspace_id=workspace_id)
+                try:
+                    saved = json.loads(existing_job.request_payload_json)
+                except (TypeError, ValueError):
+                    saved = {}
+                if (
+                    saved.get("provider") != queue_provider
+                    or saved.get("operation") != "generate_flow_job"
+                    or saved.get("backend_provider") != payload.provider
+                    or saved.get("prompt_text") != payload.prompt_text
+                    or saved.get("parameters") != payload.parameters
+                    or (requested_profile_id is not None and saved.get("profile_id") != requested_profile_id)
+                    or existing_job.project_id != payload.project_id
+                ):
+                    raise HTTPException(
+                        status_code=status.HTTP_409_CONFLICT,
+                        detail={"error_code": "IDEMPOTENCY_CONFLICT", "message": "Khóa idempotency đã được dùng với yêu cầu khác."},
+                    )
 
             # GF05-05: Nếu tác vụ trước đó rơi vào trạng thái NEEDS_RECONCILIATION -> Chặn thử lại ngay
             if existing_job.state == "NEEDS_RECONCILIATION":
@@ -156,6 +186,14 @@ class JobEngine:
                     "message": "Phiên làm việc Google Flow đã hết hạn hoặc bị thu hồi quyền truy cập. Vui lòng đăng nhập lại."
                 }
             )
+
+        selected_profile_id = None
+        if production and payload.provider in flow_providers:
+            from src.modules.flow_sessions.service import resolve_profile
+
+            selected_profile_id = resolve_profile(
+                db, workspace_id, resolve_profile_id(None, payload.parameters, workspace_id=workspace_id)
+            ).id
 
         # 4. Kiểm tra trần ngân sách & Giữ chỗ (Budget Hardening Gate - B07, GF05-02, GF05-03, GF05-04)
         is_billable = payload.provider in ("GOOGLE_OFFICIAL", "GOOGLE_OFFICIAL_OMNI", "GOOGLE_OFFICIAL_LYRIA") or (
@@ -247,6 +285,25 @@ class JobEngine:
                 db.refresh(job)
                 return job
 
+        if production and payload.provider in flow_providers:
+            return enqueue_media_job(
+                db,
+                workspace_id=workspace_id,
+                user_id=user_id,
+                provider=queue_provider,
+                operation="generate_flow_job",
+                backend_provider=payload.provider,
+                provider_mode=payload.provider_mode,
+                model_id=payload.model_id,
+                prompt_text=payload.prompt_text,
+                parameters=payload.parameters,
+                idempotency_key=payload.idempotency_key,
+                project_id=payload.project_id,
+                profile_id=selected_profile_id,
+                estimated_cost=payload.estimated_cost,
+                credits_source="FLOW_MUSIC_PLUS" if payload.provider == "FLOW_MUSIC_ASSISTED" else "GOOGLE_FLOW_PRO",
+            )
+
         # 6. Khởi tạo tác vụ trong hàng đợi (State: QUEUED)
         job = AIGenerationJob(
             id=str(uuid.uuid4()),
@@ -282,43 +339,17 @@ class JobEngine:
 
     def _process_flow_job(self, db: Session, job: AIGenerationJob, payload: AIGenerationJobCreate):
         """Thực thi tác vụ Flow tự động qua Flow Provider (0đ chi phí gọi API)."""
+        if is_production():
+            raise RuntimeError("Production Flow jobs must run through the media queue worker.")
         job.state = "RUNNING"
         db.commit()
 
         try:
-            if payload.provider == "FLOW_MUSIC_ASSISTED":
-                from src.modules.media_studio.music_provider import music_orchestrator
-                res = music_orchestrator.flow_provider.generate(
-                    prompt=payload.prompt_text,
-                    genre=payload.parameters.get("genre", "Pop"),
-                    mood=payload.parameters.get("mood", "Upbeat"),
-                    lyrics=payload.parameters.get("lyrics"),
-                    workspace_id=job.workspace_id
-                )
-            else:
-                from src.modules.media_studio.video_provider import video_orchestrator
-                res = video_orchestrator.flow_provider.generate(
-                    prompt=payload.prompt_text,
-                    aspect_ratio=payload.parameters.get("aspect_ratio", "9:16"),
-                    workspace_id=job.workspace_id
-                )
-
-            from src.models.entities import MediaAsset
-            asset = MediaAsset(
-                id=str(uuid.uuid4()),
-                workspace_id=job.workspace_id,
-                project_id=job.project_id,
-                storage_key=res["relative_storage_key"],
-                sha256=res["sha256"],
-                byte_size=res["byte_size"],
-                mime_detected=res["mime_detected"],
-                duration_ms=res.get("duration_ms", 60000),
-                source_product=res["source_product"],
-                original_filename=res["filename"],
-                approval_state="UNREVIEWED",
-                created_by=job.created_by
-            )
-            db.add(asset)
+            asset = self._execute_flow_payload(db, job, {
+                "backend_provider": payload.provider,
+                "prompt_text": payload.prompt_text,
+                "parameters": payload.parameters,
+            })
 
             # Cập nhật job hoàn tất với chi phí 0đ
             job.state = "SUCCEEDED"
@@ -334,6 +365,47 @@ class JobEngine:
             job.finished_at = utc_now()
             db.commit()
 
+    def _execute_flow_payload(self, db: Session, job: AIGenerationJob, request: dict[str, Any]):
+        """Run the existing generic Flow provider logic; production calls this only from the media worker."""
+        provider = request.get("backend_provider") or job.provider
+        prompt_text = request["prompt_text"]
+        parameters = request.get("parameters") or {}
+        if provider == "FLOW_MUSIC_ASSISTED":
+            from src.modules.media_studio.music_provider import music_orchestrator
+            result = music_orchestrator.flow_provider.generate(
+                prompt=prompt_text,
+                genre=parameters.get("genre", "Pop"),
+                mood=parameters.get("mood", "Upbeat"),
+                lyrics=parameters.get("lyrics"),
+                workspace_id=job.workspace_id,
+            )
+        else:
+            from src.modules.media_studio.video_provider import video_orchestrator
+            result = video_orchestrator.flow_provider.generate(
+                prompt=prompt_text,
+                aspect_ratio=parameters.get("aspect_ratio", "9:16"),
+                workspace_id=job.workspace_id,
+            )
+
+        from src.models.entities import MediaAsset
+        asset = MediaAsset(
+            id=str(uuid.uuid4()),
+            workspace_id=job.workspace_id,
+            project_id=job.project_id,
+            storage_key=result["relative_storage_key"],
+            sha256=result["sha256"],
+            byte_size=result["byte_size"],
+            mime_detected=result["mime_detected"],
+            duration_ms=result.get("duration_ms", 60000),
+            source_product=result["source_product"],
+            original_filename=result["filename"],
+            approval_state="UNREVIEWED",
+            created_by=job.created_by,
+        )
+        db.add(asset)
+        db.flush()
+        return asset
+
     def _process_fake_job(
         self,
         db: Session,
@@ -343,6 +415,8 @@ class JobEngine:
         is_billable: bool = False
     ):
         """Thực hiện chu trình chuyển đổi trạng thái với cơ chế Bounded Retry và đối soát ngân sách (B06, GF05-05)."""
+        if is_production():
+            raise RuntimeError("Fake providers are disabled in production.")
         job.state = "RUNNING"
         db.commit()
 

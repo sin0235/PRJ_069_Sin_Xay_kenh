@@ -24,7 +24,7 @@ def test_vieneu_loads_turbo_on_cpu_with_isolated_non_shared_cache(tmp_path, monk
 
     assert calls == [{
         "mode": "v3turbo", "device": "cpu", "backend": "onnx",
-        "precision": "fp32", "threads": 0,
+        "precision": "fp32", "threads": 2,
     }]
     assert os.environ["HF_HOME"] == str(tmp_path / "vieneu-hf")
     assert os.environ["HF_HUB_DISABLE_SYMLINKS"] == "1"
@@ -52,5 +52,5 @@ def test_vieneu_clone_uses_reference_denoising_and_sdk_sample_rate():
     assert model.request == ("Xin chào", {
         "ref_audio": "voice.wav", "denoise": True, "use_ref_codes": True,
         "temperature": 0.8, "top_k": 25, "top_p": 0.95,
-        "repetition_penalty": 1.2, "max_new_frames": 300, "max_chars": 256,
+        "repetition_penalty": 1.2, "max_new_frames": 300, "max_chars": 100,
     })

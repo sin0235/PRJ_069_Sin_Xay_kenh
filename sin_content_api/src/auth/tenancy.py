@@ -10,9 +10,9 @@ import ipaddress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterator, Optional
-from urllib.parse import urlparse
+from urllib.parse import urlsplit
 
-from fastapi import Depends, Header, HTTPException, Request, status
+from fastapi import Cookie, Depends, Header, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
 
@@ -44,7 +44,7 @@ def dev_auth_bypass_enabled(request: Request) -> bool:
     origin = request.headers.get("origin")
     if origin:
         try:
-            origin_host = urlparse(origin).hostname or ""
+            origin_host = urlsplit(origin).hostname or ""
         except ValueError:
             return False
         try:
@@ -117,6 +117,74 @@ def _canonical_auth_modules() -> dict[str, Any]:
     }
 
 
+def require_trusted_origin(request: Request, *, required: bool = True) -> None:
+    raw_origin = request.headers.get("origin")
+    if not raw_origin:
+        if required:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Origin không hợp lệ.")
+        return
+    try:
+        parsed = urlsplit(raw_origin)
+        origin = f"{parsed.scheme.lower()}://{parsed.netloc.lower()}"
+        valid = (
+            parsed.scheme in {"http", "https"}
+            and bool(parsed.hostname)
+            and not parsed.username
+            and not parsed.password
+            and parsed.path == ""
+            and not parsed.query
+            and not parsed.fragment
+            and origin in settings.auth_allowed_origins_set
+        )
+    except ValueError:
+        valid = False
+    if not valid:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Origin không hợp lệ.")
+
+
+def owner_direct_creation(tenant: TenantContext) -> bool:
+    """Cho phép owner đã cấu hình bỏ bước duyệt riêng cho luồng tạo trực tiếp."""
+    actor = tenant.actor
+    if (
+        tenant.dev_auth_bypass
+        or not tenant.auth_db
+        or not actor
+        or actor.user_id != tenant.user_id
+        or actor.workspace_id != tenant.workspace_id
+        or actor.membership_status != "ACTIVE"
+        or actor.user_status != "ACTIVE"
+        or actor.workspace_status != "ACTIVE"
+    ):
+        return False
+
+    owner_grant = any(
+        role.get("role_code") in {"WORKSPACE_OWNER", "PLATFORM_OWNER"}
+        and role.get("scope_type") == "WORKSPACE"
+        and role.get("scope_id") in {None, tenant.workspace_id}
+        and role.get("assignment_status") == "ACTIVE"
+        and role.get("role_status") == "ACTIVE"
+        and role.get("is_active") is True
+        for role in actor.roles
+    )
+    if not owner_grant or (not settings.auth_owner_email and not settings.platform_owner_ids_set):
+        return False
+
+    try:
+        from baha_auth.src.models.entities import GlobalUser
+
+        user = tenant.auth_db.get(GlobalUser, tenant.user_id)
+    except Exception:
+        return False
+    return bool(
+        user
+        and user.status == "ACTIVE"
+        and (
+            user.id in settings.platform_owner_ids_set
+            or user.email.casefold() == settings.auth_owner_email
+        )
+    )
+
+
 def _close_generator(generator: Iterator[Session]) -> None:
     close = getattr(generator, "close", None)
     if close is not None:
@@ -126,6 +194,7 @@ def _close_generator(generator: Iterator[Session]) -> None:
 def get_current_tenant_context(
     request: Request,
     authorization: Optional[str] = Header(None, alias="Authorization"),
+    baha_auth_token: Optional[str] = Cookie(None, alias="baha_auth_token"),
     x_workspace_id: Optional[str] = Header(None, alias="X-Workspace-Id"),
     content_db: Session = Depends(get_content_db),
 ) -> Iterator[TenantContext]:
@@ -144,20 +213,32 @@ def get_current_tenant_context(
         )
         return
 
-    if not authorization or not authorization.startswith("Bearer "):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Cần bearer token hợp lệ.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    token = authorization[len("Bearer "):].strip()
+    token = ""
+    used_cookie = False
+    if authorization is not None:
+        if not authorization.startswith("Bearer "):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Cần bearer token hợp lệ.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        token = authorization[len("Bearer "):].strip()
+        if not token and baha_auth_token:
+            token = baha_auth_token
+            used_cookie = True
+    elif baha_auth_token:
+        token = baha_auth_token
+        used_cookie = True
+
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Cần bearer token hợp lệ.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    if not x_workspace_id or not _WORKSPACE_ID.fullmatch(x_workspace_id):
+    if used_cookie and request.method.upper() not in {"GET", "HEAD", "OPTIONS"}:
+        require_trusted_origin(request)
+    if x_workspace_id is not None and not _WORKSPACE_ID.fullmatch(x_workspace_id):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Cần chọn workspace hợp lệ.",
@@ -178,31 +259,38 @@ def get_current_tenant_context(
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
 
+    workspace_id = x_workspace_id or identity.workspace_id
+    if not workspace_id or not _WORKSPACE_ID.fullmatch(workspace_id):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Cần chọn workspace hợp lệ.",
+        )
+
     auth_db_generator = auth["get_auth_db"]()
     auth_db: Optional[Session] = None
     try:
         auth_db = next(auth_db_generator)
-        auth["set_tenant_context"](x_workspace_id, auth_db)
+        auth["set_tenant_context"](workspace_id, auth_db)
         actor = auth["load_actor_for_user"](
             auth_db,
-            workspace_id=x_workspace_id,
+            workspace_id=workspace_id,
             user_id=identity.user_id,
         )
-        if actor is None or actor.user_id != identity.user_id or actor.workspace_id != x_workspace_id:
+        if actor is None or actor.user_id != identity.user_id or actor.workspace_id != workspace_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Không có quyền truy cập workspace đã chọn.",
             )
 
         # Membership chuẩn không tự tạo workspace trong kho nội dung tách biệt.
-        if content_db.query(Workspace.id).filter(Workspace.id == x_workspace_id).first() is None:
+        if content_db.query(Workspace.id).filter(Workspace.id == workspace_id).first() is None:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Không có quyền truy cập workspace đã chọn.",
             )
 
         yield TenantContext(
-            workspace_id=x_workspace_id,
+            workspace_id=workspace_id,
             user_id=identity.user_id,
             actor=actor,
             auth_db=auth_db,
@@ -211,7 +299,6 @@ def get_current_tenant_context(
     except (HTTPException, RequestValidationError):
         raise
     except Exception as exc:
-        import traceback; traceback.print_exc()
         if auth_db is not None:
             auth_db.rollback()
         raise HTTPException(
@@ -257,14 +344,12 @@ def _audit_decision(
             safe_metadata={},
         )
         ctx.auth_db.commit()
-    except Exception as exc:
+    except Exception:
         ctx.auth_db.rollback()
-        import logging; logging.getLogger('auth_audit').warning('Audit write error: %s', exc)
-        if False:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Không thể ghi nhận quyết định phân quyền.",
-            ) from exc
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Không thể ghi nhận quyết định phân quyền.",
+        ) from None
 
 
 def authorize_action(ctx: TenantContext, action_key: str, resource: Any = None) -> None:

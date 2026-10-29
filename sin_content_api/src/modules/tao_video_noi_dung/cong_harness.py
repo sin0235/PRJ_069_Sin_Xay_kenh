@@ -49,10 +49,15 @@ def build_shot_receipt(
         "shot_id": shot.shot_id,
         "style_snapshot_sha256": plan.style_snapshot_sha256,
         "approval_sha256": approval_receipt_hash(plan),
-        "prompt": build_shot_prompt(style_snapshot, shot, continuity_anchor, include_narration_audio),
+        "prompt": (
+            shot.ui_scene.model_dump_json() if shot.shot_kind == "UI_SIM" else
+            build_shot_prompt(style_snapshot, shot, continuity_anchor, include_narration_audio)
+        ),
         "aspect_ratio": style_snapshot.get("aspect_ratio", "9:16"),
         "duration_seconds": shot.duration_seconds,
     }
+    if shot.shot_kind == "UI_SIM":
+        command["shot_kind"] = "UI_SIM"
     return {**command, "command_sha256": canonical_hash(command), "state": "READY", "asset_id": None}
 
 
@@ -84,7 +89,8 @@ def verify_shot_receipt(run: ContentVideoRun, plan: ContentVideoPlan, shot: Stor
         "run_id": run.id,
         "plan_id": plan.id,
         "plan_revision": plan.revision,
-        "voice_asset_id": run.voice_asset_id,
+        # TTS is generated after enqueue and mixed locally, never sent to Flow.
+        "voice_asset_id": None if getattr(run, "tts_config_json", None) and step.get("voice_asset_id") is None else run.voice_asset_id,
         "shot_id": shot.shot_id,
         "style_snapshot_sha256": plan.style_snapshot_sha256,
         "approval_sha256": run.approval_sha256,
@@ -92,6 +98,9 @@ def verify_shot_receipt(run: ContentVideoRun, plan: ContentVideoPlan, shot: Stor
         "aspect_ratio": style.get("aspect_ratio", "9:16"),
         "duration_seconds": shot.duration_seconds,
     }
+    if shot.shot_kind == "UI_SIM":
+        expected["shot_kind"] = "UI_SIM"
+        expected["prompt"] = shot.ui_scene.model_dump_json()
     if step.get("state") not in {"READY", "SUBMITTING", "CLEANING", "SUCCEEDED", "NEEDS_RECONCILIATION"}:
         raise RuntimeError("HARNESS_COMMAND_STATE_INVALID")
     if any(step.get(key) != value for key, value in expected.items()):
@@ -114,6 +123,8 @@ def dispatch_shot(
     on_flow_project_created=None,
 ) -> MediaAsset:
     command = verify_shot_receipt(run, plan, shot, step)
+    if shot.shot_kind != "FLOW_ORIGAMI":
+        raise RuntimeError("FLOW_SHOT_REQUIRED")
     if step.get("state") != "SUBMITTING":
         raise RuntimeError("HARNESS_COMMAND_NOT_CLAIMED")
     return video_orchestrator.generate_video_scene(

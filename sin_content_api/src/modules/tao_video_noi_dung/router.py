@@ -1,17 +1,18 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Body
 from sqlalchemy.orm import Session
 
 from src.auth.tenancy import (
     TenantContext,
+    owner_direct_creation,
     authorize_resource,
     require_action,
     require_resolved_resource_action,
 )
 from src.database import get_db
 from baha_auth.src.policy.evaluator import e2e_test_self_approval_enabled
-from .contracts import ContentVideoPlanResponse, ContentVideoRunResponse, CreatePlanRequest, CreateRunRequest, ReconcileShotRequest, RetryRunRequest, UpdateStoryboardRequest
+from .contracts import ContentVideoPlanResponse, ContentVideoRunResponse, CreatePlanRequest, CreateRunRequest, ResumeRunRequest, ReconcileShotRequest, RerenderRunRequest, RetryRunRequest, UpdateStoryboardRequest
 from .runner import reconcile_shot
-from .service import approve_plan, create_plan, create_run, get_latest_history, get_plan, get_run, resume_run, retry_run, update_plan
+from .service import approve_plan, create_plan, create_run, get_latest_history, get_plan, get_run, rerender_run, resume_run, retry_run, update_plan
 
 
 router = APIRouter(prefix="/v1/media/projects/{project_id}/content-video", tags=["Content Video Production"])
@@ -92,7 +93,8 @@ def create_content_video_run(
     db: Session = Depends(get_db),
     tenant: TenantContext = Depends(require_action("media.upload")),
 ):
-    return create_run(db, project_id, tenant.workspace_id, tenant.user_id, payload)
+    return create_run(db, project_id, tenant.workspace_id, tenant.user_id, payload,
+        allow_direct_creation=owner_direct_creation(tenant))
 
 
 @router.get("/runs/{run_id}", response_model=ContentVideoRunResponse)
@@ -109,10 +111,22 @@ def read_content_video_run(
 def resume_content_video_run(
     project_id: str,
     run_id: str,
+    payload: ResumeRunRequest | None = Body(default=None),
     db: Session = Depends(get_db),
     tenant: TenantContext = Depends(require_action("media.upload")),
 ):
-    return resume_run(db, project_id, run_id, tenant.workspace_id)
+    return resume_run(db, project_id, run_id, tenant.workspace_id, profile_id=payload.flow_profile_id if payload else None)
+
+
+@router.post("/runs/{run_id}/rerender", response_model=ContentVideoRunResponse, status_code=202)
+def rerender_content_video_run(
+    project_id: str,
+    run_id: str,
+    payload: RerenderRunRequest,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(require_action("media.upload")),
+):
+    return rerender_run(db, project_id, run_id, tenant.workspace_id, payload.include_subtitles)
 
 
 @router.post("/runs/{run_id}/retry", response_model=ContentVideoRunResponse, status_code=202)

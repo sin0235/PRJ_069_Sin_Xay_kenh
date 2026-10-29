@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
+
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Eye, EyeOff, Loader2, Lock, LogIn, Mail } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { LogIn, Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -24,11 +25,14 @@ export function LoginForm() {
   const [loading, setLoading] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
   const [alreadyAuthed, setAlreadyAuthed] = React.useState(false);
+  const [checkingSession, setCheckingSession] = React.useState(true);
 
   React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      // 1. Nếu người dùng đã có token hợp lệ, tự động chuyển ngay vào Dashboard
-      if (AuthApi.isAuthenticated()) {
+    let cancelled = false;
+    async function initialize() {
+      const session = await AuthApi.refreshSession();
+      if (cancelled) return;
+      if (session) {
         setAlreadyAuthed(true);
         window.location.replace("/dashboard");
         return;
@@ -40,7 +44,13 @@ export function LoginForm() {
       if (redirect && !redirect.startsWith("/auth") && redirect !== "/") {
         setTargetUrl(redirect);
       }
+      setCheckingSession(false);
     }
+
+    void initialize();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -61,9 +71,7 @@ export function LoginForm() {
           description: "Đang tự động chuyển hướng vào không gian làm việc...",
         });
 
-        const destination = targetUrl && targetUrl !== "/" && !targetUrl.startsWith("/auth")
-          ? targetUrl
-          : "/dashboard";
+        const destination = targetUrl && targetUrl !== "/" && !targetUrl.startsWith("/auth") ? targetUrl : "/dashboard";
 
         // Tự động chuyển hướng ngay lập tức (Hard Redirect qua window.location.replace)
         setTimeout(() => {
@@ -71,7 +79,7 @@ export function LoginForm() {
         }, 150);
       } else {
         toast.error("Đăng nhập thất bại", {
-          description: res.error || "Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.",
+          description: res.error ?? "Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.",
         });
         setLoading(false);
       }
@@ -83,11 +91,13 @@ export function LoginForm() {
     }
   }
 
-  if (alreadyAuthed) {
+  if (checkingSession || alreadyAuthed) {
     return (
       <div className="flex flex-col items-center justify-center p-8 gap-3 text-center">
         <Loader2 className="size-6 animate-spin text-primary" />
-        <p className="text-sm font-medium text-foreground">Bạn đã đăng nhập. Đang chuyển vào hệ thống...</p>
+        <p className="text-sm font-medium text-foreground">
+          {alreadyAuthed ? "Bạn đã đăng nhập. Đang chuyển vào hệ thống..." : "Đang xác minh phiên đăng nhập..."}
+        </p>
       </div>
     );
   }
@@ -164,7 +174,11 @@ export function LoginForm() {
           control={form.control}
           name="remember"
           render={({ field, fieldState }) => (
-            <Field orientation="horizontal" className="items-center justify-between pt-1" data-invalid={fieldState.invalid}>
+            <Field
+              orientation="horizontal"
+              className="items-center justify-between pt-1"
+              data-invalid={fieldState.invalid}
+            >
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="login-remember"
@@ -175,7 +189,10 @@ export function LoginForm() {
                   disabled={loading}
                   className="rounded-md"
                 />
-                <FieldLabel htmlFor="login-remember" className="font-normal text-xs text-muted-foreground cursor-pointer select-none">
+                <FieldLabel
+                  htmlFor="login-remember"
+                  className="font-normal text-xs text-muted-foreground cursor-pointer select-none"
+                >
                   Ghi nhớ phiên đăng nhập
                 </FieldLabel>
               </div>

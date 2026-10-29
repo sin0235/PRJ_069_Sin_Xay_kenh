@@ -1,9 +1,7 @@
 import { Script, ScriptBlock } from '@/types';
 import { AuthApi } from '@/lib/api/auth-api';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
-
-function getAuthHeaders(workspaceId: string = 'default_ws'): Record<string, string> {
+function getAuthHeaders(workspaceId?: string): Record<string, string> {
   const headers = AuthApi.getAuthHeaders();
   if (workspaceId) headers['X-Workspace-Id'] = workspaceId;
   return headers;
@@ -62,9 +60,10 @@ function mapBackendScriptToFrontend(s: any): Script {
 }
 
 export class ScriptService {
-  static async getScriptById(id: string, workspaceId: string = 'default_ws'): Promise<Script | null> {
+  static async getScriptById(id: string, workspaceId?: string): Promise<Script | null> {
     try {
-      const res = await fetch(`${API_BASE_URL}/v1/scripts/${id}`, {
+      const res = await fetch(`/v1/scripts/${id}`, {
+        credentials: 'same-origin',
         headers: getAuthHeaders(workspaceId),
       });
       if (res.ok) {
@@ -79,7 +78,7 @@ export class ScriptService {
 
   static async listScripts(
     filters?: { idea_id?: string; status?: string },
-    workspaceId: string = 'default_ws'
+    workspaceId?: string
   ): Promise<Script[]> {
     try {
       const params = new URLSearchParams();
@@ -87,7 +86,8 @@ export class ScriptService {
       if (filters?.status) params.set('status', filters.status);
       params.set('limit', '50');
 
-      const res = await fetch(`${API_BASE_URL}/v1/scripts?${params.toString()}`, {
+      const res = await fetch(`/v1/scripts?${params.toString()}`, {
+        credentials: 'same-origin',
         headers: getAuthHeaders(workspaceId),
       });
       if (res.ok) {
@@ -115,7 +115,7 @@ export class ScriptService {
         duration_seconds: number;
       }>;
     },
-    workspaceId: string = 'default_ws'
+    workspaceId?: string
   ): Promise<Script> {
     const targetDuration = payload.target_duration_seconds || 30;
     const defaultBlocks = [
@@ -164,8 +164,9 @@ export class ScriptService {
       blocks: payload.blocks && payload.blocks.length >= 3 ? payload.blocks : defaultBlocks,
     };
 
-    const res = await fetch(`${API_BASE_URL}/v1/scripts`, {
+    const res = await fetch('/v1/scripts', {
       method: 'POST',
+      credentials: 'same-origin',
       headers: getAuthHeaders(workspaceId),
       body: JSON.stringify(body),
     });
@@ -179,7 +180,7 @@ export class ScriptService {
     return mapBackendScriptToFrontend(data);
   }
 
-  static async updateScript(script: Script, workspaceId: string = 'default_ws'): Promise<Script> {
+  static async updateScript(script: Script, workspaceId?: string): Promise<Script> {
     try {
       const hookBlocks = script.blocks.filter((b) => b.type === 'HOOK');
       const hookVariants = hookBlocks.map((b) => b.content);
@@ -200,8 +201,9 @@ export class ScriptService {
         editor_notes: 'Lưu từ Creator Studio Script Editor',
       };
 
-      const res = await fetch(`${API_BASE_URL}/v1/scripts/${script.id}/edit`, {
+      const res = await fetch(`/v1/scripts/${script.id}/edit`, {
         method: 'POST',
+        credentials: 'same-origin',
         headers: getAuthHeaders(workspaceId),
         body: JSON.stringify(body),
       });
@@ -216,9 +218,10 @@ export class ScriptService {
     return Promise.resolve(script);
   }
 
-  static async approveScript(scriptId: string, workspaceId: string = 'default_ws'): Promise<Script> {
-    const res = await fetch(`${API_BASE_URL}/v1/scripts/${scriptId}/approve`, {
+  static async approveScript(scriptId: string, workspaceId?: string): Promise<Script> {
+    const res = await fetch(`/v1/scripts/${scriptId}/approve`, {
       method: 'POST',
+      credentials: 'same-origin',
       headers: getAuthHeaders(workspaceId),
     });
 

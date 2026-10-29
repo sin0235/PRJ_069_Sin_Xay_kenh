@@ -1,8 +1,107 @@
 // Client Service giao tiếp với Backend Media Studio API (PRJ_069)
 // Tích hợp Flow Music Plus, Google Flow 9:16 và FFmpeg Auto-Ducking
 import { AuthApi } from "@/lib/api/auth-api";
+import { getApiBaseUrl } from "@/lib/api/base-url";
+import { randomUuid } from "@/lib/utils";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+const API_BASE_URL = getApiBaseUrl();
+
+function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  return fetch(input, { ...init, credentials: "include" });
+}
+
+function mediaAuthHeaders(
+  workspaceId = AuthApi.getWorkspaceId(),
+  token?: string,
+  contentType?: string,
+): Record<string, string> {
+  const headers = { ...AuthApi.getAuthHeaders() };
+  delete headers["Content-Type"];
+
+  if (workspaceId.trim()) headers["X-Workspace-Id"] = workspaceId.trim();
+  else delete headers["X-Workspace-Id"];
+
+  const explicitToken = token?.trim();
+  if (explicitToken) headers.Authorization = `Bearer ${explicitToken}`;
+  else if (!headers.Authorization?.trim() || headers.Authorization.trim() === "Bearer") {
+    delete headers.Authorization;
+  }
+
+  if (contentType) headers["Content-Type"] = contentType;
+  return headers;
+}
+
+function apiErrorMessage(value: unknown, fallback: string): string {
+  const body = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const detail = body.detail;
+  const nested = detail && typeof detail === "object" ? detail as Record<string, unknown> : {};
+  for (const message of [body.message_safe, nested.message, nested.error_message, nested.error_code, detail, body.error_message, body.error_code]) {
+    if (typeof message === "string" && message.trim()) return message;
+  }
+  return fallback;
+}
+
+async function responseErrorMessage(res: Response, fallback: string): Promise<string> {
+  return apiErrorMessage(await res.json().catch(() => null), fallback);
+}
+
+interface MediaJobStatusResponse {
+  state: string;
+  output_asset_ids?: string[];
+  asset?: MediaAssetResponse | null;
+  error_code?: string | null;
+  error_message?: string | null;
+}
+
+interface AsyncMediaJobResponse {
+  job_id: string;
+  state: string;
+}
+
+function mediaJobError(job: MediaJobStatusResponse, jobId?: string): Error & {
+  jobId?: string;
+  canResume?: boolean;
+  resumeUrl?: string;
+  errorCode?: string;
+} {
+  const message = job.error_message || job.error_code || "Tác vụ tạo media không hoàn tất.";
+  const error = new Error(job.error_code && job.error_message && !job.error_message.includes(job.error_code)
+    ? `${message} (${job.error_code})`
+    : message) as Error & { jobId?: string; canResume?: boolean; resumeUrl?: string; errorCode?: string };
+  error.jobId = jobId;
+  error.errorCode = job.error_code ?? undefined;
+  error.canResume = job.state === "BLOCKED_FLOW_LOGIN"
+    || job.state === "BLOCKED_FLOW_QUOTA"
+    || job.state === "BLOCKED_FLOW_SETUP";
+  if (error.canResume) error.resumeUrl = "/flow-sessions";
+  return error;
+}
+
+async function waitForMediaAsset(jobId: string, headers: Record<string, string>): Promise<MediaAssetResponse> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 10 * 60 * 1000) {
+    const res = await apiFetch(`${API_BASE_URL}/v1/ai-jobs/${encodeURIComponent(jobId)}`, { headers });
+    if (!res.ok) {
+      throw new Error(await responseErrorMessage(res, `Không thể kiểm tra trạng thái tác vụ (${res.status}).`));
+    }
+    const job: MediaJobStatusResponse = await res.json();
+    if (job.state === "SUCCEEDED") {
+      if (job.asset) return formatAsset(job.asset);
+      const assetId = job.output_asset_ids?.[0];
+      if (!assetId) throw new Error("Tác vụ đã hoàn tất nhưng không có mã tệp media.");
+      const assetRes = await apiFetch(`${API_BASE_URL}/v1/media/assets/${encodeURIComponent(assetId)}`, { headers });
+      if (!assetRes.ok) {
+        throw new Error(await responseErrorMessage(assetRes, `Không thể tải tệp media (${assetRes.status}).`));
+      }
+      return formatAsset(await assetRes.json());
+    }
+    if (["FAILED", "NEEDS_RECONCILIATION", "BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_QUOTA", "BLOCKED_FLOW_SETUP", "CANCELLED", "EXPIRED"].includes(job.state)) {
+      throw mediaJobError(job, jobId);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+  throw new Error("Tác vụ vẫn đang được xử lý; hãy kiểm tra lại thư viện media sau.");
+}
 
 function formatAsset(asset: MediaAssetResponse): MediaAssetResponse {
   if (asset && asset.url && asset.url.startsWith("/")) {
@@ -12,11 +111,8 @@ function formatAsset(asset: MediaAssetResponse): MediaAssetResponse {
 }
 
 async function fetchAssetBlob(url: string): Promise<Blob> {
-  const res = await fetch(url, {
-    headers: {
-      "X-Workspace-Id": AuthApi.getWorkspaceId(),
-      Authorization: `Bearer ${AuthApi.getAuthToken()}`,
-    },
+  const res = await apiFetch(url, {
+    headers: mediaAuthHeaders(),
   });
   if (!res.ok) throw new Error(`Không thể tải tệp media (${res.status}).`);
   return res.blob();
@@ -155,6 +251,7 @@ export interface GenerateMusicParams {
 }
 
 interface MusicJobStatusResponse {
+  job_id?: string;
   state: string;
   error_code?: string | null;
   error_message?: string | null;
@@ -176,6 +273,7 @@ export interface GenerateVideoParams {
   use_official_omni?: boolean;
   remove_watermark?: boolean;
   project_id?: string;
+  idempotency_key?: string;
   workspace_id?: string;
   token?: string;
 }
@@ -189,20 +287,17 @@ export interface AssembleVideoParams {
 
 export const mediaStudioApi = {
   async listProjects(): Promise<ProductionProjectResponse[]> {
-    const res = await fetch(`${API_BASE_URL}/v1/media/projects`, {
-      headers: {
-        "X-Workspace-Id": AuthApi.getWorkspaceId(),
-        Authorization: `Bearer ${AuthApi.getAuthToken()}`,
-      },
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/projects`, {
+      headers: mediaAuthHeaders(),
     });
     if (!res.ok) throw new Error(`Không thể tải dự án (${res.status}).`);
     return res.json();
   },
 
   async createProject(title: string): Promise<ProductionProjectResponse> {
-    const res = await fetch(`${API_BASE_URL}/v1/media/projects`, {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/projects`, {
       method: "POST",
-      headers: AuthApi.getAuthHeaders(),
+      headers: mediaAuthHeaders(undefined, undefined, "application/json"),
       body: JSON.stringify({ title }),
     });
     if (!res.ok) {
@@ -213,26 +308,31 @@ export const mediaStudioApi = {
   },
 
   async openGoogleFlowLogin(): Promise<void> {
-    const res = await fetch(`${API_BASE_URL}/v1/media/flow/login`, {
+    if (typeof window === "undefined") return;
+    window.open("/flow-sessions", "_blank", "noopener,noreferrer");
+  },
+
+  async resumeAiJob(
+    jobId: string,
+    opts: { profile_id?: string; workspace_id?: string; token?: string } = {},
+  ): Promise<MediaAssetResponse> {
+    const query = opts.profile_id ? `?profile_id=${encodeURIComponent(opts.profile_id)}` : "";
+    const selectedWorkspace = opts.workspace_id?.trim() ? opts.workspace_id : AuthApi.getWorkspaceId();
+    const headers = mediaAuthHeaders(selectedWorkspace, opts.token);
+    const res = await apiFetch(`${API_BASE_URL}/v1/ai-jobs/${encodeURIComponent(jobId)}/resume${query}`, {
       method: "POST",
-      headers: {
-        "X-Workspace-Id": AuthApi.getWorkspaceId(),
-        Authorization: `Bearer ${AuthApi.getAuthToken()}`,
-      },
+      headers,
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message_safe || err.detail?.message || err.detail || `Không thể mở đăng nhập Google Flow (${res.status}).`);
-    }
+    const data: AsyncMediaJobResponse = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(apiErrorMessage(data, `Không thể tiếp tục tác vụ (${res.status}).`));
+    if (data.job_id) return waitForMediaAsset(data.job_id, headers);
+    throw new Error("Máy chủ không trả mã tác vụ để tiếp tục.");
   },
 
   async getMusicCapabilities(): Promise<MusicCapabilitiesResponse> {
-    const res = await fetch(`${API_BASE_URL}/v1/media/music/capabilities`, {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/music/capabilities`, {
       method: "GET",
-      headers: {
-        "X-Workspace-Id": AuthApi.getWorkspaceId(),
-        Authorization: `Bearer ${AuthApi.getAuthToken()}`,
-      },
+      headers: mediaAuthHeaders(),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -246,12 +346,9 @@ export const mediaStudioApi = {
     formData.append("decision", decision);
     if (reviewNotes) formData.append("review_notes", reviewNotes);
 
-    const res = await fetch(`${API_BASE_URL}/v1/media/assets/${assetId}/review`, {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/assets/${assetId}/review`, {
       method: "POST",
-      headers: {
-        "X-Workspace-Id": AuthApi.getWorkspaceId(),
-        Authorization: `Bearer ${AuthApi.getAuthToken()}`,
-      },
+      headers: mediaAuthHeaders(),
       body: formData,
     });
     if (!res.ok) {
@@ -274,54 +371,47 @@ export const mediaStudioApi = {
     if (params.mode) formData.append("mode", params.mode);
     if (params.duration_sec) formData.append("duration_sec", String(params.duration_sec));
     if (params.project_id) formData.append("project_id", params.project_id);
-    if (params.idempotency_key) formData.append("idempotency_key", params.idempotency_key);
+    const idempotencyKey = params.idempotency_key || randomUuid();
+    formData.append("idempotency_key", idempotencyKey);
     formData.append("normalize_tiktok", String(params.normalize_tiktok !== false));
 
-    const authToken = params.token || AuthApi.getAuthToken();
     const wsId = params.workspace_id || AuthApi.getWorkspaceId();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      "Authorization": `Bearer ${authToken}`,
-    };
+    const headers = mediaAuthHeaders(wsId, params.token);
 
-    const res = await fetch(`${API_BASE_URL}/v1/media/music/generate`, {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/music/generate`, {
       method: "POST",
       headers,
       body: formData,
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message_safe || err.detail?.message || err.detail || `Lỗi tạo nhạc: ${res.statusText}`);
-    }
-    const data: MediaAssetResponse = await res.json();
-    return formatAsset(data);
+    const data: MediaAssetResponse | AsyncMediaJobResponse = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(apiErrorMessage(data, `Lỗi tạo nhạc: ${res.statusText}`));
+    if ("job_id" in data && data.job_id) return waitForMediaAsset(data.job_id, headers);
+    if ("id" in data && data.id) return formatAsset(data);
+    throw new Error("Máy chủ không trả mã tác vụ hoặc tệp nhạc.");
   },
 
   async waitForMusicResult(idempotencyKey: string, signal: AbortSignal): Promise<MediaAssetResponse> {
     const startedAt = Date.now();
     while (Date.now() - startedAt < 10 * 60 * 1000) {
       try {
-        const res = await fetch(`${API_BASE_URL}/v1/media/music/jobs/${encodeURIComponent(idempotencyKey)}`, {
-          headers: {
-            "X-Workspace-Id": AuthApi.getWorkspaceId(),
-            Authorization: `Bearer ${AuthApi.getAuthToken()}`,
-          },
+        const res = await apiFetch(`${API_BASE_URL}/v1/media/music/jobs/${encodeURIComponent(idempotencyKey)}`, {
+          headers: mediaAuthHeaders(),
           signal,
         });
         if (res.status === 404) {
           await new Promise((resolve) => setTimeout(resolve, 2000));
           continue;
         }
-        if (!res.ok) throw new Error(`Không thể kiểm tra trạng thái tạo nhạc (${res.status}).`);
+        if (!res.ok) throw new Error(await responseErrorMessage(res, `Không thể kiểm tra trạng thái tạo nhạc (${res.status}).`));
 
         const job: MusicJobStatusResponse = await res.json();
         if (job.state === "SUCCEEDED") {
           if (!job.asset) throw new Error("Tác vụ đã hoàn tất nhưng không tìm thấy tệp nhạc đã lưu.");
           return formatAsset(job.asset);
         }
-        if (job.state === "FAILED" || job.state === "NEEDS_RECONCILIATION") {
-          throw new Error(job.error_message || job.error_code || "Tác vụ tạo nhạc không hoàn tất.");
+        if (["FAILED", "NEEDS_RECONCILIATION", "BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_QUOTA", "BLOCKED_FLOW_SETUP", "CANCELLED", "EXPIRED"].includes(job.state)) {
+          throw mediaJobError(job, job.job_id);
         }
       } catch (error) {
         if (signal.aborted || error instanceof Error && error.message !== "Failed to fetch") throw error;
@@ -338,14 +428,10 @@ export const mediaStudioApi = {
     formData.append("music_asset_id", params.music_asset_id);
     formData.append("music_attenuation_db", String(params.music_attenuation_db ?? -18.0));
 
-    const authToken = params.token || AuthApi.getAuthToken();
     const wsId = params.workspace_id || AuthApi.getWorkspaceId();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      "Authorization": `Bearer ${authToken}`,
-    };
+    const headers = mediaAuthHeaders(wsId, params.token);
 
-    const res = await fetch(`${API_BASE_URL}/v1/media/audio/mix`, {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/audio/mix`, {
       method: "POST",
       headers,
       body: formData,
@@ -368,14 +454,10 @@ export const mediaStudioApi = {
     formData.append("aspect_ratio", params.aspect_ratio || "16:9");
     formData.append("duration_seconds", String(params.duration_seconds || 10));
 
-    const authToken = AuthApi.getAuthToken();
     const wsId = AuthApi.getWorkspaceId();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      "Authorization": `Bearer ${authToken}`,
-    };
+    const headers = mediaAuthHeaders(wsId);
 
-    const res = await fetch(`${API_BASE_URL}/v1/media/video/prompt/compile`, {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/video/prompt/compile`, {
       method: "POST",
       headers,
       body: formData,
@@ -396,26 +478,23 @@ export const mediaStudioApi = {
     if (params.start_image_asset_id) formData.append("start_image_asset_id", params.start_image_asset_id);
     formData.append("remove_watermark", String(params.remove_watermark === true));
     if (params.project_id) formData.append("project_id", params.project_id);
+    const idempotencyKey = params.idempotency_key || randomUuid();
+    formData.append("idempotency_key", idempotencyKey);
 
-    const authToken = params.token || AuthApi.getAuthToken();
     const wsId = params.workspace_id || AuthApi.getWorkspaceId();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      "Authorization": `Bearer ${authToken}`,
-    };
+    const headers = mediaAuthHeaders(wsId, params.token);
 
-    const res = await fetch(`${API_BASE_URL}/v1/media/video/generate`, {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/video/generate`, {
       method: "POST",
       headers,
       body: formData,
     });
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message_safe || err.detail?.message || err.detail || `Lỗi tạo video: ${res.statusText}`);
-    }
-    const data: MediaAssetResponse = await res.json();
-    return formatAsset(data);
+    const data: MediaAssetResponse | AsyncMediaJobResponse = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(apiErrorMessage(data, `Lỗi tạo video: ${res.statusText}`));
+    if ("job_id" in data && data.job_id) return waitForMediaAsset(data.job_id, headers);
+    if ("id" in data && data.id) return formatAsset(data);
+    throw new Error("Máy chủ không trả mã tác vụ hoặc tệp video.");
   },
 
   // 3b. Mo rong video 16:9 (Omni 10s hoac tai len) sang 9:16 chuan TikTok
@@ -427,14 +506,10 @@ export const mediaStudioApi = {
     formData.append("blur_strength", String(params.blur_strength ?? 25));
     formData.append("remove_watermark", String(params.remove_watermark !== false));
 
-    const authToken = AuthApi.getAuthToken();
     const wsId = AuthApi.getWorkspaceId();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      "Authorization": `Bearer ${authToken}`,
-    };
+    const headers = mediaAuthHeaders(wsId);
 
-    const res = await fetch(`${API_BASE_URL}/v1/media/video/expand`, {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/video/expand`, {
       method: "POST",
       headers,
       body: formData,
@@ -456,14 +531,10 @@ export const mediaStudioApi = {
     if (params.asset_id) formData.append("asset_id", params.asset_id);
     formData.append("use_cpu", "true");
 
-    const authToken = AuthApi.getAuthToken();
     const wsId = AuthApi.getWorkspaceId();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      "Authorization": `Bearer ${authToken}`,
-    };
+    const headers = mediaAuthHeaders(wsId);
 
-    const res = await fetch(`${API_BASE_URL}/v1/media/video/remove-watermark`, {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/video/remove-watermark`, {
       method: "POST",
       headers,
       body: formData,
@@ -483,14 +554,10 @@ export const mediaStudioApi = {
     formData.append("scene_asset_ids_json", JSON.stringify(params.scene_asset_ids));
     formData.append("audio_asset_id", params.audio_asset_id);
 
-    const authToken = params.token || AuthApi.getAuthToken();
     const wsId = params.workspace_id || AuthApi.getWorkspaceId();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      "Authorization": `Bearer ${authToken}`,
-    };
+    const headers = mediaAuthHeaders(wsId, params.token);
 
-    const res = await fetch(`${API_BASE_URL}/v1/media/video/assemble`, {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/video/assemble`, {
       method: "POST",
       headers,
       body: formData,
@@ -523,15 +590,11 @@ export const mediaStudioApi = {
   async listAssets(opts: string | { workspace_id?: string; project_id?: string; token?: string } = "default_ws", token?: string): Promise<MediaAssetResponse[]> {
     const wsId = typeof opts === "string" ? opts : (opts.workspace_id || AuthApi.getWorkspaceId());
     const tok = typeof opts === "string" ? token : opts.token;
-    const authToken = tok || AuthApi.getAuthToken();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      "Authorization": `Bearer ${authToken}`,
-    };
+    const headers = mediaAuthHeaders(wsId, tok);
     const projectId = typeof opts === "string" ? undefined : opts.project_id;
     const query = projectId ? `?project_id=${encodeURIComponent(projectId)}` : "";
 
-    const res = await fetch(`${API_BASE_URL}/v1/media/assets${query}`, {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/assets${query}`, {
       headers,
     });
 
@@ -548,14 +611,10 @@ export const mediaStudioApi = {
     formData.append("expected_category", params.expected_category || "video");
     formData.append("source_product", params.source_product || "UPLOAD");
 
-    const authToken = params.token || AuthApi.getAuthToken();
     const wsId = params.workspace_id || AuthApi.getWorkspaceId();
-    const headers: Record<string, string> = {
-      "X-Workspace-Id": wsId,
-      Authorization: `Bearer ${authToken}`,
-    };
+    const headers = mediaAuthHeaders(wsId, params.token);
 
-    const res = await fetch(`${API_BASE_URL}/v1/media/upload`, {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/upload`, {
       method: "POST",
       headers,
       body: formData,
@@ -571,13 +630,9 @@ export const mediaStudioApi = {
 
   // 7. Lấy phiên bản timeline mới nhất của dự án
   async getTimeline(projectId: string): Promise<TimelineVersionResponse> {
-    const authToken = AuthApi.getAuthToken();
     const wsId = AuthApi.getWorkspaceId();
-    const res = await fetch(`${API_BASE_URL}/v1/media/projects/${projectId}/timeline`, {
-      headers: {
-        "X-Workspace-Id": wsId,
-        Authorization: `Bearer ${authToken}`,
-      },
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/projects/${projectId}/timeline`, {
+      headers: mediaAuthHeaders(wsId),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -588,15 +643,10 @@ export const mediaStudioApi = {
 
   // 8. Lưu phiên bản timeline mới (OCC Versioning)
   async saveTimeline(projectId: string, document: TimelineDocument, expectedVersion?: number): Promise<TimelineVersionResponse> {
-    const authToken = AuthApi.getAuthToken();
     const wsId = AuthApi.getWorkspaceId();
-    const res = await fetch(`${API_BASE_URL}/v1/media/projects/${projectId}/timeline`, {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/projects/${projectId}/timeline`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Workspace-Id": wsId,
-        Authorization: `Bearer ${authToken}`,
-      },
+      headers: mediaAuthHeaders(wsId, undefined, "application/json"),
       body: JSON.stringify({
         timeline: document,
         expected_version: expectedVersion,
@@ -614,14 +664,10 @@ export const mediaStudioApi = {
     const formData = new FormData();
     if (timelineVersionId) formData.append("timeline_version_id", timelineVersionId);
 
-    const authToken = AuthApi.getAuthToken();
     const wsId = AuthApi.getWorkspaceId();
-    const res = await fetch(`${API_BASE_URL}/v1/media/projects/${projectId}/render-timeline`, {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/projects/${projectId}/render-timeline`, {
       method: "POST",
-      headers: {
-        "X-Workspace-Id": wsId,
-        Authorization: `Bearer ${authToken}`,
-      },
+      headers: mediaAuthHeaders(wsId),
       body: formData,
     });
     if (!res.ok) {

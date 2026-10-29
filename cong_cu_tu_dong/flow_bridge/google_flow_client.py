@@ -33,17 +33,30 @@ from playwright.sync_api import TimeoutError as PlaywrightTimeoutError, sync_pla
 
 from config import (
     BROWSER_CHANNEL,
-    BROWSER_PROFILE_DIR,
-    LOCAL_BROWSER_PROFILE_DIR,
     DEFAULT_TIMEOUT_MS,
     GOOGLE_FLOW_URL,
     MEDIA_ASSETS_DIR,
     POLL_INTERVAL_SEC,
+    browser_launch_args,
+    get_current_browser_profile_dir,
     sync_browser_profile,
-    sync_local_to_nas,
 )
-from profile_guard import ensure_profile_free
-from session_manager import FlowLoginRequired, FlowSubmissionNotSent
+from profile_guard import ensure_profile_free, profile_locked
+from session_manager import (
+    FlowLoginRequired,
+    FlowQuotaExceeded,
+    FlowSubmissionNotSent,
+    _login_prompt_visible,
+    _quota_visible,
+    _visible,
+    classify_provider_state,
+)
+from src.modules.flow_sessions.context import (
+    assert_flow_profile_workspace,
+    current_flow_profile,
+    flow_profile_metadata,
+    validate_flow_project_url,
+)
 
 _FLOW_MUTEX = threading.Lock()
 _FLOW_PROJECT_TIMEOUT_MS = 120_000
@@ -79,6 +92,18 @@ class GoogleFlowClient:
         self.headless = headless
 
     @staticmethod
+    def _flow_page_state(page) -> str:
+        flow_ready = _visible(page, "button:has-text('New project'), button:has-text('Dự án mới')")
+        if "/project/" in page.url:
+            flow_ready = flow_ready or _visible(page, "[role='textbox']")
+        return classify_provider_state(
+            page.url,
+            authenticated=flow_ready,
+            login_required=_login_prompt_visible(page),
+            quota_limited=_quota_visible(page),
+        )
+
+    @staticmethod
     def _goto_flow_page(page, url: str) -> None:
         for attempt in range(_FLOW_PROJECT_RETRIES + 1):
             try:
@@ -94,10 +119,12 @@ class GoogleFlowClient:
 
     @staticmethod
     def _open_flow_project(page, project_url: Optional[str] = None) -> str:
-        flow = urlsplit(GOOGLE_FLOW_URL)
         if project_url:
-            project = urlsplit(project_url)
-            if project.scheme != flow.scheme or project.netloc != flow.netloc or "/project/" not in project.path:
+            try:
+                validate_flow_project_url(project_url)
+            except ValueError as exc:
+                raise RuntimeError("FLOW_PROJECT_URL_INVALID") from exc
+            if "/project/" not in urlsplit(project_url).path:
                 raise RuntimeError("FLOW_PROJECT_URL_INVALID")
             GoogleFlowClient._goto_flow_page(page, project_url)
         else:
@@ -125,9 +152,10 @@ class GoogleFlowClient:
                         raise RuntimeError("FLOW_NEW_PROJECT_INIT_TIMEOUT: Google Flow chưa mở project sau hai lần chờ, mỗi lần 120 giây.") from exc
 
         project_url = page.url.split("/edit/", 1)[0].rstrip("/")
-        project = urlsplit(project_url)
-        if project.scheme != flow.scheme or project.netloc != flow.netloc or "/project/" not in project.path:
-            raise RuntimeError("FLOW_PROJECT_URL_INVALID")
+        try:
+            validate_flow_project_url(project_url)
+        except ValueError as exc:
+            raise RuntimeError("FLOW_PROJECT_URL_INVALID") from exc
         if page.url.rstrip("/") != project_url:
             GoogleFlowClient._goto_flow_page(page, project_url)
         return project_url
@@ -164,6 +192,7 @@ class GoogleFlowClient:
         page.wait_for_url("**/edit/**", timeout=20000)
         return GoogleFlowClient._download_current_flow_video(page, target_dir)
 
+    @profile_locked(get_current_browser_profile_dir)
     def create_video(
         self,
         prompt: str,
@@ -179,8 +208,11 @@ class GoogleFlowClient:
         """
         if aspect_ratio not in {"9:16", "16:9"}:
             raise ValueError(f"FLOW_ASPECT_RATIO_UNSUPPORTED: {aspect_ratio}")
+        assert_flow_profile_workspace(workspace_id)
+        selected_profile = current_flow_profile()
+        flow_project_url = flow_project_url or (selected_profile.project_url if selected_profile else None)
         with _FLOW_MUTEX:
-            # 1. Đồng bộ và sử dụng thư mục profile cục bộ trên ổ C: để tránh lỗi đóng kết nối do SQLite SMB locking
+            # The profile lives on the persistent volume; never copy its cookies to another home directory.
             profile_dir = sync_browser_profile()
             ensure_profile_free(profile_dir)
 
@@ -195,6 +227,7 @@ class GoogleFlowClient:
             is_generation_complete: bool = False
             generation_submitted = False
             generation_response_received = False
+            quota_limited = False
 
             with sync_playwright() as p:
                 context = p.chromium.launch_persistent_context(
@@ -202,10 +235,7 @@ class GoogleFlowClient:
                     channel=BROWSER_CHANNEL,
                     headless=self.headless,
                     viewport={"width": 1400, "height": 900},
-                    args=[
-                        "--disable-blink-features=AutomationControlled",
-                        "--no-sandbox"
-                    ],
+                    args=browser_launch_args(),
                     downloads_path=str(target_dir),
                     accept_downloads=True
                 )
@@ -215,14 +245,21 @@ class GoogleFlowClient:
 
                     # Lắng nghe network responses từ Google Flow
                     def on_response(response):
-                        nonlocal captured_media_name, is_generation_complete, generation_response_received
+                        nonlocal captured_media_name, is_generation_complete, generation_response_received, quota_limited
                         try:
                             url = response.url
                             if "batchAsyncGenerateVideo" in url:
                                 if not generation_submitted:
                                     return
                                 generation_response_received = True
+                                if response.status == 429:
+                                    quota_limited = True
+                                    return
                                 body = response.json()
+                                response_text = json.dumps(body).lower()
+                                if any(marker in response_text for marker in ("quota exceeded", "out of credits", "daily limit")):
+                                    quota_limited = True
+                                    return
                                 media_list = body.get("media", [])
                                 if media_list and isinstance(media_list, list):
                                     captured_media_name = media_list[0].get("name")
@@ -268,20 +305,23 @@ class GoogleFlowClient:
                     self._goto_flow_page(page, GOOGLE_FLOW_URL)
                     page.wait_for_timeout(4000)
 
-                    # Kiểm tra trạng thái đăng nhập
-                    is_logged_in = "accounts.google.com" not in page.url and "/about" not in page.url
-                    if not is_logged_in and "/about" in page.url:
+                    # A missing sign-in prompt is not evidence that this profile is authenticated.
+                    provider_state = self._flow_page_state(page)
+                    if provider_state == "UNKNOWN" and "/about" in page.url:
                         create_landing_btn = page.locator("text='Create with Google Flow'").first
                         if create_landing_btn.count() > 0:
                             create_landing_btn.click()
                             page.wait_for_timeout(3000)
-                        is_logged_in = "accounts.google.com" not in page.url and "/about" not in page.url
+                        provider_state = self._flow_page_state(page)
 
-                    if not is_logged_in:
+                    if provider_state == "LOGIN_REQUIRED":
                         raise FlowLoginRequired(
-                            "Chưa phát hiện phiên đăng nhập Google AI Pro trong Flow Profile. "
-                            "Vui lòng chạy '00_DANG_NHAP_GOOGLE_FLOW.cmd' một lần để đăng nhập."
+                            "FLOW_LOGIN_REQUIRED: Google Flow needs a manual sign-in for this profile."
                         )
+                    if provider_state == "QUOTA_LIMITED":
+                        raise FlowQuotaExceeded("FLOW_QUOTA_LIMITED")
+                    if provider_state != "READY":
+                        raise RuntimeError("FLOW_PROVIDER_STATE_UNKNOWN")
 
                     requested_project_url = flow_project_url
                     flow_project_url = self._open_flow_project(page, flow_project_url)
@@ -393,6 +433,9 @@ class GoogleFlowClient:
                     while time.time() - start_time < timeout_sec:
                         page.wait_for_timeout(POLL_INTERVAL_SEC * 1000)
 
+                        if quota_limited:
+                            raise FlowQuotaExceeded("FLOW_QUOTA_LIMITED", submitted=True)
+
                         if downloaded_file and downloaded_file.exists() and downloaded_file.stat().st_size > 100000:
                             break
 
@@ -423,7 +466,7 @@ class GoogleFlowClient:
                             "Video có thể đã tạo xong trong Flow nhưng bước tự động tải hoặc nhận kết quả bị lỗi; kiểm tra log Google Flow trước khi tạo lại."
                         )
 
-                except FlowLoginRequired:
+                except (FlowLoginRequired, FlowQuotaExceeded):
                     raise
                 except Exception as exc:
                     if not generation_submitted:
@@ -432,11 +475,6 @@ class GoogleFlowClient:
                 finally:
                     try:
                         context.close()
-                    except Exception:
-                        pass
-                    # Đồng bộ cookie/session mới nhất về NAS để backup an toàn
-                    try:
-                        sync_local_to_nas(LOCAL_BROWSER_PROFILE_DIR, BROWSER_PROFILE_DIR)
                     except Exception:
                         pass
 
@@ -454,6 +492,7 @@ class GoogleFlowClient:
                 pass
 
             return {
+                **flow_profile_metadata(flow_project_url),
                 "status": "SUCCEEDED",
                 "provider": "GOOGLE_FLOW",
                 "source_product": "GOOGLE_FLOW_OMNI",
@@ -607,6 +646,13 @@ class GoogleFlowClient:
                 with page.expect_file_chooser(timeout=8000) as chooser_info:
                     upload_button.first.click(timeout=5000)
                 chooser_info.value.set_files(str(image_path))
+                # Flow asks the uploader to confirm usage rights before it lists the image.
+                consent = page.get_by_role("dialog").get_by_role("button", name=re.compile(r"^(Tôi đồng ý|I agree)$"))
+                try:
+                    consent.first.wait_for(state="visible", timeout=8000)
+                    consent.first.click(timeout=5000)
+                except PlaywrightTimeoutError:
+                    pass
             image_item.wait_for(state="visible", timeout=30000)
             image_item.click(timeout=5000)
             attached = page.locator(

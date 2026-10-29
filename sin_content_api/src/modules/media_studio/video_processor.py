@@ -9,6 +9,7 @@ import json
 import os
 import pathlib
 import subprocess
+from src.media_process import run_media_command
 import sys
 import threading
 import uuid
@@ -17,6 +18,8 @@ import textwrap
 from typing import Dict, Any, List, Optional, Callable
 
 logger = logging.getLogger(__name__)
+from .ass_captions import build_karaoke_ass
+
 VIETSUB_FONT_PATH = pathlib.Path(__file__).resolve().parent / "assets" / "fonts" / "be_vietnam_pro_semibold.ttf"
 
 # Nạp công cụ tẩy watermark Veo từ cong_cu_tu_dong
@@ -51,7 +54,7 @@ class VideoProcessor:
             str(filepath)
         ]
 
-        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        res = run_media_command(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
         if res.returncode != 0:
             raise RuntimeError(f"Lỗi khi probe video: {res.stderr}")
 
@@ -84,6 +87,7 @@ class VideoProcessor:
             "width": width,
             "height": height,
             "duration_seconds": duration,
+            "video_stream_duration_seconds": float(v_stream.get("duration") or duration),
             "codec_name": v_stream.get("codec_name"),
             "frame_rate": frame_rate,
             "aspect_ratio": "9:16" if is_vertical_9_16 else aspect_ratio,
@@ -199,7 +203,7 @@ class VideoProcessor:
             str(output_video_path)
         ]
 
-        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        res = run_media_command(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
         if res.returncode != 0:
             raise RuntimeError(f"Lỗi khi mở rộng video 16:9 sang 9:16: {res.stderr}")
 
@@ -248,7 +252,7 @@ class VideoProcessor:
             str(output_path)
         ]
 
-        res = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        res = run_media_command(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace")
         if concat_txt.exists():
             concat_txt.unlink()
 
@@ -279,7 +283,7 @@ class VideoProcessor:
         - Không sử dụng -shortest gây cắt cụt video.
         """
         with self._render_lock:
-            if caption_style not in {"legacy", "vietsub_v1"}:
+            if caption_style not in {"legacy", "vietsub_v1", "vietsub_karaoke_v2"}:
                 raise ValueError("CAPTION_STYLE_UNSUPPORTED")
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -345,7 +349,7 @@ class VideoProcessor:
                             "-r", str(fps),
                             str(seg_out)
                         ]
-                        res = subprocess.run(cmd, capture_output=True, text=True)
+                        res = run_media_command(cmd, capture_output=True, text=True)
                         if res.returncode != 0:
                             raise RuntimeError(f"Lỗi render phân cảnh ảnh {clip_id}: {res.stderr}")
                         seg_files.append(seg_out)
@@ -384,7 +388,7 @@ class VideoProcessor:
                             "-r", str(fps),
                             str(seg_out)
                         ]
-                        res = subprocess.run(cmd, capture_output=True, text=True)
+                        res = run_media_command(cmd, capture_output=True, text=True)
                         if res.returncode != 0:
                             raise RuntimeError(f"Lỗi render phân cảnh video {clip_id}: {res.stderr}")
                         seg_files.append(seg_out)
@@ -392,20 +396,24 @@ class VideoProcessor:
                         native_audio_specs.append((asset_file, media_type, in_s, dur_s))
                         total_duration_sec += dur_s
 
-                # 2. Ghép các phân cảnh video; tail freeze keeps the timeline duration during crossfade.
+                # 2. Ghép các phân cảnh video. Mỗi đoạn (trừ đoạn cuối) được tpad ngay trên đầu vào để xfade
+                # còn đủ hình; tpad đặt sau xfade không kéo dài luồng nên các đoạn sau bị cắt mất.
                 if transition_seconds > 0 and len(seg_files) > 1:
                     transition = min(transition_seconds, 0.5)
-                    filter_parts = []
-                    previous = "0:v"
+                    # Offset phải theo độ dài thực của đoạn (có thể ngắn hơn danh nghĩa vài frame), nếu không xfade bị cắt.
+                    measured = [float(self.probe_video(seg)["duration_seconds"]) for seg in seg_files]
+                    last = len(seg_files) - 1
+                    filter_parts = [
+                        f"[{idx}:v]tpad=stop_mode=clone:stop_duration={transition:.3f}[p{idx}]"
+                        for idx in range(last)
+                    ]
+                    previous = "p0"
                     offset = 0.0
-                    for idx, duration in enumerate(seg_durations[:-1]):
-                        padded = f"p{idx}"
-                        filter_parts.append(
-                            f"[{previous}]tpad=stop_mode=clone:stop_duration={transition:.3f}[{padded}]"
-                        )
+                    for idx, duration in enumerate(measured[:-1]):
+                        nxt = f"p{idx + 1}" if idx + 1 < last else f"{last}:v"
                         output = f"x{idx}"
                         filter_parts.append(
-                            f"[{padded}][{idx + 1}:v]xfade=transition=fade:duration={transition:.3f}:offset={offset + duration:.3f}[{output}]"
+                            f"[{previous}][{nxt}]xfade=transition=fade:duration={transition:.3f}:offset={offset + duration:.3f}[{output}]"
                         )
                         previous = output
                         offset += duration
@@ -417,7 +425,7 @@ class VideoProcessor:
                         "-filter_complex", ";".join(filter_parts), "-map", f"[{previous}]",
                         "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(fps), str(concat_video),
                     ])
-                    res_concat = subprocess.run(cmd_transition, capture_output=True, text=True)
+                    res_concat = run_media_command(cmd_transition, capture_output=True, text=True)
                     if res_concat.returncode != 0:
                         raise RuntimeError(f"Lỗi chuyển cảnh mềm: {res_concat.stderr}")
                 else:
@@ -436,7 +444,7 @@ class VideoProcessor:
                         "-c", "copy",
                         str(concat_video)
                     ]
-                    res_concat = subprocess.run(cmd_concat, capture_output=True, text=True)
+                    res_concat = run_media_command(cmd_concat, capture_output=True, text=True)
                     if res_concat.returncode != 0:
                         raise RuntimeError(f"Lỗi ghép phân cảnh: {res_concat.stderr}")
 
@@ -448,7 +456,13 @@ class VideoProcessor:
                 current_video = concat_video
                 if captions:
                     drawtext_filters = []
-                    if caption_style == "vietsub_v1":
+                    if caption_style == "vietsub_karaoke_v2":
+                        if not VIETSUB_FONT_PATH.is_file():
+                            raise RuntimeError("CAPTION_FONT_NOT_FOUND")
+                        shutil.copyfile(VIETSUB_FONT_PATH, work_dir / VIETSUB_FONT_PATH.name)
+                        (work_dir / "captions.ass").write_text(build_karaoke_ass(captions, width, height), encoding="utf-8")
+                        drawtext_filters.append("ass=captions.ass:fontsdir=.")
+                    elif caption_style == "vietsub_v1":
                         if not VIETSUB_FONT_PATH.is_file():
                             raise RuntimeError("CAPTION_FONT_NOT_FOUND")
                         font_file = VIETSUB_FONT_PATH.name
@@ -465,7 +479,7 @@ class VideoProcessor:
                         box_color = "0x000000@0.7"
                         box_border = 8
                         caption_y = "h-480" if height > width else "h-160"
-                    for c_idx, cap in enumerate(captions):
+                    for c_idx, cap in enumerate(captions if caption_style != "vietsub_karaoke_v2" else []):
                         text = getattr(cap, "text", "") or (cap.get("text", "") if isinstance(cap, dict) else "")
                         if not text:
                             continue
@@ -506,7 +520,7 @@ class VideoProcessor:
                             "-pix_fmt", "yuv420p",
                             str(captioned_video)
                         ]
-                        res_cap = subprocess.run(cmd_cap, cwd=str(work_dir), capture_output=True, text=True)
+                        res_cap = run_media_command(cmd_cap, cwd=str(work_dir), capture_output=True, text=True)
                         if res_cap.returncode != 0:
                             raise RuntimeError(f"Lỗi khắc phụ đề (caption burn-in) thất bại: {res_cap.stderr[-300:]}")
                         current_video = captioned_video
@@ -557,7 +571,7 @@ class VideoProcessor:
                         "-map", "[out_a]",
                         str(final_audio)
                     ]
-                    res_a = subprocess.run(cmd_audio, capture_output=True, text=True)
+                    res_a = run_media_command(cmd_audio, capture_output=True, text=True)
                     if res_a.returncode != 0:
                         cmd_audio_simple = [
                             self.ffmpeg_bin, "-y",
@@ -569,7 +583,7 @@ class VideoProcessor:
                             "-map", "[aout]",
                             str(final_audio)
                         ]
-                        subprocess.run(cmd_audio_simple, capture_output=True, check=True)
+                        run_media_command(cmd_audio_simple, capture_output=True, check=True)
 
                 elif has_voice:
                     voice_file = asset_path_resolver(voice_asset_id)
@@ -580,7 +594,7 @@ class VideoProcessor:
                         "-af", "acompressor=threshold=0.1:ratio=4:attack=10:release=150,loudnorm=I=-14:LRA=11:TP=-1.5",
                         str(final_audio)
                     ]
-                    subprocess.run(cmd_audio, capture_output=True, check=True)
+                    run_media_command(cmd_audio, capture_output=True, check=True)
 
                 elif has_music:
                     music_file = asset_path_resolver(music_asset_id)
@@ -591,7 +605,7 @@ class VideoProcessor:
                         "-af", "loudnorm=I=-14:LRA=11:TP=-1.5",
                         str(final_audio)
                     ]
-                    subprocess.run(cmd_audio, capture_output=True, check=True)
+                    run_media_command(cmd_audio, capture_output=True, check=True)
 
                 # 5. Xuất silent MP4 nếu người dùng chưa chọn giọng đọc hoặc nhạc.
                 cmd_final = [self.ffmpeg_bin, "-y", "-i", str(current_video)]
@@ -613,7 +627,7 @@ class VideoProcessor:
                     "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(fps),
                     "-t", f"{final_duration_sec:.3f}", str(output_path),
                 ])
-                res_final = subprocess.run(cmd_final, capture_output=True, text=True)
+                res_final = run_media_command(cmd_final, capture_output=True, text=True)
                 if res_final.returncode != 0:
                     raise RuntimeError(f"Lỗi ghép hoàn chỉnh thành phẩm MP4: {res_final.stderr}")
 
@@ -681,13 +695,13 @@ class VideoProcessor:
             else:
                 cmd = [self.ffmpeg_bin, "-y", "-f", "lavfi", "-t", f"{duration:.3f}", "-i", "anullsrc=r=44100:cl=stereo",
                        "-c:a", "pcm_s16le", str(segment)]
-            subprocess.run(cmd, capture_output=True, check=True)
+            run_media_command(cmd, capture_output=True, check=True)
             segment_paths.append(segment)
 
         concat_list = work_dir / "native_audio_concat.txt"
         concat_list.write_text("".join(f"file '{path.resolve().as_posix()}'\n" for path in segment_paths), encoding="utf-8")
         native_audio = work_dir / "native_flow_audio.wav"
-        subprocess.run([
+        run_media_command([
             self.ffmpeg_bin, "-y", "-f", "concat", "-safe", "0", "-i", str(concat_list),
             "-t", f"{duration_sec:.3f}", "-c:a", "pcm_s16le", str(native_audio),
         ], capture_output=True, check=True)
@@ -697,7 +711,7 @@ class VideoProcessor:
         audio_input = "[0:a][1:a]amix=inputs=2:duration=first:normalize=0," if mix_existing else "[1:a]"
         # Giữ dải động nguồn và chừa 1,5 dB cho đỉnh phát sinh khi mã hóa AAC.
         normalization = "loudnorm=I=-14:LRA=50:TP=-3"
-        analysis = subprocess.run(cmd + [
+        analysis = run_media_command(cmd + [
             "-filter_complex", f"{audio_input}{normalization}:print_format=json[aout]",
             "-map", "[aout]", "-t", f"{duration_sec:.3f}", "-f", "null", "-",
         ], capture_output=True, check=True, text=True, encoding="utf-8", errors="replace")
@@ -713,7 +727,7 @@ class VideoProcessor:
         cmd.extend(["-filter_complex", f"{audio_input}{normalization}[aout]", "-map", "0:v:0", "-map", "[aout]"])
         cmd.extend(["-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2",
                     "-t", f"{duration_sec:.3f}", str(mixed_video)])
-        subprocess.run(cmd, capture_output=True, check=True)
+        run_media_command(cmd, capture_output=True, check=True)
         mixed_video.replace(output_path)
         return True
 

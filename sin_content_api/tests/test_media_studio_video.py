@@ -1333,7 +1333,9 @@ def test_timeline_save_concurrent_integrity_error_returns_409(video_fixture, mon
     # Monkeypatch db.commit trong save_project_timeline để ném IntegrityError
     orig_commit = Session.commit
     def mock_commit(self):
-        raise IntegrityError("UNIQUE constraint failed: timeline_versions.project_id, timeline_versions.version", params=[], orig=Exception("unique constraint"))
+        if self.get_bind() is engine:
+            raise IntegrityError("UNIQUE constraint failed: timeline_versions.project_id, timeline_versions.version", params=[], orig=Exception("unique constraint"))
+        return orig_commit(self)
 
     monkeypatch.setattr(Session, "commit", mock_commit)
 
@@ -1663,6 +1665,24 @@ def test_timeline_renderer_wraps_long_captions(video_fixture, tmp_path):
     assert max(map(len, lines)) <= 32
 
 
+def _v4_planning_reply(messages, storyboard):
+    # Lượt phân tích brief và lượt dựng cảnh có hợp đồng khác nhau.
+    brief = {"pains": [{"id": "p1", "text": "Thông tin rời rạc.", "source": "inferred"}],
+             "solutions": [{"id": "s1", "text": "Tìm nguồn liên quan.", "source": "content"}]}
+    if "required_schema" not in json.loads(messages[1]["content"]):
+        return json.dumps(brief, ensure_ascii=False)
+    storyboard = json.loads(json.dumps(storyboard))
+    storyboard["narration"] = storyboard["narration"].replace("RAG", "rắc")
+    for index, shot in enumerate(storyboard["shots"]):
+        shot["narration"] = shot["narration"].replace("RAG", "rắc")
+        shot.update(prompt_contract_version=4, beat=["PAIN", "SOLUTION", "OUTCOME"][index],
+                    message_ids=[["p1"], ["s1"], []][index], action_beats=[
+                        {"start_s": 0, "end_s": 4, "action": "Nhân viên mở hồ sơ."},
+                        {"start_s": 4, "end_s": 10, "action": "Nhân viên tìm thẻ và đặt cạnh kết quả."}])
+        shot.setdefault("continues_previous", False)
+    return json.dumps(storyboard, ensure_ascii=False)
+
+
 def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_fixture, monkeypatch, tmp_path):
     from datetime import datetime, timedelta, timezone
     from types import SimpleNamespace
@@ -1684,7 +1704,7 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
         max_output_tokens = 6000
 
         def complete(self, messages, max_tokens=None):
-            return SimpleNamespace(content=json.dumps(storyboard, ensure_ascii=False), model="test-storyboard")
+            return SimpleNamespace(content=_v4_planning_reply(messages, storyboard), model="test-storyboard")
 
     monkeypatch.setattr(LLMClient, "from_db", classmethod(lambda cls, db: FakeLLM()))
     from src.models.entities import ProductionProject
@@ -1894,9 +1914,9 @@ def test_content_video_worker_allows_optional_flow_audio_and_uses_reference_fram
         "narration": "RAG truy xuất tài liệu rồi mới tạo câu trả lời.",
         "continuity_anchor": "Một chuyên gia công nghệ mặc áo xanh navy giải thích trong studio tối giản, ánh sáng mềm.",
         "shots": [
-            {"shot_id": "shot-1", "scene": "Trợ lý mở hồ sơ trong văn phòng", "narration": "Lời dẫn 1", "prompt": "Trợ lý mở hồ sơ", "duration_seconds": 10, "continues_previous": False},
-            {"shot_id": "shot-2", "scene": "Cùng cảnh văn phòng, trợ lý tiếp tục đọc hồ sơ", "narration": "Lời dẫn 2", "prompt": "Trợ lý tiếp tục đọc hồ sơ", "duration_seconds": 10, "continues_previous": True},
-            {"shot_id": "shot-3", "scene": "Chuyển sang phòng họp", "narration": "Lời dẫn 3", "prompt": "Nhóm xem kết quả truy xuất", "duration_seconds": 10, "continues_previous": False},
+            {"shot_id": "shot-1", "scene": "Trợ lý mở hồ sơ trong văn phòng", "narration": "Lời dẫn một", "prompt": "Trợ lý mở hồ sơ", "duration_seconds": 10, "continues_previous": False},
+            {"shot_id": "shot-2", "scene": "Cùng cảnh văn phòng, trợ lý tiếp tục đọc hồ sơ", "narration": "Lời dẫn hai", "prompt": "Trợ lý tiếp tục đọc hồ sơ", "duration_seconds": 10, "continues_previous": True},
+            {"shot_id": "shot-3", "scene": "Chuyển sang phòng họp", "narration": "Lời dẫn ba", "prompt": "Nhóm xem kết quả truy xuất", "duration_seconds": 10, "continues_previous": False},
         ],
     }
 
@@ -1905,7 +1925,7 @@ def test_content_video_worker_allows_optional_flow_audio_and_uses_reference_fram
         max_output_tokens = 6000
 
         def complete(self, messages, max_tokens=None):
-            return SimpleNamespace(content=json.dumps(storyboard, ensure_ascii=False), model="worker-test")
+            return SimpleNamespace(content=_v4_planning_reply(messages, storyboard), model="worker-test")
 
     monkeypatch.setattr(LLMClient, "from_db", classmethod(lambda cls, db: FakeLLM()))
     monkeypatch.setattr(runner, "MEDIA_ROOT_DIR", tmp_path)

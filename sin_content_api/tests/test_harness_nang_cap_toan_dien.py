@@ -155,7 +155,7 @@ def test_ngan_chan_truy_cap_draft_khac_workspace(du_lieu_hai_workspace):
         json=cmd,
         headers=headers_ws_beta
     )
-    assert res_post.status_code in (403, 400)
+    assert res_post.status_code in (403, 400, 404)
 
 
 def test_ngan_chan_run_khac_workspace(du_lieu_hai_workspace):

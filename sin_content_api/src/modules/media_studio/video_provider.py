@@ -23,6 +23,7 @@ import shutil
 import sys
 import uuid
 import subprocess
+from src.media_process import run_media_command
 from typing import Callable, Dict, Any, Optional, List
 from sqlalchemy.orm import Session
 
@@ -37,7 +38,7 @@ from src.models.entities import MediaAsset, AIGenerationJob
 from src.modules.media_studio.video_processor import video_processor
 from src.modules.media_studio.security import MEDIA_ROOT_DIR
 from src.modules.media_studio.prompt_compiler import video_prompt_compiler
-from session_manager import FlowLoginRequired, FlowSubmissionNotSent
+from session_manager import FlowLoginRequired, FlowSubmissionNotSent, FlowQuotaExceeded
 
 class GoogleFlowZeroCostProvider:
     """Luồng sản xuất video nội bộ 0đ chi phí sử dụng Google Flow AI Pro (Omni Flash 10s)."""
@@ -93,7 +94,7 @@ class GoogleFlowZeroCostProvider:
             )
             raw_flow_path = pathlib.Path(flow_res["storage_path"])
         except Exception as flow_err:
-            if isinstance(flow_err, (FlowLoginRequired, FlowSubmissionNotSent)):
+            if isinstance(flow_err, (FlowLoginRequired, FlowSubmissionNotSent, FlowQuotaExceeded)):
                 raise
             raise RuntimeError(
                 f"Google Flow: {flow_err}. "
@@ -112,7 +113,7 @@ class GoogleFlowZeroCostProvider:
             watermark_removed = True
         width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
         audio_options = ["-c:a", "aac", "-b:a", "192k"] if include_audio else ["-an"]
-        normalize = subprocess.run(
+        normalize = run_media_command(
             [video_processor.ffmpeg_bin, "-y", "-i", str(input_path), "-vf",
              f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1,fps=30",
              "-c:v", "libx264", *audio_options, "-pix_fmt", "yuv420p", str(output_path)],
@@ -124,8 +125,8 @@ class GoogleFlowZeroCostProvider:
             clean_path.unlink()
         meta = video_processor.probe_video(output_path)
 
-        data = output_path.read_bytes()
-        sha = hashlib.sha256(data).hexdigest()
+        with output_path.open("rb") as video_file:
+            sha = hashlib.file_digest(video_file, "sha256").hexdigest()
 
         return {
             "status": "SUCCEEDED",
@@ -135,7 +136,7 @@ class GoogleFlowZeroCostProvider:
             "storage_path": str(output_path),
             "relative_storage_key": f"workspaces/{workspace_id}/media/{output_filename}",
             "sha256": sha,
-            "byte_size": len(data),
+            "byte_size": output_path.stat().st_size,
             "mime_detected": "video/mp4",
             "duration_ms": int(meta.get("duration_seconds", 10.0) * 1000),
             "aspect_ratio": aspect_ratio,
@@ -181,7 +182,7 @@ class GoogleFlowZeroCostProvider:
             shutil.copy2(flow_res["storage_path"], target_dir / f"flow_source_{aspect_ratio.replace(':', '_')}_{file_id}.mp4")
             width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
             audio_options = ["-c:a", "aac", "-b:a", "192k"] if include_audio else ["-an"]
-            normalized = subprocess.run(
+            normalized = run_media_command(
                 [video_processor.ffmpeg_bin, "-y", "-i", flow_res["storage_path"], "-vf",
                  f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1,fps=30",
                  "-c:v", "libx264", *audio_options, "-pix_fmt", "yuv420p", str(output_path)],
@@ -190,7 +191,7 @@ class GoogleFlowZeroCostProvider:
             if normalized.returncode != 0:
                 raise RuntimeError(f"FLOW_VIDEO_NORMALIZATION_FAILED: {normalized.stderr[-1000:]}")
             meta = video_processor.probe_video(output_path)
-        except (FlowLoginRequired, FlowSubmissionNotSent):
+        except (FlowLoginRequired, FlowSubmissionNotSent, FlowQuotaExceeded):
             raise
         except Exception as ex:
             raise RuntimeError(f"Google Flow không tạo được video từ ảnh: {ex}") from ex

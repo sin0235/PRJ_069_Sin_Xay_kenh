@@ -1,0 +1,43 @@
+FROM python:3.11-slim-bookworm@sha256:94a8fee35252d06ab75856f15f12c7bae67b10e8a6da93c7fded82b2610926cd
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/sin_content_api:/app \
+    HOME=/home/appuser \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+    DISPLAY=:99
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl ffmpeg fonts-dejavu-core fonts-liberation2 fonts-noto-cjk fonts-noto-core \
+    libasound2 libgbm1 libglib2.0-0 libnss3 libx11-6 libxext6 libxrender1 \
+    novnc websockify x11vnc xvfb \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd --gid 10001 appgroup \
+    && useradd --uid 10001 --gid appgroup --create-home --shell /usr/sbin/nologin appuser \
+    && mkdir -p /data /models/vieneu /tmp/runtime-app /ms-playwright \
+    && chown -R 10001:10001 /home/appuser /data /models /tmp/runtime-app
+
+COPY sin_content_api/requirements.nas.lock /tmp/requirements.nas.lock
+RUN pip install --no-cache-dir --require-hashes --timeout 120 --retries 8 -r /tmp/requirements.nas.lock \
+    && python -m playwright install --with-deps chromium \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY sin_content_api/src/ /app/sin_content_api/src/
+COPY sin_content_api/scripts/ /app/scripts/
+COPY ha_tang/nas_runtime/init-entrypoint.sh /app/ha_tang/nas_runtime/init-entrypoint.sh
+RUN chmod 0555 /app/ha_tang/nas_runtime/init-entrypoint.sh
+COPY baha_auth/ /app/baha_auth/
+COPY 09_kiem_thu_quyen/ /app/09_kiem_thu_quyen/
+COPY cong_cu_tu_dong/flow_bridge/ /app/cong_cu_tu_dong/flow_bridge/
+COPY cong_cu_tu_dong/veo_watermark_remover/ /app/cong_cu_tu_dong/veo_watermark_remover/
+# Files synced from the NAS share can arrive without world-read bits; the runtime user is not root.
+RUN chmod -R a+rX /app && python -m compileall -q /app
+
+WORKDIR /app/sin_content_api
+USER 10001:10001
+
+EXPOSE 8000 6080 8090
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

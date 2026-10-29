@@ -1,8 +1,6 @@
 import { ContentItem, ContentAnalysisReport, ContentBadge } from "@/types/content";
 import { AuthApi } from "@/lib/api/auth-api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-
 export interface DiscoverFilters {
   query?: string;
   niche?: string;
@@ -39,13 +37,13 @@ export class DiscoverService {
    */
   static async searchContent(
     filters?: DiscoverFilters,
-    workspaceId: string = "default_ws"
+    workspaceId?: string
   ): Promise<ContentItem[]> {
     try {
       const headers = AuthApi.getAuthHeaders();
       if (workspaceId) headers["X-Workspace-Id"] = workspaceId;
 
-      const res = await fetch(`${API_BASE_URL}/v1/sources/records?limit=50`, {
+      const res = await fetch("/v1/sources/records?limit=50", {
         headers,
         cache: "no-store",
       });
@@ -137,13 +135,13 @@ export class DiscoverService {
    */
   static async getEvidenceExcerpt(
     evidenceId: string,
-    workspaceId: string = "default_ws"
+    workspaceId?: string
   ): Promise<EvidenceExcerptItem | null> {
     try {
       const headers = AuthApi.getAuthHeaders();
       if (workspaceId) headers["X-Workspace-Id"] = workspaceId;
 
-      const res = await fetch(`${API_BASE_URL}/v1/sources/evidence/${evidenceId}`, {
+      const res = await fetch(`/v1/sources/evidence/${evidenceId}`, {
         headers,
       });
 

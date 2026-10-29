@@ -1,9 +1,6 @@
 import { ContentIdea, IdeaGenerationConfig, IdeaReviewPayload, IdeaStatus } from '@/types';
 import { AuthApi } from '@/lib/api/auth-api';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-const DEFAULT_WORKSPACE_ID = 'default_ws';
-
 export class IdeaService {
   /**
    * Lấy danh sách thẻ ý tưởng từ backend API trực tiếp (Ground Truth)
@@ -11,11 +8,11 @@ export class IdeaService {
   static async getIdeas(status?: string, workspaceId?: string): Promise<ContentIdea[]> {
     try {
       const headers = AuthApi.getAuthHeaders();
-      const activeWs = workspaceId || headers['X-Workspace-Id'] || DEFAULT_WORKSPACE_ID;
-      headers['X-Workspace-Id'] = activeWs;
+      if (workspaceId) headers['X-Workspace-Id'] = workspaceId;
 
       const queryParam = status && status !== 'all' ? `?status=${encodeURIComponent(status)}` : '';
-      const res = await fetch(`${API_BASE_URL}/v1/ideation/cards${queryParam}`, {
+      const res = await fetch(`/v1/ideation/cards${queryParam}`, {
+        credentials: 'same-origin',
         headers,
         cache: 'no-store',
       });
@@ -86,8 +83,7 @@ export class IdeaService {
   ): Promise<{ success: boolean; error?: string; updatedCard?: any }> {
     try {
       const headers = AuthApi.getAuthHeaders();
-      const activeWs = workspaceId || headers['X-Workspace-Id'] || DEFAULT_WORKSPACE_ID;
-      headers['X-Workspace-Id'] = activeWs;
+      if (workspaceId) headers['X-Workspace-Id'] = workspaceId;
 
       const payload: IdeaReviewPayload = {
         action,
@@ -96,8 +92,9 @@ export class IdeaService {
         review_reason: reviewerNotes,
       };
 
-      const res = await fetch(`${API_BASE_URL}/v1/ideation/cards/${id}/review`, {
+      const res = await fetch(`/v1/ideation/cards/${id}/review`, {
         method: 'POST',
+        credentials: 'same-origin',
         headers,
         body: JSON.stringify(payload),
       });
@@ -158,12 +155,11 @@ export class IdeaService {
    */
   static async generateIdeas(
     config: IdeaGenerationConfig & { briefVersionId?: string; allowHypotheses?: boolean },
-    workspaceId: string = 'default_ws'
+    workspaceId?: string
   ): Promise<{ success: boolean; ideas: ContentIdea[]; error?: string; generationSource?: string }> {
     try {
       const headers = AuthApi.getAuthHeaders();
-      const activeWs = workspaceId || headers['X-Workspace-Id'] || DEFAULT_WORKSPACE_ID;
-      headers['X-Workspace-Id'] = activeWs;
+      if (workspaceId) headers['X-Workspace-Id'] = workspaceId;
 
       // Sinh Idempotency-Key chống trùng lặp
       const idempKey = `idemp_ui_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
@@ -172,8 +168,9 @@ export class IdeaService {
       const briefId = config.briefVersionId || config.niche || 'bbv_baha_v1';
       const numIdeas = typeof config.desiredQuantity === 'number' ? config.desiredQuantity : parseInt(config.desiredQuantity as any, 10) || 3;
 
-      const res = await fetch(`${API_BASE_URL}/v1/ideation/generate`, {
+      const res = await fetch('/v1/ideation/generate', {
         method: 'POST',
+        credentials: 'same-origin',
         headers,
         body: JSON.stringify({
           brief_version_id: briefId,

@@ -1,15 +1,13 @@
 import { TikTokChannel, ChannelKPIs, ChannelMetricPoint } from "@/types";
 import { AuthApi } from "@/lib/api/auth-api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-
 export class TikTokService {
   /**
    * Lấy danh sách kênh TikTok đã kết nối thực tế từ Backend CSDL (P11)
    */
   static async getConnectedChannels(): Promise<TikTokChannel[]> {
     try {
-      const res = await fetch(`${API_BASE_URL}/v1/feedback/channels`, {
+      const res = await fetch("/v1/feedback/channels", {
         headers: AuthApi.getAuthHeaders(),
         cache: "no-store",
       });
@@ -62,7 +60,7 @@ export class TikTokService {
    * Xác minh và kết nối một kênh TikTok THẬT 100% qua API Ground Truth
    */
   static async verifyAndConnectChannel(usernameOrUrl: string): Promise<TikTokChannel> {
-    const res = await fetch(`${API_BASE_URL}/v1/feedback/channels/verify-and-connect`, {
+    const res = await fetch("/v1/feedback/channels/verify-and-connect", {
       method: "POST",
       headers: {
         ...AuthApi.getAuthHeaders(),
@@ -105,16 +103,16 @@ export class TikTokService {
    * Lấy chỉ số hiệu suất kênh thực tế từ Backend API (P11)
    */
   static async getChannelKPIs(
-    channelId: string = "tiktok_tiktok",
+    channelId: string,
     range: "today" | "7d" | "30d" | "90d" = "7d",
-    workspaceId: string = "default_ws"
+    workspaceId?: string
   ): Promise<ChannelKPIs> {
     try {
       const headers = AuthApi.getAuthHeaders();
       if (workspaceId) headers["X-Workspace-Id"] = workspaceId;
 
       const res = await fetch(
-        `${API_BASE_URL}/v1/feedback/channels/${encodeURIComponent(channelId)}/performance`,
+        `/v1/feedback/channels/${encodeURIComponent(channelId)}/performance`,
         { headers, cache: "no-store" }
       );
       if (res.ok) {
@@ -155,13 +153,13 @@ export class TikTokService {
   static async getGrowthHistory(
     channelId?: string,
     range: "today" | "7d" | "30d" | "90d" = "7d",
-    workspaceId: string = "default_ws"
+    workspaceId?: string
   ): Promise<ChannelMetricPoint[]> {
     try {
       const headers = AuthApi.getAuthHeaders();
       if (workspaceId) headers["X-Workspace-Id"] = workspaceId;
 
-      const res = await fetch(`${API_BASE_URL}/v1/feedback/cohorts/summary?cohort=ALL`, {
+      const res = await fetch("/v1/feedback/cohorts/summary?cohort=ALL", {
         headers,
         cache: "no-store",
       });

@@ -40,7 +40,11 @@ class Settings(BaseSettings):
     llm_output_usd_per_1k_tokens: float = Field(default=0.0, validation_alias=AliasChoices("llm_output_usd_per_1k_tokens", "LLM_OUTPUT_USD_PER_1K_TOKENS"))
     llm_budget_units_per_usd: float = Field(default=1.0, validation_alias=AliasChoices("llm_budget_units_per_usd", "LLM_BUDGET_UNITS_PER_USD"))
     llm_encryption_master_key: str = Field(default="", validation_alias=AliasChoices("llm_encryption_master_key", "LLM_ENCRYPTION_MASTER_KEY"))
-    platform_owner_user_ids: str = Field(default="usr_sin_owner,sin_owner", validation_alias=AliasChoices("platform_owner_user_ids", "PLATFORM_OWNER_USER_IDS"))
+    platform_owner_user_ids: str = Field(default="", validation_alias=AliasChoices("platform_owner_user_ids", "PLATFORM_OWNER_USER_IDS"))
+    auth_owner_email: str = Field(default="", validation_alias=AliasChoices("auth_owner_email", "AUTH_OWNER_EMAIL"))
+    auth_workspace_id: str = Field(default="", validation_alias=AliasChoices("auth_workspace_id", "SIN_WORKSPACE_ID"))
+    auth_allowed_origins: str = Field(default="", validation_alias=AliasChoices("auth_allowed_origins", "AUTH_ALLOWED_ORIGINS"))
+    auth_cookie_secure: bool = Field(default=True, validation_alias=AliasChoices("auth_cookie_secure", "AUTH_COOKIE_SECURE"))
 
     @field_validator("llm_base_url")
     @classmethod
@@ -103,6 +107,45 @@ class Settings(BaseSettings):
             raise ValueError(f"Giá token không được là số âm hoặc vô hạn (nhận được: {v}).")
         return v
 
+    @field_validator("auth_owner_email")
+    @classmethod
+    def normalize_auth_owner_email(cls, v: str) -> str:
+        return v.strip().casefold()
+
+    @field_validator("auth_workspace_id")
+    @classmethod
+    def validate_auth_workspace_id(cls, v: str) -> str:
+        value = v.strip()
+        if value and (len(value) > 64 or not all(char.isalnum() or char in "_-" for char in value)):
+            raise ValueError("SIN_WORKSPACE_ID chỉ nhận tối đa 64 ký tự chữ, số, gạch dưới hoặc gạch ngang.")
+        return value
+
+    @field_validator("auth_allowed_origins")
+    @classmethod
+    def validate_auth_allowed_origins(cls, v: str) -> str:
+        origins = []
+        for value in v.split(","):
+            origin = value.strip()
+            if not origin:
+                continue
+            parsed = urlparse(origin)
+            try:
+                parsed.port
+            except ValueError as exc:
+                raise ValueError("AUTH_ALLOWED_ORIGINS chứa cổng không hợp lệ.") from exc
+            if (
+                parsed.scheme not in {"http", "https"}
+                or not parsed.hostname
+                or parsed.username
+                or parsed.password
+                or parsed.path
+                or parsed.query
+                or parsed.fragment
+            ):
+                raise ValueError("AUTH_ALLOWED_ORIGINS chỉ nhận origin HTTP(S) hợp lệ, không gồm path hoặc credentials.")
+            origins.append(f"{parsed.scheme.lower()}://{parsed.netloc.lower()}")
+        return ",".join(dict.fromkeys(origins))
+
     @model_validator(mode="after")
     def validate_llm_activation(self) -> "Settings":
         if self.llm_enabled and not self.llm_api_key.strip() and self.llm_api_key_file.is_file():
@@ -118,6 +161,21 @@ class Settings(BaseSettings):
                 raise ValueError("LLM_MODEL (hoặc LLM_DEFAULT_MODEL) bắt buộc phải được cấu hình khi LLM_ENABLED=True.")
             if not self.llm_api_key or not self.llm_api_key.strip():
                 raise ValueError("LLM_API_KEY bắt buộc phải được cấu hình khi LLM_ENABLED=True.")
+        return self
+
+    @model_validator(mode="after")
+    def validate_production_auth(self) -> "Settings":
+        if self.app_env.casefold() == "production":
+            if not self.auth_owner_email:
+                raise ValueError("AUTH_OWNER_EMAIL phải được cấu hình khi APP_ENV=production.")
+            if not self.auth_workspace_id:
+                raise ValueError("SIN_WORKSPACE_ID phải được cấu hình khi APP_ENV=production.")
+            if not self.auth_allowed_origins_set:
+                raise ValueError("AUTH_ALLOWED_ORIGINS phải được cấu hình khi APP_ENV=production.")
+            if not self.auth_cookie_secure and any(
+                origin.startswith("https://") for origin in self.auth_allowed_origins_set
+            ):
+                raise ValueError("AUTH_COOKIE_SECURE=false chỉ được phép khi mọi AUTH_ALLOWED_ORIGINS dùng HTTP.")
         return self
 
     @property
@@ -136,10 +194,14 @@ class Settings(BaseSettings):
     @property
     def platform_owner_ids_set(self) -> set[str]:
         """Tập hợp các user_id được chỉ định là Platform Owner."""
-        owners = {"usr_sin_owner", "sin_owner"}
+        owners: set[str] = set()
         if self.platform_owner_user_ids:
             owners.update(x.strip() for x in self.platform_owner_user_ids.split(",") if x.strip())
         return owners
+
+    @property
+    def auth_allowed_origins_set(self) -> set[str]:
+        return {origin for origin in self.auth_allowed_origins.split(",") if origin}
 
     def __repr__(self) -> str:
         d = dict(self.__dict__)

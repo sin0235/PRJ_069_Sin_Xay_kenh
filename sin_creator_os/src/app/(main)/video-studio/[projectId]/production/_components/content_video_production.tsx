@@ -2,6 +2,9 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { AuthApi } from "@/lib/api/auth-api";
+import { voiceStudioApi } from "@/lib/api/voice-studio-api";
+import { FlowSessionManager } from "@/components/creator/flow-session-manager";
 import { ArrowLeft, Check, LoaderCircle, Play, RefreshCw, Save, Sparkles } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
@@ -10,11 +13,25 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { mediaStudioApi, MediaAssetResponse } from "@/lib/api/media-studio-api";
 import { contentVideoApi, ContentVideoApiError, ContentVideoPlan, ContentVideoRun } from "@/lib/api/content-video-api";
+import { randomUuid } from "@/lib/utils";
+import { ShotActionDetails, ShotKindBadges, StoryboardBrief } from "./storyboard_details";
 
-const ACTIVE_RUNS = new Set(["QUEUED", "RUNNING", "BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_SETUP"]);
+const ACTIVE_RUNS = new Set(["QUEUED", "RUNNING", "BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_SETUP", "BLOCKED_FLOW_QUOTA"]);
 
 export default function ContentVideoProduction({ projectId, planId, runId, startNew }: { projectId: string; planId?: string; runId?: string; startNew?: boolean }) {
   const router = useRouter();
+  const directCreation = ["WORKSPACE_OWNER", "PLATFORM_OWNER"].includes(AuthApi.getCurrentUser()?.role || "");
+  const [ttsReady, setTtsReady] = React.useState(false);
+  const [flowProfileId, setFlowProfileId] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    const refresh = () => voiceStudioApi.getCapabilities().then((value) => {
+      if (!cancelled) setTtsReady(value.providers.VIE_NEU_V3_TURBO?.state === "READY" && value.worker.state === "READY");
+    }).catch(() => { if (!cancelled) setTtsReady(false); });
+    void refresh();
+    const timer = window.setInterval(() => { void refresh(); }, 15000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, []);
   const [content, setContent] = React.useState("");
   const [duration, setDuration] = React.useState(60);
   const [aspectRatio, setAspectRatio] = React.useState<"9:16" | "16:9">("9:16");
@@ -51,13 +68,14 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
   const contentBytes = new TextEncoder().encode(content).length;
   const activeFlowStep = editingContent ? 1 : editingStoryboard ? 2 : run?.status === "COMPLETED" ? 4 : plan?.status === "APPROVED" || run ? 3 : plan ? 2 : 1;
   const editableStoryboard = storyboardDraft || plan?.storyboard || null;
+  const hasUiScenes = !!editableStoryboard?.shots.some((shot) => shot.shot_kind === "UI_SIM");
   const storyboardDirty = !!plan && !!storyboardDraft && JSON.stringify(storyboardDraft) !== JSON.stringify(plan.storyboard);
   const sourceUnchanged = !!plan && content.trim() === plan.source_content && duration === plan.target_duration_seconds && aspectRatio === plan.style_snapshot.aspect_ratio;
   const firstUnfinishedShot = run?.steps.find((step) => step.state !== "SUCCEEDED");
   const canEditPreviousStep = !run || !["QUEUED", "RUNNING"].includes(run.status);
   const canRetryRun = !!run && ["COMPLETED", "FAILED", "FAILED_QC", "BLOCKED_FLOW_SETUP", "NEEDS_RECONCILIATION"].includes(run.status);
   const flowProjectUnavailable = run?.status === "BLOCKED_FLOW_SETUP" && run.error_code === "FLOW_REQUEST_NOT_SUBMITTED";
-  const runStatusLabel: Record<string, string> = { QUEUED: "Đang chờ", RUNNING: "Đang tạo", COMPLETED: "Hoàn tất", FAILED: "Thất bại", FAILED_QC: "QC chưa đạt", BLOCKED_FLOW_LOGIN: "Cần đăng nhập Flow", BLOCKED_FLOW_SETUP: "Flow cần xử lý", NEEDS_RECONCILIATION: "Cần đối soát" };
+  const runStatusLabel: Record<string, string> = { QUEUED: "Đang chờ", RUNNING: "Đang tạo", COMPLETED: "Hoàn tất", FAILED: "Thất bại", FAILED_QC: "QC chưa đạt", BLOCKED_FLOW_LOGIN: "Cần đăng nhập Flow", BLOCKED_FLOW_SETUP: "Flow cần xử lý", BLOCKED_FLOW_QUOTA: "Flow đã hết hạn mức", NEEDS_RECONCILIATION: "Cần đối soát" };
   const shotStatusLabel: Record<string, string> = { READY: "Chưa tạo", QUEUED: "Đang chờ", RUNNING: "Đang tạo", SUBMITTING: "Đang gửi Flow", SUCCEEDED: "Đã tạo", FAILED: "Thất bại", NEEDS_RECONCILIATION: "Cần đối soát" };
   const expandedStoryboardShotIds = plan?.status === "DRAFT" || editingStoryboard ? editableStoryboard?.shots.map((shot) => shot.shot_id) || [] : expandedShotIds;
 
@@ -174,7 +192,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
     if (!plan) return;
     setBusy(true); setError(null); setErrorCode(null);
     try {
-      idempotencyKey.current ||= `content-video-${plan.id}-${crypto.randomUUID()}`;
+      idempotencyKey.current ||= `content-video-${plan.id}-${randomUuid()}`;
       const created = await contentVideoApi.createRun(projectId, plan.id, {
         source: voiceSource,
         assetId: voiceAssetId || null,
@@ -184,10 +202,11 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
         referenceText: ttsReferenceText.trim() || undefined,
         consent: voiceCloneConsent,
         includeSubtitles,
-      }, idempotencyKey.current);
+      }, idempotencyKey.current, flowProfileId);
       idempotencyKey.current = null;
       setConfirmedNoFlowClip(false);
       setRun(created);
+      setPlan({ ...plan, status: "APPROVED" });
       router.replace(`/video-studio/${projectId}/production?plan=${encodeURIComponent(plan.id)}&run=${encodeURIComponent(created.id)}`);
     }
     catch (err) { showError(err, "Không khởi chạy được video."); }
@@ -199,7 +218,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
     setBusy(true); setError(null); setErrorCode(null);
     const signature = JSON.stringify([run.id, shotIds, inNewFlowProject, confirmedNoFlowClip]);
     if (retryIdempotency.current?.signature !== signature) {
-      retryIdempotency.current = { signature, key: `content-video-retry-${crypto.randomUUID()}` };
+      retryIdempotency.current = { signature, key: `content-video-retry-${randomUuid()}` };
     }
     try {
       const created = await contentVideoApi.retryRun(projectId, run.id, {
@@ -264,8 +283,16 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
   const resumeRun = async () => {
     if (!run) return;
     setBusy(true); setError(null); setErrorCode(null);
-    try { setRun(await contentVideoApi.resumeRun(projectId, run.id)); }
+    try { setRun(await contentVideoApi.resumeRun(projectId, run.id, flowProfileId)); }
     catch (err) { showError(err, "Không tiếp tục được run."); }
+    finally { setBusy(false); }
+  };
+
+  const rerenderRun = async (withSubtitles: boolean) => {
+    if (!run) return;
+    setBusy(true); setError(null); setErrorCode(null);
+    try { setRun(await contentVideoApi.rerenderRun(projectId, run.id, withSubtitles)); }
+    catch (err) { showError(err, "Không ghép lại được video."); }
     finally { setBusy(false); }
   };
 
@@ -313,9 +340,10 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
         <div className="flex-1"><p className="text-sm text-muted-foreground">Dự án · {plan?.storyboard.title || "Tạo video bằng AI"}</p><h1 className="text-2xl font-semibold">Quy trình tạo video</h1></div>
         {plan && <Button type="button" variant="outline" onClick={() => router.push(`/video-studio/${projectId}/production?new=1`)}><Sparkles className="mr-2 size-4" />Tạo video mới</Button>}
       </header>
+      {directCreation && <FlowSessionManager onProfileChange={setFlowProfileId} />}
 
       <ol className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-4" aria-label="Tiến độ tạo video">
-        {["Nhập nội dung", "Duyệt storyboard", "Tạo video qua Flow", "Xem video và QC"].map((label, index) => {
+        {["Nhập nội dung", "Duyệt storyboard", "Tạo video", "Xem video và QC"].map((label, index) => {
           const step = index + 1;
           const current = step === activeFlowStep;
           const complete = step < activeFlowStep;
@@ -336,7 +364,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
             <option value="9:16">Dọc 9:16</option><option value="16:9">Ngang 16:9</option>
           </select>
         </label>
-        <p className="text-xs text-muted-foreground">Profile pilot cố định được khóa ở server; mọi shot dùng cùng bảng màu và continuity anchor. Shot sau nhận frame cuối shot trước làm tham chiếu và được nối bằng crossfade ngắn.</p>
+        <p className="text-xs text-muted-foreground">Cảnh được chọn theo nội dung, có thể là cảnh vật, quy trình hoặc giao diện. Chỉ nối tiếp cảnh trước khi hành động cần liên tục; các cảnh giữ phong cách và bảng màu nhất quán.</p>
         {editingContent && <p className="text-sm text-muted-foreground">Lưu nội dung mới sẽ tạo revision storyboard mới; run và video của revision trước không còn là kết quả hiện hành.</p>}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" disabled={busy || content.trim().length < 40 || contentBytes > 12000 || duration < 20 || duration > 180 || (editingContent && sourceUnchanged)}><Sparkles className="mr-2 size-4" />{busy ? "Đang lập storyboard..." : editingContent ? "Lưu nội dung và tạo storyboard mới" : "Tạo storyboard bằng AI"}</Button>
@@ -347,7 +375,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
       {plan && !editingContent && <>
         <Card className="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2"><h2 className="text-base font-semibold">{plan.storyboard.title}</h2><Badge variant={plan.status === "APPROVED" ? "secondary" : "outline"}>{plan.status === "APPROVED" ? "Đã duyệt" : "Bản nháp"}</Badge></div>
+            <div className="flex flex-wrap items-center gap-2"><h2 className="text-base font-semibold">{plan.storyboard.title}</h2><Badge variant={plan.status === "APPROVED" ? "secondary" : "outline"}>{plan.status === "APPROVED" ? "Đã duyệt" : directCreation ? "Có thể tạo video" : "Bản nháp"}</Badge></div>
             <p className="mt-1 text-sm text-muted-foreground">Bản {plan.revision} · {plan.target_duration_seconds} giây · {plan.storyboard.shots.length} cảnh · {plan.style_snapshot.aspect_ratio}</p>
             <p className="mt-1 text-xs text-muted-foreground">{plan.style_snapshot.style_name} · {plan.style_snapshot.palette.join(" / ")} · {plan.llm_model}</p>
           </div>
@@ -358,9 +386,9 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
             {plan.status === "DRAFT" && storyboardDirty && <Button type="button" variant="outline" onClick={() => setStoryboardDraft(null)} disabled={busy}>Hủy thay đổi storyboard</Button>}
             {(plan.status === "DRAFT" || editingStoryboard) && <>
               <Button variant="outline" onClick={saveStoryboard} disabled={busy || !storyboardDirty}><Save className="mr-2 size-4" />Lưu nội dung đã sửa</Button>
-              {plan.status === "DRAFT" && <Button onClick={approve} disabled={busy || storyboardDirty}><Check className="mr-2 size-4" />Duyệt storyboard</Button>}
+              {plan.status === "DRAFT" && !directCreation && <Button onClick={approve} disabled={busy || storyboardDirty}><Check className="mr-2 size-4" />Duyệt storyboard</Button>}
             </>}
-            {plan.status === "APPROVED" && !run && !editingStoryboard && <Button onClick={() => startRun()} disabled={busy || (voiceSource === "UPLOAD" && !voiceAssetId) || (voiceSource === "TTS" && ttsProvider === "GWEN_TTS" && (!ttsReferenceAssetId || !ttsReferenceText.trim() || !voiceCloneConsent)) || (voiceSource === "TTS" && !!ttsReferenceAssetId && !voiceCloneConsent)}><Play className="mr-2 size-4" />Tạo video qua Flow</Button>}
+            {(plan.status === "APPROVED" || directCreation) && !run && !editingStoryboard && <Button onClick={() => startRun()} disabled={busy || storyboardDirty || (voiceSource === "TTS" && !ttsReady) || (voiceSource === "UPLOAD" && !voiceAssetId) || (voiceSource === "TTS" && ttsProvider === "GWEN_TTS" && (!ttsReferenceAssetId || !ttsReferenceText.trim() || !voiceCloneConsent)) || (voiceSource === "TTS" && !!ttsReferenceAssetId && !voiceCloneConsent)}><Play className="mr-2 size-4" />Tạo video</Button>}
           </div>
         </Card>
         {run && !editingStoryboard && <Card className="grid gap-4 p-4 sm:p-5">
@@ -368,8 +396,9 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
             <div><h2 className="text-lg font-semibold">Video đã ghép</h2><p className="mt-1 text-sm text-muted-foreground">Run {run.id.slice(0, 8)} · {run.current_step ? `Đang xử lý ${run.current_step}` : runStatusLabel[run.status] || run.status}</p>{flowProjectUrl && <a href={flowProjectUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm font-medium underline underline-offset-4">Mở project Flow của video này</a>}</div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={run.status === "COMPLETED" ? "secondary" : run.status === "FAILED" || run.status === "FAILED_QC" ? "destructive" : "outline"}>{runStatusLabel[run.status] || run.status}</Badge>
+              {run.status === "FAILED" && run.error_code?.startsWith("TTS_") && <Button onClick={resumeRun} disabled={busy || !ttsReady}><RefreshCw data-icon="inline-start" />Tiếp tục sau khi xử lý TTS</Button>}
               {run.status === "BLOCKED_FLOW_LOGIN" && <Button onClick={resumeRun} disabled={busy}><RefreshCw data-icon="inline-start" />Tiếp tục sau khi đăng nhập Flow</Button>}
-              {run.status === "BLOCKED_FLOW_SETUP" && <Button onClick={resumeRun} disabled={busy}><RefreshCw data-icon="inline-start" />Tiếp tục sau khi sửa Flow</Button>}
+              {["BLOCKED_FLOW_SETUP", "BLOCKED_FLOW_QUOTA"].includes(run.status) && <Button onClick={resumeRun} disabled={busy}><RefreshCw data-icon="inline-start" />Tiếp tục sau khi sửa Flow</Button>}
               {ACTIVE_RUNS.has(run.status) && <LoaderCircle className="size-5 animate-spin" aria-label="Đang chạy" />}
             </div>
           </div>
@@ -387,7 +416,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
               </section>}
               {run.error_message && <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><p className="font-medium">{run.error_code}</p><p className="mt-1">{run.error_message}</p></div>}
               {run.voice_source === "TTS" && <p className="text-sm text-muted-foreground">Lời đọc được sinh bằng {run.tts_provider === "VIE_NEU_V3_TURBO" ? "VieNeu v3 Turbo" : "Gwen-TTS"}.</p>}
-              {run.status === "COMPLETED" && finalUrl && <div className="grid gap-2 rounded-lg bg-primary/5 p-3"><p className="text-sm">Video đã ghép xong. Có thể chỉnh sửa hoặc ghép lại từ các clip Flow hiện có.</p><Button type="button" variant="outline" onClick={() => router.push(`/video-studio/${projectId}`)}>Mở timeline để chỉnh sửa</Button></div>}
+              {run.status === "COMPLETED" && finalUrl && <div className="grid gap-2 rounded-lg bg-primary/5 p-3"><p className="text-sm">Video đã ghép xong. Có thể chỉnh sửa hoặc ghép lại từ các clip Flow hiện có.</p><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => router.push(`/video-studio/${projectId}`)}>Mở timeline để chỉnh sửa</Button><Button type="button" variant="outline" onClick={() => rerenderRun(true)} disabled={busy}>Ghép lại có phụ đề</Button><Button type="button" variant="outline" onClick={() => rerenderRun(false)} disabled={busy}>Ghép lại không phụ đề</Button></div></div>}
               {exportUrl && <Button type="button" variant="link" className="w-fit px-0" onClick={() => void mediaStudioApi.downloadAsset(exportUrl, "goi_san_xuat.zip").catch((err) => showError(err, "Không tải được gói sản xuất."))}>Tải gói sản xuất (ZIP)</Button>}
             </aside>
           </div>
@@ -411,6 +440,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
           </section>}
         </Card>}
         <section className="grid gap-3" aria-label="Storyboard">
+          {editableStoryboard?.brief && <StoryboardBrief brief={editableStoryboard.brief} />}
           <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-lg font-semibold">Storyboard</h2><p className="text-sm text-muted-foreground">{plan.storyboard.shots.length} cảnh · Chọn một cảnh để xem chi tiết</p></div>{run && ["COMPLETED", "FAILED_QC"].includes(run.status) && <Button type="button" variant="outline" onClick={() => retryShots(run.steps.map((step) => step.shot_id))} disabled={busy}>Làm lại tất cả cảnh</Button>}</div>
           {editingStoryboard && <p className="text-sm text-muted-foreground">Lưu sẽ tạo revision storyboard mới và làm mất hiệu lực run/video của revision trước. Bản mới cần được duyệt lại.</p>}
           <Accordion type="multiple" value={expandedStoryboardShotIds} onValueChange={setExpandedShotIds} className="rounded-xl border bg-card pl-3 pr-1 sm:pl-4 sm:pr-1">
@@ -423,6 +453,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
                 <div className="flex min-w-0 items-center justify-between gap-3 py-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1"><span className="font-semibold">Cảnh {index + 1}</span><span className="text-xs text-muted-foreground">{shot.shot_id} · {shot.duration_seconds} giây</span>{shotLabel && <Badge variant={step?.state === "FAILED" ? "destructive" : step?.state === "SUCCEEDED" ? "secondary" : "outline"}>{shotLabel}</Badge>}</div>
+                    <div className="mt-1 flex flex-wrap gap-1"><ShotKindBadges shot={shot} /></div>
                     <p className="mt-1 truncate text-sm text-muted-foreground">{shot.scene}</p>
                   </div>
                   <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -435,12 +466,13 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
                     {plan.status === "DRAFT" || editingStoryboard ? <>
                       <label className="grid gap-1 text-sm">Nội dung cảnh<textarea value={shot.scene} onChange={(event) => setStoryboardDraft({ ...(storyboardDraft || plan.storyboard), shots: (storyboardDraft || plan.storyboard).shots.map((item) => item.shot_id === shot.shot_id ? { ...item, scene: event.target.value } : item) })} maxLength={300} className="min-h-16 rounded-md border bg-background p-3" /></label>
                       <label className="grid gap-1 text-sm">Lời thoại<textarea value={shot.narration} onChange={(event) => setStoryboardDraft({ ...(storyboardDraft || plan.storyboard), shots: (storyboardDraft || plan.storyboard).shots.map((item) => item.shot_id === shot.shot_id ? { ...item, narration: event.target.value } : item) })} maxLength={2000} className="min-h-20 rounded-md border bg-background p-3" /></label>
-                      <label className="grid gap-1 text-sm">Mô tả hình ảnh<textarea value={shot.prompt} onChange={(event) => setStoryboardDraft({ ...(storyboardDraft || plan.storyboard), shots: (storyboardDraft || plan.storyboard).shots.map((item) => item.shot_id === shot.shot_id ? { ...item, prompt: event.target.value } : item) })} minLength={8} maxLength={3000} className="min-h-24 rounded-md border bg-background p-3" /></label>
+                      {shot.shot_kind !== "UI_SIM" && <label className="grid gap-1 text-sm">Mô tả hình ảnh<textarea value={shot.prompt} onChange={(event) => setStoryboardDraft({ ...(storyboardDraft || plan.storyboard), shots: (storyboardDraft || plan.storyboard).shots.map((item) => item.shot_id === shot.shot_id ? { ...item, prompt: event.target.value } : item) })} minLength={8} maxLength={3000} className="min-h-24 rounded-md border bg-background p-3" /></label>}
                     </> : <>
                       <p className="text-sm">{shot.scene}</p><p className="text-sm"><span className="font-medium">Lời đọc:</span> {shot.narration}</p>
-                      <p className="text-sm text-muted-foreground"><span className="font-medium text-foreground">Mô tả hình ảnh:</span> {shot.prompt}</p>
+                      {shot.shot_kind !== "UI_SIM" && <p className="text-sm text-muted-foreground"><span className="font-medium text-foreground">Mô tả hình ảnh:</span> {shot.prompt}</p>}
                       {shot.negative_prompt && <p className="text-xs text-muted-foreground"><span className="font-medium">Tránh:</span> {shot.negative_prompt}</p>}
                     </>}
+                    <ShotActionDetails shot={shot} onChange={plan.status === "DRAFT" || editingStoryboard ? (nextShot) => setStoryboardDraft({ ...(storyboardDraft || plan.storyboard), shots: (storyboardDraft || plan.storyboard).shots.map((item) => item.shot_id === shot.shot_id ? nextShot : item) }) : undefined} />
                   </div>
                 </AccordionContent>
               </AccordionItem>;
@@ -448,8 +480,9 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
           </Accordion>
           {plan.status === "DRAFT" && <p className="text-sm text-muted-foreground">Storyboard AI chỉ là bản nháp. Sửa nội dung cảnh, lời thoại và mô tả hình ảnh rồi lưu trước khi duyệt. Lời đọc sẽ lấy từ thoại của các cảnh theo thứ tự.</p>}
         </section>
-        {plan.status === "APPROVED" && !run && !editingStoryboard && <Card className="grid gap-3 p-4">
+        {(plan.status === "APPROVED" || directCreation) && !run && !editingStoryboard && <Card className="grid gap-3 p-4">
           <label htmlFor="voice-source" className="text-sm font-medium">Nguồn lời đọc tiếng Việt</label>
+          {hasUiScenes && <p className="text-sm text-muted-foreground">Cảnh mô phỏng giao diện không có giọng Flow. Chọn TTS hoặc voiceover nếu cần lời đọc cho các cảnh này.</p>}
           <select id="voice-source" value={voiceSource} onChange={(event) => { setVoiceSource(event.target.value as typeof voiceSource); idempotencyKey.current = null; }} className="h-10 rounded-md border bg-background px-3 text-sm">
             <option value="NONE">Không thêm âm thanh</option><option value="UPLOAD">Voiceover đã thu sẵn</option><option value="TTS">Sinh bằng TTS</option>
           </select>
@@ -460,9 +493,10 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
             </select>
           </>}
           {voiceSource === "TTS" && <>
+            {!ttsReady && <p className="text-sm text-muted-foreground" role="status">TTS chưa sẵn sàng. Cần chuẩn bị model và khởi động worker trước khi tạo video.</p>}
             <label htmlFor="tts-provider" className="text-sm">Nhà cung cấp TTS</label>
             <select id="tts-provider" value={ttsProvider} onChange={(event) => { setTtsProvider(event.target.value as typeof ttsProvider); idempotencyKey.current = null; }} className="h-10 rounded-md border bg-background px-3 text-sm">
-              <option value="VIE_NEU_V3_TURBO">VieNeu v3 Turbo</option><option value="GWEN_TTS">Gwen-TTS</option>
+              <option value="VIE_NEU_V3_TURBO">VieNeu v3 Turbo</option><option value="GWEN_TTS" disabled>Gwen-TTS — chưa sẵn sàng</option>
             </select>
             {ttsProvider === "VIE_NEU_V3_TURBO" && <label className="grid gap-2 text-sm">Tên giọng VieNeu<Input value={ttsVoiceId} onChange={(event) => { setTtsVoiceId(event.target.value); idempotencyKey.current = null; }} maxLength={120} /></label>}
             <label htmlFor="tts-reference" className="text-sm">Audio tham chiếu (tùy chọn với VieNeu)</label>
@@ -477,7 +511,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
             </label>}
             {ttsReferenceAssetId && <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={voiceCloneConsent} onChange={(event) => { setVoiceCloneConsent(event.target.checked); idempotencyKey.current = null; }} className="mt-1" />Tôi có quyền sử dụng audio tham chiếu để tạo giọng đọc.</label>}
           </>}
-          <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={includeSubtitles} onChange={(event) => { setIncludeSubtitles(event.target.checked); idempotencyKey.current = null; }} className="mt-1" /><span><span className="font-medium">Thêm phụ đề khi ghép video</span><span className="block text-xs text-muted-foreground">TTS dùng lời dẫn storyboard, không chạy nhận dạng giọng nói. Voiceover tải lên sẽ dùng ASR.</span></span></label>
+          <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={includeSubtitles} onChange={(event) => { setIncludeSubtitles(event.target.checked); idempotencyKey.current = null; }} className="mt-1" /><span><span className="font-medium">Thêm phụ đề khi ghép video</span><span className="block text-xs text-muted-foreground">Phụ đề karaoke tô từ theo giọng đọc thật (nhận dạng giọng nói để lấy mốc thời gian). Có thể ghép lại có/không phụ đề sau khi video hoàn tất.</span></span></label>
           <p className="text-xs text-muted-foreground">Mỗi run chỉ dùng một nguồn lời đọc. Nếu TTS lỗi, hệ thống dừng run và không tự đổi nhà cung cấp.</p>
         </Card>}
         {plan.status === "DRAFT" && <p className="text-sm text-muted-foreground">Chia sẻ URL có mã plan này cho người duyệt. Người tạo không thể tự duyệt theo quy tắc phân quyền.</p>}

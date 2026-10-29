@@ -3,6 +3,7 @@ from __future__ import annotations
 import gc
 import os
 import threading
+import sys
 from pathlib import Path
 
 
@@ -19,6 +20,9 @@ class TTSProviderManager:
 
     def synthesize(self, config: dict, text: str, reference_path: str | None = None):
         provider = config["provider"]
+        if os.getenv("APP_ENV", "").lower() == "production" and os.getenv("TTS_INFERENCE_CHILD") != "1":
+            from src.model_runtime import synthesize_isolated
+            return synthesize_isolated(config, text, reference_path)
         with self._lock:
             if provider not in self._loaders:
                 raise TTSProviderError("TTS_PROVIDER_UNSUPPORTED")
@@ -42,8 +46,8 @@ class TTSProviderManager:
         self._provider = None
         gc.collect()
         try:
-            import torch
-            if torch.cuda.is_available():
+            torch = sys.modules.get("torch")
+            if torch is not None and torch.cuda.is_available():
                 torch.cuda.empty_cache()
         except ImportError:
             pass
@@ -82,7 +86,7 @@ class TTSProviderManager:
         except ImportError as exc:
             raise TTSProviderError("TTS_PROVIDER_UNAVAILABLE") from exc
         return Vieneu(
-            mode="v3turbo", device="cpu", backend="onnx", precision="fp32", threads=0,
+            mode="v3turbo", device="cpu", backend="onnx", precision="fp32", threads=2,
         )
 
     @staticmethod
@@ -112,7 +116,8 @@ class TTSProviderManager:
             top_p=advanced.get("top_p", 0.95),
             max_new_frames=advanced.get("max_new_frames", 300),
             repetition_penalty=advanced.get("repetition_penalty", 1.2),
-            max_chars=advanced.get("max_chars", 256),
+            # 256 pushed a 233-char voice-clone shot past the 3.5 GiB worker limit (OOM); 100 keeps the peak bounded.
+            max_chars=advanced.get("max_chars", 100),
         )
         return audio, model.sample_rate
 

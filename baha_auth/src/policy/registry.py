@@ -2,12 +2,11 @@
 import os
 import json
 import csv
+from pathlib import Path
 from typing import Dict, List, Optional, Set
 
-REGISTRY_FILE = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "..",
-    "09_kiem_thu_quyen", "PERMISSION_REGISTRY.json"
-))
+REGISTRY_DIRECTORY = Path(__file__).resolve().parents[3] / "09_kiem_thu_quyen"
+REGISTRY_FILE = str(REGISTRY_DIRECTORY / "PERMISSION_REGISTRY.json")
 
 _SCOPE_CODES = {
     "W": "WORKSPACE",
@@ -22,10 +21,7 @@ _SCOPE_CODES = {
     "O": "PLATFORM",
 }
 
-MATRIX_FILE = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "..",
-    "09_kiem_thu_quyen", "ROLE_PERMISSION_MATRIX.csv"
-))
+MATRIX_FILE = str(REGISTRY_DIRECTORY / "ROLE_PERMISSION_MATRIX.csv")
 
 # Ánh xạ vai trò được phép cấp theo ROLE_GRANT_RULES.md.
 DEFAULT_GRANTABLE_ROLES: Dict[str, List[str]] = {

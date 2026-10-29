@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AuthApi } from "@/lib/api/auth-api";
 import { mediaStudioApi } from "@/lib/api/media-studio-api";
 import { voiceStudioApi, type TTSAdvancedSettings, type VoiceProfile, type VoiceStudioJob } from "@/lib/api/voice-studio-api";
+import { randomUuid } from "@/lib/utils";
 
 const statusLabels: Record<string, string> = {
   QUEUED: "Đang chờ",
@@ -38,6 +39,7 @@ type Provider = keyof typeof defaults;
 export default function VoiceStudioPage() {
   const [tab, setTab] = useState("tts");
   const [provider, setProvider] = useState<Provider>("VIE_NEU_V3_TURBO");
+  const [providerStates, setProviderStates] = useState<Record<string, string>>({});
   const [voiceChoice, setVoiceChoice] = useState("preset");
   const [advanced, setAdvanced] = useState<TTSAdvancedSettings>(defaults.VIE_NEU_V3_TURBO);
   const [text, setText] = useState("");
@@ -87,6 +89,13 @@ export default function VoiceStudioPage() {
       .finally(() => setSettingsLoaded(true));
     void refreshJobs();
     void refreshVoices();
+    let cancelled = false;
+    const refreshCapabilities = () => voiceStudioApi.getCapabilities().then((capabilities) => {
+      if (!cancelled) setProviderStates(Object.fromEntries(Object.entries(capabilities.providers).map(([id, value]) => [id, capabilities.worker.state === "READY" ? value.state : "NOT_READY"])));
+    }).catch(() => { if (!cancelled) setProviderStates({}); });
+    void refreshCapabilities();
+    const timer = window.setInterval(() => { void refreshCapabilities(); }, 15000);
+    return () => { cancelled = true; window.clearInterval(timer); };
   }, [workspaceId, refreshJobs, refreshVoices]);
 
   useEffect(() => {
@@ -133,7 +142,7 @@ export default function VoiceStudioPage() {
         voice_clone_consent: false,
         pronunciation_dictionary: dictionary,
         advanced,
-        idempotency_key: crypto.randomUUID(),
+        idempotency_key: randomUuid(),
       });
       setJobs((current) => [job, ...current.filter((item) => item.job_id !== job.job_id)]);
       setActiveJobId(job.job_id);
@@ -239,9 +248,10 @@ export default function VoiceStudioPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="grid gap-2">
                     <Label htmlFor="tts-provider">Model TTS</Label>
+          {providerStates[provider] !== "READY" && <p className="text-sm text-muted-foreground" role="status">TTS chưa sẵn sàng. Hãy kiểm tra bước chuẩn bị model và trạng thái worker.</p>}
                     <select id="tts-provider" value={provider} onChange={(event) => changeProvider(event.target.value as Provider)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
                       <option value="VIE_NEU_V3_TURBO">VieNeu v3 Turbo</option>
-                      <option value="GWEN_TTS">Gwen-TTS</option>
+                      <option value="GWEN_TTS" disabled={providerStates.GWEN_TTS !== "READY"}>Gwen-TTS — chưa sẵn sàng</option>
                     </select>
                   </div>
                   <div className="grid gap-2">
@@ -293,7 +303,7 @@ export default function VoiceStudioPage() {
                 </details>
 
                 {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-                <Button type="submit" disabled={!settingsLoaded || busy || !text.trim() || !voiceChoice || (provider === "GWEN_TTS" && !usableVoices.some((voice) => voice.id === voiceChoice))}>
+                <Button type="submit" disabled={providerStates[provider] !== "READY" || !settingsLoaded || busy || !text.trim() || !voiceChoice || (provider === "GWEN_TTS" && !usableVoices.some((voice) => voice.id === voiceChoice))}>
                   {busy ? <><LoaderCircle className="size-4 animate-spin" /> Đang xử lý</> : "Tạo audio"}
                 </Button>
               </form>
@@ -327,7 +337,7 @@ export default function VoiceStudioPage() {
               <form className="grid gap-5 lg:grid-cols-2" onSubmit={saveVoice}>
                 <div className="grid content-start gap-4">
                   <div className="grid gap-2"><Label htmlFor="voice-name">Tên giọng trong thư viện</Label><Input id="voice-name" required maxLength={100} value={voiceName} onChange={(event) => setVoiceName(event.target.value)} placeholder="Ví dụ: Giọng dẫn kênh chính" /></div>
-                  <div className="grid gap-2"><Label htmlFor="clone-provider">Model clone</Label><select id="clone-provider" value={cloneProvider} onChange={(event) => setCloneProvider(event.target.value as Provider)} className="h-10 rounded-md border border-input bg-background px-3 text-sm"><option value="VIE_NEU_V3_TURBO">VieNeu v3 Turbo</option><option value="GWEN_TTS">Gwen-TTS</option></select></div>
+                  <div className="grid gap-2"><Label htmlFor="clone-provider">Model clone</Label><select id="clone-provider" value={cloneProvider} onChange={(event) => setCloneProvider(event.target.value as Provider)} className="h-10 rounded-md border border-input bg-background px-3 text-sm"><option value="VIE_NEU_V3_TURBO">VieNeu v3 Turbo</option><option value="GWEN_TTS" disabled={providerStates.GWEN_TTS !== "READY"}>Gwen-TTS — chưa sẵn sàng</option></select></div>
                   <div className="grid gap-2"><Label htmlFor="clone-reference-audio">Audio mẫu</Label><Input ref={cloneFileRef} id="clone-reference-audio" type="file" accept="audio/*,.wav,.mp3,.m4a" required onChange={(event) => setReferenceName(event.target.files?.[0]?.name || "")} />{referenceName && <p className="flex items-center gap-2 text-sm text-muted-foreground"><Upload className="size-4" />{referenceName}</p>}</div>
                 </div>
                 <div className="flex flex-col gap-4">

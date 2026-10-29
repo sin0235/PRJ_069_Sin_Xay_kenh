@@ -6,9 +6,10 @@ Chống tấn công MIME giả mạo, Zip Path Traversal và Zip Bomb theo chu�
 import hashlib
 import io
 import os
+import tempfile
 import zipfile
 from pathlib import Path
-from typing import Dict, Any, List, Tuple
+from typing import BinaryIO, Dict, Any, List, Tuple
 from fastapi import HTTPException, status
 
 MEDIA_ROOT_DIR = Path(os.environ.get("MEDIA_ROOT_DIR", Path(__file__).resolve().parents[4] / "media_assets"))
@@ -84,6 +85,8 @@ UPLOAD_SIZE_LIMITS: dict = {
     "image": int(os.environ.get("UPLOAD_LIMIT_IMAGE_MB", "20")) * _MB,
     "video": int(os.environ.get("UPLOAD_LIMIT_VIDEO_MB", "500")) * _MB,
 }
+UPLOAD_STREAM_CHUNK_BYTES = 1024 * 1024
+_MIME_SNIFF_BYTES = 64 * 1024
 
 # Allowlist MIME theo category
 CATEGORY_MIME_ALLOWLIST: dict = {
@@ -103,32 +106,25 @@ CATEGORY_MIME_ALLOWLIST: dict = {
 def _check_filename_safe(filename: str) -> str:
     """Chuẩn hóa tên tệp, loại bỏ path traversal và ký tự nguy hiểm."""
     import re
-    # Chỉ giữ phần tên tệp, loại bỏ thư mục
-    safe = os.path.basename(filename)
-    # Loại bỏ ký tự nguy hiểm
-    safe = re.sub(r'[^\w.\-]', '_', safe)
+    # Treat both platform separators as path boundaries even when running on POSIX.
+    basename = os.path.basename(filename.replace("\\", "/"))
+    safe = re.sub(r'[^\w.\-]', '_', basename)
+    stem, extension = os.path.splitext(safe)
+    stem = re.sub(r"\.{2,}", "_", stem).rstrip(".")
+    if extension == ".":
+        extension = ""
+    safe = f"{stem}{extension}"
     if not safe or safe.startswith('.'):
         safe = f"upload_{safe}"
     return safe
 
-def validate_audio_or_media_file(data: bytes, filename: str, expected_category: str = "audio") -> Tuple[str, str, int]:
-    """
-    Xác thực tệp media hợp lệ với allowlist MIME theo category (B04, B05, MF-02):
-    - Kiểm tra tệp rỗng.
-    - Kiểm tra giới hạn kích thước theo category.
-    - Phát hiện MIME thực dựa trên magic bytes.
-    - Từ chối MIME không nằm trong allowlist của category.
-    - Trả về: (mime_type, sha256_hash, byte_size)
-    """
-    if not data or len(data) == 0:
+def _validate_media_size(byte_size: int, expected_category: str) -> None:
+    if byte_size <= 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail={"error_code": "EMPTY_FILE", "message": "Tệp tin tải lên bị rỗng (0 bytes)."}
         )
 
-    byte_size = len(data)
-
-    # Kiểm tra giới hạn kích thước theo category
     size_limit = UPLOAD_SIZE_LIMITS.get(expected_category, UPLOAD_SIZE_LIMITS["audio"])
     if byte_size > size_limit:
         raise HTTPException(
@@ -139,18 +135,24 @@ def validate_audio_or_media_file(data: bytes, filename: str, expected_category: 
             }
         )
 
-    real_mime = detect_real_mime(data, filename)
-    sha256_hash = hashlib.sha256(data).hexdigest()
+
+def validate_media_file_info(
+    prefix: bytes,
+    filename: str,
+    expected_category: str,
+    byte_size: int,
+    sha256_hash: str,
+) -> Tuple[str, str, int]:
+    """Apply the shared size and MIME policy to byte-backed and streamed uploads."""
+    _validate_media_size(byte_size, expected_category)
+    real_mime = detect_real_mime(prefix, filename)
 
     # Kiểm tra allowlist MIME theo category
     allowed_mimes = CATEGORY_MIME_ALLOWLIST.get(expected_category)
     if allowed_mimes is not None:
-        # Kiểm tra chặt: MIME phải nằm trong allowlist
         mime_ok = real_mime in allowed_mimes
-        # Cho phép khớp prefix (vd: audio/*)
         if not mime_ok:
-            prefix = expected_category + "/"
-            mime_ok = real_mime.startswith(prefix)
+            mime_ok = real_mime.startswith(expected_category + "/")
         if not mime_ok:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -163,7 +165,6 @@ def validate_audio_or_media_file(data: bytes, filename: str, expected_category: 
                     )
                 }
             )
-        # Từ chối tuyệt đối các MIME nguy hiểm dù có trong allowlist
         if real_mime in ("application/pdf", "application/x-dosexec", "application/x-executable"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -174,6 +175,79 @@ def validate_audio_or_media_file(data: bytes, filename: str, expected_category: 
             )
 
     return real_mime, sha256_hash, byte_size
+
+
+def stream_media_to_tempfile(
+    source: BinaryIO,
+    filename: str,
+    expected_category: str,
+    temporary_root: Path,
+) -> Tuple[Path, str, str, int]:
+    """Copy a media stream to a private temporary file with bounded memory use."""
+    temporary_root.mkdir(parents=True, exist_ok=True)
+    temporary_path = None
+    digest = hashlib.sha256()
+    prefix = bytearray()
+    byte_size = 0
+
+    try:
+        with tempfile.NamedTemporaryFile(mode="wb", prefix=".upload-", dir=temporary_root, delete=False) as destination:
+            temporary_path = Path(destination.name)
+            while True:
+                chunk = source.read(UPLOAD_STREAM_CHUNK_BYTES)
+                if not chunk:
+                    break
+                if len(chunk) > UPLOAD_STREAM_CHUNK_BYTES:
+                    raise ValueError("Upload stream returned more bytes than the requested chunk size.")
+                next_size = byte_size + len(chunk)
+                size_limit = UPLOAD_SIZE_LIMITS.get(expected_category, UPLOAD_SIZE_LIMITS["audio"])
+                if next_size > size_limit:
+                    _validate_media_size(next_size, expected_category)
+                if len(prefix) < _MIME_SNIFF_BYTES:
+                    prefix.extend(chunk[:_MIME_SNIFF_BYTES - len(prefix)])
+                digest.update(chunk)
+                destination.write(chunk)
+                byte_size = next_size
+            destination.flush()
+            os.fsync(destination.fileno())
+
+        mime_type, sha256_hash, validated_size = validate_media_file_info(
+            bytes(prefix), filename, expected_category, byte_size, digest.hexdigest()
+        )
+        return temporary_path, mime_type, sha256_hash, validated_size
+    except Exception:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+        raise
+
+
+def hash_file(path: Path) -> Tuple[str, int]:
+    """Return SHA-256 and byte size without loading a stored media file into memory."""
+    digest = hashlib.sha256()
+    byte_size = 0
+    with path.open("rb") as source:
+        while True:
+            chunk = source.read(UPLOAD_STREAM_CHUNK_BYTES)
+            if not chunk:
+                break
+            digest.update(chunk)
+            byte_size += len(chunk)
+    return digest.hexdigest(), byte_size
+
+
+def validate_audio_or_media_file(data: bytes, filename: str, expected_category: str = "audio") -> Tuple[str, str, int]:
+    """
+    Xác thực tệp media hợp lệ với allowlist MIME theo category (B04, B05, MF-02):
+    - Kiểm tra tệp rỗng.
+    - Kiểm tra giới hạn kích thước theo category.
+    - Phát hiện MIME thực dựa trên magic bytes.
+    - Từ chối MIME không nằm trong allowlist của category.
+    - Trả về: (mime_type, sha256_hash, byte_size)
+    """
+    byte_size = len(data)
+    _validate_media_size(byte_size, expected_category)
+    sha256_hash = hashlib.sha256(data).hexdigest()
+    return validate_media_file_info(data[:_MIME_SNIFF_BYTES], filename, expected_category, byte_size, sha256_hash)
 
 def validate_zip_archive(zip_bytes: bytes, max_uncompressed_bytes: int = 100 * 1024 * 1024, max_ratio: float = 100.0) -> List[str]:
     """
@@ -236,8 +310,11 @@ def probe_media_metadata(data: bytes, mime_type: str) -> Dict[str, Any]:
     - Tính toán duration_ms, sample_rate, channels, sha256.
     """
     sha256_hash = hashlib.sha256(data).hexdigest()
-    byte_size = len(data)
-    
+    return probe_media_metadata_from_values(len(data), mime_type, sha256_hash)
+
+
+def probe_media_metadata_from_values(byte_size: int, mime_type: str, sha256_hash: str) -> Dict[str, Any]:
+    """Build the existing lightweight metadata without materializing streamed file bytes."""
     # Mặc định ước lượng dựa trên byte size đối với âm thanh chuẩn (MP3 ~128kbps = 16KB/s)
     estimated_duration_ms = max(int((byte_size / 16000) * 1000), 1000) if mime_type == "audio/mpeg" else 30000
 

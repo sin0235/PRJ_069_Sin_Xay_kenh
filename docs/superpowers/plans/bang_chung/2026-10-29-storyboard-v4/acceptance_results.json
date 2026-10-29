@@ -1,0 +1,23 @@
+[
+  {
+    "id": "ai_sales",
+    "status": "NOT_VERIFIED",
+    "error_code": "UPSTREAM_SERVER_ERROR",
+    "error": "LLM Gateway gặp sự cố máy chủ nội bộ (HTTP 503).",
+    "seconds": 6.26
+  },
+  {
+    "id": "pain_explicit",
+    "status": "NOT_VERIFIED",
+    "error_code": "UPSTREAM_SERVER_ERROR",
+    "error": "LLM Gateway gặp sự cố máy chủ nội bộ (HTTP 503).",
+    "seconds": 0.02
+  },
+  {
+    "id": "information_only",
+    "status": "NOT_VERIFIED",
+    "error_code": "UPSTREAM_SERVER_ERROR",
+    "error": "LLM Gateway gặp sự cố máy chủ nội bộ (HTTP 503).",
+    "seconds": 0.02
+  }
+]

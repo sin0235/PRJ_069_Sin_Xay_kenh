@@ -1,6 +1,9 @@
 import { AuthApi } from "@/lib/api/auth-api";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+export interface VoiceStudioCapabilities {
+  providers: Record<string, { state: string; error_code?: string }>;
+  worker: { state: string };
+}
 
 export interface VoiceStudioAsset {
   id: string;
@@ -70,12 +73,11 @@ export interface VoiceStudioSettings {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}/v1/voice-studio${path}`, {
+  const response = await fetch(`/v1/voice-studio${path}`, {
     ...init,
+    credentials: "same-origin",
     headers: {
-      "Content-Type": "application/json",
-      "X-Workspace-Id": AuthApi.getWorkspaceId(),
-      Authorization: `Bearer ${AuthApi.getAuthToken()}`,
+      ...AuthApi.getAuthHeaders(),
       ...init?.headers,
     },
   });
@@ -87,14 +89,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-function formatJob(job: VoiceStudioJob): VoiceStudioJob {
-  if (job.asset?.url.startsWith("/")) {
-    job.asset.url = `${API_BASE_URL}${job.asset.url}`;
-  }
-  return job;
-}
-
 export const voiceStudioApi = {
+  getCapabilities() {
+    return request<VoiceStudioCapabilities>("/capabilities");
+  },
   getSettings() {
     return request<VoiceStudioSettings>("/settings");
   },
@@ -102,13 +100,13 @@ export const voiceStudioApi = {
     return request<VoiceStudioSettings>("/settings", { method: "PUT", body: JSON.stringify(payload) });
   },
   createJob(payload: CreateVoiceStudioJob) {
-    return request<VoiceStudioJob>("/jobs", { method: "POST", body: JSON.stringify(payload) }).then(formatJob);
+    return request<VoiceStudioJob>("/jobs", { method: "POST", body: JSON.stringify(payload) });
   },
   getJob(jobId: string) {
-    return request<VoiceStudioJob>(`/jobs/${encodeURIComponent(jobId)}`).then(formatJob);
+    return request<VoiceStudioJob>(`/jobs/${encodeURIComponent(jobId)}`);
   },
   listJobs() {
-    return request<VoiceStudioJob[]>("/jobs?limit=20").then((jobs) => jobs.map(formatJob));
+    return request<VoiceStudioJob[]>("/jobs?limit=20");
   },
   listVoices() {
     return request<VoiceProfile[]>("/voices");

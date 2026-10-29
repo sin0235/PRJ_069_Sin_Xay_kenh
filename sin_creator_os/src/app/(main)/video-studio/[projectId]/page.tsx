@@ -66,6 +66,7 @@ import {
 } from "@/lib/api/media-studio-api";
 import { BangDieuPhoiDung } from "@/components/video_studio/bang_dieu_phoi_dung";
 import { taoPhuDeDeLuu } from "./phu_de_timeline";
+import { randomUuid } from "@/lib/utils";
 
 export default function VideoStudioPage() {
   const router = useRouter();
@@ -462,7 +463,7 @@ export default function VideoStudioPage() {
         mode: "PILOT_ASSISTED",
         duration_sec: 30,
         project_id: projectId,
-        idempotency_key: `auto_${projectId}_${crypto.randomUUID()}`,
+        idempotency_key: `auto_${projectId}_${randomUuid()}`,
       });
 
       setAutoProduceStage("Flow đang tạo video dọc 9:16...");
@@ -478,7 +479,7 @@ export default function VideoStudioPage() {
         height: 1920,
         fps: 30,
         clips: [{
-          clip_id: `clip_${crypto.randomUUID()}`,
+          clip_id: `clip_${randomUuid()}`,
           asset_id: video.id,
           media_type: "video",
           start_ms: 0,
@@ -490,7 +491,7 @@ export default function VideoStudioPage() {
         voice_track: null,
         music_track: { asset_id: music.id, start_ms: 0, duration_ms: durationMs, gain_db: 0 },
         captions: captionText.trim() ? [{
-          caption_id: `caption_${crypto.randomUUID()}`,
+          caption_id: `caption_${randomUuid()}`,
           text: captionText.trim(),
           start_ms: 0,
           duration_ms: durationMs,

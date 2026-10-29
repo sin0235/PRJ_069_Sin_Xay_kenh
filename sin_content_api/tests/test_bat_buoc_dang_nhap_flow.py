@@ -136,7 +136,22 @@ def test_google_flow_enters_video_mode_before_attaching_image():
             calls.append(("ready", kwargs["state"]))
 
         def count(self):
-            return 1
+            selector = self.selector
+            if selector == "button.agent-mode-chip":
+                return 1
+            if any(marker in selector for marker in (
+                "settings-trigger-button", "aria-label*='settings'", "Nano Banana", "button:has-text('Video')",
+                "button:has-text('Veo')", "[role=\"textbox\"]",
+            )):
+                return 0
+            if "data-slate-editor" in selector or "ProseMirror" in selector:
+                return 1
+            if "crop_16_9" in selector or "trigger-VIDEO" in selector or "trigger-LANDSCAPE" in selector:
+                return 1
+            return 0
+
+        def get_attribute(self, _name):
+            return "false"
 
         def click(self, **kwargs):
             calls.append(("click", self.selector))
@@ -153,8 +168,7 @@ def test_google_flow_enters_video_mode_before_attaching_image():
     google_flow_client.GoogleFlowClient._ensure_video_mode(Page())
 
     assert calls[0] == ("ready", "visible")
-    assert calls[1][0] == "click"
-    assert "crop_16_9" in calls[1][1]
+    assert any(call[0] == "click" and "crop_16_9" in call[1] for call in calls)
     video_click = next(call for call in calls if call[0] == "click" and "role='tab'" in call[1])
     assert "trigger-VIDEO" in video_click[1]
 
@@ -241,6 +255,23 @@ def test_image_video_flow_preserves_selected_aspect_ratio(monkeypatch, tmp_path)
         result["filename"].replace("flow_i2v_16_9_", "flow_source_16_9_", 1)
     )
     assert raw_source.read_bytes() == source.read_bytes()
+
+
+@pytest.mark.parametrize("submitted", [False, True])
+def test_image_video_preserves_quota_submission_certainty(monkeypatch, tmp_path, submitted):
+    error = video_provider.FlowQuotaExceeded("FLOW_QUOTA_LIMITED", submitted=submitted)
+
+    def exhausted(*_args, **_kwargs):
+        raise error
+
+    monkeypatch.setattr(google_flow_client.GoogleFlowClient, "create_video", exhausted)
+    monkeypatch.setattr(video_provider, "MEDIA_ROOT_DIR", tmp_path)
+    with pytest.raises(video_provider.FlowQuotaExceeded) as caught:
+        video_provider.GoogleFlowZeroCostProvider().generate_from_image(
+            "continue scene", tmp_path / "reference.jpg", workspace_id="workspace-test"
+        )
+    assert caught.value is error
+    assert caught.value.submitted is submitted
 
 
 def test_expand_fails_closed_when_watermark_remover_is_unavailable(monkeypatch, tmp_path):

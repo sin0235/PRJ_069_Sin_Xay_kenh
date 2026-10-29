@@ -8,6 +8,7 @@ from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from src.config import settings
+from src.runtime_status import validate_production_runtime, worker_status
 from src.database import check_db_ready
 from src.migrations.runner import migration_up
 from src.schemas.contracts import HealthResponse, ReadyResponse, ErrorPayload
@@ -24,18 +25,19 @@ from src.modules.feedback.router import router as feedback_router
 from src.modules.staging_reliability.router import router as staging_router
 from src.modules.canary_rollback.router import router as canary_router
 from src.modules.media_studio.router import media_router, jobs_router
-from src.modules.auth.router import auth_router
+from src.modules.auth.router import auth_router, auth_session_router
 from src.modules.platform_config.router import router as platform_config_router
 from src.modules.dieu_phoi_dung.bo_dinh_tuyen import router as dieu_phoi_router
 from src.modules.tao_video_noi_dung.router import router as content_video_router
 from src.modules.voice_studio.router import router as voice_studio_router
+from src.modules.flow_sessions.router import router as flow_sessions_router
 from src.modules.tao_video_noi_dung.runner import content_video_worker
 
 # Exception handler chuẩn hóa theo ErrorPayload
 def _auto_start_9router_if_needed():
     """Tu dong kiem tra va khoi dong 9Router Gateway tren cong 20128 khi backend chay."""
     import os, socket, subprocess, shutil
-    if os.environ.get("TESTING") == "1":
+    if os.environ.get("TESTING") == "1" or settings.app_env.lower() == "production":
         return
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -62,9 +64,10 @@ def _e2e_test_worker_enabled():
 
 async def lifespan(app: FastAPI):
     # Khởi tạo bảng trong chế độ offline nếu chưa có
+    validate_production_runtime()
     migration_up()
     _auto_start_9router_if_needed()
-    if _e2e_test_worker_enabled() or (settings.app_env.lower() not in {"test", "testing"} and os.getenv("TESTING") != "1"):
+    if settings.app_env.lower() != "production" and os.getenv("CONTENT_VIDEO_WORKER_ENABLED", "1") != "0" and (_e2e_test_worker_enabled() or (settings.app_env.lower() not in {"test", "testing"} and os.getenv("TESTING") != "1")):
         content_video_worker.start()
     try:
         yield
@@ -84,7 +87,7 @@ app = FastAPI(
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=sorted(settings.auth_allowed_origins_set) if settings.app_env.lower() == "production" else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -117,8 +120,15 @@ def readyz():
         status="ready",
         database_connected=True,
         offline_mode=settings.app_env == "offline",
-        version=settings.app_version
+        version=settings.app_version,
+        components=_runtime_components(),
     )
+
+
+def _runtime_components():
+    from src.model_runtime import model_status
+    return {"database": {"state": "READY"}, "worker": worker_status(), "tts": model_status(),
+        "flow": {"state": "CHECK_PER_WORKSPACE"}}
 
 # Exception handler chuẩn hóa theo ErrorPayload
 @app.exception_handler(HTTPException)
@@ -161,7 +171,9 @@ app.include_router(canary_router)
 app.include_router(media_router)
 app.include_router(jobs_router)
 app.include_router(auth_router)
+app.include_router(auth_session_router)
 app.include_router(platform_config_router)
 app.include_router(dieu_phoi_router)
 app.include_router(content_video_router)
 app.include_router(voice_studio_router)
+app.include_router(flow_sessions_router)

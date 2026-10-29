@@ -14,8 +14,12 @@ from src.models.entities import VoiceProfile, VoiceStudioSetting
 
 def migration_up():
     """Ap dung migration: Khoi tao toan bo cac bang du lieu"""
+    from src.modules.flow_sessions import models as flow_models
     Base.metadata.create_all(bind=engine)
+    from src.modules.flow_sessions.migrations import migrate_flow_sessions_up
+    migrate_flow_sessions_up(engine)
     migrate_content_video_up()
+    migrate_media_job_leases_up()
     inspector = inspect(engine)
     return inspector.get_table_names()
 
@@ -87,3 +91,13 @@ def migrate_content_video_down():
     return not any(name in inspector.get_table_names() for name in (
         "content_video_plans", "content_video_runs", "content_video_worker_leases"
     ))
+
+
+def migrate_media_job_leases_up():
+    """Migration additive: bảo toàn mọi job hiện có."""
+    from src.models.entities import AIGenerationJob
+    AIGenerationJob.__table__.create(bind=engine, checkfirst=True)
+    for name, kind in (("lease_token", "VARCHAR(36)"), ("lease_expires_at", "TIMESTAMP")):
+        if name not in {col["name"] for col in inspect(engine).get_columns("ai_generation_jobs")}:
+            with engine.begin() as connection:
+                connection.execute(text(f"ALTER TABLE ai_generation_jobs ADD COLUMN {name} {kind}"))

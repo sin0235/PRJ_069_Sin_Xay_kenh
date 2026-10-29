@@ -57,7 +57,7 @@ def client():
 
 @pytest.fixture(autouse=True)
 def setup_owner_env():
-    settings.platform_owner_user_ids = "owner_founder_01,platform_owner_99"
+    settings.platform_owner_user_ids = "owner_founder_01,platform_owner_99,usr_sin_owner"
     yield
 
 # ==================== TEST 1: PHÂN QUYỀN RBAC PLATFORM OWNER ====================

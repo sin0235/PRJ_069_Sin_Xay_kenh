@@ -26,6 +26,88 @@ from src.modules.tao_video_noi_dung.planner import StoryboardShot
 from src.migrations import runner as migration_runner
 
 
+def _v4_storyboard_data():
+    data = json.loads((API_ROOT / "tests/fixtures/storyboard_ai_sales_v3.json").read_text())
+    data["shots"] = data["shots"][:3]
+    data["brief"] = {"pains": [{"id": "p1", "text": "Bỏ sót khách hỏi.", "source": "inferred"}],
+                     "solutions": [{"id": "s1", "text": "Trợ lý hỗ trợ.", "source": "content"}]}
+    for shot, beat, mids in zip(data["shots"], ["PAIN", "INSIGHT", "SOLUTION"], [["p1"], [], ["s1"]]):
+        shot.update(prompt_contract_version=4, beat=beat, message_ids=mids,
+                    action_beats=[{"start_s": 0, "end_s": 4, "action": "Khách tiến tới bàn."},
+                                  {"start_s": 4, "end_s": 10, "action": "Nhân viên đưa thẻ trả lời."}])
+    return data
+
+
+def test_v3_storyboard_still_parses():
+    from src.modules.tao_video_noi_dung.planner import Storyboard
+    fixture = json.loads((API_ROOT / "tests/fixtures/storyboard_v3_compatibility.json").read_text())
+    board = Storyboard.model_validate(fixture["dump"])
+    assert board.model_dump(mode="json") == fixture["dump"]
+    for shot, expected in zip(board.shots, fixture["prompts"]):
+        assert build_shot_prompt(fixture["style"], shot, board.continuity_anchor) == expected
+
+
+@pytest.mark.parametrize("intervals", [[(0, 5), (4, 10)], [(0, 4), (5, 10)], [(1, 10)], [(0, 9)], [(0, 11)], [(0, 0)]])
+def test_v4_flow_shot_action_beats_must_cover_duration_without_overlap(intervals):
+    from src.modules.tao_video_noi_dung.planner import Storyboard
+    data = _v4_storyboard_data()
+    Storyboard.model_validate(data)
+    data["shots"][0]["action_beats"] = [{"start_s": a, "end_s": b, "action": "Tiến tới bàn."} for a, b in intervals]
+    with pytest.raises(ValueError):
+        Storyboard.model_validate(data)
+
+
+def test_v4_ui_sim_requires_ui_scene():
+    from src.modules.tao_video_noi_dung.planner import Storyboard
+    data = _v4_storyboard_data()
+    data["shots"][1].update(shot_kind="UI_SIM", ui_scene=None)
+    with pytest.raises(ValueError, match="UI_SCENE_REQUIRED"):
+        Storyboard.model_validate(data)
+
+
+def test_v4_pain_must_precede_solution():
+    from src.modules.tao_video_noi_dung.planner import Storyboard
+    data = _v4_storyboard_data()
+    data["shots"][0]["beat"], data["shots"][2]["beat"] = "SOLUTION", "PAIN"
+    with pytest.raises(ValueError, match="PAIN_AFTER_SOLUTION"):
+        Storyboard.model_validate(data)
+
+
+def test_v4_uncovered_message_id_rejected():
+    from src.modules.tao_video_noi_dung.planner import Storyboard
+    data = _v4_storyboard_data()
+    data["shots"][0]["message_ids"] = []
+    with pytest.raises(ValueError, match="LOW_COVERAGE"):
+        Storyboard.model_validate(data)
+
+
+def test_v4_cannot_bypass_contract_by_omitting_brief_or_downgrading_one_shot():
+    from src.modules.tao_video_noi_dung.planner import Storyboard
+    data = _v4_storyboard_data()
+    data["shots"][0]["prompt_contract_version"] = 3
+    with pytest.raises(ValueError):
+        Storyboard.model_validate(data)
+    data = _v4_storyboard_data()
+    data.pop("brief")
+    with pytest.raises(ValueError):
+        Storyboard.model_validate(data)
+
+
+def test_v4_prompt_lists_action_beats_with_timestamps_and_drops_single_action_rule():
+    shot = StoryboardShot.model_validate(_v4_storyboard_data()["shots"][0])
+    style = {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]}
+    prompt = build_shot_prompt(style, shot, "Nhân viên áo xanh và khách áo trắng.")
+    assert "0–4 giây: Khách tiến tới bàn." in prompt
+    assert "4–10 giây: Nhân viên đưa thẻ trả lời." in prompt
+    assert "Chỉ một hành động chính đơn giản" not in prompt
+    assert "tối đa hai chuyển động camera" in prompt
+    assert "Không hiển thị chữ" in prompt
+    assert "hai mắt cùng kích thước và cao độ" in prompt
+    assert "không biến hình" in prompt
+    assert shot.narration in prompt
+    assert shot.narration not in build_shot_prompt(style, shot, "Nhân viên áo xanh.", False)
+
+
 def test_content_video_migration_upgrades_existing_run_table(monkeypatch):
     engine = create_engine("sqlite:///:memory:")
     try:
@@ -47,77 +129,6 @@ def test_content_video_migration_upgrades_existing_run_table(monkeypatch):
         engine.dispose()
 
 
-def test_tts_is_synthesized_per_shot_while_fake_video_generation_is_running(monkeypatch):
-    import threading
-    from concurrent.futures import ThreadPoolExecutor
-    import numpy as np
-    from src.modules.tao_video_noi_dung import runner
-
-    started = threading.Event()
-    release_tts = threading.Event()
-    release_video = threading.Event()
-    video_started = threading.Event()
-    video_finished = threading.Event()
-    calls = []
-
-    def synthesize(_config, text, _reference_path):
-        calls.append(text)
-        started.set()
-        assert release_tts.wait(5)
-        seconds = 11 if text == "Cảnh một" else 9
-        rate = 48000
-        return np.ones(seconds * rate, dtype=np.float32) * 0.01, rate
-
-    monkeypatch.setattr(runner.tts_provider_manager, "synthesize", synthesize)
-    shots = [
-        SimpleNamespace(narration="Cảnh một", duration_seconds=10),
-        SimpleNamespace(narration="Cảnh hai", duration_seconds=10),
-    ]
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        tts = runner._queue_tts_voice(executor, {"provider": "fake"}, shots, None)
-        assert started.wait(2)
-
-        def fake_video_generation():
-            video_started.set()
-            assert release_video.wait(5)
-            video_finished.set()
-
-        video = threading.Thread(target=fake_video_generation)
-        video.start()
-        assert video_started.wait(2)
-        release_tts.set()
-        audio, sample_rate = tts.result(timeout=5)
-        assert not video_finished.is_set()
-        release_video.set()
-        video.join(timeout=2)
-
-    assert calls == ["Cảnh một", "Cảnh hai"]
-    assert sample_rate == 48000
-    assert len(audio) == 20 * sample_rate
-    assert np.all(audio[:11 * sample_rate] == 0.01)
-    assert np.all(audio[11 * sample_rate:] == 0.01)
-
-
-def test_tts_keeps_natural_audio_duration_when_a_shot_is_longer(monkeypatch):
-    import numpy as np
-    from src.modules.tao_video_noi_dung import runner
-
-    monkeypatch.setattr(
-        runner.tts_provider_manager,
-        "synthesize",
-        lambda *_args: (np.ones(10 * 48000 + 24000, dtype=np.float32) * 0.01, 48000),
-    )
-
-    audio, sample_rate = runner._synthesize_tts_voice(
-        {"provider": "fake"},
-        [SimpleNamespace(shot_id="s1", narration="Lời dẫn", duration_seconds=10)],
-        None,
-    )
-
-    assert sample_rate == 48000
-    assert len(audio) == 10 * sample_rate + sample_rate // 2
-
-
 def test_tts_subtitles_follow_storyboard_shot_boundaries_without_asr(monkeypatch):
     from src.modules.tao_video_noi_dung import runner
 
@@ -135,10 +146,9 @@ def test_tts_subtitles_follow_storyboard_shot_boundaries_without_asr(monkeypatch
     ]
 
 
-def test_tts_and_fake_ten_second_video_render_together_without_flow(monkeypatch, tmp_path):
+def test_tts_and_ten_second_video_render_without_flow(monkeypatch, tmp_path):
     import subprocess
     import wave
-    from concurrent.futures import ThreadPoolExecutor
     import numpy as np
     from src.modules.tao_video_noi_dung import runner
     from src.schemas.contracts import TimelineAudioTrack, TimelineClip, TimelineDocument, TimelineMediaType
@@ -154,15 +164,12 @@ def test_tts_and_fake_ten_second_video_render_together_without_flow(monkeypatch,
     fake_video = tmp_path / "fake_video.mp4"
     fake_voice = tmp_path / "fake_voice.wav"
     rendered = tmp_path / "rendered.mp4"
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        tts = runner._queue_tts_voice(executor, {"provider": "fake"}, [shot], None)
-        video = executor.submit(subprocess.run, [
-            runner.video_processor.ffmpeg_bin, "-y", "-f", "lavfi", "-i",
-            "color=c=blue:s=360x640:r=24:d=10", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p",
-            "-t", "10", str(fake_video),
-        ], capture_output=True, check=True)
-        audio, sample_rate = tts.result(timeout=30)
-        video.result(timeout=30)
+    audio, sample_rate = runner.tts_provider_manager.synthesize({"provider": "fake"}, shot.narration, None)
+    subprocess.run([
+        runner.video_processor.ffmpeg_bin, "-y", "-f", "lavfi", "-i",
+        "color=c=blue:s=360x640:r=24:d=10", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p",
+        "-t", "10", str(fake_video),
+    ], capture_output=True, check=True, timeout=30)
 
     with wave.open(str(fake_voice), "wb") as wav:
         wav.setnchannels(1)
@@ -203,6 +210,35 @@ def test_tts_and_fake_ten_second_video_render_together_without_flow(monkeypatch,
     )
     assert abs(slower_meta["duration_seconds"] - 10.7) <= 0.1
     assert slower_meta["video_playback_speed"] < 1.0
+
+
+def test_crossfade_keeps_every_shot_when_clips_are_slightly_shorter_than_nominal(tmp_path):
+    import subprocess
+    from src.modules.media_studio.video_processor import video_processor
+    from src.schemas.contracts import TimelineClip, TimelineDocument, TimelineMediaType
+
+    # Flow clips are 299 frames at 30 fps (9.967s), not exactly 10s; the render must still keep all six.
+    video = tmp_path / "video.mp4"
+    subprocess.run([
+        video_processor.ffmpeg_bin, "-y", "-v", "error", "-f", "lavfi", "-i",
+        "testsrc2=s=360x640:r=30", "-frames:v", "299", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(video),
+    ], check=True, capture_output=True)
+    timeline = TimelineDocument(
+        width=360, height=640, fps=30,
+        clips=[TimelineClip(
+            clip_id=f"s{i}", asset_id="video", media_type=TimelineMediaType.VIDEO,
+            start_ms=i * 10000, duration_ms=10000, trim_in_ms=0, trim_out_ms=10000,
+        ) for i in range(6)],
+    )
+    out = tmp_path / "rendered.mp4"
+    video_processor.render_timeline_document(timeline, lambda _asset_id: video, out, transition_seconds=0.3)
+
+    frames = subprocess.run(
+        [video_processor.ffprobe_bin, "-v", "error", "-count_frames", "-select_streams", "v",
+         "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", str(out)],
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    assert int(frames) >= 6 * 299 - 5
 
 
 def test_raw_tts_caps_video_retiming_at_ten_percent_without_changing_voice(tmp_path):
@@ -378,86 +414,38 @@ def test_create_plan_explains_gateway_rate_limit(monkeypatch):
     assert "Hạn mức" in exc_info.value.detail["message"]
 
 
-def test_storyboard_prompt_requires_three_shots_for_twenty_seconds():
+def test_storyboard_prompt_leaves_shot_count_to_llm():
+    data = _v4_storyboard_data()
+    data["shots"] = [data["shots"][0], data["shots"][2]]
     class RecordingClient:
         max_output_tokens = 6000
-
         def complete(self, messages, max_tokens):
             self.messages = messages
-            return SimpleNamespace(
-                content=(
-                    '{"title":"RAG","narration":"Tìm đúng nguồn.",'
-                    '"continuity_anchor":"Trợ lý giấy xanh navy cạnh tủ tài liệu, cùng một bối cảnh.","shots":['
-                    '{"shot_id":"s1","scene":"Tìm","narration":"Tìm nguồn.","prompt":"Thẻ tài liệu bay ra.","flow_prompt_en":"One paper card glides from the shelf and settles on the desk.","duration_seconds":7,"continues_previous":false},'
-                    '{"shot_id":"s2","scene":"Trả lời","narration":"Trả lời có căn cứ.","prompt":"Trợ lý đọc tài liệu.","flow_prompt_en":"The paper assistant reads one card, then looks toward the viewer.","duration_seconds":7,"continues_previous":false},'
-                    '{"shot_id":"s3","scene":"Kết","narration":"Thử RAG.","prompt":"Nguồn và câu trả lời.","flow_prompt_en":"The source card rests beside the completed answer card.","duration_seconds":6,"continues_previous":false}]}'
-                ),
-                model="test-model",
-            )
-
+            payload = data["brief"] if len(messages) == 2 and "required_schema" not in json.loads(messages[1]["content"]) else data
+            return SimpleNamespace(content=json.dumps(payload), model="test-model")
     client = RecordingClient()
-    generate_storyboard(
-        "RAG truy xuất tài liệu trước khi trả lời có căn cứ.",
-        20,
-        {"style_name": "Origami", "visual_rules": "Phong cách giấy thống nhất.", "palette": ["navy"]},
-        client,
-    )
-
+    board, _ = generate_storyboard("Trợ lý tìm nguồn trước khi trả lời.", 20,
+        {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]}, client)
     request = json.loads(client.messages[1]["content"])
-    assert request["required_shot_durations"] == [7, 7, 6]
+    assert "required_shot_durations" not in request
+    assert len(board.shots) == 2
+    assert request["target_duration_seconds"] == 20
 
 
 def test_storyboard_prompts_prevent_distortion_and_allow_optional_flow_audio():
-    class RecordingClient:
-        max_output_tokens = 6000
-
-        def complete(self, messages, max_tokens):
-            self.messages = messages
-            return SimpleNamespace(
-                content=(
-                    '{"title":"RAG","narration":"Tìm nguồn.",'
-                    '"continuity_anchor":"Trợ lý giấy xanh navy cạnh tủ tài liệu, cùng một bối cảnh.","shots":['
-                    '{"shot_id":"s1","scene":"Tìm","narration":"Tìm nguồn.","prompt":"Một thẻ trượt tới.","flow_prompt_en":"A single paper card slides toward the assistant and stops.","duration_seconds":7,"continues_previous":false},'
-                    '{"shot_id":"s2","scene":"Trả lời","narration":"Trả lời.","prompt":"Trợ lý đọc thẻ.","flow_prompt_en":"The assistant lifts one card, reads it, and lowers it back onto the desk.","duration_seconds":7,"continues_previous":false},'
-                    '{"shot_id":"s3","scene":"Kết","narration":"Xong.","prompt":"Đặt thẻ lại.","flow_prompt_en":"The assistant places the card beside the answer and holds still.","duration_seconds":6,"continues_previous":false}]}'
-                ),
-                model="test-model",
-            )
-
-    client = RecordingClient()
-    storyboard, _ = generate_storyboard(
-        "RAG tìm nguồn trước khi trả lời.",
-        20,
-        {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]},
-        client,
-    )
-    system_prompt = client.messages[0]["content"].lower()
-    shot_prompt = build_shot_prompt(
-        {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]},
-        storyboard.shots[0],
-        storyboard.continuity_anchor,
-    ).lower()
-
-    assert "một hành động chính" in system_prompt
-    assert "không biến hình" in system_prompt
-    assert "flow_prompt_en" not in system_prompt
-    assert "mô hình giấy gấp nếp đã hoàn thiện" in system_prompt
-    assert "điểm tiếp xúc/phản ứng vật lý" in system_prompt
-    assert "không biến hình" in shot_prompt
-    assert "không nhân đôi" in shot_prompt
-    assert "một hành động chính" in shot_prompt
-    assert "hai mắt cùng kích thước và cao độ" in shot_prompt
-    assert "biểu cảm thân thiện tự nhiên" in shot_prompt
-    assert "âm thanh flow tùy chọn" in shot_prompt
-    assert 'nếu flow tạo giọng dẫn thì đọc nguyên văn bằng tiếng việt: "tìm nguồn."' in shot_prompt
-    assert "bắt buộc bật" not in shot_prompt
-    no_flow_narration = build_shot_prompt(
-        {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]},
-        storyboard.shots[0], storyboard.continuity_anchor, include_narration_audio=False,
-    ).lower()
-    assert "âm thanh flow tùy chọn" in no_flow_narration
-    assert "clip im lặng vẫn chấp nhận" in no_flow_narration
-    assert 'giọng dẫn đọc nguyên văn' not in no_flow_narration
+    data = _v4_storyboard_data()
+    shot = StoryboardShot.model_validate(data["shots"][0])
+    style = {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]}
+    prompt = build_shot_prompt(style, shot, data["continuity_anchor"]).lower()
+    assert "không biến hình" in prompt and "không nhân đôi" in prompt
+    assert "hai mắt cùng kích thước và cao độ" in prompt
+    assert "biểu cảm thân thiện tự nhiên" in prompt
+    assert "âm thanh flow tùy chọn" in prompt
+    assert shot.narration.lower() in prompt
+    assert "chỉ một hành động chính" not in prompt
+    no_audio = build_shot_prompt(style, shot, data["continuity_anchor"], False).lower()
+    assert "clip im lặng vẫn chấp nhận" in no_audio
+    assert shot.narration.lower() not in no_audio
 
 
 def test_flow_prompt_uses_vietnamese_and_ignores_legacy_english_prompt():
@@ -607,7 +595,10 @@ def test_content_video_render_tracks_native_audio_and_tts_subtitles(monkeypatch,
         runner.audio_processor, "probe_audio",
         lambda _path: {"codec_name": "aac", "duration_seconds": 30.0},
     )
-    monkeypatch.setattr(runner, "transcribe_cached", lambda *_args: pytest.fail("TTS subtitles must not use ASR"))
+    def _asr_unavailable(*_args):
+        raise runner.VietsubError("VIETSUB_ASR_FAILED")
+
+    monkeypatch.setattr(runner, "transcribe_words_cached", _asr_unavailable)
     monkeypatch.setattr(runner, "_write_export_package", lambda path, *_args: path.write_bytes(b"export"))
 
     shots = [SimpleNamespace(shot_id=f"shot-{index}", narration=f"Lời cảnh {index}", duration_seconds=10, prompt_contract_version=3) for index in range(1, 4)]
@@ -633,7 +624,7 @@ def test_content_video_render_tracks_native_audio_and_tts_subtitles(monkeypatch,
     assert (captured["timeline"].width, captured["timeline"].height) == (1920, 1080)
     assert (captured["timeline"].voice_track is not None) is with_tts_voice
     assert captured["transition_seconds"] == 0.3
-    assert captured["caption_style"] == "vietsub_v1"
+    assert captured["caption_style"] == "vietsub_karaoke_v2"
     assert captured["preserve_voice_audio"] is with_tts_voice
     report = json.loads(run.qc_report_json)
     assert report["voice_source"] == ("TTS" if with_tts_voice else "FLOW_NATIVE" if flow_native_audio else "NONE")
@@ -794,6 +785,24 @@ def test_harness_accepts_persisted_cleaning_state_for_safe_resume():
     step["state"] = "CLEANING"
 
     assert cong_harness.verify_shot_receipt(run, plan, shot, step)["shot_id"] == shot.shot_id
+
+
+def test_tts_render_output_does_not_change_immutable_flow_command():
+    run, plan, shot, _ = _approved_harness_shot()
+    run.tts_config_json = '{"provider":"VIE_NEU_V3_TURBO"}'
+    step = build_shot_receipt(
+        run_id=run.id, workspace_id=run.workspace_id, project_id=run.project_id,
+        plan=plan, voice_asset_id=None, shot=shot,
+        style_snapshot=json.loads(plan.style_snapshot_json), continuity_anchor="same subject",
+        include_narration_audio=False,
+    )
+    original_hash = step["command_sha256"]
+    run.voice_asset_id = "generated-tts-output"
+    assert cong_harness.verify_shot_receipt(run, plan, shot, step)["voice_asset_id"] is None
+    assert step["command_sha256"] == original_hash
+    step["voice_asset_id"] = "unrelated-audio"
+    with pytest.raises(RuntimeError, match="HARNESS_COMMAND_RECEIPT_INVALID"):
+        cong_harness.verify_shot_receipt(run, plan, shot, step)
 
 
 def test_harness_accepts_approved_prompt_snapshot_after_prompt_builder_changes(monkeypatch):
@@ -1146,6 +1155,57 @@ def _seed_content_video_history(db, run_status="COMPLETED", unfinished_index=Non
     return plan, storyboard, run
 
 
+def test_owner_direct_creation_is_atomic_and_audited():
+    from src.database import Base
+    from src.models.entities import AuditEvent
+    from src.modules.tao_video_noi_dung.service import create_run
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    with sessionmaker(bind=engine)() as db:
+        plan, storyboard, previous = _seed_content_video_history(db)
+        plan.status, plan.approved_by, plan.approved_at = "DRAFT", None, None
+        db.commit()
+        request = CreateRunRequest(plan_id=plan.id, idempotency_key="owner-direct-run")
+        with pytest.raises(Exception) as denied:
+            create_run(db, "project-1", "workspace-1", "creator-1", request)
+        assert denied.value.status_code == 409
+        invalid = request.model_copy(update={"voice_asset_id": "missing"})
+        with pytest.raises(Exception):
+            create_run(db, "project-1", "workspace-1", "creator-1", invalid, allow_direct_creation=True)
+        assert plan.status == "DRAFT"
+        result = create_run(db, "project-1", "workspace-1", "creator-1", request, allow_direct_creation=True)
+        assert result.status == "QUEUED"
+        assert plan.approved_by == "creator-1"
+        assert create_run(db, "project-1", "workspace-1", "creator-1", request, allow_direct_creation=True).id == result.id
+        event = db.query(AuditEvent).filter_by(event_type="OWNER_DIRECT_CONTENT_VIDEO").one()
+        assert json.loads(event.details)["storyboard_sha256"] == plan.storyboard_sha256
+
+
+def test_resume_account_switch_keeps_completed_shots_and_clears_unsent_project():
+    from src.database import Base
+    from src.modules.flow_sessions.service import create_profile
+    from src.modules.tao_video_noi_dung.service import resume_run
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    with sessionmaker(bind=engine)() as db:
+        plan, storyboard, run = _seed_content_video_history(db, run_status="BLOCKED_FLOW_SETUP", unfinished_index=1)
+        old = create_profile(db, "workspace-1", "Old account", "creator-1")
+        new = create_profile(db, "workspace-1", "New account", "creator-1")
+        steps = json.loads(run.steps_json)
+        for step in steps:
+            step['flow_profile_id'] = old.id
+            step['flow_project_url'] = 'https://flow.google.com/project/old'
+        run.steps_json = json.dumps(steps)
+        db.commit()
+        result = resume_run(db, "project-1", run.id, "workspace-1", profile_id=new.id)
+        assert result.steps[0]['asset_id'] == 'asset-s1'
+        assert result.steps[0]['flow_profile_id'] == old.id
+        assert result.steps[0]['flow_project_url'].endswith('/old')
+        assert result.steps[1]['flow_profile_id'] == new.id
+        assert not result.steps[1].get('flow_project_url')
+        assert result.status == "QUEUED"
+
+
 def test_retry_run_reuses_completed_shots_and_regenerates_only_selected_shot():
     from src.modules.tao_video_noi_dung.contracts import RetryRunRequest
     from src.modules.tao_video_noi_dung.service import retry_run
@@ -1491,3 +1551,59 @@ def test_tts_run_idempotency_and_response_keep_reference_text_private():
     assert '"tts_provider":"GWEN_TTS"' in response
     assert '"include_subtitles":true' in response
     assert "transcript kín" not in response
+
+
+def test_video_qc_rejects_video_stream_much_shorter_than_file():
+    meta = {"width": 1920, "height": 1080, "codec_name": "h264", "frame_rate": 30.0,
+            "duration_seconds": 60.0, "video_stream_duration_seconds": 19.97}
+
+    assert "VIDEO_STREAM_SHORT" in evaluate_video_qc(meta, 60, decode_ok=True, aspect_ratio="16:9")
+    assert evaluate_video_qc({**meta, "video_stream_duration_seconds": 59.9}, 60, decode_ok=True, aspect_ratio="16:9") == []
+
+
+def test_karaoke_captions_follow_asr_words_and_scale_with_speed():
+    from src.modules.tao_video_noi_dung import runner, vietsub
+
+    script = "Xin chào các bạn. Hôm nay mình kể chuyện".split()
+    asr = [
+        {"text": "xin", "start_ms": 100, "end_ms": 300}, {"text": "chào", "start_ms": 300, "end_ms": 600},
+        {"text": "bạn", "start_ms": 900, "end_ms": 1100}, {"text": "hôm", "start_ms": 1500, "end_ms": 1700},
+        {"text": "nay", "start_ms": 1700, "end_ms": 1900}, {"text": "mình", "start_ms": 1900, "end_ms": 2100},
+        {"text": "kể", "start_ms": 2100, "end_ms": 2300}, {"text": "chuyện", "start_ms": 2300, "end_ms": 2800},
+    ]
+    aligned = vietsub.align_script_words(script, asr)
+    assert [w["text"] for w in aligned] == script
+    assert aligned[0]["start_ms"] == 100 and aligned[-1]["end_ms"] == 2800
+    assert all(a["end_ms"] <= b["start_ms"] for a, b in zip(aligned, aligned[1:]))  # monotonic, "các" interpolated
+    captions = runner._karaoke_captions(aligned, 1920, 1080, speed=1.1)
+    assert captions[0].text == "Xin chào các bạn." and captions[0].words[0].start_ms == 110
+    assert "".join(w.text for c in captions for w in c.words) == "".join(script)
+
+
+def test_karaoke_ass_marks_each_word_with_centisecond_durations():
+    from src.modules.media_studio.ass_captions import build_karaoke_ass
+
+    ass = build_karaoke_ass([{"text": "Xin chào", "start_ms": 0, "duration_ms": 600, "words": [
+        {"text": "Xin", "start_ms": 0, "end_ms": 200}, {"text": "chào", "start_ms": 200, "end_ms": 600}]}], 1080, 1920)
+    assert "PlayResY: 1920" in ass
+    assert "{\\k20}Xin {\\k40}chào" in ass
+
+
+def test_rerender_run_requeues_completed_run_with_subtitle_choice_and_rejects_unfinished():
+    from fastapi import HTTPException
+    from src.models.entities import ContentVideoRun
+    from src.modules.tao_video_noi_dung.service import rerender_run
+
+    engine, Session = _content_video_test_database()
+    try:
+        with Session() as db:
+            _seed_content_video_history(db, run_status="COMPLETED")
+            result = rerender_run(db, "project-1", "run-1", "workspace-1", include_subtitles=False)
+            assert result.status == "QUEUED"
+            assert db.query(ContentVideoRun).filter_by(id="run-1").first().include_subtitles is False
+
+            with pytest.raises(HTTPException) as excinfo:
+                rerender_run(db, "project-1", "run-1", "workspace-1", include_subtitles=True)
+            assert excinfo.value.detail["error_code"] == "RUN_NOT_RERENDERABLE"
+    finally:
+        engine.dispose()
