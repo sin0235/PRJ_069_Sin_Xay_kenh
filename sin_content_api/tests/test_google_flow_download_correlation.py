@@ -325,7 +325,9 @@ def test_flow_agent_can_attach_start_frame_from_media_library(tmp_path, attach_o
                 return Locator(False)
             raise AssertionError(selector)
 
-        def get_by_role(self, role, name):
+        def get_by_role(self, role, name=None):
+            if role == "dialog":
+                return SimpleNamespace(get_by_role=lambda *_args, **_kwargs: Locator(True, lambda: events.append("consent")))
             if name == "Thêm vào câu lệnh":
                 events.append(("role_button", name))
                 def attach_chip():
@@ -352,7 +354,8 @@ def test_flow_agent_can_attach_start_frame_from_media_library(tmp_path, attach_o
 
     flow_client.GoogleFlowClient._attach_start_image(Page(), image_path, 10)
     assert ("set_files", str(image_path)) in events
-    assert events.count("click") == (3 if attach_on_wait else 4)
+    assert events.index("consent") > events.index(("set_files", str(image_path)))
+    assert events.count("click") == (4 if attach_on_wait else 5)
     assert ("press", "Escape") in events
     assert ("wait_image", 15000) in events
     assert ("upload_button", "button.sidebar-upload-btn") in events

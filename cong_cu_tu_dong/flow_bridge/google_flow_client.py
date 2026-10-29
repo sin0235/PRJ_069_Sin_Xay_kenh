@@ -646,6 +646,13 @@ class GoogleFlowClient:
                 with page.expect_file_chooser(timeout=8000) as chooser_info:
                     upload_button.first.click(timeout=5000)
                 chooser_info.value.set_files(str(image_path))
+                # Flow asks the uploader to confirm usage rights before it lists the image.
+                consent = page.get_by_role("dialog").get_by_role("button", name=re.compile(r"^(Tôi đồng ý|I agree)$"))
+                try:
+                    consent.first.wait_for(state="visible", timeout=8000)
+                    consent.first.click(timeout=5000)
+                except PlaywrightTimeoutError:
+                    pass
             image_item.wait_for(state="visible", timeout=30000)
             image_item.click(timeout=5000)
             attached = page.locator(
