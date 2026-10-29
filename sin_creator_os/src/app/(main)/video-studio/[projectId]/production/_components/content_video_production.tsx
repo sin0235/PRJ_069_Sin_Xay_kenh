@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { mediaStudioApi, MediaAssetResponse } from "@/lib/api/media-studio-api";
 import { contentVideoApi, ContentVideoApiError, ContentVideoPlan, ContentVideoRun } from "@/lib/api/content-video-api";
 import { randomUuid } from "@/lib/utils";
+import { ShotActionDetails, ShotKindBadges, StoryboardBrief } from "./storyboard_details";
 
 const ACTIVE_RUNS = new Set(["QUEUED", "RUNNING", "BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_SETUP", "BLOCKED_FLOW_QUOTA"]);
 
@@ -67,6 +68,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
   const contentBytes = new TextEncoder().encode(content).length;
   const activeFlowStep = editingContent ? 1 : editingStoryboard ? 2 : run?.status === "COMPLETED" ? 4 : plan?.status === "APPROVED" || run ? 3 : plan ? 2 : 1;
   const editableStoryboard = storyboardDraft || plan?.storyboard || null;
+  const hasUiScenes = !!editableStoryboard?.shots.some((shot) => shot.shot_kind === "UI_SIM");
   const storyboardDirty = !!plan && !!storyboardDraft && JSON.stringify(storyboardDraft) !== JSON.stringify(plan.storyboard);
   const sourceUnchanged = !!plan && content.trim() === plan.source_content && duration === plan.target_duration_seconds && aspectRatio === plan.style_snapshot.aspect_ratio;
   const firstUnfinishedShot = run?.steps.find((step) => step.state !== "SUCCEEDED");
@@ -438,6 +440,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
           </section>}
         </Card>}
         <section className="grid gap-3" aria-label="Storyboard">
+          {editableStoryboard?.brief && <StoryboardBrief brief={editableStoryboard.brief} />}
           <div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="text-lg font-semibold">Storyboard</h2><p className="text-sm text-muted-foreground">{plan.storyboard.shots.length} cảnh · Chọn một cảnh để xem chi tiết</p></div>{run && ["COMPLETED", "FAILED_QC"].includes(run.status) && <Button type="button" variant="outline" onClick={() => retryShots(run.steps.map((step) => step.shot_id))} disabled={busy}>Làm lại tất cả cảnh</Button>}</div>
           {editingStoryboard && <p className="text-sm text-muted-foreground">Lưu sẽ tạo revision storyboard mới và làm mất hiệu lực run/video của revision trước. Bản mới cần được duyệt lại.</p>}
           <Accordion type="multiple" value={expandedStoryboardShotIds} onValueChange={setExpandedShotIds} className="rounded-xl border bg-card pl-3 pr-1 sm:pl-4 sm:pr-1">
@@ -450,6 +453,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
                 <div className="flex min-w-0 items-center justify-between gap-3 py-2">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1"><span className="font-semibold">Cảnh {index + 1}</span><span className="text-xs text-muted-foreground">{shot.shot_id} · {shot.duration_seconds} giây</span>{shotLabel && <Badge variant={step?.state === "FAILED" ? "destructive" : step?.state === "SUCCEEDED" ? "secondary" : "outline"}>{shotLabel}</Badge>}</div>
+                    <div className="mt-1 flex flex-wrap gap-1"><ShotKindBadges shot={shot} /></div>
                     <p className="mt-1 truncate text-sm text-muted-foreground">{shot.scene}</p>
                   </div>
                   <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -468,6 +472,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
                       <p className="text-sm text-muted-foreground"><span className="font-medium text-foreground">Mô tả hình ảnh:</span> {shot.prompt}</p>
                       {shot.negative_prompt && <p className="text-xs text-muted-foreground"><span className="font-medium">Tránh:</span> {shot.negative_prompt}</p>}
                     </>}
+                    <ShotActionDetails shot={shot} onChange={plan.status === "DRAFT" || editingStoryboard ? (nextShot) => setStoryboardDraft({ ...(storyboardDraft || plan.storyboard), shots: (storyboardDraft || plan.storyboard).shots.map((item) => item.shot_id === shot.shot_id ? nextShot : item) }) : undefined} />
                   </div>
                 </AccordionContent>
               </AccordionItem>;
@@ -477,6 +482,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
         </section>
         {(plan.status === "APPROVED" || directCreation) && !run && !editingStoryboard && <Card className="grid gap-3 p-4">
           <label htmlFor="voice-source" className="text-sm font-medium">Nguồn lời đọc tiếng Việt</label>
+          {hasUiScenes && <p className="text-sm text-muted-foreground">Cảnh mô phỏng giao diện không có giọng Flow. Chọn TTS hoặc voiceover nếu cần lời đọc cho các cảnh này.</p>}
           <select id="voice-source" value={voiceSource} onChange={(event) => { setVoiceSource(event.target.value as typeof voiceSource); idempotencyKey.current = null; }} className="h-10 rounded-md border bg-background px-3 text-sm">
             <option value="NONE">Không thêm âm thanh</option><option value="UPLOAD">Voiceover đã thu sẵn</option><option value="TTS">Sinh bằng TTS</option>
           </select>

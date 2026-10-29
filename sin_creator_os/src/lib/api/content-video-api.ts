@@ -10,6 +10,42 @@ export class ContentVideoApiError extends Error {
   }
 }
 
+export interface KeyMessage {
+  id: string;
+  text: string;
+  source: "content" | "inferred";
+}
+
+export interface ContentBrief {
+  pains: KeyMessage[];
+  consequences: KeyMessage[];
+  insights: KeyMessage[];
+  solutions: KeyMessage[];
+  outcomes: KeyMessage[];
+  cta: KeyMessage | null;
+  needs_ui_demo: boolean;
+}
+
+export interface StoryboardShot {
+  shot_id: string;
+  scene: string;
+  narration: string;
+  prompt: string;
+  negative_prompt: string;
+  duration_seconds: number;
+  continues_previous?: boolean | null;
+  prompt_contract_version?: 3 | 4 | null;
+  beat?: "HOOK" | "PAIN" | "AGITATE" | "INSIGHT" | "SOLUTION" | "DEMO" | "OUTCOME" | "CTA" | null;
+  message_ids?: string[];
+  shot_kind?: "FLOW_ORIGAMI" | "UI_SIM";
+  action_beats?: { start_s: number; end_s: number; action: string }[];
+  ui_scene?: {
+    layout: "CHAT" | "AI_PANEL" | "DASHBOARD";
+    messages: { role: "customer" | "ai" | "staff" | "system"; text: string; at_s: number }[];
+    highlight: string | null;
+  } | null;
+}
+
 export interface ContentVideoPlan {
   id: string;
   project_id: string;
@@ -18,7 +54,7 @@ export interface ContentVideoPlan {
   source_content: string;
   target_duration_seconds: number;
   style_snapshot: { style_name: string; visual_rules: string; palette: string[]; aspect_ratio: "9:16" | "16:9" };
-  storyboard: { title: string; narration: string; shots: { shot_id: string; scene: string; narration: string; prompt: string; negative_prompt: string; duration_seconds: number }[] };
+  storyboard: { title: string; narration: string; continuity_anchor: string; shots: StoryboardShot[]; brief?: ContentBrief | null };
   llm_model: string;
 }
 
