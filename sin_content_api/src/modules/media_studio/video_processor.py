@@ -85,6 +85,7 @@ class VideoProcessor:
             "width": width,
             "height": height,
             "duration_seconds": duration,
+            "video_stream_duration_seconds": float(v_stream.get("duration") or duration),
             "codec_name": v_stream.get("codec_name"),
             "frame_rate": frame_rate,
             "aspect_ratio": "9:16" if is_vertical_9_16 else aspect_ratio,

@@ -1514,3 +1514,11 @@ def test_tts_run_idempotency_and_response_keep_reference_text_private():
     assert '"tts_provider":"GWEN_TTS"' in response
     assert '"include_subtitles":true' in response
     assert "transcript kín" not in response
+
+
+def test_video_qc_rejects_video_stream_much_shorter_than_file():
+    meta = {"width": 1920, "height": 1080, "codec_name": "h264", "frame_rate": 30.0,
+            "duration_seconds": 60.0, "video_stream_duration_seconds": 19.97}
+
+    assert "VIDEO_STREAM_SHORT" in evaluate_video_qc(meta, 60, decode_ok=True, aspect_ratio="16:9")
+    assert evaluate_video_qc({**meta, "video_stream_duration_seconds": 59.9}, 60, decode_ok=True, aspect_ratio="16:9") == []

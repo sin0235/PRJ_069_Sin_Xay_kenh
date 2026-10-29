@@ -53,6 +53,9 @@ def evaluate_video_qc(meta: dict, expected_duration_seconds: int, decode_ok: boo
         issues.append("VIDEO_CODEC")
     if abs(float(meta.get("duration_seconds", 0)) - expected_duration_seconds) > 0.5:
         issues.append("DURATION")
+    # Luồng hình ngắn hơn file nghĩa là hình đứng ở frame cuối trong khi âm thanh vẫn chạy.
+    if float(meta.get("video_stream_duration_seconds", meta.get("duration_seconds", 0))) < float(meta.get("duration_seconds", 0)) - 0.5:
+        issues.append("VIDEO_STREAM_SHORT")
     if abs(float(meta.get("frame_rate", 0)) - 30.0) > 0.1:
         issues.append("FRAME_RATE")
     if not decode_ok:
