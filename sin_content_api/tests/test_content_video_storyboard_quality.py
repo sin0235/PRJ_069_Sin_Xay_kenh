@@ -166,3 +166,21 @@ def test_new_plan_style_allows_object_only_scenes_without_changing_saved_plans()
     from src.modules.tao_video_noi_dung.service import _PILOT_STYLE_SNAPSHOT
     assert "không bắt buộc có nhân vật" in _PILOT_STYLE_SNAPSHOT.visual_rules
     assert "nếu có nhân vật" in _PILOT_STYLE_SNAPSHOT.visual_rules
+
+
+@pytest.mark.parametrize("narration", ["AI will answer customer requests.", "Dùng chatbot để marketing.", "Tăng 20% doanh thu."])
+def test_v4_edit_rejects_unresolved_narration_but_allows_original_ui_text(narration):
+    data = v4_data()
+    data["shots"][1].update(shot_kind="UI_SIM", action_beats=[], ui_scene={"layout": "CHAT", "messages": [
+        {"role": "customer", "text": "AI will answer customer requests 24/7?", "at_s": 0},
+        {"role": "ai", "text": "Yes, here is the dashboard.", "at_s": 3}]})
+    Storyboard.model_validate(data)
+    data["shots"][1]["narration"] = narration
+    with pytest.raises(ValueError, match="TTS_"):
+        Storyboard.model_validate(data)
+
+
+def test_v4_phonetic_vietnamese_and_ascii_vietnamese_words_remain_legal():
+    data = v4_data()
+    data["shots"][0]["narration"] = "Ai cho anh xem vi-đê-ô về mác-két-ting? Ba-ha có giải pháp cho doanh nghiệp."
+    assert Storyboard.model_validate(data).shots[0].narration == data["shots"][0]["narration"]

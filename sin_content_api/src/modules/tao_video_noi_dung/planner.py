@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import unicodedata
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_serializer, model_validator
@@ -13,6 +14,25 @@ from .danh_gia import score_storyboard
 
 Beat = Literal["HOOK", "PAIN", "AGITATE", "INSIGHT", "SOLUTION", "DEMO", "OUTCOME", "CTA"]
 ShotKind = Literal["FLOW_ORIGAMI", "UI_SIM"]
+
+_VIET_VOWELS = "aàáảãạăằắẳẵặâầấẩẫậeèéẻẽẹêềếểễệiìíỉĩịoòóỏõọôồốổỗộơờớởỡợuùúủũụưừứửữựyỳýỷỹỵ"
+_SPOKEN_SYLLABLE = re.compile(
+    rf"(?:ngh|ch|gh|gi|kh|ng|nh|ph|qu|th|tr|[bcdđghklmnpqrstvx])?[{_VIET_VOWELS}]{{1,3}}(?:ch|ng|nh|[cmnpt])?"
+)
+
+
+def _validate_narration_for_tts(text: str) -> None:
+    punctuation = "-–—.,!?;:'\"“”‘’…"
+    if any(not (char.isalpha() or char.isspace() or char in punctuation) for char in text):
+        raise ValueError("TTS_NARRATION_SYMBOLS: Viết số và ký hiệu thành chữ cách đọc.")
+    words = re.findall(r"[^\W\d_]+", unicodedata.normalize("NFC", text))
+    if not words:
+        raise ValueError("TTS_NARRATION_EMPTY")
+    # shortcut: chưa phân biệt từ đồng hình, dùng bộ kiểm theo ngữ cảnh khi cần duyệt ngôn ngữ tự động.
+    unresolved = [word for word in words if word in {"AI", "UI", "SEO", "CEO"}
+                  or not _SPOKEN_SYLLABLE.fullmatch(word.lower())]
+    if unresolved:
+        raise ValueError("TTS_PRONUNCIATION_REQUIRED: Phiên âm tiếng Việt: " + ", ".join(unresolved[:5]))
 
 
 class ActionBeat(BaseModel):
@@ -69,6 +89,7 @@ class StoryboardShot(BaseModel):
             return self
         if self.beat is None or self.continues_previous is None:
             raise ValueError("V4_BEAT_AND_CONTINUITY_REQUIRED")
+        _validate_narration_for_tts(self.narration)
         if self.shot_kind == "UI_SIM":
             if self.ui_scene is None:
                 raise ValueError("UI_SCENE_REQUIRED")
@@ -130,6 +151,7 @@ class Storyboard(BaseModel):
             raise ValueError("Shot đầu tiên không thể nối tiếp shot trước")
         v4 = self.brief is not None or any(shot.prompt_contract_version == 4 for shot in self.shots)
         if v4:
+            _validate_narration_for_tts(self.narration)
             if self.brief is None or any(shot.prompt_contract_version != 4 for shot in self.shots):
                 raise ValueError("V4_BRIEF_AND_SHOTS_REQUIRED")
             ids = {message.id for message in self.brief.all_messages()}
@@ -279,6 +301,7 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
             "Narration cho TTS tiếng Việt: không chữ số, ký hiệu (%, &, @, #, +, /, =), viết tắt, URL hay emoji; "
             "viết bằng chữ cách đọc, ví dụ hai nghìn không trăm hai mươi lăm, năm mươi phần trăm, ây ai. "
             "Từ tiếng Anh phải phiên âm tiếng Việt: mác-két-ting, vi-đê-ô, diu-túp; không giữ từ tiếng Anh nguyên gốc trong narration. "
+            "Tên thương hiệu Baha trong lời đọc viết Ba-ha; trên giao diện giữ Baha. "
             "Câu ngắn gọn, tự nhiên, vừa thời lượng; không nhồi lời để lấp đầy mọi giây. narration tổng nối đúng lời từng shot. "
             "scene, prompt, action và continuity_anchor bằng tiếng Việt. continuity_anchor mô tả nhận diện nhân vật chính và "
             "nhân vật phụ phù hợp nếu cần (khách hàng, nhân viên, trợ lý), không khóa mọi cảnh vào cùng bối cảnh. "
@@ -320,8 +343,6 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
                 {"role": "user", "content": "Sửa storyboard theo các lỗi: " + ",".join(codes) + ". Trả lại toàn bộ JSON."},
             ])
             continue
-        if any(re.search(r"[0-9%&@#+/=_*<>\\]", shot.narration) for shot in storyboard.shots):
-            raise ValueError("Narration còn chữ số hoặc ký hiệu chưa viết thành chữ cho TTS")
         if score_storyboard(storyboard).static_shot_ratio > 0.5:
             logging.getLogger(__name__).warning("STORYBOARD_STATIC_SHOTS_HIGH")
         return storyboard, completion.model

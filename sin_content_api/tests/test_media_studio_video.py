@@ -1672,7 +1672,9 @@ def _v4_planning_reply(messages, storyboard):
     if "required_schema" not in json.loads(messages[1]["content"]):
         return json.dumps(brief, ensure_ascii=False)
     storyboard = json.loads(json.dumps(storyboard))
+    storyboard["narration"] = storyboard["narration"].replace("RAG", "rắc")
     for index, shot in enumerate(storyboard["shots"]):
+        shot["narration"] = shot["narration"].replace("RAG", "rắc")
         shot.update(prompt_contract_version=4, beat=["PAIN", "SOLUTION", "OUTCOME"][index],
                     message_ids=[["p1"], ["s1"], []][index], action_beats=[
                         {"start_s": 0, "end_s": 4, "action": "Nhân viên mở hồ sơ."},
