@@ -26,6 +26,88 @@ from src.modules.tao_video_noi_dung.planner import StoryboardShot
 from src.migrations import runner as migration_runner
 
 
+def _v4_storyboard_data():
+    data = json.loads((API_ROOT / "tests/fixtures/storyboard_ai_sales_v3.json").read_text())
+    data["shots"] = data["shots"][:3]
+    data["brief"] = {"pains": [{"id": "p1", "text": "Bỏ sót khách hỏi.", "source": "inferred"}],
+                     "solutions": [{"id": "s1", "text": "Trợ lý hỗ trợ.", "source": "content"}]}
+    for shot, beat, mids in zip(data["shots"], ["PAIN", "INSIGHT", "SOLUTION"], [["p1"], [], ["s1"]]):
+        shot.update(prompt_contract_version=4, beat=beat, message_ids=mids,
+                    action_beats=[{"start_s": 0, "end_s": 4, "action": "Khách tiến tới bàn."},
+                                  {"start_s": 4, "end_s": 10, "action": "Nhân viên đưa thẻ trả lời."}])
+    return data
+
+
+def test_v3_storyboard_still_parses():
+    from src.modules.tao_video_noi_dung.planner import Storyboard
+    fixture = json.loads((API_ROOT / "tests/fixtures/storyboard_v3_compatibility.json").read_text())
+    board = Storyboard.model_validate(fixture["dump"])
+    assert board.model_dump(mode="json") == fixture["dump"]
+    for shot, expected in zip(board.shots, fixture["prompts"]):
+        assert build_shot_prompt(fixture["style"], shot, board.continuity_anchor) == expected
+
+
+@pytest.mark.parametrize("intervals", [[(0, 5), (4, 10)], [(0, 4), (5, 10)], [(1, 10)], [(0, 9)], [(0, 11)], [(0, 0)]])
+def test_v4_flow_shot_action_beats_must_cover_duration_without_overlap(intervals):
+    from src.modules.tao_video_noi_dung.planner import Storyboard
+    data = _v4_storyboard_data()
+    Storyboard.model_validate(data)
+    data["shots"][0]["action_beats"] = [{"start_s": a, "end_s": b, "action": "Tiến tới bàn."} for a, b in intervals]
+    with pytest.raises(ValueError):
+        Storyboard.model_validate(data)
+
+
+def test_v4_ui_sim_requires_ui_scene():
+    from src.modules.tao_video_noi_dung.planner import Storyboard
+    data = _v4_storyboard_data()
+    data["shots"][1].update(shot_kind="UI_SIM", ui_scene=None)
+    with pytest.raises(ValueError, match="UI_SCENE_REQUIRED"):
+        Storyboard.model_validate(data)
+
+
+def test_v4_pain_must_precede_solution():
+    from src.modules.tao_video_noi_dung.planner import Storyboard
+    data = _v4_storyboard_data()
+    data["shots"][0]["beat"], data["shots"][2]["beat"] = "SOLUTION", "PAIN"
+    with pytest.raises(ValueError, match="PAIN_AFTER_SOLUTION"):
+        Storyboard.model_validate(data)
+
+
+def test_v4_uncovered_message_id_rejected():
+    from src.modules.tao_video_noi_dung.planner import Storyboard
+    data = _v4_storyboard_data()
+    data["shots"][0]["message_ids"] = []
+    with pytest.raises(ValueError, match="LOW_COVERAGE"):
+        Storyboard.model_validate(data)
+
+
+def test_v4_cannot_bypass_contract_by_omitting_brief_or_downgrading_one_shot():
+    from src.modules.tao_video_noi_dung.planner import Storyboard
+    data = _v4_storyboard_data()
+    data["shots"][0]["prompt_contract_version"] = 3
+    with pytest.raises(ValueError):
+        Storyboard.model_validate(data)
+
+
+def test_v4_prompt_lists_action_beats_with_timestamps_and_drops_single_action_rule():
+    shot = StoryboardShot.model_validate(_v4_storyboard_data()["shots"][0])
+    style = {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]}
+    prompt = build_shot_prompt(style, shot, "Nhân viên áo xanh và khách áo trắng.")
+    assert "0–4 giây: Khách tiến tới bàn." in prompt
+    assert "4–10 giây: Nhân viên đưa thẻ trả lời." in prompt
+    assert "Chỉ một hành động chính đơn giản" not in prompt
+    assert "tối đa hai chuyển động camera" in prompt
+    assert "Không hiển thị chữ" in prompt
+    assert "hai mắt cùng kích thước và cao độ" in prompt
+    assert "không biến hình" in prompt
+    assert shot.narration in prompt
+    assert shot.narration not in build_shot_prompt(style, shot, "Nhân viên áo xanh.", False)
+    data = _v4_storyboard_data()
+    data.pop("brief")
+    with pytest.raises(ValueError):
+        Storyboard.model_validate(data)
+
+
 def test_content_video_migration_upgrades_existing_run_table(monkeypatch):
     engine = create_engine("sqlite:///:memory:")
     try:

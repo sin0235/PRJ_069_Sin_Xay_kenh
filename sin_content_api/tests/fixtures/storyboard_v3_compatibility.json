@@ -1,0 +1,85 @@
+{
+  "style": {
+    "style_name": "Origami",
+    "visual_rules": "Giấy gấp ổn định.",
+    "palette": [
+      "navy"
+    ],
+    "aspect_ratio": "9:16"
+  },
+  "dump": {
+    "title": "AI trong Sales — fixture tái dựng từ review, không phải bản API",
+    "narration": "Trợ lý hỗ trợ nhân viên trả lời khách hàng.",
+    "continuity_anchor": "Nhân viên giấy áo navy, mô hình origami hoàn chỉnh, ánh sáng mềm.",
+    "shots": [
+      {
+        "shot_id": "shot_01",
+        "scene": "Văn phòng giấy yên tĩnh",
+        "narration": "Trợ lý hỗ trợ nhân viên trả lời khách hàng.",
+        "prompt": "Nhân viên đưa tay tới thiết bị.",
+        "negative_prompt": "",
+        "duration_seconds": 10,
+        "continues_previous": false,
+        "prompt_contract_version": 3
+      },
+      {
+        "shot_id": "shot_02",
+        "scene": "Bàn làm việc",
+        "narration": "Trợ lý hỗ trợ nhân viên trả lời khách hàng.",
+        "prompt": "Nhân viên chỉ vào một thẻ giấy.",
+        "negative_prompt": "",
+        "duration_seconds": 10,
+        "continues_previous": false,
+        "prompt_contract_version": 3
+      },
+      {
+        "shot_id": "shot_03",
+        "scene": "Tập tài liệu",
+        "narration": "Trợ lý hỗ trợ nhân viên trả lời khách hàng.",
+        "prompt": "Nhân viên đẩy tập giấy tới trước.",
+        "negative_prompt": "",
+        "duration_seconds": 10,
+        "continues_previous": false,
+        "prompt_contract_version": 3
+      },
+      {
+        "shot_id": "shot_04",
+        "scene": "Thiết bị sáng",
+        "narration": "Trợ lý hỗ trợ nhân viên trả lời khách hàng.",
+        "prompt": "Một ô sáng trừu tượng xuất hiện.",
+        "negative_prompt": "",
+        "duration_seconds": 10,
+        "continues_previous": false,
+        "prompt_contract_version": 3
+      },
+      {
+        "shot_id": "shot_05",
+        "scene": "Bàn làm việc buổi tối",
+        "narration": "Trợ lý hỗ trợ nhân viên trả lời khách hàng.",
+        "prompt": "Các ô sáng nằm bên cạnh nhân viên.",
+        "negative_prompt": "",
+        "duration_seconds": 10,
+        "continues_previous": false,
+        "prompt_contract_version": 3
+      },
+      {
+        "shot_id": "shot_06",
+        "scene": "Kết luận",
+        "narration": "Trợ lý hỗ trợ nhân viên trả lời khách hàng.",
+        "prompt": "Nhân viên nhìn về thiết bị.",
+        "negative_prompt": "",
+        "duration_seconds": 10,
+        "continues_previous": false,
+        "prompt_contract_version": 3
+      }
+    ]
+  },
+  "prompts": [
+    "Bố cục 9:16. Phong cách Origami, dùng mô hình nhân vật, đạo cụ và bối cảnh làm từ giấy origami gấp nếp rõ. Quy tắc hình ảnh: Giấy gấp ổn định.. Bảng màu: navy. Cảnh: Văn phòng giấy yên tĩnh. Nhân viên đưa tay tới thiết bị.. Neo liên tục bắt buộc cho toàn bộ video: Nhân viên giấy áo navy, mô hình origami hoàn chỉnh, ánh sáng mềm.. Đây là cảnh độc lập; dựng bối cảnh theo mô tả shot, không sao chép bối cảnh hoặc bố cục của cảnh trước. Chỉ mô tả và hoạt họa các mô hình origami đã gấp thành hình hoàn chỉnh; nhân vật, đạo cụ và bối cảnh đều giữ nguyên chất liệu giấy gấp. Không quay người thật, bàn tay hoặc ngón tay; không mô tả hoặc thể hiện thao tác gấp giấy. Khuôn mặt origami cách điệu, không mô phỏng da người thật: hai mắt cùng kích thước và cao độ, nhìn rõ, cân đối hai bên; mũi giấy nhỏ nằm giữa; miệng khép kín rõ nét với biểu cảm thân thiện tự nhiên. Giữ nguyên vị trí và hình dạng ngũ quan, không mắt lác/lệch, không mặt nạ trống, không nét mặt méo hoặc đáng sợ. Âm thanh Flow tùy chọn; nếu Flow tạo giọng dẫn thì đọc nguyên văn bằng tiếng Việt: \"Trợ lý hỗ trợ nhân viên trả lời khách hàng.\". Nếu Flow không tạo âm thanh, clip im lặng vẫn chấp nhận. Giọng tự nhiên, rõ ràng, không dịch, không sửa lời, không thêm câu thoại và không nói tiếng Anh; âm thanh bối cảnh nhẹ nếu có. Giữ nhận diện nhân vật, trang phục, chất liệu hình ảnh, bảng màu, ánh sáng và ngôn ngữ máy quay; thay bối cảnh theo scene khi đây là cảnh độc lập. Chỉ một hành động chính đơn giản diễn ra liên tục, có mở đầu, tiến triển và kết thúc tự nhiên; ưu tiên chuyển động của mô hình đã hoàn chỉnh, quỹ đạo đơn giản, camera mượt, ổn định và đúng vật lý. Giữ nguyên số lượng và hình dạng nhân vật, khuôn mặt, chi thể, trang phục và đạo cụ; giữ bố cục ổn định trong cùng cảnh; không biến hình, không méo hình, không nhân đôi, không rung giật, không nhấp nháy, không xuất hiện hoặc biến mất đột ngột, không tự đổi cảnh, màu và ánh sáng. Không hiển thị chữ, phụ đề, logo hoặc watermark trong hình ảnh.",
+    "Bố cục 9:16. Phong cách Origami, dùng mô hình nhân vật, đạo cụ và bối cảnh làm từ giấy origami gấp nếp rõ. Quy tắc hình ảnh: Giấy gấp ổn định.. Bảng màu: navy. Cảnh: Bàn làm việc. Nhân viên chỉ vào một thẻ giấy.. Neo liên tục bắt buộc cho toàn bộ video: Nhân viên giấy áo navy, mô hình origami hoàn chỉnh, ánh sáng mềm.. Đây là cảnh độc lập; dựng bối cảnh theo mô tả shot, không sao chép bối cảnh hoặc bố cục của cảnh trước. Chỉ mô tả và hoạt họa các mô hình origami đã gấp thành hình hoàn chỉnh; nhân vật, đạo cụ và bối cảnh đều giữ nguyên chất liệu giấy gấp. Không quay người thật, bàn tay hoặc ngón tay; không mô tả hoặc thể hiện thao tác gấp giấy. Khuôn mặt origami cách điệu, không mô phỏng da người thật: hai mắt cùng kích thước và cao độ, nhìn rõ, cân đối hai bên; mũi giấy nhỏ nằm giữa; miệng khép kín rõ nét với biểu cảm thân thiện tự nhiên. Giữ nguyên vị trí và hình dạng ngũ quan, không mắt lác/lệch, không mặt nạ trống, không nét mặt méo hoặc đáng sợ. Âm thanh Flow tùy chọn; nếu Flow tạo giọng dẫn thì đọc nguyên văn bằng tiếng Việt: \"Trợ lý hỗ trợ nhân viên trả lời khách hàng.\". Nếu Flow không tạo âm thanh, clip im lặng vẫn chấp nhận. Giọng tự nhiên, rõ ràng, không dịch, không sửa lời, không thêm câu thoại và không nói tiếng Anh; âm thanh bối cảnh nhẹ nếu có. Giữ nhận diện nhân vật, trang phục, chất liệu hình ảnh, bảng màu, ánh sáng và ngôn ngữ máy quay; thay bối cảnh theo scene khi đây là cảnh độc lập. Chỉ một hành động chính đơn giản diễn ra liên tục, có mở đầu, tiến triển và kết thúc tự nhiên; ưu tiên chuyển động của mô hình đã hoàn chỉnh, quỹ đạo đơn giản, camera mượt, ổn định và đúng vật lý. Giữ nguyên số lượng và hình dạng nhân vật, khuôn mặt, chi thể, trang phục và đạo cụ; giữ bố cục ổn định trong cùng cảnh; không biến hình, không méo hình, không nhân đôi, không rung giật, không nhấp nháy, không xuất hiện hoặc biến mất đột ngột, không tự đổi cảnh, màu và ánh sáng. Không hiển thị chữ, phụ đề, logo hoặc watermark trong hình ảnh.",
+    "Bố cục 9:16. Phong cách Origami, dùng mô hình nhân vật, đạo cụ và bối cảnh làm từ giấy origami gấp nếp rõ. Quy tắc hình ảnh: Giấy gấp ổn định.. Bảng màu: navy. Cảnh: Tập tài liệu. Nhân viên đẩy tập giấy tới trước.. Neo liên tục bắt buộc cho toàn bộ video: Nhân viên giấy áo navy, mô hình origami hoàn chỉnh, ánh sáng mềm.. Đây là cảnh độc lập; dựng bối cảnh theo mô tả shot, không sao chép bối cảnh hoặc bố cục của cảnh trước. Chỉ mô tả và hoạt họa các mô hình origami đã gấp thành hình hoàn chỉnh; nhân vật, đạo cụ và bối cảnh đều giữ nguyên chất liệu giấy gấp. Không quay người thật, bàn tay hoặc ngón tay; không mô tả hoặc thể hiện thao tác gấp giấy. Khuôn mặt origami cách điệu, không mô phỏng da người thật: hai mắt cùng kích thước và cao độ, nhìn rõ, cân đối hai bên; mũi giấy nhỏ nằm giữa; miệng khép kín rõ nét với biểu cảm thân thiện tự nhiên. Giữ nguyên vị trí và hình dạng ngũ quan, không mắt lác/lệch, không mặt nạ trống, không nét mặt méo hoặc đáng sợ. Âm thanh Flow tùy chọn; nếu Flow tạo giọng dẫn thì đọc nguyên văn bằng tiếng Việt: \"Trợ lý hỗ trợ nhân viên trả lời khách hàng.\". Nếu Flow không tạo âm thanh, clip im lặng vẫn chấp nhận. Giọng tự nhiên, rõ ràng, không dịch, không sửa lời, không thêm câu thoại và không nói tiếng Anh; âm thanh bối cảnh nhẹ nếu có. Giữ nhận diện nhân vật, trang phục, chất liệu hình ảnh, bảng màu, ánh sáng và ngôn ngữ máy quay; thay bối cảnh theo scene khi đây là cảnh độc lập. Chỉ một hành động chính đơn giản diễn ra liên tục, có mở đầu, tiến triển và kết thúc tự nhiên; ưu tiên chuyển động của mô hình đã hoàn chỉnh, quỹ đạo đơn giản, camera mượt, ổn định và đúng vật lý. Giữ nguyên số lượng và hình dạng nhân vật, khuôn mặt, chi thể, trang phục và đạo cụ; giữ bố cục ổn định trong cùng cảnh; không biến hình, không méo hình, không nhân đôi, không rung giật, không nhấp nháy, không xuất hiện hoặc biến mất đột ngột, không tự đổi cảnh, màu và ánh sáng. Không hiển thị chữ, phụ đề, logo hoặc watermark trong hình ảnh.",
+    "Bố cục 9:16. Phong cách Origami, dùng mô hình nhân vật, đạo cụ và bối cảnh làm từ giấy origami gấp nếp rõ. Quy tắc hình ảnh: Giấy gấp ổn định.. Bảng màu: navy. Cảnh: Thiết bị sáng. Một ô sáng trừu tượng xuất hiện.. Neo liên tục bắt buộc cho toàn bộ video: Nhân viên giấy áo navy, mô hình origami hoàn chỉnh, ánh sáng mềm.. Đây là cảnh độc lập; dựng bối cảnh theo mô tả shot, không sao chép bối cảnh hoặc bố cục của cảnh trước. Chỉ mô tả và hoạt họa các mô hình origami đã gấp thành hình hoàn chỉnh; nhân vật, đạo cụ và bối cảnh đều giữ nguyên chất liệu giấy gấp. Không quay người thật, bàn tay hoặc ngón tay; không mô tả hoặc thể hiện thao tác gấp giấy. Khuôn mặt origami cách điệu, không mô phỏng da người thật: hai mắt cùng kích thước và cao độ, nhìn rõ, cân đối hai bên; mũi giấy nhỏ nằm giữa; miệng khép kín rõ nét với biểu cảm thân thiện tự nhiên. Giữ nguyên vị trí và hình dạng ngũ quan, không mắt lác/lệch, không mặt nạ trống, không nét mặt méo hoặc đáng sợ. Âm thanh Flow tùy chọn; nếu Flow tạo giọng dẫn thì đọc nguyên văn bằng tiếng Việt: \"Trợ lý hỗ trợ nhân viên trả lời khách hàng.\". Nếu Flow không tạo âm thanh, clip im lặng vẫn chấp nhận. Giọng tự nhiên, rõ ràng, không dịch, không sửa lời, không thêm câu thoại và không nói tiếng Anh; âm thanh bối cảnh nhẹ nếu có. Giữ nhận diện nhân vật, trang phục, chất liệu hình ảnh, bảng màu, ánh sáng và ngôn ngữ máy quay; thay bối cảnh theo scene khi đây là cảnh độc lập. Chỉ một hành động chính đơn giản diễn ra liên tục, có mở đầu, tiến triển và kết thúc tự nhiên; ưu tiên chuyển động của mô hình đã hoàn chỉnh, quỹ đạo đơn giản, camera mượt, ổn định và đúng vật lý. Giữ nguyên số lượng và hình dạng nhân vật, khuôn mặt, chi thể, trang phục và đạo cụ; giữ bố cục ổn định trong cùng cảnh; không biến hình, không méo hình, không nhân đôi, không rung giật, không nhấp nháy, không xuất hiện hoặc biến mất đột ngột, không tự đổi cảnh, màu và ánh sáng. Không hiển thị chữ, phụ đề, logo hoặc watermark trong hình ảnh.",
+    "Bố cục 9:16. Phong cách Origami, dùng mô hình nhân vật, đạo cụ và bối cảnh làm từ giấy origami gấp nếp rõ. Quy tắc hình ảnh: Giấy gấp ổn định.. Bảng màu: navy. Cảnh: Bàn làm việc buổi tối. Các ô sáng nằm bên cạnh nhân viên.. Neo liên tục bắt buộc cho toàn bộ video: Nhân viên giấy áo navy, mô hình origami hoàn chỉnh, ánh sáng mềm.. Đây là cảnh độc lập; dựng bối cảnh theo mô tả shot, không sao chép bối cảnh hoặc bố cục của cảnh trước. Chỉ mô tả và hoạt họa các mô hình origami đã gấp thành hình hoàn chỉnh; nhân vật, đạo cụ và bối cảnh đều giữ nguyên chất liệu giấy gấp. Không quay người thật, bàn tay hoặc ngón tay; không mô tả hoặc thể hiện thao tác gấp giấy. Khuôn mặt origami cách điệu, không mô phỏng da người thật: hai mắt cùng kích thước và cao độ, nhìn rõ, cân đối hai bên; mũi giấy nhỏ nằm giữa; miệng khép kín rõ nét với biểu cảm thân thiện tự nhiên. Giữ nguyên vị trí và hình dạng ngũ quan, không mắt lác/lệch, không mặt nạ trống, không nét mặt méo hoặc đáng sợ. Âm thanh Flow tùy chọn; nếu Flow tạo giọng dẫn thì đọc nguyên văn bằng tiếng Việt: \"Trợ lý hỗ trợ nhân viên trả lời khách hàng.\". Nếu Flow không tạo âm thanh, clip im lặng vẫn chấp nhận. Giọng tự nhiên, rõ ràng, không dịch, không sửa lời, không thêm câu thoại và không nói tiếng Anh; âm thanh bối cảnh nhẹ nếu có. Giữ nhận diện nhân vật, trang phục, chất liệu hình ảnh, bảng màu, ánh sáng và ngôn ngữ máy quay; thay bối cảnh theo scene khi đây là cảnh độc lập. Chỉ một hành động chính đơn giản diễn ra liên tục, có mở đầu, tiến triển và kết thúc tự nhiên; ưu tiên chuyển động của mô hình đã hoàn chỉnh, quỹ đạo đơn giản, camera mượt, ổn định và đúng vật lý. Giữ nguyên số lượng và hình dạng nhân vật, khuôn mặt, chi thể, trang phục và đạo cụ; giữ bố cục ổn định trong cùng cảnh; không biến hình, không méo hình, không nhân đôi, không rung giật, không nhấp nháy, không xuất hiện hoặc biến mất đột ngột, không tự đổi cảnh, màu và ánh sáng. Không hiển thị chữ, phụ đề, logo hoặc watermark trong hình ảnh.",
+    "Bố cục 9:16. Phong cách Origami, dùng mô hình nhân vật, đạo cụ và bối cảnh làm từ giấy origami gấp nếp rõ. Quy tắc hình ảnh: Giấy gấp ổn định.. Bảng màu: navy. Cảnh: Kết luận. Nhân viên nhìn về thiết bị.. Neo liên tục bắt buộc cho toàn bộ video: Nhân viên giấy áo navy, mô hình origami hoàn chỉnh, ánh sáng mềm.. Đây là cảnh độc lập; dựng bối cảnh theo mô tả shot, không sao chép bối cảnh hoặc bố cục của cảnh trước. Chỉ mô tả và hoạt họa các mô hình origami đã gấp thành hình hoàn chỉnh; nhân vật, đạo cụ và bối cảnh đều giữ nguyên chất liệu giấy gấp. Không quay người thật, bàn tay hoặc ngón tay; không mô tả hoặc thể hiện thao tác gấp giấy. Khuôn mặt origami cách điệu, không mô phỏng da người thật: hai mắt cùng kích thước và cao độ, nhìn rõ, cân đối hai bên; mũi giấy nhỏ nằm giữa; miệng khép kín rõ nét với biểu cảm thân thiện tự nhiên. Giữ nguyên vị trí và hình dạng ngũ quan, không mắt lác/lệch, không mặt nạ trống, không nét mặt méo hoặc đáng sợ. Âm thanh Flow tùy chọn; nếu Flow tạo giọng dẫn thì đọc nguyên văn bằng tiếng Việt: \"Trợ lý hỗ trợ nhân viên trả lời khách hàng.\". Nếu Flow không tạo âm thanh, clip im lặng vẫn chấp nhận. Giọng tự nhiên, rõ ràng, không dịch, không sửa lời, không thêm câu thoại và không nói tiếng Anh; âm thanh bối cảnh nhẹ nếu có. Giữ nhận diện nhân vật, trang phục, chất liệu hình ảnh, bảng màu, ánh sáng và ngôn ngữ máy quay; thay bối cảnh theo scene khi đây là cảnh độc lập. Chỉ một hành động chính đơn giản diễn ra liên tục, có mở đầu, tiến triển và kết thúc tự nhiên; ưu tiên chuyển động của mô hình đã hoàn chỉnh, quỹ đạo đơn giản, camera mượt, ổn định và đúng vật lý. Giữ nguyên số lượng và hình dạng nhân vật, khuôn mặt, chi thể, trang phục và đạo cụ; giữ bố cục ổn định trong cùng cảnh; không biến hình, không méo hình, không nhân đôi, không rung giật, không nhấp nháy, không xuất hiện hoặc biến mất đột ngột, không tự đổi cảnh, màu và ánh sáng. Không hiển thị chữ, phụ đề, logo hoặc watermark trong hình ảnh."
+  ]
+}

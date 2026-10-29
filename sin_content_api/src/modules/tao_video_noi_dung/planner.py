@@ -2,11 +2,37 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_serializer, model_validator
 
 from src.modules.llm.client import LLMClient
+from .brief import ContentBrief
+from .danh_gia import score_storyboard
+
+Beat = Literal["HOOK", "PAIN", "AGITATE", "INSIGHT", "SOLUTION", "DEMO", "OUTCOME", "CTA"]
+ShotKind = Literal["FLOW_ORIGAMI", "UI_SIM"]
+
+
+class ActionBeat(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    start_s: float = Field(ge=0, allow_inf_nan=False)
+    end_s: float = Field(gt=0, allow_inf_nan=False)
+    action: str = Field(min_length=1, max_length=1000)
+
+
+class UiMessage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    role: Literal["customer", "ai", "staff", "system"]
+    text: str = Field(min_length=1, max_length=1000)
+    at_s: float = Field(ge=0, allow_inf_nan=False)
+
+
+class UiScene(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    layout: Literal["CHAT", "AI_PANEL", "DASHBOARD"]
+    messages: list[UiMessage] = Field(min_length=2, max_length=30)
+    highlight: str | None = Field(default=None, max_length=500)
 
 
 class StoryboardShot(BaseModel):
@@ -19,7 +45,48 @@ class StoryboardShot(BaseModel):
     negative_prompt: str = Field(default="", max_length=1000)
     duration_seconds: int = Field(ge=1, le=10)
     continues_previous: bool | None = None
-    prompt_contract_version: int | None = Field(default=None, ge=3, le=3)
+    prompt_contract_version: int | None = Field(default=None, ge=3, le=4)
+    beat: Beat | None = None
+    message_ids: list[str] = Field(default_factory=list, max_length=180)
+    shot_kind: ShotKind = "FLOW_ORIGAMI"
+    action_beats: list[ActionBeat] = Field(default_factory=list, max_length=30)
+    ui_scene: UiScene | None = None
+
+    @model_serializer(mode="wrap")
+    def keep_v3_serialization(self, handler):
+        data = handler(self)
+        if self.prompt_contract_version != 4:
+            for key in ("beat", "message_ids", "shot_kind", "action_beats", "ui_scene"):
+                data.pop(key, None)
+        return data
+
+    @model_validator(mode="after")
+    def valid_v4_shot(self) -> StoryboardShot:
+        if self.prompt_contract_version != 4:
+            if self.shot_kind != "FLOW_ORIGAMI" or self.beat or self.message_ids or self.action_beats or self.ui_scene:
+                raise ValueError("V4_FIELDS_REQUIRE_V4")
+            return self
+        if self.beat is None or self.continues_previous is None:
+            raise ValueError("V4_BEAT_AND_CONTINUITY_REQUIRED")
+        if self.shot_kind == "UI_SIM":
+            if self.ui_scene is None:
+                raise ValueError("UI_SCENE_REQUIRED")
+            times = [message.at_s for message in self.ui_scene.messages]
+            if times != sorted(times) or any(t >= self.duration_seconds for t in times):
+                raise ValueError("UI_MESSAGE_TIME_INVALID")
+            if self.continues_previous:
+                raise ValueError("UI_SIM_CANNOT_CONTINUE_FLOW")
+        else:
+            if self.ui_scene is not None:
+                raise ValueError("FLOW_CANNOT_RENDER_UI")
+            cursor = 0.0
+            for action in self.action_beats:
+                if abs(action.start_s - cursor) > 1e-6 or action.end_s <= action.start_s:
+                    raise ValueError("ACTION_BEATS_MUST_COVER_DURATION")
+                cursor = action.end_s
+            if abs(cursor - self.duration_seconds) > 1e-6:
+                raise ValueError("ACTION_BEATS_MUST_COVER_DURATION")
+        return self
 
     @model_validator(mode="before")
     @classmethod
@@ -36,7 +103,15 @@ class Storyboard(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     narration: str = Field(min_length=1, max_length=12000)
     continuity_anchor: str = Field(min_length=20, max_length=1200)
-    shots: list[StoryboardShot] = Field(min_length=3, max_length=30)
+    shots: list[StoryboardShot] = Field(min_length=1, max_length=30)
+    brief: ContentBrief | None = None
+
+    @model_serializer(mode="wrap")
+    def keep_v3_serialization(self, handler):
+        data = handler(self)
+        if self.brief is None:
+            data.pop("brief", None)
+        return data
 
     @field_validator("shots")
     @classmethod
@@ -52,6 +127,23 @@ class Storyboard(BaseModel):
             raise ValueError("Mỗi shot phải có lời dẫn")
         if self.shots[0].continues_previous:
             raise ValueError("Shot đầu tiên không thể nối tiếp shot trước")
+        v4 = self.brief is not None or any(shot.prompt_contract_version == 4 for shot in self.shots)
+        if v4:
+            if self.brief is None or any(shot.prompt_contract_version != 4 for shot in self.shots):
+                raise ValueError("V4_BRIEF_AND_SHOTS_REQUIRED")
+            ids = {message.id for message in self.brief.all_messages()}
+            if any(set(shot.message_ids) - ids for shot in self.shots):
+                raise ValueError("UNKNOWN_MESSAGE_ID")
+            issues = score_storyboard(self, self.brief).issues
+            if issues:
+                raise ValueError(",".join(issues))
+            if self.brief.needs_ui_demo and not any(shot.shot_kind == "UI_SIM" for shot in self.shots):
+                raise ValueError("UI_DEMO_REQUIRED")
+            for previous, shot in zip(self.shots, self.shots[1:]):
+                if shot.continues_previous and previous.shot_kind == "UI_SIM":
+                    raise ValueError("FLOW_CANNOT_CONTINUE_UI_SIM")
+        elif len(self.shots) < 3:
+            raise ValueError("Storyboard v3 cần ít nhất ba shot")
         return self
 
 
@@ -61,7 +153,7 @@ def parse_storyboard(raw: str, target_duration_seconds: int) -> Storyboard:
     try:
         storyboard = Storyboard.model_validate_json(raw)
     except (ValidationError, ValueError) as exc:
-        raise ValueError("LLM trả storyboard sai hợp đồng JSON") from exc
+        raise ValueError(f"LLM trả storyboard sai hợp đồng JSON: {exc}") from exc
     if sum(shot.duration_seconds for shot in storyboard.shots) != target_duration_seconds:
         raise ValueError("Tổng thời lượng shot phải bằng thời lượng mục tiêu")
     return storyboard
@@ -92,14 +184,21 @@ def build_shot_prompt(
     )
     face_rules = (
         "Khuôn mặt origami cách điệu, không mô phỏng da người thật: hai mắt cùng kích thước và cao độ, nhìn rõ, cân đối hai bên; mũi giấy nhỏ nằm giữa; miệng khép kín rõ nét với biểu cảm thân thiện tự nhiên. Giữ nguyên vị trí và hình dạng ngũ quan, không mắt lác/lệch, không mặt nạ trống, không nét mặt méo hoặc đáng sợ. "
-        if shot.prompt_contract_version == 3 or shot.continues_previous is not None else ""
+        if shot.prompt_contract_version in {3, 4} or shot.continues_previous is not None else ""
     )
     audio_rules = (
         f"Âm thanh Flow tùy chọn; nếu Flow tạo giọng dẫn thì đọc nguyên văn bằng tiếng Việt: \"{shot.narration}\". Nếu Flow không tạo âm thanh, clip im lặng vẫn chấp nhận. Giọng tự nhiên, rõ ràng, không dịch, không sửa lời, không thêm câu thoại và không nói tiếng Anh; âm thanh bối cảnh nhẹ nếu có. "
-        if shot.prompt_contract_version == 3 and include_narration_audio else
+        if shot.prompt_contract_version in {3, 4} and include_narration_audio else
         "Âm thanh Flow tùy chọn; không tạo lời nói vì giọng đọc được ghép riêng; âm thanh bối cảnh nhẹ nếu có, clip im lặng vẫn chấp nhận. "
-        if shot.prompt_contract_version == 3 else
+        if shot.prompt_contract_version in {3, 4} else
         "Âm thanh tự nhiên tùy chọn; clip im lặng vẫn chấp nhận. Không tạo lời nói tiếng Anh; lời thoại nếu có phải bằng tiếng Việt. "
+    )
+    motion_rules = (
+        "Nhịp hành động liên tiếp: " + " ".join(
+            f"{beat.start_s:g}–{beat.end_s:g} giây: {beat.action}" for beat in shot.action_beats
+        ) + " Dùng tối đa hai chuyển động camera có chủ đích, mượt và đúng vật lý. "
+        if shot.prompt_contract_version == 4 else
+        "Chỉ một hành động chính đơn giản diễn ra liên tục, có mở đầu, tiến triển và kết thúc tự nhiên; ưu tiên chuyển động của mô hình đã hoàn chỉnh, quỹ đạo đơn giản, camera mượt, ổn định và đúng vật lý. "
     )
     return (
         f"Bố cục {aspect_ratio}. Phong cách {style_snapshot['style_name']}, dùng mô hình nhân vật, đạo cụ và bối cảnh làm từ giấy origami gấp nếp rõ. " +
@@ -111,7 +210,7 @@ def build_shot_prompt(
         face_rules +
         audio_rules +
         continuity_rules +
-        "Chỉ một hành động chính đơn giản diễn ra liên tục, có mở đầu, tiến triển và kết thúc tự nhiên; ưu tiên chuyển động của mô hình đã hoàn chỉnh, quỹ đạo đơn giản, camera mượt, ổn định và đúng vật lý. " +
+        motion_rules +
         anatomy_rules +
         "không rung giật, không nhấp nháy, không xuất hiện hoặc biến mất đột ngột, không tự đổi cảnh, màu và ánh sáng. " +
         "Không hiển thị chữ, phụ đề, logo hoặc watermark trong hình ảnh."
