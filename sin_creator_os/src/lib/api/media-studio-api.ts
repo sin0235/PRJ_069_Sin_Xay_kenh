@@ -2,6 +2,7 @@
 // Tích hợp Flow Music Plus, Google Flow 9:16 và FFmpeg Auto-Ducking
 import { AuthApi } from "@/lib/api/auth-api";
 import { getApiBaseUrl } from "@/lib/api/base-url";
+import { randomUuid } from "@/lib/utils";
 
 const API_BASE_URL = getApiBaseUrl();
 
@@ -370,7 +371,7 @@ export const mediaStudioApi = {
     if (params.mode) formData.append("mode", params.mode);
     if (params.duration_sec) formData.append("duration_sec", String(params.duration_sec));
     if (params.project_id) formData.append("project_id", params.project_id);
-    const idempotencyKey = params.idempotency_key || crypto.randomUUID();
+    const idempotencyKey = params.idempotency_key || randomUuid();
     formData.append("idempotency_key", idempotencyKey);
     formData.append("normalize_tiktok", String(params.normalize_tiktok !== false));
 
@@ -477,7 +478,7 @@ export const mediaStudioApi = {
     if (params.start_image_asset_id) formData.append("start_image_asset_id", params.start_image_asset_id);
     formData.append("remove_watermark", String(params.remove_watermark === true));
     if (params.project_id) formData.append("project_id", params.project_id);
-    const idempotencyKey = params.idempotency_key || crypto.randomUUID();
+    const idempotencyKey = params.idempotency_key || randomUuid();
     formData.append("idempotency_key", idempotencyKey);
 
     const wsId = params.workspace_id || AuthApi.getWorkspaceId();

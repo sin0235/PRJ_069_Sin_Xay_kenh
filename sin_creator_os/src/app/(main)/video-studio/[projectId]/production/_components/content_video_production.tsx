@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { mediaStudioApi, MediaAssetResponse } from "@/lib/api/media-studio-api";
 import { contentVideoApi, ContentVideoApiError, ContentVideoPlan, ContentVideoRun } from "@/lib/api/content-video-api";
+import { randomUuid } from "@/lib/utils";
 
 const ACTIVE_RUNS = new Set(["QUEUED", "RUNNING", "BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_SETUP", "BLOCKED_FLOW_QUOTA"]);
 
@@ -189,7 +190,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
     if (!plan) return;
     setBusy(true); setError(null); setErrorCode(null);
     try {
-      idempotencyKey.current ||= `content-video-${plan.id}-${crypto.randomUUID()}`;
+      idempotencyKey.current ||= `content-video-${plan.id}-${randomUuid()}`;
       const created = await contentVideoApi.createRun(projectId, plan.id, {
         source: voiceSource,
         assetId: voiceAssetId || null,
@@ -215,7 +216,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
     setBusy(true); setError(null); setErrorCode(null);
     const signature = JSON.stringify([run.id, shotIds, inNewFlowProject, confirmedNoFlowClip]);
     if (retryIdempotency.current?.signature !== signature) {
-      retryIdempotency.current = { signature, key: `content-video-retry-${crypto.randomUUID()}` };
+      retryIdempotency.current = { signature, key: `content-video-retry-${randomUuid()}` };
     }
     try {
       const created = await contentVideoApi.retryRun(projectId, run.id, {

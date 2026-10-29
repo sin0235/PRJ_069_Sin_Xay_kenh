@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AuthApi } from "@/lib/api/auth-api";
 import { mediaStudioApi } from "@/lib/api/media-studio-api";
 import { voiceStudioApi, type TTSAdvancedSettings, type VoiceProfile, type VoiceStudioJob } from "@/lib/api/voice-studio-api";
+import { randomUuid } from "@/lib/utils";
 
 const statusLabels: Record<string, string> = {
   QUEUED: "Đang chờ",
@@ -141,7 +142,7 @@ export default function VoiceStudioPage() {
         voice_clone_consent: false,
         pronunciation_dictionary: dictionary,
         advanced,
-        idempotency_key: crypto.randomUUID(),
+        idempotency_key: randomUuid(),
       });
       setJobs((current) => [job, ...current.filter((item) => item.job_id !== job.job_id)]);
       setActiveJobId(job.job_id);
