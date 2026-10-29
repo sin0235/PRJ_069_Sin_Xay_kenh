@@ -210,8 +210,12 @@ def build_shot_prompt(
             "Hành động và kết quả phải nhìn thấy rõ khi tắt tiếng, thể hiện đúng cơ chế được mô tả. "
             "Chỉ hoạt họa các mô hình origami đã gấp thành hình hoàn chỉnh; không quay người thật hoặc thao tác gấp giấy. "
             "Không tự thêm người vào cảnh chỉ có đạo cụ, quy trình hay cảnh vật. Nếu có nhân vật: "
-            + face_rules + anatomy_rules +
-            "giữ hình dạng và tỷ lệ ổn định. Không rung giật, không nhấp nháy, không tự đổi cảnh, màu hoặc ánh sáng. "
+            + face_rules +
+            "Giữ giải phẫu, nhận diện và tỷ lệ từng mô hình; không biến hình, không nhân đôi ngoài mô tả. "
+            "Đạo cụ và nhân vật được di chuyển, tương tác, đi vào hoặc ra khung qua đường đi và nguyên nhân nhìn thấy; "
+            "không khóa bố cục hoặc số đạo cụ đến mức triệt tiêu hành động đã mô tả. "
+            "Chống méo hình không đồng nghĩa cảnh tĩnh; diễn đủ chuỗi hành động đã duyệt, không kéo dài tư thế đứng chờ. "
+            "Không rung giật, không nhấp nháy, không tự đổi cảnh, màu hoặc ánh sáng. "
             + audio_rules + "Không hiển thị chữ, phụ đề, logo hoặc watermark trong hình ảnh."
         )
     return (
@@ -255,6 +259,12 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
             "FLOW_ORIGAMI có action_beats liên tiếp phủ kín từ không đến duration_seconds, không hở hay chồng. "
             "Tự quyết mốc và số nhịp hành động theo nội dung; gắn mỗi ý trong lời dẫn với hành động nhìn thấy được. "
             "Đổi nhịp, cảnh và tương phản trước sau, không chỉ minh họa lời thoại bằng một động tác tĩnh. "
+            "Mỗi shot là một tiểu cảnh có chuỗi hành động có nguyên nhân và kết quả, không chỉ đứng, vẫy tay, chỉ tay "
+            "rồi giữ tư thế đến hết clip. Nhịp hành động làm thay đổi tình huống: đối tượng di chuyển hoặc được xử lý, "
+            "tương tác gây phản ứng cụ thể, trạng thái mới lộ ra; chuyển động môi trường và máy quay hỗ trợ người xem theo dõi. "
+            "Quy tắc chống méo hình và chuyển động phi lý không phải lý do để giảm chuyển động hoặc bỏ diễn biến. "
+            "Mô tả đường đi, trình tự, tiếp xúc, phản ứng và chuyển nhịp mạch lạc; nhiều động tác liên quan có thể nối nhau "
+            "hoặc phối hợp hợp lý. Không đếm cử chỉ nhỏ như các ý mới, không dùng đứng yên cuối shot để lấp thời lượng. "
             "Thiết kế video để người xem hiểu khi tắt tiếng: từng shot phải biểu thị ý của nhịp đó bằng trạng thái trước, "
             "thao tác thay đổi hoặc kết quả nhìn thấy; toàn video làm rõ cơ chế của giải pháp. "
             "Không dùng ẩn dụ trừu tượng thay cho cơ chế: đừng chỉ làm ô sáng hay thẻ giấy bay rồi bắt người xem tự hình dung. "

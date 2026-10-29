@@ -157,6 +157,9 @@ def test_planning_requests_carry_baha_b2b_and_silent_visual_brief():
     assert "Không dùng ẩn dụ trừu tượng" in storyboard_rules
     assert "không có người" in storyboard_rules
     assert "Chỉ thêm nhân vật khi" in storyboard_rules
+    assert "chuỗi hành động có nguyên nhân và kết quả" in storyboard_rules
+    assert "không phải lý do để giảm chuyển động" in storyboard_rules
+    assert "không chỉ đứng, vẫy tay, chỉ tay" in storyboard_rules
 
 
 def test_new_plan_style_allows_object_only_scenes_without_changing_saved_plans():

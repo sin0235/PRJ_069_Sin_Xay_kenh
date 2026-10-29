@@ -343,7 +343,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
       {directCreation && <FlowSessionManager onProfileChange={setFlowProfileId} />}
 
       <ol className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-4" aria-label="Tiến độ tạo video">
-        {["Nhập nội dung", "Duyệt storyboard", "Tạo video qua Flow", "Xem video và QC"].map((label, index) => {
+        {["Nhập nội dung", "Duyệt storyboard", "Tạo video", "Xem video và QC"].map((label, index) => {
           const step = index + 1;
           const current = step === activeFlowStep;
           const complete = step < activeFlowStep;
@@ -364,7 +364,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
             <option value="9:16">Dọc 9:16</option><option value="16:9">Ngang 16:9</option>
           </select>
         </label>
-        <p className="text-xs text-muted-foreground">Profile pilot cố định được khóa ở server; mọi shot dùng cùng bảng màu và continuity anchor. Shot sau nhận frame cuối shot trước làm tham chiếu và được nối bằng crossfade ngắn.</p>
+        <p className="text-xs text-muted-foreground">Cảnh được chọn theo nội dung, có thể là cảnh vật, quy trình hoặc giao diện. Chỉ nối tiếp cảnh trước khi hành động cần liên tục; các cảnh giữ phong cách và bảng màu nhất quán.</p>
         {editingContent && <p className="text-sm text-muted-foreground">Lưu nội dung mới sẽ tạo revision storyboard mới; run và video của revision trước không còn là kết quả hiện hành.</p>}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" disabled={busy || content.trim().length < 40 || contentBytes > 12000 || duration < 20 || duration > 180 || (editingContent && sourceUnchanged)}><Sparkles className="mr-2 size-4" />{busy ? "Đang lập storyboard..." : editingContent ? "Lưu nội dung và tạo storyboard mới" : "Tạo storyboard bằng AI"}</Button>
@@ -388,7 +388,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
               <Button variant="outline" onClick={saveStoryboard} disabled={busy || !storyboardDirty}><Save className="mr-2 size-4" />Lưu nội dung đã sửa</Button>
               {plan.status === "DRAFT" && !directCreation && <Button onClick={approve} disabled={busy || storyboardDirty}><Check className="mr-2 size-4" />Duyệt storyboard</Button>}
             </>}
-            {(plan.status === "APPROVED" || directCreation) && !run && !editingStoryboard && <Button onClick={() => startRun()} disabled={busy || storyboardDirty || (voiceSource === "TTS" && !ttsReady) || (voiceSource === "UPLOAD" && !voiceAssetId) || (voiceSource === "TTS" && ttsProvider === "GWEN_TTS" && (!ttsReferenceAssetId || !ttsReferenceText.trim() || !voiceCloneConsent)) || (voiceSource === "TTS" && !!ttsReferenceAssetId && !voiceCloneConsent)}><Play className="mr-2 size-4" />Tạo video qua Flow</Button>}
+            {(plan.status === "APPROVED" || directCreation) && !run && !editingStoryboard && <Button onClick={() => startRun()} disabled={busy || storyboardDirty || (voiceSource === "TTS" && !ttsReady) || (voiceSource === "UPLOAD" && !voiceAssetId) || (voiceSource === "TTS" && ttsProvider === "GWEN_TTS" && (!ttsReferenceAssetId || !ttsReferenceText.trim() || !voiceCloneConsent)) || (voiceSource === "TTS" && !!ttsReferenceAssetId && !voiceCloneConsent)}><Play className="mr-2 size-4" />Tạo video</Button>}
           </div>
         </Card>
         {run && !editingStoryboard && <Card className="grid gap-4 p-4 sm:p-5">
@@ -466,10 +466,10 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
                     {plan.status === "DRAFT" || editingStoryboard ? <>
                       <label className="grid gap-1 text-sm">Nội dung cảnh<textarea value={shot.scene} onChange={(event) => setStoryboardDraft({ ...(storyboardDraft || plan.storyboard), shots: (storyboardDraft || plan.storyboard).shots.map((item) => item.shot_id === shot.shot_id ? { ...item, scene: event.target.value } : item) })} maxLength={300} className="min-h-16 rounded-md border bg-background p-3" /></label>
                       <label className="grid gap-1 text-sm">Lời thoại<textarea value={shot.narration} onChange={(event) => setStoryboardDraft({ ...(storyboardDraft || plan.storyboard), shots: (storyboardDraft || plan.storyboard).shots.map((item) => item.shot_id === shot.shot_id ? { ...item, narration: event.target.value } : item) })} maxLength={2000} className="min-h-20 rounded-md border bg-background p-3" /></label>
-                      <label className="grid gap-1 text-sm">Mô tả hình ảnh<textarea value={shot.prompt} onChange={(event) => setStoryboardDraft({ ...(storyboardDraft || plan.storyboard), shots: (storyboardDraft || plan.storyboard).shots.map((item) => item.shot_id === shot.shot_id ? { ...item, prompt: event.target.value } : item) })} minLength={8} maxLength={3000} className="min-h-24 rounded-md border bg-background p-3" /></label>
+                      {shot.shot_kind !== "UI_SIM" && <label className="grid gap-1 text-sm">Mô tả hình ảnh<textarea value={shot.prompt} onChange={(event) => setStoryboardDraft({ ...(storyboardDraft || plan.storyboard), shots: (storyboardDraft || plan.storyboard).shots.map((item) => item.shot_id === shot.shot_id ? { ...item, prompt: event.target.value } : item) })} minLength={8} maxLength={3000} className="min-h-24 rounded-md border bg-background p-3" /></label>}
                     </> : <>
                       <p className="text-sm">{shot.scene}</p><p className="text-sm"><span className="font-medium">Lời đọc:</span> {shot.narration}</p>
-                      <p className="text-sm text-muted-foreground"><span className="font-medium text-foreground">Mô tả hình ảnh:</span> {shot.prompt}</p>
+                      {shot.shot_kind !== "UI_SIM" && <p className="text-sm text-muted-foreground"><span className="font-medium text-foreground">Mô tả hình ảnh:</span> {shot.prompt}</p>}
                       {shot.negative_prompt && <p className="text-xs text-muted-foreground"><span className="font-medium">Tránh:</span> {shot.negative_prompt}</p>}
                     </>}
                     <ShotActionDetails shot={shot} onChange={plan.status === "DRAFT" || editingStoryboard ? (nextShot) => setStoryboardDraft({ ...(storyboardDraft || plan.storyboard), shots: (storyboardDraft || plan.storyboard).shots.map((item) => item.shot_id === shot.shot_id ? nextShot : item) }) : undefined} />
