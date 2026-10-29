@@ -1,0 +1,61 @@
+{
+  "title": "AI trong Sales — fixture tái dựng từ review, không phải bản API",
+  "narration": "Trợ lý hỗ trợ nhân viên trả lời khách hàng.",
+  "continuity_anchor": "Nhân viên giấy áo navy, mô hình origami hoàn chỉnh, ánh sáng mềm.",
+  "shots": [
+    {
+      "shot_id": "shot_01",
+      "scene": "Văn phòng giấy yên tĩnh",
+      "narration": "Trợ lý hỗ trợ nhân viên trả lời khách hàng.",
+      "prompt": "Nhân viên đưa tay tới thiết bị.",
+      "duration_seconds": 10,
+      "continues_previous": false,
+      "prompt_contract_version": 3
+    },
+    {
+      "shot_id": "shot_02",
+      "scene": "Bàn làm việc",
+      "narration": "Trợ lý hỗ trợ nhân viên trả lời khách hàng.",
+      "prompt": "Nhân viên chỉ vào một thẻ giấy.",
+      "duration_seconds": 10,
+      "continues_previous": false,
+      "prompt_contract_version": 3
+    },
+    {
+      "shot_id": "shot_03",
+      "scene": "Tập tài liệu",
+      "narration": "Trợ lý hỗ trợ nhân viên trả lời khách hàng.",
+      "prompt": "Nhân viên đẩy tập giấy tới trước.",
+      "duration_seconds": 10,
+      "continues_previous": false,
+      "prompt_contract_version": 3
+    },
+    {
+      "shot_id": "shot_04",
+      "scene": "Thiết bị sáng",
+      "narration": "Trợ lý hỗ trợ nhân viên trả lời khách hàng.",
+      "prompt": "Một ô sáng trừu tượng xuất hiện.",
+      "duration_seconds": 10,
+      "continues_previous": false,
+      "prompt_contract_version": 3
+    },
+    {
+      "shot_id": "shot_05",
+      "scene": "Bàn làm việc buổi tối",
+      "narration": "Trợ lý hỗ trợ nhân viên trả lời khách hàng.",
+      "prompt": "Các ô sáng nằm bên cạnh nhân viên.",
+      "duration_seconds": 10,
+      "continues_previous": false,
+      "prompt_contract_version": 3
+    },
+    {
+      "shot_id": "shot_06",
+      "scene": "Kết luận",
+      "narration": "Trợ lý hỗ trợ nhân viên trả lời khách hàng.",
+      "prompt": "Nhân viên nhìn về thiết bị.",
+      "duration_seconds": 10,
+      "continues_previous": false,
+      "prompt_contract_version": 3
+    }
+  ]
+}
