@@ -184,3 +184,21 @@ def test_v4_phonetic_vietnamese_and_ascii_vietnamese_words_remain_legal():
     data = v4_data()
     data["shots"][0]["narration"] = "Ai cho anh xem vi-đê-ô về mác-két-ting? Ba-ha có giải pháp cho doanh nghiệp."
     assert Storyboard.model_validate(data).shots[0].narration == data["shots"][0]["narration"]
+
+
+def test_v4_uppercase_acronyms_are_left_for_the_tts_engine_but_english_words_still_need_phonetics():
+    data = v4_data()
+    data["shots"][0]["narration"] = "Công nghệ AI giúp CEO bán hàng."
+    assert Storyboard.model_validate(data).shots[0].narration == data["shots"][0]["narration"]
+    data["shots"][0]["narration"] = "Công nghệ AI và chatbot giúp CEO."
+    with pytest.raises(ValueError, match="TTS_PRONUNCIATION_REQUIRED"):
+        Storyboard.model_validate(data)
+
+
+def test_v4_brand_baha_is_legal_but_unknown_uppercase_words_are_not():
+    data = v4_data()
+    data["shots"][0]["narration"] = "BAHA và BaHa giúp CEO dùng AI."
+    assert Storyboard.model_validate(data).shots[0].narration == data["shots"][0]["narration"]
+    data["shots"][0]["narration"] = "Dùng ABC để bán hàng."
+    with pytest.raises(ValueError, match="TTS_PRONUNCIATION_REQUIRED"):
+        Storyboard.model_validate(data)

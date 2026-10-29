@@ -4,6 +4,7 @@ import json
 import hashlib
 import logging
 import os
+import re
 import subprocess
 import threading
 import tempfile
@@ -437,6 +438,10 @@ def _tts_reference_path(db, run: ContentVideoRun) -> str | None:
     return str(_verified_asset_path(reference, "TTS_REFERENCE"))
 
 
+# Engine đọc BAHA từng chữ cái và Baha thành một từ lạ; Ba-ha được chuẩn hóa thành "ba ha".
+_BAHA_WORD = re.compile(r"(?<!\w)ba-?ha(?!\w)", re.IGNORECASE)
+
+
 def _prepare_run_tts(db, run: ContentVideoRun, shots: list, config: dict, token: str):
     """Lưu từng đoạn đã hoàn tất; restart không phải sinh lại toàn bộ giọng đọc."""
     import numpy as np
@@ -468,7 +473,7 @@ def _prepare_run_tts(db, run: ContentVideoRun, shots: list, config: dict, token:
         else:
             run.current_step = f"TTS:{shot.shot_id}"
             db.commit()
-            audio, source_rate = tts_provider_manager.synthesize(config, shot.narration, reference)
+            audio, source_rate = tts_provider_manager.synthesize(config, _BAHA_WORD.sub("Ba-ha", shot.narration), reference)
             audio = np.asarray(audio, dtype=np.float32).reshape(-1)
             if not audio.size or source_rate <= 0 or not np.isfinite(audio).all():
                 raise TTSProviderError("TTS_AUDIO_INVALID")

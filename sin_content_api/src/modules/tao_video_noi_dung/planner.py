@@ -21,6 +21,9 @@ _SPOKEN_SYLLABLE = re.compile(
 )
 
 
+_SPELLED_ACRONYMS = frozenset({"AI", "UI", "UX", "CEO", "CTO", "SEO", "CRM", "KPI", "ROI", "API", "FAQ"})
+
+
 def _validate_narration_for_tts(text: str) -> None:
     punctuation = "-–—.,!?;:'\"“”‘’…"
     if any(not (char.isalpha() or char.isspace() or char in punctuation) for char in text):
@@ -28,9 +31,12 @@ def _validate_narration_for_tts(text: str) -> None:
     words = re.findall(r"[^\W\d_]+", unicodedata.normalize("NFC", text))
     if not words:
         raise ValueError("TTS_NARRATION_EMPTY")
+    # Viết tắt đọc từng chữ cái (AI, CEO): VieNeu tự đọc tiếng Anh, "ây ai" bị đọc như hai âm tiết Việt. Chữ hoa khác (BAHA) bị đọc
+    # từng chữ cái nên không cho qua; Baha được runner đổi thành Ba-ha trước khi đọc.
     # shortcut: chưa phân biệt từ đồng hình, dùng bộ kiểm theo ngữ cảnh khi cần duyệt ngôn ngữ tự động.
-    unresolved = [word for word in words if word in {"AI", "UI", "SEO", "CEO"}
-                  or not _SPOKEN_SYLLABLE.fullmatch(word.lower())]
+    unresolved = [word for word in words
+                  if word not in _SPELLED_ACRONYMS and word.lower() != "baha"
+                  and not _SPOKEN_SYLLABLE.fullmatch(word.lower())]
     if unresolved:
         raise ValueError("TTS_PRONUNCIATION_REQUIRED: Phiên âm tiếng Việt: " + ", ".join(unresolved[:5]))
 
@@ -299,8 +305,9 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
             "giúp giải thích nội dung, không bắt mọi cảnh có người hoặc cố chèn nhân vật chính vào cảnh vật. "
             "Dùng tối đa hai chuyển động camera có chủ đích; mô tả tư thế, điểm tiếp xúc/phản ứng vật lý, quán tính và kết thúc. "
             "Narration cho TTS tiếng Việt: không chữ số, ký hiệu (%, &, @, #, +, /, =), viết tắt, URL hay emoji; "
-            "viết bằng chữ cách đọc, ví dụ hai nghìn không trăm hai mươi lăm, năm mươi phần trăm, ây ai. "
-            "Từ tiếng Anh phải phiên âm tiếng Việt: mác-két-ting, vi-đê-ô, diu-túp; không giữ từ tiếng Anh nguyên gốc trong narration. "
+            "viết bằng chữ cách đọc, ví dụ hai nghìn không trăm hai mươi lăm, năm mươi phần trăm. "
+            "Từ viết tắt AI, UI, UX, CEO, CTO, SEO, CRM, KPI, ROI, API, FAQ giữ nguyên chữ hoa, không phiên âm thành ây ai; bộ đọc tự đọc từng chữ cái. "
+            "Từ tiếng Anh khác phải phiên âm tiếng Việt: mác-két-ting, vi-đê-ô, diu-túp; không giữ từ tiếng Anh nguyên gốc trong narration. "
             "Tên thương hiệu Baha trong lời đọc viết Ba-ha; trên giao diện giữ Baha. "
             "Câu ngắn gọn, tự nhiên, vừa thời lượng; không nhồi lời để lấp đầy mọi giây. narration tổng nối đúng lời từng shot. "
             "scene, prompt, action và continuity_anchor bằng tiếng Việt. continuity_anchor mô tả nhận diện nhân vật chính và "
