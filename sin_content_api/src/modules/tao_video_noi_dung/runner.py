@@ -36,6 +36,7 @@ from session_manager import FlowLoginRequired, FlowSubmissionNotSent, FlowQuotaE
 from .cong_harness import approval_receipt_hash, dispatch_shot, verify_shot_receipt
 from .contracts import ReconcileShotRequest
 from .planner import Storyboard
+from .ui_sim import render_ui_scene
 from .tts_provider import TTSProviderError, tts_provider_manager
 from .vietsub import MODEL_SIZE as VIETSUB_MODEL_SIZE, VietsubError, align_script_words, karaoke_cues, to_srt, transcribe_cached, transcribe_words_cached
 
@@ -636,6 +637,33 @@ def _file_sha256(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
+def _render_ui_asset(db, run: ContentVideoRun, plan: ContentVideoPlan, shot, step: dict) -> MediaAsset:
+    verify_shot_receipt(run, plan, shot, step)
+    asset_id = str(uuid.uuid4())
+    path = get_workspace_storage_dir(run.workspace_id) / f"ui_sim_{asset_id}.mp4"
+    style = json.loads(plan.style_snapshot_json)
+    aspect_ratio = style.get("aspect_ratio", "9:16")
+    try:
+        render_ui_scene(shot.ui_scene, style, shot.duration_seconds, aspect_ratio, path)
+        _, issues = _probe_shot_with_qc(path, shot.duration_seconds, aspect_ratio)
+        if issues:
+            raise RuntimeError(f"SHOT_QC_FAILED:{shot.shot_id}:{','.join(issues)}")
+        asset = MediaAsset(
+            id=asset_id, workspace_id=run.workspace_id, project_id=run.project_id,
+            storage_key=path.relative_to(MEDIA_ROOT_DIR).as_posix(), sha256=_file_sha256(path),
+            byte_size=path.stat().st_size, mime_detected="video/mp4", duration_ms=shot.duration_seconds * 1000,
+            source_product="CONTENT_VIDEO_UI_SIM", created_by=run.created_by,
+        )
+        db.add(asset)
+        # Asset và receipt hoàn tất cùng transaction, có thể render lại nếu worker bị ngắt.
+        step.update(state="SUCCEEDED", raw_asset_id=asset.id, asset_id=asset.id,
+                    watermark_removed=False, finished_at=_now().isoformat())
+        return asset
+    except Exception:
+        path.unlink(missing_ok=True)
+        raise
+
+
 def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard: Storyboard, asset_ids: list[str]) -> None:
     clips = []
     shot_asset_hashes = []
@@ -918,8 +946,8 @@ def process_run(run_id: str, token: str | None = None) -> None:
             if os.getenv("APP_ENV", "").lower() == "production":
                 steps = json.loads(run.steps_json or "[]")
                 from src.modules.flow_sessions.service import resolve_profile
-                for step in steps:
-                    if step.get("state") != "READY":
+                for step, shot in zip(steps, storyboard.shots, strict=True):
+                    if step.get("state") != "READY" or shot.shot_kind == "UI_SIM":
                         continue
                     try:
                         selected = resolve_profile(db, run.workspace_id, step.get("flow_profile_id"))
@@ -957,6 +985,14 @@ def process_run(run_id: str, token: str | None = None) -> None:
             for shot_index, (step, shot) in enumerate(zip(steps, storyboard.shots, strict=True)):
                 verify_shot_receipt(run, plan, shot, step)
                 if step.get("state") == "SUCCEEDED":
+                    continue
+                if shot.shot_kind == "UI_SIM":
+                    run.current_step = shot.shot_id
+                    step["started_at"] = _now().isoformat()
+                    _save_run(db, run, steps)
+                    _render_ui_asset(db, run, plan, shot, step)
+                    run.output_asset_ids_json = json.dumps([item["asset_id"] for item in steps if item.get("asset_id")])
+                    _save_run(db, run, steps)
                     continue
                 if step.get("state") == "CLEANING":
                     raw_asset_id = step.get("raw_asset_id") or step.get("asset_id")
@@ -1127,6 +1163,9 @@ def process_run(run_id: str, token: str | None = None) -> None:
                 else:
                     run.status = "FAILED"
                     run.error_code = str(exc) if isinstance(exc, (TTSProviderError, VietsubError)) or str(exc) == "DUPLICATE_SHOT_MEDIA" else "CONTENT_VIDEO_RUN_FAILED"
+                    if any(step.get("shot_kind") == "UI_SIM" and step.get("shot_id") == run.current_step
+                           and step.get("state") == "READY" for step in steps):
+                        run.error_code = "UI_SIM_RENDER_FAILED"
                 run.error_message = str(exc)[:1000]
                 run.steps_json = json.dumps(steps, ensure_ascii=False, separators=(",", ":"))
                 run.finished_at = _now()

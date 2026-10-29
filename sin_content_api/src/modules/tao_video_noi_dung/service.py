@@ -24,12 +24,14 @@ from .cong_harness import approval_receipt_hash, build_shot_receipt, canonical_h
 from .planner import Storyboard, generate_storyboard
 
 _PILOT_STYLE_SNAPSHOT = StyleSnapshot(
-    style_name="Origami giấy gấp · pilot v1",
+    style_name="Origami giấy gấp · Baha B2B v2",
     visual_rules=(
         "Nhân vật, đạo cụ và bối cảnh đều là mô hình giấy origami gấp nếp rõ, bề mặt giấy mịn có thớ nhẹ; "
-        "dùng cùng một mô hình nhân vật giấy đã hoàn thiện xuyên suốt và chỉ hoạt họa mô hình đó; tuyệt đối không có người thật, bàn tay, ngón tay hay thao tác gấp giấy; bố cục theo tỷ lệ người dùng chọn, "
-        "ánh sáng studio mềm từ trên trái, bóng đổ giấy nhất quán, máy quay macro điện ảnh chậm; "
-        "nhân vật có dáng người hoàn chỉnh, đầu và thân rõ, đủ hai tay, hai chân và bàn chân với tỷ lệ tự nhiên; khuôn mặt origami cách điệu, không mô phỏng da người thật; hai mắt cùng kích thước và cao độ, cân đối hai bên; mũi giấy nhỏ ở giữa; miệng khép kín rõ nét với biểu cảm thân thiện tự nhiên; "
+        "không bắt buộc có nhân vật; đa dạng cảnh vật, đạo cụ, quy trình và môi trường để biểu thị nội dung khi tắt tiếng; "
+        "chỉ thêm người khi hành động của họ giúp giải thích vấn đề; giữ nhận diện nhất quán khi nhân vật xuất hiện lại; "
+        "tuyệt đối không có người thật, bàn tay, ngón tay hay thao tác gấp giấy; bố cục theo tỷ lệ người dùng chọn; "
+        "ánh sáng mềm, bóng đổ giấy nhất quán, cỡ cảnh và máy quay phục vụ nội dung; "
+        "nếu có nhân vật: dáng người hoàn chỉnh, đầu và thân rõ, đủ hai tay, hai chân và bàn chân với tỷ lệ tự nhiên; khuôn mặt origami cách điệu, không mô phỏng da người thật; hai mắt cùng kích thước và cao độ, cân đối hai bên; mũi giấy nhỏ ở giữa; miệng khép kín rõ nét với biểu cảm thân thiện tự nhiên; "
         "không mắt lác hoặc lệch, không mặt nạ trống, không nét mặt méo hoặc đáng sợ; "
         "không thiếu chi, không mặt trống, không dị dạng, quái vật hoặc hình thể ngoài loài người; "
         "không đổi chất liệu sang ảnh thật hoặc 3D nhựa, không sinh chữ trong cảnh."
@@ -315,7 +317,7 @@ def create_run(
     tts_config_json = json.dumps(tts_config, ensure_ascii=False, sort_keys=True, separators=(",", ":")) if tts_config else None
     existing = db.query(ContentVideoRun).filter(ContentVideoRun.idempotency_key == request.idempotency_key).first()
     if existing:
-        if request.flow_profile_id and any(step.get("flow_profile_id") != request.flow_profile_id for step in json.loads(existing.steps_json or "[]")):
+        if request.flow_profile_id and any(step.get("flow_profile_id") != request.flow_profile_id for step in json.loads(existing.steps_json or "[]") if step.get("shot_kind") != "UI_SIM"):
             raise HTTPException(409, detail={"error_code": "IDEMPOTENCY_KEY_REUSED", "message": "Khóa đã dùng với profile Flow khác."})
         if not _same_run_request(existing, workspace_id, project_id, plan.id, request.voice_asset_id, tts_config_json, request.include_subtitles):
             raise HTTPException(status_code=409, detail={"error_code": "IDEMPOTENCY_KEY_REUSED", "message": "Khóa idempotency đã được dùng cho một run khác."})
@@ -339,13 +341,14 @@ def create_run(
         if not reference_asset or not (reference_asset.mime_detected or "").startswith("audio/"):
             raise HTTPException(status_code=404, detail={"error_code": "TTS_REFERENCE_NOT_FOUND", "message": "Audio tham chiếu không thuộc dự án này hoặc không phải tệp âm thanh."})
 
-    profile_id = request.flow_profile_id
-    if profile_id or os.getenv("APP_ENV", "").lower() == "production":
-        from src.modules.flow_sessions.service import resolve_profile
-        profile_id = resolve_profile(db, workspace_id, profile_id).id
     style = json.loads(plan.style_snapshot_json)
     StyleSnapshot.model_validate(style)
     storyboard = Storyboard.model_validate_json(plan.storyboard_json)
+    profile_id = request.flow_profile_id
+    has_flow = any(shot.shot_kind == "FLOW_ORIGAMI" for shot in storyboard.shots)
+    if has_flow and (profile_id or os.getenv("APP_ENV", "").lower() == "production"):
+        from src.modules.flow_sessions.service import resolve_profile
+        profile_id = resolve_profile(db, workspace_id, profile_id).id
     if plan.status == "DRAFT" and allow_direct_creation:
         approved = db.query(ContentVideoPlan).filter(
             ContentVideoPlan.id == plan.id, ContentVideoPlan.status == "DRAFT",
@@ -379,7 +382,8 @@ def create_run(
         ))
     if profile_id:
         for step in steps:
-            step["flow_profile_id"] = profile_id
+            if step.get("shot_kind") != "UI_SIM":
+                step["flow_profile_id"] = profile_id
     run = ContentVideoRun(
         id=run_id,
         workspace_id=workspace_id,
@@ -608,7 +612,7 @@ def resume_run(db: Session, project_id: str, run_id: str, workspace_id: str, pro
             MediaAsset.workspace_id == workspace_id,
         ).count()
         render_only_retry = bool(voice_asset) and shot_asset_count == len(set(asset_ids))
-    tts_retry = run.status == "FAILED" and (run.error_code or "").startswith("TTS_")
+    tts_retry = run.status == "FAILED" and ((run.error_code or "").startswith("TTS_") or run.error_code == "UI_SIM_RENDER_FAILED")
     if run.status not in {"BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_SETUP", "BLOCKED_FLOW_QUOTA"} and not render_only_retry and not tts_retry:
         raise HTTPException(status_code=409, detail={"error_code": "RUN_NOT_RESUMABLE", "message": "Run chưa ở trạng thái có thể tiếp tục an toàn."})
     if any(step.get("state") in {"SUBMITTING", "NEEDS_RECONCILIATION"} for step in steps):
@@ -617,7 +621,7 @@ def resume_run(db: Session, project_id: str, run_id: str, workspace_id: str, pro
         from src.modules.flow_sessions.service import resolve_profile
         selected = resolve_profile(db, workspace_id, profile_id)
         for step in steps:
-            if step.get("state") == "READY" and step.get("flow_profile_id") != selected.id:
+            if step.get("shot_kind") != "UI_SIM" and step.get("state") == "READY" and step.get("flow_profile_id") != selected.id:
                 step["flow_profile_id"] = selected.id
                 step.pop("flow_project_url", None)
         run.steps_json = json.dumps(steps, ensure_ascii=False, separators=(",", ":"))

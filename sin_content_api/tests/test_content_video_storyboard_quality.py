@@ -133,3 +133,33 @@ def test_generate_storyboard_rejects_narration_digits_but_allows_written_ui_text
     data["shots"][1]["narration"] = "Hỗ trợ 24/7."
     with pytest.raises(ValueError, match="TTS"):
         generate_storyboard("Trợ lý hỗ trợ khách hàng.", 20, STYLE, Client(brief_data(), data))
+
+
+@pytest.mark.parametrize("bad_root", [[], None, "không phải đối tượng"])
+def test_generate_storyboard_reports_invalid_json_root(bad_root):
+    from src.modules.tao_video_noi_dung.planner import generate_storyboard
+    with pytest.raises(ValueError, match="STORYBOARD_JSON_OBJECT_REQUIRED"):
+        generate_storyboard("Nội dung thuần thông tin về lưu trữ tài liệu.", 20, STYLE,
+                            Client(brief_data(), bad_root))
+
+
+def test_planning_requests_carry_baha_b2b_and_silent_visual_brief():
+    from src.modules.tao_video_noi_dung.planner import generate_storyboard
+    client = Client(brief_data() | {"needs_ui_demo": False}, v4_data())
+    generate_storyboard("Trợ lý giúp doanh nghiệp tiếp nhận yêu cầu của khách hàng.", 20, STYLE, client)
+    brief_rules = client.calls[0][0][0]["content"]
+    storyboard_rules = client.calls[1][0][0]["content"]
+    assert "Baha" in brief_rules and "B2B" in brief_rules
+    assert "Baha" in storyboard_rules and "B2B" in storyboard_rules
+    assert "tắt tiếng" in storyboard_rules
+    assert "tiền cảnh" in storyboard_rules and "hậu cảnh" in storyboard_rules
+    assert "trạng thái trước" in storyboard_rules and "kết quả nhìn thấy" in storyboard_rules
+    assert "Không dùng ẩn dụ trừu tượng" in storyboard_rules
+    assert "không có người" in storyboard_rules
+    assert "Chỉ thêm nhân vật khi" in storyboard_rules
+
+
+def test_new_plan_style_allows_object_only_scenes_without_changing_saved_plans():
+    from src.modules.tao_video_noi_dung.service import _PILOT_STYLE_SNAPSHOT
+    assert "không bắt buộc có nhân vật" in _PILOT_STYLE_SNAPSHOT.visual_rules
+    assert "nếu có nhân vật" in _PILOT_STYLE_SNAPSHOT.visual_rules
