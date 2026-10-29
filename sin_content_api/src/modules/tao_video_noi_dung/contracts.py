@@ -97,6 +97,11 @@ class ResumeRunRequest(BaseModel):
     flow_profile_id: str | None = Field(default=None, min_length=1, max_length=64)
 
 
+class RerenderRunRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    include_subtitles: bool
+
+
 class ReconcileShotRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

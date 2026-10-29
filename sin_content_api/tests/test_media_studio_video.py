@@ -1896,9 +1896,9 @@ def test_content_video_worker_allows_optional_flow_audio_and_uses_reference_fram
         "narration": "RAG truy xuất tài liệu rồi mới tạo câu trả lời.",
         "continuity_anchor": "Một chuyên gia công nghệ mặc áo xanh navy giải thích trong studio tối giản, ánh sáng mềm.",
         "shots": [
-            {"shot_id": "shot-1", "scene": "Trợ lý mở hồ sơ trong văn phòng", "narration": "Lời dẫn 1", "prompt": "Trợ lý mở hồ sơ", "duration_seconds": 10, "continues_previous": False},
-            {"shot_id": "shot-2", "scene": "Cùng cảnh văn phòng, trợ lý tiếp tục đọc hồ sơ", "narration": "Lời dẫn 2", "prompt": "Trợ lý tiếp tục đọc hồ sơ", "duration_seconds": 10, "continues_previous": True},
-            {"shot_id": "shot-3", "scene": "Chuyển sang phòng họp", "narration": "Lời dẫn 3", "prompt": "Nhóm xem kết quả truy xuất", "duration_seconds": 10, "continues_previous": False},
+            {"shot_id": "shot-1", "scene": "Trợ lý mở hồ sơ trong văn phòng", "narration": "Lời dẫn một", "prompt": "Trợ lý mở hồ sơ", "duration_seconds": 10, "continues_previous": False},
+            {"shot_id": "shot-2", "scene": "Cùng cảnh văn phòng, trợ lý tiếp tục đọc hồ sơ", "narration": "Lời dẫn hai", "prompt": "Trợ lý tiếp tục đọc hồ sơ", "duration_seconds": 10, "continues_previous": True},
+            {"shot_id": "shot-3", "scene": "Chuyển sang phòng họp", "narration": "Lời dẫn ba", "prompt": "Nhóm xem kết quả truy xuất", "duration_seconds": 10, "continues_previous": False},
         ],
     }
 

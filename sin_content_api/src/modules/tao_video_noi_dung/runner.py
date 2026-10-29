@@ -37,7 +37,7 @@ from .cong_harness import approval_receipt_hash, dispatch_shot, verify_shot_rece
 from .contracts import ReconcileShotRequest
 from .planner import Storyboard
 from .tts_provider import TTSProviderError, tts_provider_manager
-from .vietsub import MODEL_SIZE as VIETSUB_MODEL_SIZE, VietsubError, to_srt, transcribe_cached
+from .vietsub import MODEL_SIZE as VIETSUB_MODEL_SIZE, VietsubError, align_script_words, karaoke_cues, to_srt, transcribe_cached, transcribe_words_cached
 
 logger = logging.getLogger(__name__)
 LEASE_NAME = "content-video-flow"
@@ -537,6 +537,27 @@ def _save_tts_voice(db, run: ContentVideoRun, audio, sample_rate: int) -> None:
     db.refresh(run)
 
 
+def _karaoke_captions(words: list[dict], height: int, width: int, speed: float = 1.0) -> list[TimelineCaption]:
+    """Cụm phụ đề karaoke; mốc theo giọng thật được co giãn cùng video trước khi retime."""
+    scaled = [
+        {"text": w["text"], "start_ms": round(w["start_ms"] * speed), "end_ms": max(round(w["end_ms"] * speed), round(w["start_ms"] * speed) + 1)}
+        for w in words
+    ]
+    return [
+        TimelineCaption(
+            caption_id=f"karaoke_{index:04d}", text=cue["text"], start_ms=cue["start_ms"], duration_ms=cue["duration_ms"],
+            font_size=52 if height > width else 36, safe_zone=True, words=cue["words"],
+        )
+        for index, cue in enumerate(karaoke_cues(scaled), start=1)
+    ]
+
+
+def _word_cache_path(run, voice_asset, voice_path: Path) -> Path:
+    audio_sha256 = voice_asset.sha256 or _file_sha256(voice_path)
+    key = hashlib.sha256(f"{run.workspace_id}:{audio_sha256}:{VIETSUB_MODEL_SIZE}:words".encode("utf-8")).hexdigest()
+    return MEDIA_ROOT_DIR / ".cache" / "vietsub" / f"{key}.json"
+
+
 def _tts_captions(shots: list, height: int = 1920, width: int = 1080, durations_ms: list[int] | None = None) -> list[TimelineCaption]:
     captions = []
     start_ms = 0
@@ -647,14 +668,22 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     caption_cues = []
     include_subtitles = getattr(run, "include_subtitles", True)
     is_tts_voice = bool(voice_asset and getattr(voice_asset, "source_product", None) == "CONTENT_VIDEO_TTS")
+    word_aligned = False
     if voice_input and include_subtitles and is_tts_voice:
+        speed = min(1.1, max(0.9, plan.target_duration_seconds * 1000 / voice_asset.duration_ms))
         measured = [step.get("tts_audio", {}).get("duration_ms") for step in json.loads(run.steps_json or "[]")]
         durations = None
         if len(measured) == len(storyboard.shots) and all(isinstance(item, (int, float)) and item > 0 for item in measured):
             # Captions burn before the renderer retimes video; undo that scale here.
-            speed = min(1.1, max(0.9, plan.target_duration_seconds * 1000 / voice_asset.duration_ms))
             durations = [max(1, round(item * speed)) for item in measured]
         caption_cues = _tts_captions(storyboard.shots, height=height, width=width, durations_ms=durations)
+        try:
+            script_words = " ".join(shot.narration for shot in storyboard.shots).split()
+            asr_words = transcribe_words_cached(voice_input[1], _word_cache_path(run, voice_asset, voice_input[1]))
+            caption_cues = _karaoke_captions(align_script_words(script_words, asr_words), height, width, speed)
+            word_aligned = True
+        except VietsubError:
+            logger.warning("Karaoke alignment unavailable for run %s; using per-shot captions", run.id)
     elif voice_input and include_subtitles:
         audio_sha256 = voice_asset.sha256 or _file_sha256(voice_input[1])
         cache_key = hashlib.sha256(f"{run.workspace_id}:{audio_sha256}:{VIETSUB_MODEL_SIZE}".encode("utf-8")).hexdigest()
@@ -720,7 +749,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     db.commit()
     render_meta = video_processor.render_timeline_document(
         timeline, resolve_asset, output_path, transition_seconds=0.3,
-        caption_style="vietsub_v1", preserve_voice_audio=is_tts_voice,
+        caption_style="vietsub_karaoke_v2", preserve_voice_audio=is_tts_voice,
     )
     if is_tts_voice:
         time_scale = float(render_meta.get("video_content_duration_seconds", render_meta["duration_seconds"])) / plan.target_duration_seconds
@@ -731,6 +760,9 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
             for caption in timeline.captions:
                 caption.start_ms = round(caption.start_ms * time_scale)
                 caption.duration_ms = max(1, round(caption.duration_ms * time_scale))
+                for word in caption.words:
+                    word.start_ms = round(word.start_ms * time_scale)
+                    word.end_ms = max(word.start_ms + 1, round(word.end_ms * time_scale))
             timeline_version.tracks_json = timeline.model_dump_json()
             db.commit()
     meta = video_processor.probe_video(output_path)
@@ -805,12 +837,12 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
             "model": VIETSUB_MODEL_SIZE if voice_asset and include_subtitles and not is_tts_voice else None,
             "language": "vi" if voice_asset and include_subtitles else None,
             "audio_sha256": voice_asset.sha256 if voice_asset else None,
-            "style": "be_vietnam_pro_semibold_box_v1" if caption_cues else None,
+            "style": "be_vietnam_pro_karaoke_v2" if caption_cues else None,
             "font_sha256": _file_sha256(VIETSUB_FONT_PATH) if caption_cues else None,
             "caption_count": len(caption_cues),
             "asr_quality_status": "NOT_RUN_TTS_SCRIPT" if is_tts_voice and include_subtitles else "UNVERIFIED" if voice_asset and include_subtitles else None,
         },
-        "speech_alignment": "TTS_SHOT_TIMELINE" if is_tts_voice and include_subtitles else "WHISPER_ASR_TIMESTAMPS" if caption_cues else vietsub_status,
+        "speech_alignment": ("TTS_ASR_WORD_ALIGNED" if word_aligned else "TTS_SHOT_TIMELINE") if is_tts_voice and include_subtitles else "WHISPER_ASR_TIMESTAMPS" if caption_cues else vietsub_status,
     }
     run.qc_report_json = json.dumps(report, ensure_ascii=False, separators=(",", ":"))
     if issues:

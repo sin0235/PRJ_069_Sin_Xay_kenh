@@ -86,6 +86,7 @@ export const contentVideoApi = {
   }),
   getRun: (projectId: string, runId: string) => request<ContentVideoRun>(projectId, `/runs/${encodeURIComponent(runId)}`),
   resumeRun: (projectId: string, runId: string, flowProfileId?: string | null) => request<ContentVideoRun>(projectId, `/runs/${encodeURIComponent(runId)}/resume`, { method: "POST", body: JSON.stringify({ flow_profile_id: flowProfileId || null }) }),
+  rerenderRun: (projectId: string, runId: string, includeSubtitles: boolean) => request<ContentVideoRun>(projectId, `/runs/${encodeURIComponent(runId)}/rerender`, { method: "POST", body: JSON.stringify({ include_subtitles: includeSubtitles }) }),
   reconcileShot: (projectId: string, runId: string, shotId: string, assetId: string, reason: string) => request<ContentVideoRun>(projectId, `/runs/${encodeURIComponent(runId)}/reconcile`, {
     method: "POST",
     body: JSON.stringify({ shot_id: shotId, asset_id: assetId, reason }),

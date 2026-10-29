@@ -628,3 +628,28 @@ def resume_run(db: Session, project_id: str, run_id: str, workspace_id: str, pro
     db.commit()
     db.refresh(run)
     return _run_response(run)
+
+
+def rerender_run(db: Session, project_id: str, run_id: str, workspace_id: str, include_subtitles: bool) -> ContentVideoRunResponse:
+    """Ghép lại video từ các shot đã có, không gọi lại Flow; cho phép bật/tắt phụ đề."""
+    _project(db, project_id, workspace_id)
+    run = db.query(ContentVideoRun).filter(
+        ContentVideoRun.id == run_id,
+        ContentVideoRun.project_id == project_id,
+        ContentVideoRun.workspace_id == workspace_id,
+    ).with_for_update().first()
+    if not run:
+        raise HTTPException(status_code=404, detail={"error_code": "RUN_NOT_FOUND", "message": "Không tìm thấy run sản xuất."})
+    steps = json.loads(run.steps_json or "[]")
+    if run.status not in {"COMPLETED", "FAILED_QC"} or not steps or not all(
+        step.get("state") == "SUCCEEDED" and step.get("asset_id") for step in steps
+    ):
+        raise HTTPException(status_code=409, detail={"error_code": "RUN_NOT_RERENDERABLE", "message": "Chỉ ghép lại được run đã có đủ shot hoàn tất."})
+    run.include_subtitles = include_subtitles
+    run.status = "QUEUED"
+    run.error_code = None
+    run.error_message = None
+    run.finished_at = None
+    db.commit()
+    db.refresh(run)
+    return _run_response(run)

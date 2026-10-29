@@ -10,9 +10,9 @@ from src.auth.tenancy import (
 )
 from src.database import get_db
 from baha_auth.src.policy.evaluator import e2e_test_self_approval_enabled
-from .contracts import ContentVideoPlanResponse, ContentVideoRunResponse, CreatePlanRequest, CreateRunRequest, ResumeRunRequest, ReconcileShotRequest, RetryRunRequest, UpdateStoryboardRequest
+from .contracts import ContentVideoPlanResponse, ContentVideoRunResponse, CreatePlanRequest, CreateRunRequest, ResumeRunRequest, ReconcileShotRequest, RerenderRunRequest, RetryRunRequest, UpdateStoryboardRequest
 from .runner import reconcile_shot
-from .service import approve_plan, create_plan, create_run, get_latest_history, get_plan, get_run, resume_run, retry_run, update_plan
+from .service import approve_plan, create_plan, create_run, get_latest_history, get_plan, get_run, rerender_run, resume_run, retry_run, update_plan
 
 
 router = APIRouter(prefix="/v1/media/projects/{project_id}/content-video", tags=["Content Video Production"])
@@ -116,6 +116,17 @@ def resume_content_video_run(
     tenant: TenantContext = Depends(require_action("media.upload")),
 ):
     return resume_run(db, project_id, run_id, tenant.workspace_id, profile_id=payload.flow_profile_id if payload else None)
+
+
+@router.post("/runs/{run_id}/rerender", response_model=ContentVideoRunResponse, status_code=202)
+def rerender_content_video_run(
+    project_id: str,
+    run_id: str,
+    payload: RerenderRunRequest,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(require_action("media.upload")),
+):
+    return rerender_run(db, project_id, run_id, tenant.workspace_id, payload.include_subtitles)
 
 
 @router.post("/runs/{run_id}/retry", response_model=ContentVideoRunResponse, status_code=202)

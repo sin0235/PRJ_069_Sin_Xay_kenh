@@ -1079,6 +1079,12 @@ class TimelineAudioTrack(BaseModel):
     ducking_attenuation_db: Optional[float] = Field(None, description="Mức hạ âm khi ducking (dB)")
 
 
+class TimelineCaptionWord(BaseModel):
+    text: str = Field(..., min_length=1)
+    start_ms: int = Field(..., ge=0)
+    end_ms: int = Field(..., gt=0)
+
+
 class TimelineCaption(BaseModel):
     caption_id: Optional[str] = Field(None, description="ID phụ đề")
     text: str = Field(..., min_length=1, description="Nội dung phụ đề")
@@ -1086,6 +1092,7 @@ class TimelineCaption(BaseModel):
     duration_ms: int = Field(..., gt=0, description="Thời lượng hiển thị (ms)")
     font_size: int = Field(26, ge=12, le=72, description="Cỡ chữ (px)")
     safe_zone: bool = Field(True, description="Tuân thủ Safe Zone TikTok")
+    words: List[TimelineCaptionWord] = Field(default_factory=list, description="Mốc thời gian từng từ cho phụ đề karaoke")
 
 
 class TimelineDocument(BaseModel):

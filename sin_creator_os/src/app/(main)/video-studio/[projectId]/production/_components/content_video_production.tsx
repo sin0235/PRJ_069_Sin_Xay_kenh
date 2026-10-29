@@ -285,6 +285,14 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
     finally { setBusy(false); }
   };
 
+  const rerenderRun = async (withSubtitles: boolean) => {
+    if (!run) return;
+    setBusy(true); setError(null); setErrorCode(null);
+    try { setRun(await contentVideoApi.rerenderRun(projectId, run.id, withSubtitles)); }
+    catch (err) { showError(err, "Không ghép lại được video."); }
+    finally { setBusy(false); }
+  };
+
   const uploadReconciliationClip = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -405,7 +413,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
               </section>}
               {run.error_message && <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><p className="font-medium">{run.error_code}</p><p className="mt-1">{run.error_message}</p></div>}
               {run.voice_source === "TTS" && <p className="text-sm text-muted-foreground">Lời đọc được sinh bằng {run.tts_provider === "VIE_NEU_V3_TURBO" ? "VieNeu v3 Turbo" : "Gwen-TTS"}.</p>}
-              {run.status === "COMPLETED" && finalUrl && <div className="grid gap-2 rounded-lg bg-primary/5 p-3"><p className="text-sm">Video đã ghép xong. Có thể chỉnh sửa hoặc ghép lại từ các clip Flow hiện có.</p><Button type="button" variant="outline" onClick={() => router.push(`/video-studio/${projectId}`)}>Mở timeline để chỉnh sửa</Button></div>}
+              {run.status === "COMPLETED" && finalUrl && <div className="grid gap-2 rounded-lg bg-primary/5 p-3"><p className="text-sm">Video đã ghép xong. Có thể chỉnh sửa hoặc ghép lại từ các clip Flow hiện có.</p><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => router.push(`/video-studio/${projectId}`)}>Mở timeline để chỉnh sửa</Button><Button type="button" variant="outline" onClick={() => rerenderRun(true)} disabled={busy}>Ghép lại có phụ đề</Button><Button type="button" variant="outline" onClick={() => rerenderRun(false)} disabled={busy}>Ghép lại không phụ đề</Button></div></div>}
               {exportUrl && <Button type="button" variant="link" className="w-fit px-0" onClick={() => void mediaStudioApi.downloadAsset(exportUrl, "goi_san_xuat.zip").catch((err) => showError(err, "Không tải được gói sản xuất."))}>Tải gói sản xuất (ZIP)</Button>}
             </aside>
           </div>
@@ -496,7 +504,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
             </label>}
             {ttsReferenceAssetId && <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={voiceCloneConsent} onChange={(event) => { setVoiceCloneConsent(event.target.checked); idempotencyKey.current = null; }} className="mt-1" />Tôi có quyền sử dụng audio tham chiếu để tạo giọng đọc.</label>}
           </>}
-          <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={includeSubtitles} onChange={(event) => { setIncludeSubtitles(event.target.checked); idempotencyKey.current = null; }} className="mt-1" /><span><span className="font-medium">Thêm phụ đề khi ghép video</span><span className="block text-xs text-muted-foreground">TTS dùng lời dẫn storyboard, không chạy nhận dạng giọng nói. Voiceover tải lên sẽ dùng ASR.</span></span></label>
+          <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={includeSubtitles} onChange={(event) => { setIncludeSubtitles(event.target.checked); idempotencyKey.current = null; }} className="mt-1" /><span><span className="font-medium">Thêm phụ đề khi ghép video</span><span className="block text-xs text-muted-foreground">Phụ đề karaoke tô từ theo giọng đọc thật (nhận dạng giọng nói để lấy mốc thời gian). Có thể ghép lại có/không phụ đề sau khi video hoàn tất.</span></span></label>
           <p className="text-xs text-muted-foreground">Mỗi run chỉ dùng một nguồn lời đọc. Nếu TTS lỗi, hệ thống dừng run và không tự đổi nhà cung cấp.</p>
         </Card>}
         {plan.status === "DRAFT" && <p className="text-sm text-muted-foreground">Chia sẻ URL có mã plan này cho người duyệt. Người tạo không thể tự duyệt theo quy tắc phân quyền.</p>}

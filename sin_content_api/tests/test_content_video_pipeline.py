@@ -561,7 +561,10 @@ def test_content_video_render_tracks_native_audio_and_tts_subtitles(monkeypatch,
         runner.audio_processor, "probe_audio",
         lambda _path: {"codec_name": "aac", "duration_seconds": 30.0},
     )
-    monkeypatch.setattr(runner, "transcribe_cached", lambda *_args: pytest.fail("TTS subtitles must not use ASR"))
+    def _asr_unavailable(*_args):
+        raise runner.VietsubError("VIETSUB_ASR_FAILED")
+
+    monkeypatch.setattr(runner, "transcribe_words_cached", _asr_unavailable)
     monkeypatch.setattr(runner, "_write_export_package", lambda path, *_args: path.write_bytes(b"export"))
 
     shots = [SimpleNamespace(shot_id=f"shot-{index}", narration=f"Lời cảnh {index}", duration_seconds=10, prompt_contract_version=3) for index in range(1, 4)]
@@ -587,7 +590,7 @@ def test_content_video_render_tracks_native_audio_and_tts_subtitles(monkeypatch,
     assert (captured["timeline"].width, captured["timeline"].height) == (1920, 1080)
     assert (captured["timeline"].voice_track is not None) is with_tts_voice
     assert captured["transition_seconds"] == 0.3
-    assert captured["caption_style"] == "vietsub_v1"
+    assert captured["caption_style"] == "vietsub_karaoke_v2"
     assert captured["preserve_voice_audio"] is with_tts_voice
     report = json.loads(run.qc_report_json)
     assert report["voice_source"] == ("TTS" if with_tts_voice else "FLOW_NATIVE" if flow_native_audio else "NONE")
@@ -1522,3 +1525,51 @@ def test_video_qc_rejects_video_stream_much_shorter_than_file():
 
     assert "VIDEO_STREAM_SHORT" in evaluate_video_qc(meta, 60, decode_ok=True, aspect_ratio="16:9")
     assert evaluate_video_qc({**meta, "video_stream_duration_seconds": 59.9}, 60, decode_ok=True, aspect_ratio="16:9") == []
+
+
+def test_karaoke_captions_follow_asr_words_and_scale_with_speed():
+    from src.modules.tao_video_noi_dung import runner, vietsub
+
+    script = "Xin chào các bạn. Hôm nay mình kể chuyện".split()
+    asr = [
+        {"text": "xin", "start_ms": 100, "end_ms": 300}, {"text": "chào", "start_ms": 300, "end_ms": 600},
+        {"text": "bạn", "start_ms": 900, "end_ms": 1100}, {"text": "hôm", "start_ms": 1500, "end_ms": 1700},
+        {"text": "nay", "start_ms": 1700, "end_ms": 1900}, {"text": "mình", "start_ms": 1900, "end_ms": 2100},
+        {"text": "kể", "start_ms": 2100, "end_ms": 2300}, {"text": "chuyện", "start_ms": 2300, "end_ms": 2800},
+    ]
+    aligned = vietsub.align_script_words(script, asr)
+    assert [w["text"] for w in aligned] == script
+    assert aligned[0]["start_ms"] == 100 and aligned[-1]["end_ms"] == 2800
+    assert all(a["end_ms"] <= b["start_ms"] for a, b in zip(aligned, aligned[1:]))  # monotonic, "các" interpolated
+    captions = runner._karaoke_captions(aligned, 1920, 1080, speed=1.1)
+    assert captions[0].text == "Xin chào các bạn." and captions[0].words[0].start_ms == 110
+    assert "".join(w.text for c in captions for w in c.words) == "".join(script)
+
+
+def test_karaoke_ass_marks_each_word_with_centisecond_durations():
+    from src.modules.media_studio.ass_captions import build_karaoke_ass
+
+    ass = build_karaoke_ass([{"text": "Xin chào", "start_ms": 0, "duration_ms": 600, "words": [
+        {"text": "Xin", "start_ms": 0, "end_ms": 200}, {"text": "chào", "start_ms": 200, "end_ms": 600}]}], 1080, 1920)
+    assert "PlayResY: 1920" in ass
+    assert "{\\k20}Xin {\\k40}chào" in ass
+
+
+def test_rerender_run_requeues_completed_run_with_subtitle_choice_and_rejects_unfinished():
+    from fastapi import HTTPException
+    from src.models.entities import ContentVideoRun
+    from src.modules.tao_video_noi_dung.service import rerender_run
+
+    engine, Session = _content_video_test_database()
+    try:
+        with Session() as db:
+            _seed_content_video_history(db, run_status="COMPLETED")
+            result = rerender_run(db, "project-1", "run-1", "workspace-1", include_subtitles=False)
+            assert result.status == "QUEUED"
+            assert db.query(ContentVideoRun).filter_by(id="run-1").first().include_subtitles is False
+
+            with pytest.raises(HTTPException) as excinfo:
+                rerender_run(db, "project-1", "run-1", "workspace-1", include_subtitles=True)
+            assert excinfo.value.detail["error_code"] == "RUN_NOT_RERENDERABLE"
+    finally:
+        engine.dispose()

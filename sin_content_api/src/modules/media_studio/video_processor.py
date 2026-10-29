@@ -18,6 +18,8 @@ import textwrap
 from typing import Dict, Any, List, Optional, Callable
 
 logger = logging.getLogger(__name__)
+from .ass_captions import build_karaoke_ass
+
 VIETSUB_FONT_PATH = pathlib.Path(__file__).resolve().parent / "assets" / "fonts" / "be_vietnam_pro_semibold.ttf"
 
 # Nạp công cụ tẩy watermark Veo từ cong_cu_tu_dong
@@ -281,7 +283,7 @@ class VideoProcessor:
         - Không sử dụng -shortest gây cắt cụt video.
         """
         with self._render_lock:
-            if caption_style not in {"legacy", "vietsub_v1"}:
+            if caption_style not in {"legacy", "vietsub_v1", "vietsub_karaoke_v2"}:
                 raise ValueError("CAPTION_STYLE_UNSUPPORTED")
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -454,7 +456,13 @@ class VideoProcessor:
                 current_video = concat_video
                 if captions:
                     drawtext_filters = []
-                    if caption_style == "vietsub_v1":
+                    if caption_style == "vietsub_karaoke_v2":
+                        if not VIETSUB_FONT_PATH.is_file():
+                            raise RuntimeError("CAPTION_FONT_NOT_FOUND")
+                        shutil.copyfile(VIETSUB_FONT_PATH, work_dir / VIETSUB_FONT_PATH.name)
+                        (work_dir / "captions.ass").write_text(build_karaoke_ass(captions, width, height), encoding="utf-8")
+                        drawtext_filters.append("ass=captions.ass:fontsdir=.")
+                    elif caption_style == "vietsub_v1":
                         if not VIETSUB_FONT_PATH.is_file():
                             raise RuntimeError("CAPTION_FONT_NOT_FOUND")
                         font_file = VIETSUB_FONT_PATH.name
@@ -471,7 +479,7 @@ class VideoProcessor:
                         box_color = "0x000000@0.7"
                         box_border = 8
                         caption_y = "h-480" if height > width else "h-160"
-                    for c_idx, cap in enumerate(captions):
+                    for c_idx, cap in enumerate(captions if caption_style != "vietsub_karaoke_v2" else []):
                         text = getattr(cap, "text", "") or (cap.get("text", "") if isinstance(cap, dict) else "")
                         if not text:
                             continue
