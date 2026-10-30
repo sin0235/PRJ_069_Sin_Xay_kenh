@@ -250,3 +250,22 @@ def test_generate_storyboard_ignores_text_around_the_json_object(decorate):
     client = DecoratedClient(brief_data() | {"needs_ui_demo": False}, v4_data())
     board, _ = generate_storyboard("Nội dung về trợ lý hỗ trợ khách hàng.", 20, STYLE, client)
     assert len(board.shots) == 2
+
+
+def test_generate_storyboard_forces_every_shot_to_ten_seconds():
+    from src.modules.tao_video_noi_dung.planner import generate_storyboard
+    data = v4_data()
+    for shot, seconds in zip(data["shots"], (7, 8)):
+        shot["duration_seconds"] = seconds
+        shot["action_beats"] = [{"start_s": 0, "end_s": seconds, "action": "A."}]
+    client = Client(brief_data() | {"needs_ui_demo": False}, data)
+    board, _ = generate_storyboard("Nội dung về trợ lý hỗ trợ khách hàng.", 20, STYLE, client)
+    assert [shot.duration_seconds for shot in board.shots] == [10, 10]
+    assert all(shot.action_beats[-1].end_s == 10 for shot in board.shots)
+    assert "mười giây" in client.calls[1][0][0]["content"]
+
+
+@pytest.mark.parametrize("asked, expected", [(20, 20), (44, 40), (45, 50), (60, 60), (121, 120), (180, 180)])
+def test_fixed_shot_target_rounds_to_multiple_of_ten(asked, expected):
+    from src.modules.tao_video_noi_dung.planner import fixed_shot_target
+    assert fixed_shot_target(asked) == expected

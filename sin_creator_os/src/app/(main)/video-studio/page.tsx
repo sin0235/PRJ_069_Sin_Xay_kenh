@@ -102,7 +102,7 @@ export default function VideoStudioIndexPage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <label htmlFor="target-duration" className="grid gap-2 text-sm font-medium">Thời lượng mục tiêu
-              <div className="flex items-center gap-2"><Input id="target-duration" type="number" min={20} max={180} step={1} value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="w-32" /><span className="font-normal text-muted-foreground">giây</span></div>
+              <div className="flex items-center gap-2"><Input id="target-duration" type="number" min={20} max={180} step={10} value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="w-32" /><span className="font-normal text-muted-foreground">giây</span></div>
             </label>
             <label htmlFor="aspect-ratio" className="grid gap-2 text-sm font-medium">Tỷ lệ khung hình
               <select id="aspect-ratio" value={aspectRatio} onChange={(event) => setAspectRatio(event.target.value as "9:16" | "16:9")} className="h-10 rounded-md border bg-background px-3 text-sm font-normal">

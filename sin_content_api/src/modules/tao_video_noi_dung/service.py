@@ -21,7 +21,7 @@ from .contracts import (
     StyleSnapshot,
 )
 from .cong_harness import approval_receipt_hash, build_shot_receipt, canonical_hash, verify_shot_receipt
-from .planner import Storyboard, generate_storyboard
+from .planner import Storyboard, fixed_shot_target, generate_storyboard
 
 _PILOT_STYLE_SNAPSHOT = StyleSnapshot(
     style_name="Origami giấy gấp · Baha B2B v2",
@@ -85,6 +85,7 @@ def create_plan(db: Session, project_id: str, workspace_id: str, user_id: str, r
     if len(content.encode("utf-8")) > 12000:
         raise HTTPException(status_code=422, detail={"error_code": "CONTENT_TOO_LARGE", "message": "Content vượt quá 12 KB."})
 
+    target_seconds = fixed_shot_target(request.target_duration_seconds)
     client = LLMClient.from_db(db)
     if not client.is_enabled:
         raise HTTPException(status_code=503, detail={"error_code": "LLM_NOT_CONFIGURED", "message": "LLM chưa được cấu hình hoặc đang tắt; chưa tạo storyboard."})
@@ -92,7 +93,7 @@ def create_plan(db: Session, project_id: str, workspace_id: str, user_id: str, r
         style_data = _PILOT_STYLE_SNAPSHOT.model_copy(update={"aspect_ratio": request.aspect_ratio}).model_dump(mode="json")
         storyboard, model = generate_storyboard(
             content,
-            request.target_duration_seconds,
+            target_seconds,
             style_data,
             client,
         )
@@ -118,7 +119,7 @@ def create_plan(db: Session, project_id: str, workspace_id: str, user_id: str, r
         status="DRAFT",
         source_content=content,
         content_sha256=hashlib.sha256(content.encode("utf-8")).hexdigest(),
-        target_duration_seconds=request.target_duration_seconds,
+        target_duration_seconds=target_seconds,
         style_snapshot_json=json.dumps(style_data, ensure_ascii=False, sort_keys=True),
         style_snapshot_sha256=canonical_hash(style_data),
         storyboard_json=storyboard.model_dump_json(),
