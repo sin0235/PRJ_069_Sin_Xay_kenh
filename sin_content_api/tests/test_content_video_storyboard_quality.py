@@ -232,3 +232,21 @@ def test_generate_storyboard_retries_once_when_a_shot_has_no_spoken_words():
     board, _ = generate_storyboard("Nội dung về trợ lý hỗ trợ khách hàng.", 20, STYLE, client)
     assert any(char.isalpha() for char in board.shots[1].narration)
     assert "TTS_NARRATION_EMPTY" in client.calls[-1][0][-1]["content"]
+
+
+@pytest.mark.parametrize("decorate", [
+    lambda raw: raw + "\n\nGhi chú thêm của mô hình.",
+    lambda raw: "```json\n" + raw + "\n```",
+    lambda raw: raw + '{"thua": 1}',
+])
+def test_generate_storyboard_ignores_text_around_the_json_object(decorate):
+    from src.modules.tao_video_noi_dung.planner import generate_storyboard
+
+    class DecoratedClient(Client):
+        def complete(self, messages, max_tokens):
+            result = super().complete(messages, max_tokens)
+            return SimpleNamespace(content=decorate(result.content), model=result.model)
+
+    client = DecoratedClient(brief_data() | {"needs_ui_demo": False}, v4_data())
+    board, _ = generate_storyboard("Nội dung về trợ lý hỗ trợ khách hàng.", 20, STYLE, client)
+    assert len(board.shots) == 2

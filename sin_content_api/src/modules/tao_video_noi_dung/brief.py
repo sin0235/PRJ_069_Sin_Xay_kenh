@@ -6,6 +6,14 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
+def first_json_object(text: str) -> Any:
+    """LLM đôi khi thêm chữ hoặc rào markdown quanh JSON (lỗi "Extra data"); lấy object JSON đầu tiên thay vì từ chối cả phản hồi."""
+    start = text.find("{")
+    if start < 0:
+        return json.loads(text)
+    return json.JSONDecoder().raw_decode(text[start:])[0]
+
+
 class KeyMessage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -62,4 +70,4 @@ def generate_brief(content: str, client: Any) -> ContentBrief:
         )},
         {"role": "user", "content": json.dumps({"content": content, "schema": ContentBrief.model_json_schema()}, ensure_ascii=False)},
     ], max_tokens=min(4000, client.max_output_tokens))
-    return ContentBrief.model_validate_json(result.content)
+    return ContentBrief.model_validate(first_json_object(result.content))

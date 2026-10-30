@@ -9,7 +9,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_serializer, model_validator
 
 from src.modules.llm.client import LLMClient
-from .brief import ContentBrief, generate_brief
+from .brief import ContentBrief, first_json_object, generate_brief
 from .danh_gia import score_storyboard
 
 Beat = Literal["HOOK", "PAIN", "AGITATE", "INSIGHT", "SOLUTION", "DEMO", "OUTCOME", "CTA"]
@@ -381,7 +381,7 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
     for attempt in range(2):
         completion = client.complete(messages, max_tokens=min(14000, client.max_output_tokens))
         try:
-            data = json.loads(completion.content)
+            data = first_json_object(completion.content)
             if not isinstance(data, dict):
                 raise ValueError("STORYBOARD_JSON_OBJECT_REQUIRED")
             # Brief server phân tích là nguồn chuẩn, không cho lượt viết storyboard sửa nhãn suy ra.
