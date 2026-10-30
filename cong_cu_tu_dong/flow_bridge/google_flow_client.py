@@ -93,16 +93,18 @@ class GoogleFlowClient:
         self.headless = headless
 
     @staticmethod
-    def _log_submit_diagnostics(page, flow_bubbles, flow_requests: list[str], target_dir: pathlib.Path) -> None:
+    def _log_submit_diagnostics(page, flow_requests: list[str], target_dir: pathlib.Path, reason: str = "") -> None:
         """Ghi lại những gì Flow đang hiển thị khi yêu cầu không được xác nhận, để chẩn đoán lần sau."""
         try:
             alerts = page.locator("[role='alert'], [role='status'], [role='dialog'], .toast").all_text_contents()
-            bubbles = [" ".join(text.split())[:120] for text in flow_bubbles.all_text_contents()[-3:]]
+            bubbles = [" ".join(text.split())[:120] for text in page.locator("flow-chat-bubble").all_text_contents()[-3:]]
+            options = [" ".join(text.split())[:80] for text in page.locator("[role='option']").all_text_contents()][-8:]
             radios = [" ".join(text.split())[:60] for text in page.locator("[role='radio']").all_text_contents()][:10]
             print(f"[FLOW DIAG] radios={radios}", flush=True)
             page_text = " ".join(page.locator("body").inner_text(timeout=3000).split())[:600]
             shot_path = target_dir / f"flow_submit_diag_{int(time.time())}.png"
             page.screenshot(path=str(shot_path))
+            print(f"[FLOW DIAG] reason={reason[:120]!r} options={options}", flush=True)
             print(f"[FLOW DIAG] url={page.url} alerts={[a.strip()[:160] for a in alerts if a.strip()][:5]} "
                   f"bubbles={bubbles} screenshot={shot_path.name}", flush=True)
             print(f"[FLOW DIAG] requests={flow_requests[-12:]}", flush=True)
@@ -257,6 +259,7 @@ class GoogleFlowClient:
             generation_submitted = False
             generation_response_received = False
             quota_limited = False
+            flow_requests: list[str] = []
 
             with sync_playwright() as p:
                 context = p.chromium.launch_persistent_context(
@@ -269,6 +272,7 @@ class GoogleFlowClient:
                     accept_downloads=True
                 )
 
+                page = None
                 try:
                     page = context.pages[0] if context.pages else context.new_page()
 
@@ -316,7 +320,6 @@ class GoogleFlowClient:
                                 print(f"[GOOGLE FLOW NETWORK] Không đọc được trạng thái phản hồi ({type(response_err).__name__}).", flush=True)
 
                     page.on("response", on_response)
-                    flow_requests: list[str] = []
                     generation_request_sent = False
 
                     def on_request(request):
@@ -464,7 +467,7 @@ class GoogleFlowClient:
                         downloaded_file = self._download_flow_video_card(page, new_video_card, target_dir)
                         is_generation_complete = True
                     elif not generation_response_received or not captured_media_name:
-                        self._log_submit_diagnostics(page, flow_bubbles, flow_requests, target_dir)
+                        self._log_submit_diagnostics(page, flow_requests, target_dir, "submit not confirmed")
                         if not generation_request_sent:
                             raise FlowSubmissionNotSent(
                                 "FLOW_SUBMIT_NOT_SENT: Flow nhận prompt trên giao diện nhưng không gửi yêu cầu tạo video "
@@ -519,6 +522,7 @@ class GoogleFlowClient:
                     raise
                 except Exception as exc:
                     if not generation_submitted:
+                        self._log_submit_diagnostics(page, flow_requests, target_dir, str(exc).splitlines()[0])
                         raise FlowSubmissionNotSent(str(exc)) from exc
                     raise
                 finally:
