@@ -391,9 +391,10 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
             if any(shot.prompt_contract_version != 4 for shot in storyboard.shots):
                 raise ValueError("V4_SHOTS_REQUIRED")
         except ValueError as exc:
-            if "TTS_NARRATION_SYMBOLS" not in str(exc) or attempt:
+            if attempt or not any(code in str(exc) for code in ("TTS_NARRATION_SYMBOLS", "TTS_NARRATION_EMPTY")):
                 raise
-            problems = ["TTS_NARRATION_SYMBOLS: Viết số và ký hiệu thành chữ cách đọc."]
+            problems = ["TTS_NARRATION_SYMBOLS: Viết số và ký hiệu thành chữ cách đọc.",
+                        "TTS_NARRATION_EMPTY: Mỗi cảnh phải có lời thoại bằng chữ, không để trống."]
         else:
             problems = _soft_problems(storyboard)
             if not problems:

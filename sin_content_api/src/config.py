@@ -82,8 +82,8 @@ class Settings(BaseSettings):
     @field_validator("llm_timeout_seconds")
     @classmethod
     def validate_timeout_seconds(cls, v: float) -> float:
-        if not math.isfinite(v) or v <= 0.0 or v > 300.0:
-            raise ValueError(f"LLM_TIMEOUT_SECONDS phải là số thực hữu hạn trong khoảng (0, 300] giây (nhận được: {v}).")
+        if not math.isfinite(v) or v <= 0.0 or v > 1800.0:
+            raise ValueError(f"LLM_TIMEOUT_SECONDS phải là số thực hữu hạn trong khoảng (0, 1800] giây (nhận được: {v}).")
         return v
 
     @field_validator("llm_max_input_bytes")

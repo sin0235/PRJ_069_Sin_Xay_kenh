@@ -222,3 +222,13 @@ def test_generate_storyboard_repairs_mechanical_mistakes_instead_of_rejecting():
     assert board.shots[0].message_ids == ["p1"]
     assert [(b.start_s, b.end_s) for b in board.shots[0].action_beats] == [(0, 4), (4, 10)]
     assert sum(shot.duration_seconds for shot in board.shots) == 20 and len(client.calls) == 2
+
+
+def test_generate_storyboard_retries_once_when_a_shot_has_no_spoken_words():
+    from src.modules.tao_video_noi_dung.planner import generate_storyboard
+    bad = v4_data()
+    bad["shots"][1]["narration"] = "..."
+    client = Client(brief_data() | {"needs_ui_demo": False}, bad, v4_data())
+    board, _ = generate_storyboard("Nội dung về trợ lý hỗ trợ khách hàng.", 20, STYLE, client)
+    assert any(char.isalpha() for char in board.shots[1].narration)
+    assert "TTS_NARRATION_EMPTY" in client.calls[-1][0][-1]["content"]

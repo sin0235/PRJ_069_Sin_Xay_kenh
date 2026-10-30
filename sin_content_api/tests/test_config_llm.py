@@ -100,7 +100,7 @@ def test_gate1_invalid_limits_rejected():
         Settings(llm_timeout_seconds=0.0, _env_file=None)
 
     with pytest.raises(ValidationError):
-        Settings(llm_timeout_seconds=301.0, _env_file=None)
+        Settings(llm_timeout_seconds=1801.0, _env_file=None)
 
     with pytest.raises(ValidationError):
         Settings(llm_max_input_bytes=0, _env_file=None)

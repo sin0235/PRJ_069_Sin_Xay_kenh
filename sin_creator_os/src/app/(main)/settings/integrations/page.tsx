@@ -481,7 +481,7 @@ export default function IntegrationsPage() {
                           type="number"
                           step="1"
                           min="1"
-                          max="120"
+                          max="1800"
                           value={timeoutSeconds}
                           onChange={(e) => setTimeoutSeconds(Number(e.target.value))}
                           className="h-8 text-xs font-mono rounded-lg bg-background"
