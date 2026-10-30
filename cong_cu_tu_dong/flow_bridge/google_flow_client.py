@@ -107,6 +107,10 @@ class GoogleFlowClient:
             print(f"[FLOW DIAG] reason={reason[:120]!r} options={options}", flush=True)
             print(f"[FLOW DIAG] url={page.url} alerts={[a.strip()[:160] for a in alerts if a.strip()][:5]} "
                   f"bubbles={bubbles} screenshot={shot_path.name}", flush=True)
+            prompt_box = page.locator("flow-base-prompt-box").first
+            if prompt_box.count():
+                box_html = re.sub(r"\s+", " ", prompt_box.inner_html(timeout=3000))
+                print(f"[FLOW DIAG] prompt_box={box_html[:2500]}", flush=True)
             print(f"[FLOW DIAG] requests={flow_requests[-12:]}", flush=True)
             print(f"[FLOW DIAG] page_text={page_text}", flush=True)
         except Exception as diag_err:

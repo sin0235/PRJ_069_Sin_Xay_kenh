@@ -2057,3 +2057,22 @@ def test_content_video_worker_allows_optional_flow_audio_and_uses_reference_fram
     assert bool(audio_probe_calls) is with_voice_asset
     assert "cảnh độc lập" in calls[2]["prompt"]
     assert [call["flow_project_url"] for call in calls] == ["https://flow.google.com/project/run-e2e"] * 3
+
+
+def test_extracted_reference_frame_name_is_unique_per_image(tmp_path, monkeypatch):
+    import types
+    from src.modules.tao_video_noi_dung import runner
+
+    def fake_ffmpeg(command, **kwargs):
+        pathlib.Path(command[-1]).write_bytes(pathlib.Path(command[command.index("-i") + 1]).read_bytes())
+        return types.SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(runner, "run_media_command", fake_ffmpeg)
+    names = []
+    for content in (b"frame-one", b"frame-two"):
+        source = tmp_path / f"{content.decode()}.mp4"
+        source.write_bytes(content)
+        temp_dir = runner._extract_final_reference_frame(source, "ws")
+        names.append(next(pathlib.Path(temp_dir.name).glob("khung_hinh_cuoi*.png")).name)
+        temp_dir.cleanup()
+    assert names[0] != names[1] and all(n.startswith("khung_hinh_cuoi_") for n in names)

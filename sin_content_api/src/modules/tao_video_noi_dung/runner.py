@@ -119,6 +119,8 @@ def _extract_final_reference_frame(path: Path, workspace_id: str) -> tempfile.Te
     if result.returncode != 0 or not frame_path.is_file() or frame_path.stat().st_size == 0:
         temp_dir.cleanup()
         raise RuntimeError("CONTINUITY_FRAME_EXTRACTION_FAILED")
+    # Flow tìm ảnh trong thư viện theo tên file; tên cố định làm shot sau dùng nhầm ảnh cũ cùng tên, nên gắn mã băm nội dung vào tên.
+    frame_path.rename(frame_path.with_name(f"khung_hinh_cuoi_{_file_sha256(frame_path)[:12]}.png"))
     return temp_dir
 
 
@@ -1044,7 +1046,7 @@ def process_run(run_id: str, token: str | None = None) -> None:
                         raise RuntimeError("CONTINUITY_PREVIOUS_ASSET_NOT_FOUND")
                     previous_path = _verified_asset_path(previous_asset, "CONTINUITY_PREVIOUS_ASSET")
                     reference_temp = _extract_final_reference_frame(previous_path, run.workspace_id)
-                    reference_path = Path(reference_temp.name) / "khung_hinh_cuoi.png"
+                    reference_path = next(Path(reference_temp.name).glob("khung_hinh_cuoi*.png"))
                     reference_asset_id = previous_asset.id
                 step["state"] = "SUBMITTING"
                 step["started_at"] = _now().isoformat()
