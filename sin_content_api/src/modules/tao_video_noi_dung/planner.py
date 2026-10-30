@@ -47,38 +47,38 @@ class ActionBeat(BaseModel):
     model_config = ConfigDict(extra="forbid")
     start_s: float = Field(ge=0, allow_inf_nan=False)
     end_s: float = Field(gt=0, allow_inf_nan=False)
-    action: str = Field(min_length=1, max_length=1000)
+    action: str = Field(min_length=1, max_length=2000)
 
 
 class UiMessage(BaseModel):
     model_config = ConfigDict(extra="forbid")
     role: Literal["customer", "ai", "staff", "system"]
-    text: str = Field(min_length=1, max_length=1000)
+    text: str = Field(min_length=1, max_length=2000)
     at_s: float = Field(ge=0, allow_inf_nan=False)
 
 
 class UiScene(BaseModel):
     model_config = ConfigDict(extra="forbid")
     layout: Literal["CHAT", "AI_PANEL", "DASHBOARD"]
-    messages: list[UiMessage] = Field(min_length=2, max_length=30)
-    highlight: str | None = Field(default=None, max_length=500)
+    messages: list[UiMessage] = Field(min_length=2, max_length=60)
+    highlight: str | None = Field(default=None, max_length=1000)
 
 
 class StoryboardShot(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     shot_id: str = Field(min_length=1, max_length=64)
-    scene: str = Field(min_length=1, max_length=300)
-    narration: str = Field(min_length=1, max_length=2000)
-    prompt: str = Field(min_length=8, max_length=3000)
-    negative_prompt: str = Field(default="", max_length=1000)
+    scene: str = Field(min_length=1, max_length=1000)
+    narration: str = Field(min_length=1, max_length=4000)
+    prompt: str = Field(min_length=8, max_length=6000)
+    negative_prompt: str = Field(default="", max_length=2000)
     duration_seconds: int = Field(ge=1, le=10)
     continues_previous: bool | None = None
     prompt_contract_version: int | None = Field(default=None, ge=3, le=4)
     beat: Beat | None = None
     message_ids: list[str] = Field(default_factory=list, max_length=180)
     shot_kind: ShotKind = "FLOW_ORIGAMI"
-    action_beats: list[ActionBeat] = Field(default_factory=list, max_length=30)
+    action_beats: list[ActionBeat] = Field(default_factory=list, max_length=60)
     ui_scene: UiScene | None = None
 
     @model_serializer(mode="wrap")
@@ -131,8 +131,8 @@ class Storyboard(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     title: str = Field(min_length=1, max_length=255)
-    narration: str = Field(min_length=1, max_length=12000)
-    continuity_anchor: str = Field(min_length=20, max_length=1200)
+    narration: str = Field(min_length=1, max_length=30000)
+    continuity_anchor: str = Field(min_length=20, max_length=3000)
     shots: list[StoryboardShot] = Field(min_length=1, max_length=30)
     brief: ContentBrief | None = None
 
@@ -379,7 +379,7 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
     ]
     log = logging.getLogger(__name__)
     for attempt in range(2):
-        completion = client.complete(messages, max_tokens=min(14000, client.max_output_tokens))
+        completion = client.complete(messages, max_tokens=client.max_output_tokens)
         try:
             data = first_json_object(completion.content)
             if not isinstance(data, dict):
