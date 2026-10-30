@@ -61,6 +61,7 @@ from src.modules.flow_sessions.context import (
 _FLOW_MUTEX = threading.Lock()
 _FLOW_PROJECT_TIMEOUT_MS = 120_000
 _FLOW_PROJECT_RETRIES = 1
+_FLOW_REQUEST_START_SEC = 90
 
 
 def _has_successful_generation(media_items: list[dict], media_name: str) -> bool:
@@ -90,6 +91,24 @@ class GoogleFlowClient:
 
     def __init__(self, headless: bool = True):
         self.headless = headless
+
+    @staticmethod
+    def _log_submit_diagnostics(page, flow_bubbles, flow_requests: list[str], target_dir: pathlib.Path) -> None:
+        """Ghi lại những gì Flow đang hiển thị khi yêu cầu không được xác nhận, để chẩn đoán lần sau."""
+        try:
+            alerts = page.locator("[role='alert'], [role='status'], [role='dialog'], .toast").all_text_contents()
+            bubbles = [" ".join(text.split())[:120] for text in flow_bubbles.all_text_contents()[-3:]]
+            radios = [" ".join(text.split())[:60] for text in page.locator("[role='radio']").all_text_contents()][:10]
+            print(f"[FLOW DIAG] radios={radios}", flush=True)
+            page_text = " ".join(page.locator("body").inner_text(timeout=3000).split())[:600]
+            shot_path = target_dir / f"flow_submit_diag_{int(time.time())}.png"
+            page.screenshot(path=str(shot_path))
+            print(f"[FLOW DIAG] url={page.url} alerts={[a.strip()[:160] for a in alerts if a.strip()][:5]} "
+                  f"bubbles={bubbles} screenshot={shot_path.name}", flush=True)
+            print(f"[FLOW DIAG] requests={flow_requests[-12:]}", flush=True)
+            print(f"[FLOW DIAG] page_text={page_text}", flush=True)
+        except Exception as diag_err:
+            print(f"[FLOW DIAG] Không thu được chẩn đoán ({type(diag_err).__name__}).", flush=True)
 
     @staticmethod
     def _flow_page_state(page) -> str:
@@ -193,7 +212,17 @@ class GoogleFlowClient:
         return GoogleFlowClient._download_current_flow_video(page, target_dir)
 
     @profile_locked(get_current_browser_profile_dir)
-    def create_video(
+    def create_video(self, *args, **kwargs) -> Dict[str, Any]:
+        """Thử lại một lần khi Flow chắc chắn chưa nhận yêu cầu (không có request tạo video), không tốn tín dụng."""
+        try:
+            return self._create_video_once(*args, **kwargs)
+        except FlowSubmissionNotSent as exc:
+            if "FLOW_SUBMIT_NOT_SENT" not in str(exc):
+                raise
+            print("[GOOGLE FLOW] Flow chưa nhận yêu cầu; mở lại trang và gửi lại một lần.", flush=True)
+            return self._create_video_once(*args, **kwargs)
+
+    def _create_video_once(
         self,
         prompt: str,
         aspect_ratio: str = "16:9",
@@ -287,6 +316,17 @@ class GoogleFlowClient:
                                 print(f"[GOOGLE FLOW NETWORK] Không đọc được trạng thái phản hồi ({type(response_err).__name__}).", flush=True)
 
                     page.on("response", on_response)
+                    flow_requests: list[str] = []
+                    generation_request_sent = False
+
+                    def on_request(request):
+                        nonlocal generation_request_sent
+                        if "batchAsyncGenerateVideo" in request.url and generation_submitted:
+                            generation_request_sent = True
+                        if "google" in request.url and request.resource_type in {"xhr", "fetch"}:
+                            flow_requests.append(f"{request.method} {request.url[:140]}")
+
+                    page.on("request", on_request)
 
                     def approve_pending_generation() -> None:
                         active_approval = page.locator(
@@ -387,6 +427,7 @@ class GoogleFlowClient:
                     approve_pending_generation()
 
                     response_deadline = time.monotonic() + timeout_sec
+                    no_request_deadline = time.monotonic() + _FLOW_REQUEST_START_SEC
                     new_video_card = None
                     prompt_bubble_confirmed = False
                     while time.monotonic() < response_deadline:
@@ -417,10 +458,18 @@ class GoogleFlowClient:
                                 print("[GOOGLE FLOW] Đã nhận thẻ video mới từ giao diện Flow.", flush=True)
                         if new_video_card is not None or (generation_response_received and captured_media_name):
                             break
+                        if not generation_request_sent and time.monotonic() > no_request_deadline:
+                            break
                     if new_video_card is not None:
                         downloaded_file = self._download_flow_video_card(page, new_video_card, target_dir)
                         is_generation_complete = True
                     elif not generation_response_received or not captured_media_name:
+                        self._log_submit_diagnostics(page, flow_bubbles, flow_requests, target_dir)
+                        if not generation_request_sent:
+                            raise FlowSubmissionNotSent(
+                                "FLOW_SUBMIT_NOT_SENT: Flow nhận prompt trên giao diện nhưng không gửi yêu cầu tạo video "
+                                f"trong {_FLOW_REQUEST_START_SEC}s; chưa có yêu cầu nào được tạo trên Flow."
+                            )
                         raise RuntimeError(
                             "FLOW_SUBMIT_NOT_CONFIRMED: Google Flow không trả media ID cho yêu cầu vừa gửi; "
                             "không có thẻ video mới để tải; không lấy lại video cũ làm kết quả."
