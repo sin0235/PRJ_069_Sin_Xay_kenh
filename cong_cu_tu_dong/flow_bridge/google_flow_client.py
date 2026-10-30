@@ -696,8 +696,10 @@ class GoogleFlowClient:
                 raise RuntimeError("Google Flow không hiển thị chỗ thêm ảnh tham chiếu.")
             add_media.click(timeout=5000)
             page.wait_for_timeout(500)
-            image_item = page.locator("[role='option']").filter(has_text=image_path.stem).last
-            if image_item.count() == 0:
+            stem_items = page.locator("[role='option']").filter(has_text=image_path.stem)
+            # Option xuất hiện ngay khi đang tải lên; lúc đó "Thêm vào câu lệnh" bị disabled nên phải chờ tải xong.
+            image_item = stem_items.filter(has_not_text=re.compile(r"Đang tải lên|Uploading")).last
+            if stem_items.count() == 0:
                 upload_button = page.locator("button.sidebar-upload-btn")
                 upload_button.wait_for(state="visible", timeout=15000)
                 with page.expect_file_chooser(timeout=8000) as chooser_info:

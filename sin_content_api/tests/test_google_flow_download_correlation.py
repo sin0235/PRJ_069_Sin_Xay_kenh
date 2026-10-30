@@ -426,6 +426,67 @@ def test_flow_agent_accepts_new_composer_media_indicator(tmp_path):
     assert components_attached
 
 
+def test_flow_agent_waits_for_library_upload_before_selecting_image(tmp_path):
+    image_path = tmp_path / "khung_hinh_cuoi_abc.png"
+    image_path.write_bytes(b"image")
+    filters = []
+    attached = False
+
+    class Locator:
+        first = property(lambda self: self)
+        last = property(lambda self: self)
+
+        def __init__(self, visible=True, on_click=None):
+            self.visible = visible
+            self.on_click = on_click
+
+        def count(self):
+            return int(self.visible() if callable(self.visible) else self.visible)
+
+        def click(self, **_kwargs):
+            if self.on_click:
+                self.on_click()
+
+        def wait_for(self, **kwargs):
+            if kwargs.get("state") == "visible" and not self.count():
+                raise TimeoutError("not visible")
+
+        def filter(self, **kwargs):
+            filters.append(kwargs)
+            return self
+
+    class Page:
+        def locator(self, selector):
+            if selector.startswith("div[type='button']"):
+                return Locator(False)
+            if "flow-base-prompt-box button.chip-container" in selector:
+                return Locator(lambda: attached)
+            if "Thêm thành phần vào ô nhập câu lệnh" in selector:
+                return Locator()
+            if selector == "[role='option']":
+                return Locator(True)
+            if selector == ".cdk-overlay-backdrop-showing":
+                return Locator(False)
+            raise AssertionError(selector)
+
+        def get_by_role(self, role, name):
+            def attach():
+                nonlocal attached
+                attached = True
+
+            return Locator(True, attach)
+
+        def wait_for_timeout(self, _timeout):
+            pass
+
+        keyboard = SimpleNamespace(press=lambda _key: None)
+
+    flow_client.GoogleFlowClient._attach_start_image(Page(), image_path, 10)
+    not_text = [f["has_not_text"] for f in filters if "has_not_text" in f]
+    assert len(not_text) == 1
+    assert not_text[0].search("Đang tải lên\nkhung_hinh_cuoi_abc.png")
+
+
 def test_generate_from_image_preserves_pre_submit_flow_failure(monkeypatch, tmp_path):
     from session_manager import FlowSubmissionNotSent
     from src.modules.media_studio.video_provider import GoogleFlowZeroCostProvider
