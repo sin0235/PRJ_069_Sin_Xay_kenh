@@ -97,11 +97,13 @@ class GoogleFlowClient:
         """Ghi lại những gì Flow đang hiển thị khi yêu cầu không được xác nhận, để chẩn đoán lần sau."""
         try:
             alerts = page.locator("[role='alert'], [role='status'], [role='dialog'], .toast").all_text_contents()
-            bubbles = [" ".join(text.split())[:120] for text in page.locator("flow-chat-bubble").all_text_contents()[-3:]]
+            bubbles = [" ".join(text.split())[:700] for text in page.locator("flow-chat-bubble").all_text_contents()[-3:]]
             options = [" ".join(text.split())[:80] for text in page.locator("[role='option']").all_text_contents()][-8:]
-            radios = [" ".join(text.split())[:60] for text in page.locator("[role='radio']").all_text_contents()][:10]
+            radios = page.locator("[role='radio']").evaluate_all(
+                "els => els.map(e => (e.innerText || '').trim().slice(0, 40) + (e.classList.contains('read-only') ? ' [read-only]' : ' [active]'))"
+            )[-6:]
             print(f"[FLOW DIAG] radios={radios}", flush=True)
-            page_text = " ".join(page.locator("body").inner_text(timeout=3000).split())[:600]
+            page_text = " ".join(page.locator("body").inner_text(timeout=3000).split())[-1500:]
             shot_path = target_dir / f"flow_submit_diag_{int(time.time())}.png"
             page.screenshot(path=str(shot_path))
             print(f"[FLOW DIAG] reason={reason[:120]!r} options={options}", flush=True)
