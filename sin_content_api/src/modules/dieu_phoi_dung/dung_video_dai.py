@@ -309,7 +309,8 @@ def tao_ke_hoach_dung_video(
     if source_duration_ms <= 0:
         raise ValueError("SOURCE_DURATION_INVALID")
 
-    safe_budget = max(256, int(client.max_input_bytes) - 4750)
+    pause_context_bytes = len(json.dumps(pause_intervals or [], separators=(",", ":")).encode("utf-8"))
+    safe_budget = max(256, int(client.max_input_bytes) - 4750 - pause_context_bytes)
     chunks = chia_transcript(words, safe_budget)
     clips: list[ClipTuDong] = []
     system = (
@@ -652,8 +653,9 @@ def chon_dien_hoa(clips: list[ClipTuDong], words: list[dict], candidates: list[d
             if attempt:
                 if not required_assets:
                     break
+                planned_targets = {(action.clip_id, action.asset_id) for action in planned}
                 missing = [asset["asset_id"] for asset in required_assets
-                           if not any(action.asset_id == asset["asset_id"] for action in planned)]
+                           if (asset["target_clip_id"], asset["asset_id"]) not in planned_targets]
                 if not missing:
                     break
                 batch_request = tao_prompt(batch)
@@ -675,9 +677,9 @@ def chon_dien_hoa(clips: list[ClipTuDong], words: list[dict], candidates: list[d
                                  for action in [*planned, *returned]}.values()) if attempt else returned)
             except (ValidationError, ValueError, TypeError, json.JSONDecodeError) as exc:
                 raise ValueError("LLM_VISUAL_PLAN_INVALID") from exc
-        planned_asset_ids = {action.asset_id for action in planned}
+        planned_targets = {(action.clip_id, action.asset_id) for action in planned}
         for asset in required_assets:
-            if asset["asset_id"] not in planned_asset_ids:
+            if (asset["target_clip_id"], asset["asset_id"]) not in planned_targets:
                 clip = next((item for item in clips if item.clip_id == asset["target_clip_id"]), None)
                 if clip:
                     clip.needs_review = True
@@ -743,13 +745,45 @@ def chon_dien_hoa(clips: list[ClipTuDong], words: list[dict], candidates: list[d
             clip.needs_review = True
         previous_end[clip.clip_id] = end_ms
         asset_uses[asset["asset_id"]] = asset_uses.get(asset["asset_id"], 0) + 1
+        layout_position, layout_size = action.layout_position, action.layout_size
+        if action.mode == "OVERLAY" and asset.get("has_alpha") and asset.get("visual_kind") == "diagram":
+            layout_position = "upper_left"
+            layout_size = "medium" if layout_size == "large" else layout_size
         validated.append({**action.model_dump(), "start_word_id": start_word_id, "end_word_id": end_word_id,
+                          "layout_position": layout_position, "layout_size": layout_size,
                           "start_ms": start_ms, "end_ms": end_ms, "asset_duration_ms": asset_duration_ms,
                           "visual_kind": asset.get("visual_kind", "flow_scene"),
                           "aspect_ratio": asset.get("aspect_ratio"),
                           "renderer": asset.get("renderer", "FLOW"),
                           "style_snapshot_hash": asset.get("style_snapshot_hash")})
     return validated
+
+
+def _storyboard_visual_gaps(
+    clip: ClipTuDong, words: list[dict], visuals: list[YTuongDienHoaFlow],
+) -> list[tuple[int, int]]:
+    duration_ms = clip.end_ms - clip.start_ms
+    word_by_id = {word["id"]: word for word in words}
+    intervals = []
+    for visual in visuals:
+        if visual.clip_id != clip.clip_id:
+            continue
+        start, end = word_by_id.get(visual.start_word_id), word_by_id.get(visual.end_word_id)
+        if not start or not end or start["start_ms"] > end["end_ms"]:
+            continue
+        intervals.append((
+            max(0, start["start_ms"] - clip.start_ms),
+            min(duration_ms, end["end_ms"] - clip.start_ms),
+        ))
+    gaps = []
+    cursor = 0
+    for start, end in sorted(intervals):
+        if start > cursor:
+            gaps.append((cursor, start))
+        cursor = max(cursor, end)
+    if cursor < duration_ms:
+        gaps.append((cursor, duration_ms))
+    return gaps
 
 
 def tao_y_tuong_dien_hoa_flow(
@@ -812,7 +846,7 @@ def tao_y_tuong_dien_hoa_flow(
         for word in clip_words_by_id[clip.clip_id]:
             if text_length >= 600:
                 break
-            tagged.append(f"{word['id']}={word['text']}")
+            tagged.append(f"{word['id']}[{word['start_ms']}-{word['end_ms']}]={word['text']}")
             text_length += len(word["text"]) + 1
         return " ".join(tagged)
 
@@ -857,12 +891,13 @@ def tao_y_tuong_dien_hoa_flow(
             "aspect_ratio": "9:16",
         },
         "yeu_cau": [
-            "Chọn tối đa ba ý cần hình minh hoạ nhất; một clip có thể có nhiều visual nếu chúng bám các đoạn lời riêng biệt.",
+            "Chọn tối đa ba ý cần hình minh hoạ nhất; một clip có thể có nhiều visual nếu chúng bám các đoạn lời riêng biệt. Dùng timestamp cạnh word ID để chọn đúng đoạn.",
             "Mỗi visual bắt buộc trả start_word_id và end_word_id theo ID được gắn trước từ trong transcript; không tự tạo ID.",
             "Mỗi cảnh phải minh hoạ đúng lời nói của clip được chọn, không suy diễn dữ kiện.",
             "FLOW: theo chất liệu và màu trong style snapshot; hoàn tất hành động có nguyên nhân-kết quả trong 3 đến 6 giây đầu của asset nguồn 10 giây, phối hợp 2 đến 4 lớp chuyển động có chủ đích; không sinh chữ, logo hoặc watermark.",
             "HYPERFRAMES: không chỉ dành cho biểu đồ; chọn layout UiScene phù hợp cho so sánh, quy trình, checklist, giao việc, trình tự, câu hỏi-kết quả hoặc CTA có căn cứ. Dùng chuyển động mở lớp, trượt, đường nối và dấu kết luận để dẫn mắt; không dựng như slide tĩnh.",
-            "Neo mỗi hoạt cảnh FLOW vào đoạn lời thoại liên tục 3 đến 6 giây. Mốc sơ đồ HyperFrames phải có căn cứ, tối đa 10 giây; nếu cách xa thì tách visual hoặc bỏ sơ đồ.",
+            "Neo mỗi hoạt cảnh FLOW vào đoạn lời thoại liên tục 3 đến 6 giây. Mốc sơ đồ HyperFrames phải có căn cứ, tối đa 6 giây; nếu cách xa thì tách visual hoặc bỏ sơ đồ.",
+            "Nếu validator_feedback báo VISUAL_GAP_ABOVE_TARGET, giữ nguyên mọi visual hợp lệ được liệt kê và chỉ bổ sung visual mới vào đúng khoảng thiếu, neo bằng word ID nằm trong khoảng đó.",
             "Chọn renderer phù hợp nội dung và clip_id trong danh sách.",
         ],
         "schema": KeHoachDienHoaFlow.model_json_schema(),
@@ -875,6 +910,12 @@ def tao_y_tuong_dien_hoa_flow(
         diagram_windows = {}
         visual_words = {}
         payload = request if feedback is None else {**request, "validator_feedback": feedback}
+        if feedback and feedback.startswith("VISUAL_GAP_ABOVE_TARGET") and fallback_validated:
+            payload["visuals_hop_le_can_giu"] = [{
+                "clip_id": visual.clip_id, "start_word_id": visual.start_word_id,
+                "end_word_id": visual.end_word_id, "scene": visual.scene,
+                "renderer": visual.renderer,
+            } for visual, _, _ in fallback_validated]
         result = client.complete([
             {"role": "system", "content": system},
             {"role": "user", "content": json.dumps(payload, ensure_ascii=False, separators=(",", ":"))},
@@ -947,6 +988,27 @@ def tao_y_tuong_dien_hoa_flow(
                     continue
                 ranges_by_clip[visual.clip_id] = last
                 validated.append((visual, selected_words, window))
+            if feedback and feedback.startswith("VISUAL_GAP_ABOVE_TARGET") and fallback_validated:
+                merged = list(fallback_validated)
+                seen = {(item[0].clip_id, item[0].start_word_id, item[0].end_word_id) for item in merged}
+                for candidate in validated:
+                    visual, selected_words, _ = candidate
+                    key = (visual.clip_id, visual.start_word_id, visual.end_word_id)
+                    if key in seen:
+                        continue
+                    start_ms, end_ms = selected_words[0]["start_ms"], selected_words[-1]["end_ms"]
+                    overlaps = any(
+                        kept[0].clip_id == visual.clip_id
+                        and kept[1][0]["start_ms"] < end_ms
+                        and kept[1][-1]["end_ms"] > start_ms
+                        for kept in merged
+                    )
+                    if not overlaps:
+                        merged.append(candidate)
+                        seen.add(key)
+                    if len(merged) == 3:
+                        break
+                validated = sorted(merged, key=lambda item: (item[0].clip_id, item[1][0]["start_ms"]))
             if validated:
                 fallback_validated = validated
             if invalid_visuals:
@@ -985,6 +1047,37 @@ def tao_y_tuong_dien_hoa_flow(
                     clip = clips_by_id[clip_id]
                     clip.needs_review = True
                     clip.selection_reason += " Clip dài chỉ có một diễn họa hợp lệ; cần rà soát bổ sung."
+            cadence_gaps = {
+                clip.clip_id: _storyboard_visual_gaps(clip, words, plan.visuals)
+                for clip in chosen if clip.end_ms - clip.start_ms >= 30_000
+            }
+            cadence_gaps = {
+                clip_id: gaps for clip_id, gaps in cadence_gaps.items()
+                if max((end - start for start, end in gaps), default=0) > 16_000
+            }
+            if cadence_gaps and attempt < 3:
+                if plan.visuals:
+                    fallback_visuals = plan.visuals
+                    fallback_validated = validated
+                gap_details = []
+                for clip_id, gaps in cadence_gaps.items():
+                    clip = clips_by_id[clip_id]
+                    for start, end in gaps:
+                        if end - start <= 16_000:
+                            continue
+                        absolute_start, absolute_end = clip.start_ms + start, clip.start_ms + end
+                        gap_words = [word for word in clip_words_by_id[clip_id]
+                                     if word["start_ms"] < absolute_end and word["end_ms"] > absolute_start]
+                        anchors = ", ".join(f"{word['id']}={word['text']}" for word in gap_words)
+                        gap_details.append(
+                            f"{clip_id} còn khoảng trống {start / 1000:.1f}-{end / 1000:.1f}s; từ neo trong khoảng: {anchors or 'không có'}"
+                        )
+                feedback = "VISUAL_GAP_ABOVE_TARGET: " + "; ".join(gap_details) + ". Bổ sung tối đa một visual mới cho mỗi lần sửa, giữ mọi visual hợp lệ đã có, bám đúng lời và word ID trong khoảng thiếu; không lặp ý hoặc kéo dài cảnh cũ."
+                raise ValueError("VISUAL_GAP_ABOVE_TARGET")
+            for clip_id in cadence_gaps:
+                clip = clips_by_id[clip_id]
+                clip.needs_review = True
+                clip.selection_reason += " Storyboard còn khoảng trống minh họa trên 16 giây sau khi thử tự sửa; cần rà soát."
             break
         except (ValidationError, ValueError, TypeError, json.JSONDecodeError) as exc:
             if "LLM_FLOW_VISUAL_CLIP_INVALID" in str(exc):
@@ -1000,6 +1093,8 @@ def tao_y_tuong_dien_hoa_flow(
                 feedback = "VISUAL_RENDERER_UNAVAILABLE: Google Flow chưa sẵn sàng; chỉ chọn HYPERFRAMES hoặc bỏ minh họa."
             elif "VISUAL_COUNT_BELOW_TARGET" in str(exc):
                 feedback = "VISUAL_COUNT_BELOW_TARGET: Mỗi clip từ 30 giây cần ít nhất hai visual hợp lệ ở hai đoạn lời khác nhau, tối đa ba. Không bỏ một visual hợp lệ để thay bằng scene sai schema."
+            elif "VISUAL_GAP_ABOVE_TARGET" in str(exc):
+                pass
             elif "FLOW_VISUAL_SPAN_INVALID" in str(exc):
                 feedback = "FLOW_VISUAL_SPAN_INVALID: Hoạt cảnh Flow cần neo vào đoạn lời thoại liên tục từ 3 đến 10 giây; chọn lại mốc hoặc bỏ hoạt cảnh."
             elif "DIAGRAM_EVENT_SPAN_TOO_LONG" in str(exc):
@@ -1063,7 +1158,14 @@ def tao_y_tuong_dien_hoa_flow(
             scene = UiScene.model_validate(visual.ui_scene)
             if scene.layout not in DIAGRAM_LAYOUTS:
                 raise ValueError("HYPERFRAMES_DIAGRAM_LAYOUT_INVALID")
-            resolve_diagram_times(scene, narration, duration_seconds, word_times)
+            try:
+                resolve_diagram_times(scene, narration, duration_seconds, word_times)
+            except ValueError as exc:
+                if not str(exc).startswith("DIAGRAM_"):
+                    raise
+                clip.needs_review = True
+                clip.selection_reason += " Diễn họa không khớp lời thoại sau kiểm tra; đã bỏ và cần rà soát."
+                continue
             item["ui_scene"] = scene.model_dump(mode="json")
         results.append(item)
     return results
@@ -1524,7 +1626,9 @@ def _visual_candidates_for_jobs(
         except (OSError, ValueError):
             failed.append(brief["target_clip_id"])
             continue
-        candidates.append({**brief, "asset_id": asset.id, "duration_seconds": info["duration_seconds"],
+        candidates.append({**brief, "target_start_word_id": brief.get("start_word_id"),
+                           "target_end_word_id": brief.get("end_word_id"),
+                           "asset_id": asset.id, "duration_seconds": info["duration_seconds"],
                            "has_alpha": info["has_alpha"], "width": info["width"], "height": info["height"],
                            "aspect_ratio": info["aspect_ratio"],
                            "visual_kind": "diagram" if renderer == "HYPERFRAMES" else "flow_scene"})
@@ -1631,7 +1735,8 @@ def dung_video_dai(
             )
             flow_generation = []
         existing_visual_candidates = lay_ung_vien_dien_hoa(db, workspace_id, project_id)
-        visual_candidates = existing_visual_candidates
+        if phase != "render":
+            visual_candidates = existing_visual_candidates
         flow_profile_id = None
         if phase != "render" and job_id:
             request = json.loads(db.get(AIGenerationJob, job_id).request_payload_json or "{}")
@@ -1692,6 +1797,8 @@ def dung_video_dai(
                             prompt = f"{brief['scene']}. {brief['action']}"
                             parameters = {
                                 "target_clip_id": brief["target_clip_id"], "duration_seconds": brief["duration_seconds"],
+                                "target_start_word_id": brief.get("start_word_id"),
+                                "target_end_word_id": brief.get("end_word_id"),
                                 "narration": brief["narration"], "narration_word_times": brief.get("word_times"),
                                 "transparent_background": True,
                                 "ui_scene": brief["ui_scene"],

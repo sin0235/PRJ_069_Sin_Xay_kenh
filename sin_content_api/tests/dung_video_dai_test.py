@@ -571,6 +571,53 @@ def test_checklist_alpha_dung_overlay_nho_neu_llm_van_bo_qua():
     assert clip.needs_review is True
 
 
+def test_checklist_alpha_overlay_khong_che_mat_khi_llm_chon_large_ben_phai():
+    clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=5000, title="Checklist", reason="Các bước")
+    words = [tu(1, "ghi giá bán", 500, 1200), tu(2, "trừ chi phí", 1400, 2200)]
+    client = LLMGia([{"actions": [{
+        "clip_id": "part1_01", "asset_id": "checklist-alpha", "mode": "OVERLAY",
+        "start_word_id": "w1", "end_word_id": "w2", "reason": "Checklist hỗ trợ lời nói",
+        "layout_position": "upper_right", "layout_size": "large",
+    }]}])
+
+    actions = chon_dien_hoa([clip], words, [{
+        "asset_id": "checklist-alpha", "scene": "Checklist giấy gấp", "narration": "Ghi giá bán, trừ chi phí",
+        "duration_seconds": 4, "has_alpha": True, "renderer": "HYPERFRAMES", "visual_kind": "diagram",
+        "aspect_ratio": "9:16", "target_clip_id": "part1_01",
+        "target_start_word_id": "w1", "target_end_word_id": "w2",
+    }], client)
+
+    assert actions[0]["mode"] == "OVERLAY"
+    assert (actions[0]["layout_position"], actions[0]["layout_size"]) == ("upper_left", "medium")
+    assert _tao_timeline("speaker", clip, words, visual_actions=actions)["overlays"] == [{
+        "asset_id": "checklist-alpha", "start_ms": 500, "duration_ms": 1700,
+        "x": 120, "y": 280, "width": 360, "height": 640,
+    }]
+
+
+def test_asset_target_duoc_dat_dung_clip_neu_llm_gan_nham_clip_khac():
+    clips = [
+        ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=5000, title="Kết quả", reason="Clip một"),
+        ClipTuDong(clip_id="part1_02", start_ms=5000, end_ms=10000, title="Checklist", reason="Clip hai"),
+    ]
+    words = [tu(1, "mở đầu", 500, 900), tu(2, "ghi giá bán", 5500, 5900),
+             tu(3, "trừ chi phí", 6500, 6900)]
+    wrong_clip_action = {
+        "clip_id": "part1_01", "asset_id": "checklist-alpha", "mode": "CUTAWAY",
+        "start_word_id": "w2", "end_word_id": "w3", "reason": "LLM gán nhầm clip",
+    }
+    client = LLMGia([{"actions": [wrong_clip_action]}, {"actions": [wrong_clip_action]}])
+
+    actions = chon_dien_hoa(clips, words, [{
+        "asset_id": "checklist-alpha", "scene": "Checklist giấy gấp", "narration": "Ghi giá bán, trừ chi phí",
+        "duration_seconds": 2, "has_alpha": True, "renderer": "HYPERFRAMES", "visual_kind": "diagram",
+        "target_clip_id": "part1_02", "target_start_word_id": "w2", "target_end_word_id": "w3",
+    }], client)
+
+    assert any(action["clip_id"] == "part1_02" and action["asset_id"] == "checklist-alpha"
+               and action["mode"] == "OVERLAY" for action in actions)
+
+
 def test_llm_co_the_chon_speaker_pip_voi_asset_giay_nen_duc():
     clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=5000, title="Thông điệp", reason="Đủ ý")
     words = [tu(1, "doanh thu", 0, 900), tu(2, "tăng", 1000, 1800)]
@@ -823,12 +870,68 @@ def test_tao_y_tuong_co_the_dat_nhieu_dien_hoa_vao_cac_doan_rieng_trong_mot_clip
     ]
     request = json.loads(client.messages[0][1]["content"])
     assert "w1" in request["clips"][0]["transcript"]
+    assert "w1[1000-2000]=Đầu tư" in client.messages[0][1]["content"]
+
+
+def test_planner_tu_bo_sung_visual_khi_storyboard_clip_dai_con_khoang_trong_lon():
+    clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=60_000, title="Một câu chuyện", reason="Đủ ý")
+    words = [
+        tu(1, "ý đầu", 10_000, 12_500), tu(2, "kết quả đầu", 12_500, 15_000),
+        tu(3, "ý giữa", 28_000, 30_500), tu(4, "kết quả giữa", 30_500, 33_000),
+        tu(5, "ý cuối", 45_000, 47_500), tu(6, "kết quả cuối", 47_500, 50_000),
+    ]
+
+    def visual(start, end, scene):
+        return {
+            "clip_id": clip.clip_id, "start_word_id": start, "end_word_id": end,
+            "scene": scene, "action": "Các lớp giấy chuyển động theo nguyên nhân và kết quả",
+            "renderer": "FLOW",
+        }
+
+    sparse = {"visuals": [
+        visual("w1", "w2", "Xấp giấy mở theo ý đầu"),
+        visual("w5", "w6", "Tờ giấy gấp lại ở kết luận"),
+    ]}
+    balanced = {"visuals": [visual("w3", "w4", "Thẻ giấy minh họa ý giữa")]}
+    client = LLMGia([sparse, balanced])
+
+    visuals = tao_y_tuong_dien_hoa_flow([clip], words, [], client)
+
+    assert len(client.messages) == 2
+    repair_request = json.loads(client.messages[1][1]["content"])
+    feedback = repair_request["validator_feedback"]
+    assert "VISUAL_GAP_ABOVE_TARGET" in feedback
+    assert "15.0-45.0s" in feedback
+    assert "w3=ý giữa" in feedback and "w4=kết quả giữa" in feedback
+    assert [item["start_word_id"] for item in repair_request["visuals_hop_le_can_giu"]] == ["w1", "w5"]
+    assert len(visuals) == 3
+    assert clip.needs_review is False
+
+
+def test_planner_danh_dau_ra_soat_neu_llm_khong_sua_khoang_trong_storyboard():
+    clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=60_000, title="Một câu chuyện", reason="Đủ ý")
+    words = [tu(1, "ý đầu", 10_000, 12_500), tu(2, "kết quả đầu", 12_500, 15_000),
+             tu(3, "ý cuối", 45_000, 47_500), tu(4, "kết quả cuối", 47_500, 50_000)]
+    sparse = {"visuals": [
+        {"clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w2",
+         "scene": "Xấp giấy mở theo ý đầu", "action": "Các lớp giấy mở ra theo nguyên nhân và kết quả", "renderer": "FLOW"},
+        {"clip_id": clip.clip_id, "start_word_id": "w3", "end_word_id": "w4",
+         "scene": "Tờ giấy gấp lại ở kết luận", "action": "Các lớp giấy khép lại theo nguyên nhân và kết quả", "renderer": "FLOW"},
+    ]}
+    client = LLMGia([sparse, sparse, sparse, sparse])
+
+    visuals = tao_y_tuong_dien_hoa_flow([clip], words, [], client)
+
+    assert len(client.messages) == 4
+    assert len(visuals) == 2
+    assert clip.needs_review is True
+    assert "khoảng trống minh họa trên 16 giây" in clip.selection_reason
 
 
 def test_planner_giu_checklist_hop_le_khi_flow_cung_ke_hoach_sai_moc():
     clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=60_000, title="Kiểm tra doanh thu", reason="Nêu các bước cần làm")
     response = {"visuals": [
-        {"clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w2",
+        {"clip_id": clip.clip_id, "start_word_id": "w5", "end_word_id": "w1",
          "scene": "Một tờ giấy mở ra thành các lớp", "action": "Các lớp mở quá xa nhau",
          "renderer": "FLOW"},
         {"clip_id": clip.clip_id, "start_word_id": "w3", "end_word_id": "w5",
@@ -915,7 +1018,7 @@ def test_tao_y_tuong_co_the_chon_hyperframes_cho_so_do_giay():
     }]}])
 
     visuals = tao_y_tuong_dien_hoa_flow(
-        [clip], [tu(1, "Trước là một trăm đơn, sau còn sáu mươi đơn, giảm bốn mươi đơn", 1000, 8000)], [], client,
+        [clip], [tu(1, "Trước là một trăm đơn, sau còn sáu mươi đơn, giảm bốn mươi đơn", 1000, 6000)], [], client,
     )
 
     assert visuals[0]["renderer"] == "HYPERFRAMES"
@@ -924,6 +1027,8 @@ def test_tao_y_tuong_co_the_chon_hyperframes_cho_so_do_giay():
     assert "không chỉ dành cho biểu đồ" in client.messages[0][0]["content"].casefold()
     assert "so sánh, quy trình, checklist" in client.messages[0][0]["content"]
     assert "start_word_id đến end_word_id phải bao trùm mọi cụm" in client.messages[0][0]["content"]
+    request = json.loads(client.messages[0][1]["content"])
+    assert "Mốc sơ đồ HyperFrames phải có căn cứ, tối đa 6 giây" in " ".join(request["yeu_cau"])
     assert "BEFORE_AFTER: đúng 2 docs" in client.messages[0][0]["content"]
     assert "diff_label bắt buộc" in client.messages[0][0]["content"]
     assert "simulated=false" in client.messages[0][0]["content"]
@@ -936,7 +1041,7 @@ def test_planner_chi_chon_renderer_dang_san_sang():
         "scene": "Mô hình giấy cửa hàng", "action": "Chồng đơn origami giảm dần", "renderer": "FLOW",
     }]}
     diagram = {"visuals": [{
-        "clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w1",
+        "clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w7",
         "scene": "So sánh số đơn", "action": "Hai tấm giấy lần lượt mở ra", "renderer": "HYPERFRAMES",
         "ui_scene": {"layout": "BEFORE_AFTER", "diagram": {
             "title": "Đơn hàng", "simulated": False,
@@ -949,7 +1054,10 @@ def test_planner_chi_chon_renderer_dang_san_sang():
     client = LLMGia([flow, diagram])
 
     visuals = tao_y_tuong_dien_hoa_flow(
-        [clip], [tu(1, "Trước 100, sau còn 60, giảm 40", 1_000, 8_000)], [], client, False,
+        [clip], [tu(1, "Trước", 1_000, 1_500), tu(2, "100", 1_500, 2_000),
+                 tu(3, "sau", 2_500, 3_000), tu(4, "còn", 3_000, 3_500),
+                 tu(5, "60", 3_500, 4_000), tu(6, "giảm", 5_000, 5_500),
+                 tu(7, "40", 5_500, 6_000)], [], client, False,
     )
 
     assert len(visuals) == 1 and visuals[0]["renderer"] == "HYPERFRAMES"
@@ -1016,7 +1124,7 @@ def test_tao_y_tuong_tu_choi_so_do_keo_dai_qua_khoang_ke_va_yeu_cau_tach_visual(
     assert visuals == []
     assert clip.needs_review is True
     feedback = json.loads(client.messages[1][1]["content"])["validator_feedback"]
-    assert "tách" in feedback and "10 giây" in feedback
+    assert "tách" in feedback and "6 giây" in feedback
 
 
 def test_hyperframes_dung_khoang_loi_thoai_ngan_trong_vung_chon_dai():
@@ -1192,8 +1300,8 @@ def test_tao_y_tuong_hyperframes_cho_phep_after_va_delta_dung_chung_cum_thoai():
     }]}
     words = [tu(1, "trước", 1_000, 1_200), tu(2, "còn", 1_200, 1_400),
              tu(3, "1", 1_400, 1_600), tu(4, "triệu", 1_600, 1_800),
-             tu(5, "sau", 7_000, 7_200), tu(6, "còn", 7_200, 7_400),
-             tu(7, "900", 7_400, 7_600), tu(8, "nghìn", 7_600, 7_800)]
+             tu(5, "sau", 5_000, 5_200), tu(6, "còn", 5_200, 5_400),
+             tu(7, "900", 5_400, 5_600), tu(8, "nghìn", 5_600, 5_800)]
 
     visuals = tao_y_tuong_dien_hoa_flow([clip], words, [], LLMGia([event, event, event]))
 
@@ -1232,7 +1340,7 @@ def test_tao_y_tuong_hyperframes_thu_lai_khi_on_events_sai():
     client = LLMGia([{"visuals": [invalid]}, {"visuals": [visual]}])
 
     result = tao_y_tuong_dien_hoa_flow(
-        [clip], [tu(1, "Trước là một trăm đơn, sau còn sáu mươi đơn, giảm bốn mươi đơn", 1000, 8000)], [], client,
+        [clip], [tu(1, "Trước là một trăm đơn, sau còn sáu mươi đơn, giảm bốn mươi đơn", 1000, 6000)], [], client,
     )
 
     retry_request = json.loads(client.messages[1][1]["content"])
@@ -1240,6 +1348,40 @@ def test_tao_y_tuong_hyperframes_thu_lai_khi_on_events_sai():
     assert retry_request["validator_feedback"]
     assert "BEFORE_AFTER dùng before, after, delta" in retry_request["validator_feedback"]
     assert result[0]["renderer"] == "HYPERFRAMES"
+
+
+def test_tao_y_tuong_bo_scene_neu_neo_loi_thoai_khong_con_hop_le(monkeypatch):
+    from src.modules.dieu_phoi_dung import dung_video_dai as editor
+
+    clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=12000, title="Orders", reason="Before and after")
+    words = [tu(i, text, i * 500, i * 500 + 400) for i, text in enumerate(
+        ["before", "sales", "were", "100", "after", "they", "were", "60", "difference", "40"], start=1
+    )]
+    visual = {"clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w10",
+              "scene": "Compare two order counts", "action": "Paper cards reveal the change", "renderer": "HYPERFRAMES",
+              "ui_scene": {"layout": "BEFORE_AFTER", "diagram": {
+                  "title": "Orders", "docs": [{"title": "Before", "label": "Orders", "value": "100"},
+                                                {"title": "After", "label": "Orders", "value": "60"}],
+                  "diff_label": "Down by 40", "on": {"before": "before sales were 100", "after": "after they were 60",
+                                                        "delta": "difference 40"},
+              }}}
+    client = LLMGia([{"visuals": [visual]}])
+    resolve = editor.resolve_diagram_times
+    calls = 0
+
+    def fail_on_final_check(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise ValueError("DIAGRAM_PHRASE_NOT_IN_NARRATION:k0")
+        return resolve(*args, **kwargs)
+
+    monkeypatch.setattr(editor, "resolve_diagram_times", fail_on_final_check)
+
+    result = tao_y_tuong_dien_hoa_flow([clip], words, [], client)
+
+    assert result == []
+    assert clip.needs_review is True
 
 
 def test_tao_y_tuong_hyperframes_thu_lai_toi_da_ba_lan_khi_llm_sua_tung_loi():
@@ -1270,7 +1412,7 @@ def test_tao_y_tuong_hyperframes_thu_lai_toi_da_ba_lan_khi_llm_sua_tung_loi():
     client = LLMGia([invalid_steps, invalid_events, {"visuals": [valid]}])
 
     result = tao_y_tuong_dien_hoa_flow(
-        [clip], [tu(1, "Trước là một trăm đơn, sau còn sáu mươi đơn, giảm bốn mươi đơn", 1000, 8000)], [], client,
+        [clip], [tu(1, "Trước là một trăm đơn, sau còn sáu mươi đơn, giảm bốn mươi đơn", 1000, 6000)], [], client,
     )
 
     assert len(client.messages) == 3
@@ -1342,7 +1484,7 @@ def test_tao_y_tuong_hyperframes_feedback_neu_process_rail_thieu_buoc():
     }
     client = LLMGia([invalid, corrected])
 
-    tao_y_tuong_dien_hoa_flow([clip], [tu(1, "Trước là một trăm đơn, sau còn sáu mươi đơn, giảm bốn mươi đơn", 1000, 8000)], [], client)
+    tao_y_tuong_dien_hoa_flow([clip], [tu(1, "Trước là một trăm đơn, sau còn sáu mươi đơn, giảm bốn mươi đơn", 1000, 6000)], [], client)
 
     feedback = json.loads(client.messages[1][1]["content"])["validator_feedback"]
     assert "steps 3 đến 5 bước" in feedback
@@ -1412,7 +1554,7 @@ def test_tao_y_tuong_hyperframes_feedback_neu_layout_chu_khong_phai_so_do():
     client = LLMGia([invalid, corrected])
 
     tao_y_tuong_dien_hoa_flow(
-        [clip], [tu(1, "Trước là một trăm đơn, sau còn sáu mươi đơn, giảm bốn mươi đơn", 1000, 8000)], [], client,
+        [clip], [tu(1, "Trước là một trăm đơn, sau còn sáu mươi đơn, giảm bốn mươi đơn", 1000, 6000)], [], client,
     )
 
     feedback = json.loads(client.messages[1][1]["content"])["validator_feedback"]
@@ -1607,6 +1749,32 @@ def test_prompt_ke_hoach_video_tinh_ca_system_schema_va_feedback_trong_gioi_han(
 
     with pytest.raises(ValueError, match="NO_SOCIAL_CLIPS_SELECTED"):
         tao_ke_hoach_dung_video(words, client, source_duration_ms=110000)
+
+
+def test_prompt_ke_hoach_video_dai_khong_vuot_gioi_han_llm():
+    class ClientGioiHan:
+        max_input_bytes = 200000
+        max_output_tokens = 1200
+        is_enabled = True
+
+        def __init__(self):
+            self.messages = []
+
+        def complete(self, messages, max_tokens=None):
+            self.messages.append(messages)
+            return type("KetQua", (), {"content": '{"clips": []}'})()
+
+    words = [tu(i, "noi_dung_" + "x" * 120, i * 500, i * 500 + 400) for i in range(1400)]
+    pauses = [(i * 4000, i * 4000 + 1000) for i in range(200)]
+    client = ClientGioiHan()
+
+    with pytest.raises(ValueError, match="NO_SOCIAL_CLIPS_SELECTED"):
+        tao_ke_hoach_dung_video(words, client, source_duration_ms=800000, pause_intervals=pauses)
+
+    prompt_sizes = [sum(len(message["content"].encode("utf-8")) for message in call) for call in client.messages]
+    assert len(client.messages) > 1
+    assert max(prompt_sizes) >= 195000
+    assert all(size <= client.max_input_bytes for size in prompt_sizes)
 
 
 def test_nhom_take_trung_qua_nhieu_chunk_va_giu_lua_chon_tot_nhat():
@@ -2107,6 +2275,7 @@ def test_auto_edit_enqueue_hyperframes_diagram_child(monkeypatch, tmp_path):
         style_hash = hashlib.sha256(json.dumps(style, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
         monkeypatch.setattr(editor, "tao_y_tuong_dien_hoa_flow", lambda *_args: [{
             "clip_id": "part1_01", "target_clip_id": "part1_01", "renderer": "HYPERFRAMES",
+            "start_word_id": "w000000", "end_word_id": "w000007",
             "scene": "So sánh số đơn trước và sau", "action": "Hai tấm giấy mở ra để so sánh",
             "narration": "trước là một trăm sau còn sáu mươi", "duration_seconds": 10,
             "has_alpha": False, "style_snapshot": style, "style_snapshot_hash": style_hash,
@@ -2130,8 +2299,47 @@ def test_auto_edit_enqueue_hyperframes_diagram_child(monkeypatch, tmp_path):
         assert child_request["operation"] == "render_auto_edit_diagram"
         assert child_request["backend_provider"] == "BAHA_AUTO_EDIT"
         assert child_request["parameters"]["style_snapshot_hash"] == style_hash
+        assert child_request["parameters"]["target_start_word_id"] == "w000000"
+        assert child_request["parameters"]["target_end_word_id"] == "w000007"
         assert parent_request["parameters"]["phase"] == "render"
         assert "HyperFrames" in deferred.status_message
+        brief = json.loads((media_root / parent_request["parameters"]["plan_storage_key"]).read_text(encoding="utf-8"))["flow_briefs"][0]
+        child.state = "SUCCEEDED"
+        child.output_asset_ids_json = json.dumps(["diagram-output"])
+        db.add(MediaAsset(
+            id="diagram-output", workspace_id=workspace_id, storage_key=source.storage_key,
+            sha256=source_hash, byte_size=source_size, mime_detected="video/mp4",
+            source_product="AUTO_EDIT_HYPERFRAMES", created_by=user_id,
+        ))
+        db.commit()
+        monkeypatch.setattr(editor, "_resolve_visual_asset", lambda *_args: source_path)
+        candidates, failed = editor._visual_candidates_for_jobs(db, [child_id], [brief], workspace_id, None)
+        assert failed == []
+        assert candidates[0]["target_start_word_id"] == "w000000"
+        assert candidates[0]["target_end_word_id"] == "w000007"
+
+        generated_candidate = {**candidates[0], "has_alpha": True, "duration_seconds": 3,
+                               "target_start_word_id": "w000000", "target_end_word_id": "w000007"}
+        monkeypatch.setattr(editor, "_visual_candidates_for_jobs", lambda *_args: ([generated_candidate], []))
+        monkeypatch.setattr(editor, "lay_ung_vien_dien_hoa", lambda *_args: [])
+        received = []
+        monkeypatch.setattr(editor, "chon_dien_hoa", lambda _clips, _words, assets, _client: received.extend(assets) or [])
+        monkeypatch.setattr(editor.LLMClient, "from_db", classmethod(lambda _cls, _db: SimpleNamespace(model="real-model")))
+        def fake_render(**kwargs):
+            Path(kwargs["output_path"]).write_bytes(b"mp4")
+            return {"duration_seconds": 12}
+
+        monkeypatch.setattr(editor.video_processor, "render_timeline_document", fake_render)
+        monkeypatch.setattr(editor.video_processor, "probe_video", lambda *_args: {"duration_seconds": 12, "width": 1080, "height": 1920, "frame_rate": 30})
+        monkeypatch.setattr(editor, "_kiem_tra_khung_den", lambda *_args: [])
+        from src.modules.tao_video_noi_dung import runner
+        monkeypatch.setattr(runner, "_add_brand_end_card", lambda *_args: 3)
+        editor.dung_video_dai(
+            db, source_asset_id=source.id, workspace_id=workspace_id, user_id=user_id,
+            project_id=None, job_id=job_id, phase="render", flow_job_ids=[child_id],
+            plan_storage_key=parent_request["parameters"]["plan_storage_key"],
+        )
+        assert received == [generated_candidate]
     finally:
         db.close()
         Base.metadata.drop_all(engine)
@@ -2149,7 +2357,7 @@ def test_planner_retries_after_three_unavailable_renderer_choices():
     clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=12_000, title="Don hang", reason="So sanh")
     flow = {"visuals": [{"clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w1",
              "scene": "Mo hinh giay cua hang", "action": "Chong don origami giam dan", "renderer": "FLOW"}]}
-    diagram = {"visuals": [{"clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w1",
+    diagram = {"visuals": [{"clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w7",
                 "scene": "So sanh so don", "action": "Hai tam giay lan luot mo ra", "renderer": "HYPERFRAMES",
                 "ui_scene": {"layout": "BEFORE_AFTER", "diagram": {
                     "title": "Don hang", "simulated": False,
@@ -2160,7 +2368,12 @@ def test_planner_retries_after_three_unavailable_renderer_choices():
                 }} }]}
     client = LLMGia([flow, flow, flow, diagram])
 
-    visuals = tao_y_tuong_dien_hoa_flow([clip], [tu(1, "truoc 100, sau con 60, giam 40", 1_000, 8_000)], [], client, False)
+    visuals = tao_y_tuong_dien_hoa_flow(
+        [clip], [tu(1, "truoc", 1_000, 1_500), tu(2, "100", 1_500, 2_000),
+                 tu(3, "sau", 2_500, 3_000), tu(4, "con", 3_000, 3_500),
+                 tu(5, "60", 3_500, 4_000), tu(6, "giam", 5_000, 5_500),
+                 tu(7, "40", 5_500, 6_000)], [], client, False,
+    )
 
     assert len(visuals) == 1 and visuals[0]["renderer"] == "HYPERFRAMES"
     assert len(client.messages) == 4
@@ -2170,7 +2383,7 @@ def test_planner_reconsiders_empty_plan_after_flow_is_unavailable():
     flow = {"visuals": [{"clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w1",
              "scene": "Mo hinh giay cua hang", "action": "Chong don origami giam dan", "renderer": "FLOW"}]}
     empty = {"visuals": []}
-    diagram = {"visuals": [{"clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w1",
+    diagram = {"visuals": [{"clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w7",
                 "scene": "So sanh so don", "action": "Hai tam giay lan luot mo ra", "renderer": "HYPERFRAMES",
                 "ui_scene": {"layout": "BEFORE_AFTER", "diagram": {
                     "title": "Don hang", "simulated": False,
@@ -2181,7 +2394,12 @@ def test_planner_reconsiders_empty_plan_after_flow_is_unavailable():
                 }} }]}
     client = LLMGia([flow, empty, diagram])
 
-    visuals = tao_y_tuong_dien_hoa_flow([clip], [tu(1, "truoc 100, sau con 60, giam 40", 1_000, 8_000)], [], client, False)
+    visuals = tao_y_tuong_dien_hoa_flow(
+        [clip], [tu(1, "truoc", 1_000, 1_500), tu(2, "100", 1_500, 2_000),
+                 tu(3, "sau", 2_500, 3_000), tu(4, "con", 3_000, 3_500),
+                 tu(5, "60", 3_500, 4_000), tu(6, "giam", 5_000, 5_500),
+                 tu(7, "40", 5_500, 6_000)], [], client, False,
+    )
 
     assert len(visuals) == 1 and visuals[0]["renderer"] == "HYPERFRAMES"
     assert len(client.messages) == 3
