@@ -1,0 +1,9 @@
+{
+  "name": "prj069-hyperframes-canh-giay",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Cài HyperFrames cố định phiên bản để dựng cảnh giấy; không dùng cloud, auth hay publish của công cụ.",
+  "dependencies": {
+    "hyperframes": "0.8.222"
+  }
+}

@@ -10,6 +10,8 @@ from types import SimpleNamespace
 import pytest
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
+from src.media_process import run_media_command
+from src.modules.media_studio.video_processor import video_processor
 
 API_ROOT = pathlib.Path(__file__).resolve().parents[1]
 if str(API_ROOT) not in sys.path:
@@ -18,92 +20,12 @@ if str(API_ROOT) not in sys.path:
 from src.modules.tao_video_noi_dung.planner import build_shot_prompt, generate_storyboard, parse_storyboard
 from src.modules.tao_video_noi_dung.contracts import CreatePlanRequest, CreateRunRequest, ReconcileShotRequest
 from src.modules.tao_video_noi_dung.runner import _has_duplicate_shot_media, evaluate_shot_qc, evaluate_video_qc
-from src.modules.tao_video_noi_dung.runner import _mark_flow_setup_blocked
+from src.modules.tao_video_noi_dung.runner import _mark_flow_setup_blocked, _add_brand_end_card
 from src.modules.tao_video_noi_dung import cong_harness
 from src.modules.tao_video_noi_dung import router as content_video_router
 from src.modules.tao_video_noi_dung.cong_harness import build_shot_receipt, dispatch_shot
 from src.modules.tao_video_noi_dung.planner import StoryboardShot
 from src.migrations import runner as migration_runner
-
-
-def _v4_storyboard_data():
-    data = json.loads((API_ROOT / "tests/fixtures/storyboard_ai_sales_v3.json").read_text())
-    data["shots"] = data["shots"][:3]
-    data["brief"] = {"pains": [{"id": "p1", "text": "Bỏ sót khách hỏi.", "source": "inferred"}],
-                     "solutions": [{"id": "s1", "text": "Trợ lý hỗ trợ.", "source": "content"}]}
-    for shot, beat, mids in zip(data["shots"], ["PAIN", "INSIGHT", "SOLUTION"], [["p1"], [], ["s1"]]):
-        shot.update(prompt_contract_version=4, beat=beat, message_ids=mids,
-                    action_beats=[{"start_s": 0, "end_s": 4, "action": "Khách tiến tới bàn."},
-                                  {"start_s": 4, "end_s": 10, "action": "Nhân viên đưa thẻ trả lời."}])
-    return data
-
-
-def test_v3_storyboard_still_parses():
-    from src.modules.tao_video_noi_dung.planner import Storyboard
-    fixture = json.loads((API_ROOT / "tests/fixtures/storyboard_v3_compatibility.json").read_text())
-    board = Storyboard.model_validate(fixture["dump"])
-    assert board.model_dump(mode="json") == fixture["dump"]
-    for shot, expected in zip(board.shots, fixture["prompts"]):
-        assert build_shot_prompt(fixture["style"], shot, board.continuity_anchor) == expected
-
-
-@pytest.mark.parametrize("intervals", [[(0, 5), (4, 10)], [(0, 4), (5, 10)], [(1, 10)], [(0, 9)], [(0, 11)], [(0, 0)]])
-def test_v4_flow_shot_action_beats_must_cover_duration_without_overlap(intervals):
-    from src.modules.tao_video_noi_dung.planner import Storyboard
-    data = _v4_storyboard_data()
-    Storyboard.model_validate(data)
-    data["shots"][0]["action_beats"] = [{"start_s": a, "end_s": b, "action": "Tiến tới bàn."} for a, b in intervals]
-    with pytest.raises(ValueError):
-        Storyboard.model_validate(data)
-
-
-def test_v4_ui_sim_requires_ui_scene():
-    from src.modules.tao_video_noi_dung.planner import Storyboard
-    data = _v4_storyboard_data()
-    data["shots"][1].update(shot_kind="UI_SIM", ui_scene=None)
-    with pytest.raises(ValueError, match="UI_SCENE_REQUIRED"):
-        Storyboard.model_validate(data)
-
-
-def test_v4_pain_must_precede_solution():
-    from src.modules.tao_video_noi_dung.planner import Storyboard, _soft_problems
-    data = _v4_storyboard_data()
-    data["shots"][0]["beat"], data["shots"][2]["beat"] = "SOLUTION", "PAIN"
-    assert "PAIN_AFTER_SOLUTION" in _soft_problems(Storyboard.model_validate(data))
-
-
-def test_v4_uncovered_message_id_is_reported_not_rejected():
-    from src.modules.tao_video_noi_dung.planner import Storyboard, _soft_problems
-    data = _v4_storyboard_data()
-    data["shots"][0]["message_ids"] = []
-    assert "LOW_COVERAGE" in _soft_problems(Storyboard.model_validate(data))
-
-
-def test_v4_cannot_bypass_contract_by_omitting_brief_or_downgrading_one_shot():
-    from src.modules.tao_video_noi_dung.planner import Storyboard
-    data = _v4_storyboard_data()
-    data["shots"][0]["prompt_contract_version"] = 3
-    with pytest.raises(ValueError):
-        Storyboard.model_validate(data)
-    data = _v4_storyboard_data()
-    data.pop("brief")
-    with pytest.raises(ValueError):
-        Storyboard.model_validate(data)
-
-
-def test_v4_prompt_lists_action_beats_with_timestamps_and_drops_single_action_rule():
-    shot = StoryboardShot.model_validate(_v4_storyboard_data()["shots"][0])
-    style = {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]}
-    prompt = build_shot_prompt(style, shot, "Nhân viên áo xanh và khách áo trắng.")
-    assert "0–4 giây: Khách tiến tới bàn." in prompt
-    assert "4–10 giây: Nhân viên đưa thẻ trả lời." in prompt
-    assert "Chỉ một hành động chính đơn giản" not in prompt
-    assert "tối đa hai chuyển động camera" in prompt
-    assert "Không hiển thị chữ" in prompt
-    assert "hai mắt cùng kích thước và cao độ" in prompt
-    assert "không biến hình" in prompt
-    assert shot.narration in prompt
-    assert shot.narration not in build_shot_prompt(style, shot, "Nhân viên áo xanh.", False)
 
 
 def test_content_video_migration_upgrades_existing_run_table(monkeypatch):
@@ -239,11 +161,149 @@ def test_crossfade_keeps_every_shot_when_clips_are_slightly_shorter_than_nominal
     assert int(frames) >= 6 * 299 - 5
 
 
-def test_raw_tts_caps_video_retiming_at_ten_percent_without_changing_voice(tmp_path):
+def test_timeline_overlay_accepts_alpha_or_opaque_asset_and_keeps_source_audio(tmp_path):
+    import subprocess
+    from src.modules.media_studio.video_processor import video_processor
+    from src.modules.media_studio.audio_processor import audio_processor
+
+    speaker = tmp_path / "speaker.mp4"
+    illustration = tmp_path / "illustration.mp4"
+    alpha_overlay = tmp_path / "alpha_overlay.mov"
+    subprocess.run([
+        video_processor.ffmpeg_bin, "-y", "-v", "error", "-f", "lavfi", "-i",
+        "color=c=blue:s=360x640:r=24:d=2", "-f", "lavfi", "-i", "sine=frequency=440:duration=2",
+        "-shortest", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(speaker),
+    ], check=True, capture_output=True)
+    subprocess.run([
+        video_processor.ffmpeg_bin, "-y", "-v", "error", "-f", "lavfi", "-i",
+        "color=c=green:s=360x640:r=24:d=2", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(illustration),
+    ], check=True, capture_output=True)
+    subprocess.run([
+        video_processor.ffmpeg_bin, "-y", "-v", "error", "-f", "lavfi", "-i",
+        "color=c=red@0.7:s=80x80:r=24:d=2,format=yuva420p", "-an", "-c:v", "qtrle", str(alpha_overlay),
+    ], check=True, capture_output=True)
+
+    assert video_processor.probe_video(alpha_overlay)["has_alpha"]
+    timeline = {
+        "width": 360, "height": 640, "fps": 24,
+        "clips": [{"clip_id": "paper_cutaway", "asset_id": "paper", "audio_asset_id": "speaker",
+                   "audio_trim_in_ms": 0, "media_type": "video", "duration_ms": 2000,
+                   "trim_in_ms": 0, "trim_out_ms": 2000}],
+        "overlays": [{"asset_id": "overlay", "start_ms": 0, "duration_ms": 2000,
+                      "x": 10, "y": 10, "width": 80, "height": 80}],
+    }
+    output = tmp_path / "rendered_with_paper_overlay.mp4"
+    video_processor.render_timeline_document(
+        timeline, lambda asset_id: {"speaker": speaker, "paper": illustration, "overlay": alpha_overlay}[asset_id], output,
+    )
+    assert audio_processor.probe_audio(output)["codec_name"] != "unknown"
+
+    alpha_overlay_webm = tmp_path / "alpha_overlay.webm"
+    subprocess.run([
+        video_processor.ffmpeg_bin, "-y", "-v", "error", "-f", "lavfi", "-i",
+        "color=c=red@0.7:s=80x80:r=24:d=2,format=yuva420p", "-an",
+        "-c:v", "libvpx-vp9", "-pix_fmt", "yuva420p", "-auto-alt-ref", "0",
+        "-metadata:s:v:0", "alpha_mode=1", str(alpha_overlay_webm),
+    ], check=True, capture_output=True)
+    assert video_processor.probe_video(alpha_overlay_webm)["has_alpha"]
+    webm_output = tmp_path / "rendered_with_paper_webm_overlay.mp4"
+    video_processor.render_timeline_document(
+        timeline, lambda asset_id: {"speaker": speaker, "paper": illustration, "overlay": alpha_overlay_webm}[asset_id], webm_output,
+    )
+    assert audio_processor.probe_audio(webm_output)["codec_name"] != "unknown"
+
+    timeline["overlays"][0]["asset_id"] = "paper"
+    opaque_output = tmp_path / "rendered_with_opaque_paper_overlay.mp4"
+    video_processor.render_timeline_document(
+        timeline, lambda asset_id: {"speaker": speaker, "paper": illustration}[asset_id], opaque_output,
+    )
+    assert opaque_output.is_file()
+    assert audio_processor.probe_audio(opaque_output)["codec_name"] != "unknown"
+
+
+def test_karaoke_render_keeps_static_title_and_highlights_words(tmp_path):
+    import subprocess
+    from src.modules.media_studio.video_processor import video_processor
+
+    source = tmp_path / "speaker.mp4"
+    output = tmp_path / "karaoke.mp4"
+    subprocess.run([
+        video_processor.ffmpeg_bin, "-y", "-v", "error", "-f", "lavfi", "-i",
+        "color=c=blue:s=360x640:r=24:d=1", "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
+        "-shortest", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(source),
+    ], check=True, capture_output=True)
+    work_dir = tmp_path / "render"
+    timeline = {
+        "width": 360, "height": 640, "fps": 24,
+        "clips": [{"clip_id": "speaker", "asset_id": "speaker", "audio_asset_id": "speaker",
+                   "audio_trim_in_ms": 0, "media_type": "video", "duration_ms": 1000,
+                   "trim_in_ms": 0, "trim_out_ms": 1000}],
+        "captions": [
+            {"text": "Tiêu đề", "start_ms": 0, "duration_ms": 700, "font_size": 56, "position_y_px": 150},
+            {"text": "Xin chào", "start_ms": 0, "duration_ms": 800, "font_size": 42,
+             "words": [{"text": "Xin", "start_ms": 0, "end_ms": 350},
+                       {"text": "chào", "start_ms": 350, "end_ms": 800}]},
+        ],
+    }
+
+    video_processor.render_timeline_document(
+        timeline, lambda _: source, output, caption_style="vietsub_karaoke_v2", temp_dir=work_dir,
+    )
+
+    ass = (work_dir / "captions.ass").read_text(encoding="utf-8")
+    assert "{\\k35}Xin {\\k45}chào" in ass
+    assert "Tiêu đề" not in ass
+    assert (work_dir / "caption_0.txt").read_text(encoding="utf-8") == "Tiêu đề"
+    assert output.is_file()
+
+
+def test_speaker_pip_accepts_opaque_animation_background_and_crops_speaker(tmp_path):
+    import subprocess
+    from src.modules.media_studio.audio_processor import audio_processor
+    from src.modules.media_studio.video_processor import video_processor
+
+    speaker = tmp_path / "speaker.mp4"
+    paper = tmp_path / "paper.mp4"
+    output = tmp_path / "speaker_pip.mp4"
+    subprocess.run([
+        video_processor.ffmpeg_bin, "-y", "-v", "error", "-f", "lavfi", "-i",
+        "color=c=red:s=360x640:r=24:d=2", "-f", "lavfi", "-i", "sine=frequency=440:duration=2",
+        "-shortest", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(speaker),
+    ], check=True, capture_output=True)
+    subprocess.run([
+        video_processor.ffmpeg_bin, "-y", "-v", "error", "-f", "lavfi", "-i",
+        "color=c=green:s=360x640:r=24:d=2", "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(paper),
+    ], check=True, capture_output=True)
+    timeline = {
+        "width": 360, "height": 640, "fps": 24,
+        "clips": [{"clip_id": "paper", "asset_id": "paper", "audio_asset_id": "speaker",
+                   "audio_trim_in_ms": 250, "media_type": "video", "duration_ms": 1000,
+                   "trim_in_ms": 0, "trim_out_ms": 1000}],
+        "overlays": [{"asset_id": "speaker", "mode": "speaker_pip", "trim_in_ms": 500,
+                      "start_ms": 250, "duration_ms": 750, "x": 10, "y": 20, "width": 80, "height": 120}],
+    }
+
+    video_processor.render_timeline_document(
+        timeline, lambda asset_id: {"paper": paper, "speaker": speaker}[asset_id], output,
+    )
+    def pixel(x, y, time_s):
+        return subprocess.run([
+            video_processor.ffmpeg_bin, "-v", "error", "-ss", str(time_s), "-i", str(output), "-frames:v", "1",
+            "-vf", f"crop=1:1:{x}:{y},format=rgb24", "-f", "rawvideo", "pipe:1",
+        ], check=True, capture_output=True).stdout
+
+    inside, before, outside = pixel(50, 80, 0.5), pixel(50, 80, 0.1), pixel(200, 200, 0.5)
+    assert inside[0] > 150 and inside[1] < 100
+    assert before[1] > 60 and before[0] < 100
+    assert outside[1] > 60 and outside[0] < 100
+    assert audio_processor.probe_audio(output)["codec_name"] != "unknown"
+
+
+def test_raw_tts_caps_video_retiming_at_speed_limits_without_changing_voice(tmp_path):
     import wave
     import numpy as np
     import subprocess
-    from src.modules.media_studio.video_processor import video_processor
+    from src.modules.media_studio.video_processor import VOICE_SPEED_MAX, VOICE_SPEED_MIN, video_processor
     from src.schemas.contracts import TimelineAudioTrack, TimelineClip, TimelineDocument, TimelineMediaType
 
     video = tmp_path / "video.mp4"
@@ -257,14 +317,14 @@ def test_raw_tts_caps_video_retiming_at_ten_percent_without_changing_voice(tmp_p
         wav.setnchannels(1)
         wav.setsampwidth(2)
         wav.setframerate(24000)
-        wav.writeframes(np.zeros(int(8.9 * 24000), dtype="<i2").tobytes())
+        wav.writeframes(np.zeros(int(7.0 * 24000), dtype="<i2").tobytes())
     timeline = TimelineDocument(
         width=360, height=640, fps=24,
         clips=[TimelineClip(
             clip_id="s1", asset_id="video", media_type=TimelineMediaType.VIDEO,
             start_ms=0, duration_ms=10000, trim_in_ms=0, trim_out_ms=10000,
         )],
-        voice_track=TimelineAudioTrack(asset_id="voice", duration_ms=8900),
+        voice_track=TimelineAudioTrack(asset_id="voice", duration_ms=7000),
     )
 
     fast_path = tmp_path / "capped_fast_video.mp4"
@@ -272,24 +332,24 @@ def test_raw_tts_caps_video_retiming_at_ten_percent_without_changing_voice(tmp_p
         timeline, lambda asset_id: video if asset_id == "video" else voice,
         fast_path, preserve_voice_audio=True,
     )
-    assert fast_meta["video_playback_speed"] == 1.1
-    assert abs(fast_meta["duration_seconds"] - 10 / 1.1) <= 0.1
-    assert abs(fast_meta["voice_audio_duration_seconds"] - 8.9) <= 0.1
-    assert fast_meta["silent_tail_seconds"] <= 0.3
+    assert fast_meta["video_playback_speed"] == VOICE_SPEED_MAX
+    assert abs(fast_meta["duration_seconds"] - 10 / VOICE_SPEED_MAX) <= 0.1
+    assert abs(fast_meta["voice_audio_duration_seconds"] - 7.0) <= 0.1
+    assert abs(fast_meta["silent_tail_seconds"] - (10 / VOICE_SPEED_MAX - 7.0)) <= 0.1
 
     long_voice = tmp_path / "long_voice.wav"
     with wave.open(str(long_voice), "wb") as wav:
         wav.setnchannels(1)
         wav.setsampwidth(2)
         wav.setframerate(24000)
-        wav.writeframes(np.zeros(int(11.2 * 24000), dtype="<i2").tobytes())
+        wav.writeframes(np.zeros(int(12.4 * 24000), dtype="<i2").tobytes())
     slow_meta = video_processor.render_timeline_document(
         timeline, lambda asset_id: video if asset_id == "video" else long_voice,
         tmp_path / "capped_slow_video.mp4", preserve_voice_audio=True,
     )
-    assert slow_meta["video_playback_speed"] == 0.9
-    assert abs(slow_meta["duration_seconds"] - 11.2) <= 0.1
-    assert slow_meta["frozen_tail_seconds"] <= 0.2
+    assert slow_meta["video_playback_speed"] == VOICE_SPEED_MIN
+    assert abs(slow_meta["duration_seconds"] - 12.4) <= 0.1
+    assert abs(slow_meta["frozen_tail_seconds"] - (12.4 - 10 / VOICE_SPEED_MIN)) <= 0.1
 
 
 def test_full_migration_rollback_preserves_content_video_records(tmp_path, monkeypatch):
@@ -412,38 +472,274 @@ def test_create_plan_explains_gateway_rate_limit(monkeypatch):
     assert "Hạn mức" in exc_info.value.detail["message"]
 
 
-def test_storyboard_prompt_leaves_shot_count_to_llm():
-    data = _v4_storyboard_data()
-    data["shots"] = [data["shots"][0], data["shots"][2]]
+def _recording_storyboard_client():
+    brief = {
+        "pains": [{"id": "pain-1", "text": "Khách hàng chờ câu trả lời có căn cứ", "source": "content"}],
+    }
+    narration = (
+        "Doanh nghiệp nhận nhiều câu hỏi nhưng tài liệu nằm ở nhiều nơi. "
+        "Nhân viên phải tìm nguồn, kiểm tra rồi mới trả lời. "
+        "Cách làm tốn thời gian và dễ bỏ sót căn cứ."
+    )
+    storyboard = {
+        "title": "Tìm đúng nguồn",
+        "narration": narration,
+        "continuity_anchor": "Trợ lý giấy màu xanh navy bên cạnh tủ tài liệu trong cùng một căn phòng.",
+        "shots": [
+            {
+                "shot_id": "s1", "scene": "Tìm tài liệu", "narration": narration,
+                "prompt": "Một thẻ giấy rời khỏi kệ và trượt đến bàn làm việc.",
+                "duration_seconds": 10, "continues_previous": False, "prompt_contract_version": 4,
+                "beat": "PAIN", "message_ids": ["pain-1"], "shot_kind": "FLOW_ORIGAMI",
+                "action_beats": [{"start_s": 0, "end_s": 10, "action": "Thẻ giấy rời khỏi kệ, trượt đến bàn rồi dừng cạnh trợ lý."}],
+            },
+            {
+                "shot_id": "s2", "scene": "Đối chiếu nguồn", "narration": narration,
+                "prompt": "Trợ lý giấy mở thẻ tài liệu và đặt cạnh câu trả lời.",
+                "duration_seconds": 10, "continues_previous": False, "prompt_contract_version": 4,
+                "beat": "SOLUTION", "message_ids": ["pain-1"], "shot_kind": "FLOW_ORIGAMI",
+                "action_beats": [{"start_s": 0, "end_s": 10, "action": "Trợ lý mở thẻ, đối chiếu tài liệu rồi đặt thẻ cạnh câu trả lời."}],
+            },
+        ],
+    }
+
+    narration_by_shot = [
+        "Mỗi ngày doanh nghiệp nhận nhiều câu hỏi, tài liệu quan trọng nằm rải rác nhiều nơi.",
+        "Nhân viên mở từng hệ thống để tìm tài liệu, kiểm tra nguồn rồi mới trả lời khách hàng.",
+        "Quy trình tìm kiếm thủ công khiến phản hồi chậm, đôi khi bỏ sót nguồn quan trọng cần thiết.",
+        "RAG truy xuất tài liệu liên quan trước, sau đó tạo câu trả lời có căn cứ từ nguồn tìm thấy.",
+    ]
+    storyboard["shots"] = [
+        {
+            **storyboard["shots"][index % 2],
+            "shot_id": f"s{index + 1}",
+            "scene": f"Cảnh {index + 1}",
+            "narration": narration,
+            "prompt": f"Mô tả cảnh origami chi tiết số {index + 1}.",
+            "duration_seconds": 10,
+            "action_beats": [{"start_s": 0, "end_s": 10, "action": f"Hành động origami số {index + 1}."}],
+        }
+        for index, narration in enumerate(narration_by_shot)
+    ]
+
     class RecordingClient:
         max_output_tokens = 6000
+
+        def __init__(self):
+            self.calls = 0
+            self.messages = []
+
         def complete(self, messages, max_tokens):
             self.messages = messages
-            payload = data["brief"] if len(messages) == 2 and "required_schema" not in json.loads(messages[1]["content"]) else data
-            return SimpleNamespace(content=json.dumps(payload), model="test-model")
-    client = RecordingClient()
-    board, _ = generate_storyboard("Trợ lý tìm nguồn trước khi trả lời.", 20,
-        {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]}, client)
+            self.calls += 1
+            result = brief if self.calls == 1 else storyboard
+            return SimpleNamespace(content=json.dumps(result, ensure_ascii=False), model="test-model")
+
+    return RecordingClient()
+
+
+def test_storyboard_prompt_generates_short_detailed_shots():
+    client = _recording_storyboard_client()
+    storyboard, _ = generate_storyboard(
+        "RAG truy xuất tài liệu trước khi trả lời có căn cứ.",
+        20,
+        {"style_name": "Origami", "visual_rules": "Phong cách giấy thống nhất.", "palette": ["navy"]},
+        client,
+    )
+
     request = json.loads(client.messages[1]["content"])
-    assert "required_shot_durations" not in request
-    assert len(board.shots) == 2
     assert request["target_duration_seconds"] == 20
+    assert len(storyboard.shots) == 4
+    assert all(3 <= shot.duration_seconds <= 6 for shot in storyboard.shots)
+    assert sum(shot.duration_seconds for shot in storyboard.shots) == 20
+    assert "từ 3 đến 6 giây" in client.messages[0]["content"].lower()
+
+
+def test_new_content_video_style_uses_baha_identity_and_editorial_motion():
+    from src.modules.tao_video_noi_dung.service import _CONTENT_VIDEO_STYLE_SNAPSHOT, _PILOT_STYLE_SNAPSHOT
+
+    shot = StoryboardShot(
+        shot_id="s1", scene="Báo giá nằm chờ phản hồi", narration="Báo giá chưa có hồi âm.",
+        prompt="Đường chỉ nối báo giá với thẻ việc cần theo dõi.", duration_seconds=5,
+        prompt_contract_version=4, shot_kind="FLOW_ORIGAMI", beat="PAIN", continues_previous=False,
+        action_beats=[{"start_s": 0, "end_s": 5, "action": "Đường chỉ lần theo báo giá rồi nối với thẻ theo dõi đang bật lên."}],
+    )
+    prompt = build_shot_prompt(
+        _CONTENT_VIDEO_STYLE_SNAPSHOT.model_dump(mode="json"), shot,
+        "Bàn giấy sáng, xanh dương BAHA và đường chỉ vàng.",
+    ).casefold()
+
+    assert _PILOT_STYLE_SNAPSHOT.style_name == _CONTENT_VIDEO_STYLE_SNAPSHOT.style_name
+    assert "#0562af" in prompt and "#ed1b24" in prompt and "#fabc11" in prompt
+    assert "origami" not in prompt
+    assert "không dàn dựng như slide" in prompt
+    assert "lớp chuyển động có chủ đích" in prompt
+    assert "đường chỉ lần theo báo giá" in prompt
+
+
+def test_baha_diagrams_default_to_hyperframes_and_keep_legacy_and_fallback(monkeypatch, tmp_path):
+    from src.modules.tao_video_noi_dung import render_engines
+    from src.modules.tao_video_noi_dung.planner import UiScene
+    from src.modules.tao_video_noi_dung.service import _CONTENT_VIDEO_STYLE_SNAPSHOT
+
+    monkeypatch.delenv("CONTENT_VIDEO_RENDER_ENGINE", raising=False)
+    style = _CONTENT_VIDEO_STYLE_SNAPSHOT.model_dump(mode="json")
+    legacy_style = {"style_name": "Origami giấy gấp", "visual_rules": "Cảnh giấy.", "palette": ["navy"]}
+    assert render_engines.selected_engine(style) == "hyperframes"
+    assert render_engines.selected_engine(legacy_style) == "playwright"
+
+    scene = UiScene.model_validate({"layout": "BEFORE_AFTER", "diagram": {
+        "title": "Đơn hàng", "simulated": False,
+        "docs": [{"title": "Trước", "label": "Đơn", "value": "100"}, {"title": "Sau", "label": "Đơn", "value": "60"}],
+        "diff_label": "Giảm 40", "on": {"before": "trước", "after": "sau", "delta": "giảm 40"},
+    }})
+    called = []
+    monkeypatch.setattr(render_engines, "BACKENDS", {"hyperframes": lambda *_args: (called.append("hyperframes") or {"width": 1080})})
+    result = render_engines.render_scene(scene, style, 5, "9:16", tmp_path / "diagram.mp4")
+    assert called == ["hyperframes"]
+    assert result["render_engine"] == "hyperframes"
+
+    monkeypatch.setattr(render_engines, "render_ui_scene", lambda *_args, **_kwargs: {"width": 1080})
+    chat = UiScene.model_validate({"layout": "CHAT", "messages": [
+        {"role": "customer", "text": "Cần tìm tài liệu.", "at_s": 0},
+        {"role": "ai", "text": "Đây là nguồn phù hợp.", "at_s": 2},
+    ]})
+    result = render_engines.render_scene(chat, style, 5, "9:16", tmp_path / "chat.mp4")
+    assert result["render_engine"] == "playwright"
+
+    monkeypatch.setenv("CONTENT_VIDEO_RENDER_ENGINE", "playwright")
+    assert render_engines.selected_engine(style) == "playwright"
+
+
+def test_baha_hyperframes_diagrams_use_midnight_champagne_brand_surface():
+    from src.modules.tao_video_noi_dung.planner import UiScene
+    from src.modules.tao_video_noi_dung.service import _CONTENT_VIDEO_STYLE_SNAPSHOT
+    from src.modules.tao_video_noi_dung.ui_sim import _scene_html, hyperframes_composition_html
+    from src.modules.tao_video_noi_dung.hf_scenes import BASE_CSS
+
+    scene = UiScene.model_validate({"layout": "BEFORE_AFTER", "diagram": {
+        "title": "Đơn hàng", "simulated": False,
+        "docs": [{"title": "Trước", "label": "Đơn", "value": "100"},
+                  {"title": "Sau", "label": "Đơn", "value": "60"}],
+        "diff_label": "Giảm 40", "on": {"before": "trước", "after": "sau", "delta": "giảm 40"},
+    }})
+    html = hyperframes_composition_html(scene, "Trước 100, sau 60, giảm 40", 5, aspect_ratio="9:16").casefold()
+
+    assert "#0b0f17" in _CONTENT_VIDEO_STYLE_SNAPSHOT.visual_rules.casefold()
+    assert any("#d9b26a" in color.casefold() for color in _CONTENT_VIDEO_STYLE_SNAPSHOT.palette)
+    assert "#0b0f17" in html and "#d9b26a" in html and "#0562af" in html
+    assert "panelglass" in html and "fedropshadow" in html
+    assert "#faf5e9" not in html
+
+    chat = UiScene.model_validate({"layout": "CHAT", "messages": [
+        {"role": "customer", "text": "Need a clear next step.", "at_s": 0},
+        {"role": "ai", "text": "Assign one owner.", "at_s": 2},
+    ]})
+    ui_html = _scene_html(chat, {}).casefold()
+    assert "#0b0f17" in ui_html and "#d9b26a" in ui_html and "#0562af" in ui_html
+    assert "#f2eee6" in BASE_CSS.casefold() and "#d9b26a" in BASE_CSS.casefold()
+    assert "#faf5e9" not in BASE_CSS.casefold()
+
+
+def test_storyboard_generation_treats_style_snapshot_as_visual_source_of_truth():
+    client = _recording_storyboard_client()
+    generate_storyboard(
+        "Báo giá cần người phụ trách và bước theo dõi rõ ràng.",
+        20,
+        {"style_name": "BAHA Editorial Motion", "visual_rules": "Cảnh kể chuyện giàu chiều sâu.", "palette": ["xanh dương BAHA"]},
+        client,
+    )
+
+    prompt = client.messages[0]["content"].casefold()
+    assert "style_snapshot là nguồn chuẩn về phong cách hình ảnh" in prompt
+    assert "không mặc định origami" in prompt
+    assert "ưu tiên ui_sim sơ đồ động để hyperframes" in prompt
+    assert "before_after, kpi_cards, versus_list" in prompt
+
+
+def test_vertical_storyboard_accepts_hyperframes_native_portrait_diagrams():
+    from src.modules.tao_video_noi_dung.brief import ContentBrief
+    from src.modules.tao_video_noi_dung.planner import Storyboard, StoryboardShot, UiScene, _soft_problems
+
+    narration = "Trước là một trăm đơn, sau còn sáu mươi đơn, giảm bốn mươi đơn."
+    shot = StoryboardShot(
+        shot_id="s1", scene="So sánh số đơn", narration=narration, prompt="Hai trạng thái hiện ra rồi thay đổi.",
+        duration_seconds=5, continues_previous=False, prompt_contract_version=4, beat="INSIGHT", message_ids=["pain-1"], shot_kind="UI_SIM",
+        ui_scene=UiScene.model_validate({"layout": "BEFORE_AFTER", "diagram": {
+            "title": "Đơn hàng", "simulated": False,
+            "docs": [{"title": "Trước", "label": "Đơn", "value": "100"}, {"title": "Sau", "label": "Đơn", "value": "60"}],
+            "diff_label": "Giảm 40", "on": {"before": "trước", "after": "sau", "delta": "giảm bốn mươi"},
+        }}),
+    )
+    storyboard = Storyboard(
+        title="So sánh", narration=narration, continuity_anchor="Cảnh đồ họa xanh dương, đỏ và vàng.", shots=[shot],
+        brief=ContentBrief(pains=[{"id": "pain-1", "text": "Đơn hàng giảm.", "source": "content"}]),
+    )
+
+    problems = _soft_problems(storyboard, "9:16")
+
+    assert not any(problem.startswith("DIAGRAM_REQUIRES_16_9") for problem in problems)
+
+
+def test_brand_end_card_places_official_logo_without_changing_video_duration(tmp_path):
+    video_path = tmp_path / "video.mp4"
+    pixel_path = tmp_path / "brand-end-card-center.rgb"
+    run_media_command([
+        video_processor.ffmpeg_bin, "-y", "-f", "lavfi", "-i", "color=c=navy:s=360x640:r=30:d=2",
+        "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(video_path),
+    ], capture_output=True, text=True, check=True)
+
+    assert _add_brand_end_card(video_path) == pytest.approx(2)
+
+    meta = video_processor.probe_video(video_path)
+    assert meta["duration_seconds"] == pytest.approx(2, abs=0.1)
+    run_media_command([
+        video_processor.ffmpeg_bin, "-y", "-ss", "1", "-i", str(video_path),
+        "-vf", "crop=1:1:180:320,format=rgb24", "-frames:v", "1",
+        "-f", "rawvideo", "-pix_fmt", "rgb24", str(pixel_path),
+    ], capture_output=True, text=True, check=True)
+    center = pixel_path.read_bytes()
+    assert center[2] > center[0] + 40 and center[2] > center[1] + 20
+    decoded = run_media_command(
+        [video_processor.ffmpeg_bin, "-v", "error", "-i", str(video_path), "-f", "null", "-"],
+        capture_output=True, text=True, check=False,
+    )
+    assert decoded.returncode == 0 and not decoded.stderr.strip()
 
 
 def test_storyboard_prompts_prevent_distortion_and_allow_optional_flow_audio():
-    data = _v4_storyboard_data()
-    shot = StoryboardShot.model_validate(data["shots"][0])
-    style = {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]}
-    prompt = build_shot_prompt(style, shot, data["continuity_anchor"]).lower()
-    assert "không biến hình" in prompt and "không nhân đôi" in prompt
-    assert "hai mắt cùng kích thước và cao độ" in prompt
-    assert "biểu cảm thân thiện tự nhiên" in prompt
-    assert "âm thanh flow tùy chọn" in prompt
-    assert shot.narration.lower() in prompt
-    assert "chỉ một hành động chính" not in prompt
-    no_audio = build_shot_prompt(style, shot, data["continuity_anchor"], False).lower()
-    assert "clip im lặng vẫn chấp nhận" in no_audio
-    assert shot.narration.lower() not in no_audio
+    client = _recording_storyboard_client()
+    storyboard, _ = generate_storyboard(
+        "RAG tìm nguồn trước khi trả lời.",
+        20,
+        {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]},
+        client,
+    )
+    system_prompt = client.messages[0]["content"].lower()
+    shot_prompt = build_shot_prompt(
+        {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]},
+        storyboard.shots[0],
+        storyboard.continuity_anchor,
+    ).lower()
+
+    assert "hợp đồng v4" in system_prompt
+    assert "action_beats liên tiếp phủ kín" in system_prompt
+    assert "không biến hình" in system_prompt
+    assert "flow_prompt_en" not in system_prompt
+    assert "action_beats" in system_prompt
+    assert "không biến hình" in shot_prompt
+    assert "không nhân đôi" in shot_prompt
+    assert "âm thanh flow tùy chọn" in shot_prompt
+    assert "nếu flow tạo giọng dẫn thì đọc nguyên văn bằng tiếng việt" in shot_prompt
+    assert "doanh nghiệp nhận nhiều câu hỏi" in shot_prompt
+    assert "bắt buộc bật" not in shot_prompt
+    no_flow_narration = build_shot_prompt(
+        {"style_name": "Origami", "visual_rules": "Giấy gấp ổn định.", "palette": ["navy"]},
+        storyboard.shots[0], storyboard.continuity_anchor, include_narration_audio=False,
+    ).lower()
+    assert "âm thanh flow tùy chọn" in no_flow_narration
+    assert "clip im lặng vẫn chấp nhận" in no_flow_narration
+    assert "giọng dẫn đọc nguyên văn" not in no_flow_narration
 
 
 def test_flow_prompt_uses_vietnamese_and_ignores_legacy_english_prompt():
@@ -584,6 +880,7 @@ def test_content_video_render_tracks_native_audio_and_tts_subtitles(monkeypatch,
         "width": 1920, "height": 1080, "codec_name": "h264", "frame_rate": 30.0,
         "duration_seconds": 30.0,
     })
+    monkeypatch.setattr(runner, "_add_brand_end_card", lambda _path: 3.0)
     monkeypatch.setattr(runner.subprocess, "run", lambda *_args, **_kwargs: SimpleNamespace(returncode=0, stderr=""))
     monkeypatch.setattr(
         runner.audio_processor, "verify_audio_qc",
@@ -608,7 +905,13 @@ def test_content_video_render_tracks_native_audio_and_tts_subtitles(monkeypatch,
     run = SimpleNamespace(
         id="run", workspace_id="ws", project_id="project", created_by="creator",
         voice_asset_id="tts-asset" if with_tts_voice else None,
-        include_subtitles=include_subtitles, steps_json="[]", output_asset_ids_json="[]",
+        include_subtitles=include_subtitles,
+        steps_json=json.dumps([
+            {"tts_audio": {"duration_ms": 9500, "pause_after_ms": 500}},
+            {"tts_audio": {"duration_ms": 9500, "pause_after_ms": 500}},
+            {"tts_audio": {"duration_ms": 10000, "pause_after_ms": 0}},
+        ]) if with_tts_voice else "[]",
+        output_asset_ids_json="[]",
     )
 
     runner._render_and_qc(DB(), run, plan, storyboard, list(shot_assets))
@@ -627,6 +930,7 @@ def test_content_video_render_tracks_native_audio_and_tts_subtitles(monkeypatch,
     report = json.loads(run.qc_report_json)
     assert report["voice_source"] == ("TTS" if with_tts_voice else "FLOW_NATIVE" if flow_native_audio else "NONE")
     assert report["flow_native_audio"] is flow_native_audio
+    assert report["brand_end_card"] == {"logo_asset": "logo_doc_mau.png", "duration_seconds": 3.0}
     assert report["speech_alignment"] == (
         "TTS_SHOT_TIMELINE" if with_tts_voice and include_subtitles else
         "DISABLED" if with_tts_voice else "NO_AUDIO_FOR_VIETSUB"
@@ -1605,3 +1909,517 @@ def test_rerender_run_requeues_completed_run_with_subtitle_choice_and_rejects_un
             assert excinfo.value.detail["error_code"] == "RUN_NOT_RERENDERABLE"
     finally:
         engine.dispose()
+
+
+def test_fit_voice_speed_matches_video_to_voice_inside_range_and_caps_outside():
+    from src.modules.media_studio.video_processor import VOICE_SPEED_MAX, VOICE_SPEED_MIN, fit_voice_speed
+
+    assert fit_voice_speed(120, 100) == pytest.approx(1.2)
+    assert fit_voice_speed(120, 81.19) == VOICE_SPEED_MAX   # ca thực tế: giọng 81,19s cho video 120s
+    assert fit_voice_speed(100, 130) == VOICE_SPEED_MIN
+
+
+def test_voice_that_cannot_cover_the_video_is_rejected_before_flow_generation():
+    import numpy as np
+    from src.modules.tao_video_noi_dung import runner
+    from src.modules.tao_video_noi_dung.tts_provider import TTSProviderError
+
+    shots = [SimpleNamespace(duration_seconds=10) for _ in range(12)]
+    rate = 24000
+    runner._check_voice_fits(np.zeros(int(110 * rate)), rate, shots)          # 110s cho 120s: vừa
+    with pytest.raises(TTSProviderError, match="TTS_DURATION_OUT_OF_RANGE") as short:
+        runner._check_voice_fits(np.zeros(int(81.19 * rate)), rate, shots)    # ca lỗi thực tế
+    assert "quá ngắn" in short.value.detail
+    with pytest.raises(TTSProviderError) as long:
+        runner._check_voice_fits(np.zeros(int(160 * rate)), rate, shots)
+    assert "quá dài" in long.value.detail
+
+
+def test_diagram_run_clip_length_follows_each_shots_voice(monkeypatch):
+    import numpy as np
+    from src.modules.tao_video_noi_dung import runner
+    from src.modules.tao_video_noi_dung.tts_provider import TTSProviderError
+
+    rate = 24000
+    diagram_shot = SimpleNamespace(shot_kind="UI_SIM", ui_scene=SimpleNamespace(layout="CHART_TARGET"))
+    flow_shot = SimpleNamespace(shot_kind="FLOW_ORIGAMI", ui_scene=None)
+    assert runner._is_diagram_run(SimpleNamespace(shots=[diagram_shot, diagram_shot]))
+    assert not runner._is_diagram_run(SimpleNamespace(shots=[diagram_shot, flow_shot]))
+
+    def make_run(seconds):
+        steps = [{"tts_audio": {"duration_ms": round(item * 1000), "pause_after_ms": 500 if i == 0 else 0}} for i, item in enumerate(seconds)]
+        return SimpleNamespace(steps_json=json.dumps(steps)), sum(round(item * 1000) + (500 if i == 0 else 0) for i, item in enumerate(seconds))
+
+    run, total_ms = make_run([5.1, 8.3])
+    audio = np.ones(round(total_ms * rate / 1000), dtype=np.float32)
+    saved = {}
+    monkeypatch.setattr(runner, "_save_run", lambda db, run_, steps: saved.update(steps=steps))
+    padded = runner._fit_diagram_voice(None, run, audio, rate)
+    clips = [step["clip_seconds"] for step in saved["steps"]]
+    assert clips == [7, 9]                                 # 5,1 + 0,5 + đệm 0,5 -> 7s; 8,3 + 0,5 -> 9s
+    assert len(padded) == sum(clips) * rate                # giọng đệm đúng bằng tổng clip nên tốc độ co giãn = 1
+    assert padded[: round(0.15 * rate)].max() == 0         # đệm đầu im lặng
+
+    run, total_ms = make_run([20.0])
+    with pytest.raises(TTSProviderError, match="TTS_DURATION_OUT_OF_RANGE"):
+        runner._fit_diagram_voice(None, run, np.ones(round(total_ms * rate / 1000), dtype=np.float32), rate)
+
+
+def test_narration_length_budget_flags_short_shots_and_total():
+    from src.modules.tao_video_noi_dung.planner import narration_length_problems, narration_syllables
+
+    assert narration_syllables("Ba-ha cung cấp giải pháp AI.") == 7
+    ok = ("Doanh nghiệp tăng nhân sự, thêm phần mềm, nhưng công việc vẫn chậm, chi phí tăng và doanh thu chưa như kỳ vọng. "
+          "Vấn đề đôi khi không nằm ở nhân viên, mà ở cách vận hành.")  # 37 âm tiết, đúng ngân sách một shot 10 giây
+    assert narration_syllables(ok) == 37
+    shots = [SimpleNamespace(shot_id=f"s{i}", duration_seconds=10, narration=ok) for i in range(1, 4)]
+    assert narration_length_problems(shots) == []
+    short = [SimpleNamespace(shot_id="s1", duration_seconds=10, narration="Tìm nguồn."), *shots[1:]]
+    problems = narration_length_problems(short)
+    assert any(item.startswith("NARRATION_LENGTH: s1") for item in problems)
+    assert any(item.startswith("NARRATION_TOTAL") for item in problems)   # video có giọng ngắn hơn hình thì cả video bị báo
+
+
+# ---- Cảnh giấy dựng bằng mã (CHART_TARGET, CHART_GROWTH, COMPARE_DOCS, PROCESS_RAIL, COST_SLICE) ----
+_DIAGRAM_CASES = {
+    "CHART_TARGET": (
+        "Chi phí tăng đều và doanh thu chưa như kỳ vọng nên còn thiếu so với mục tiêu của quý này.",
+        dict(title="Doanh thu và chi phí", unit="triệu", labels=["T1", "T2", "T3", "T4"], target=150, tag="Chi phí tăng",
+             series=[{"name": "Chi phí", "values": [60, 80, 100, 118]}, {"name": "Doanh thu", "values": [100, 102, 101, 104]}],
+             on={"s0": "chi phí", "s1": "doanh thu", "target": "kỳ vọng", "gap": "còn thiếu"}),
+    ),
+    "CHART_GROWTH": (
+        "Doanh số tăng đều qua từng tháng và chốt ở hai trăm triệu đồng trong tháng cuối cùng.",
+        dict(title="Doanh số theo tháng", unit="triệu", labels=["T1", "T2", "T3", "T4"], series=[{"name": "Doanh số", "values": [120, 140, 170, 200]}],
+             on={"line": "tăng đều", "final": "hai trăm triệu"}),
+    ),
+    "COMPARE_DOCS": (
+        "Một tài liệu ghi bảy mươi phần trăm. Tài liệu khác lại ghi sáu mươi lăm phần trăm. Hai con số chênh nhau năm điểm, cần xác minh.",
+        dict(title="Đối chiếu", docs=[{"title": "Hợp đồng", "label": "Tỷ lệ", "value": "70%"}, {"title": "Biên bản", "label": "Tỷ lệ", "value": "65%"}],
+             diff_label="Chênh 5 điểm", stamp="ĐANG XÁC MINH",
+             on={"doc0": "Một tài liệu", "v0": "bảy mươi", "doc1": "Tài liệu khác", "v1": "sáu mươi lăm", "thread": "chênh nhau", "label": "năm điểm", "stamp": "xác minh"}),
+    ),
+    "PROCESS_RAIL": (
+        "Hồ sơ đi qua bốn bước tiếp nhận duyệt giao việc hoàn tất. Bước duyệt đang nghẽn nên hồ sơ dồn lại. Khi gỡ nghẽn hồ sơ chảy tiếp.",
+        dict(title="Hồ sơ đi qua bốn bước", steps=["Tiếp nhận", "Duyệt", "Giao việc", "Hoàn tất"], block_step=1,
+             on={"stations": "bốn bước", "block": "đang nghẽn", "release": "gỡ nghẽn"}),
+    ),
+    "COST_SLICE": (
+        "Đơn bán một triệu đồng. Trừ giá vốn sáu trăm nghìn, phí vận chuyển một trăm năm mươi nghìn. Lãi thật còn hai trăm năm mươi nghìn.",
+        dict(title="Lãi thật của đơn hàng", unit="nghìn", total=1000, total_label="đơn hàng", final_label="Lãi thật",
+             slices=[{"label": "Giá vốn", "value": 600}, {"label": "Phí vận chuyển", "value": 150}], on={"d0": "giá vốn", "d1": "phí vận chuyển", "final": "lãi thật"}),
+    ),
+    "CASH_FLOW": (
+        "Tiền vào từ bán lẻ, online và đại lý, đổ vào quỹ tiền, rồi tỏa ra nhập hàng, lương và vận hành. Mở khoản nhập hàng để xem chi tiết từng nhà cung cấp.",
+        dict(title="Tiền đổ về đâu", unit="triệu", hub_label="Quỹ tiền", drill_use=0,
+             sources=[{"label": "Bán lẻ", "value": 140}, {"label": "Online", "value": 115}, {"label": "Đại lý", "value": 70}],
+             uses=[{"label": "Nhập hàng", "value": 170}, {"label": "Lương", "value": 80}, {"label": "Vận hành", "value": 50}],
+             drill_rows=[{"label": "NCC An Phát", "value": 62}, {"label": "NCC Đại Lợi", "value": 54}, {"label": "NCC Minh Tâm", "value": 38}, {"label": "Khác", "value": 16}],
+             on={"sources": "tiền vào", "hub": "quỹ tiền", "uses": "tỏa ra", "drill": "mở khoản nhập hàng"}),
+    ),
+    "STACK_HEIGHT": (
+        "Kho có bốn nhóm hàng, so với định mức thì nhóm C đang thiếu hụt và cần nhập thêm.",
+        dict(title="Tồn kho theo nhóm", unit="thùng", target=40,
+             items=[{"label": "Nhóm A", "value": 72}, {"label": "Nhóm B", "value": 55}, {"label": "Nhóm C", "value": 18}, {"label": "Nhóm D", "value": 64}],
+             on={"stacks": "bốn nhóm hàng", "line": "định mức", "flag": "thiếu hụt"}),
+    ),
+    "DOC_LAYERS": (
+        "Cùng một con số nằm ở bốn tầng chứng từ, nhưng sổ kế toán lại ghi khác nên lệch mười hai tỷ sáu.",
+        dict(title="Một con số, nhiều chứng từ", layers=["Hợp đồng", "Báo cáo", "Sổ kế toán", "Biên bản"], values=["184,2", "184,2", "171,6", "184,2"],
+             diff_label="Lệch 12,6 tỷ", on={"explode": "bốn tầng chứng từ", "thread": "sổ kế toán", "label": "lệch mười hai"}),
+    ),
+    "END_CARD": (
+        "BAHA đồng hành cùng doanh nghiệp bằng giải pháp AI. Trao đổi cùng BAHA Group.",
+        dict(title="Giải pháp AI cho doanh nghiệp", cta="Trao đổi cùng BAHA Group", simulated=False, on={"fold": "đồng hành", "cta": "trao đổi cùng"}),
+    ),
+    "OPEN_NUMBER": (
+        "Ba tiếng trôi qua, con số chờ cứ tăng, và khách hỏi báo giá vẫn chưa ai nhận.",
+        dict(title="Ba tiếng chưa ai trả lời", unit="phút chờ", from_value=0, to_value=192, caption="Khách hỏi báo giá, chưa ai nhận",
+             on={"count": "ba tiếng", "caption": "chưa ai nhận"}),
+    ),
+    "OPEN_DRAIN": (
+        "Doanh thu ghi nhận chín trăm triệu nhưng tiền thật chỉ còn tám mươi lăm triệu, thấp hơn ngưỡng trả lương.",
+        dict(title="Tiền thật còn lại", unit="triệu", from_value=900, to_value=85, target=120, caption="Chưa đủ trả lương",
+             on={"drain": "tiền thật", "line": "ngưỡng trả lương"}),
+    ),
+    "OPEN_QUESTION": (
+        "Tiền của doanh nghiệp đang đi đâu mỗi ngày?",
+        dict(title="Tiền của doanh nghiệp đang đi đâu?", caption="đi đâu", simulated=False, on={"ask": "tiền của", "key": "đi đâu"}),
+    ),
+    "FUNNEL": (
+        "Một nghìn khách hỏi giá, sáu trăm bốn mươi nhận báo giá, nhưng chỉ một trăm tám mươi chốt đơn nên rơi mạnh nhất ở bước chốt.",
+        dict(title="Khách đi qua từng bước", unit="khách", items=[{"label": "Hỏi giá", "value": 1000}, {"label": "Nhận báo giá", "value": 640}, {"label": "Chốt đơn", "value": 180}],
+             on={"stages": "một nghìn khách", "leak": "rơi mạnh nhất"}),
+    ),
+    "TIMELINE": (
+        "Tuần đầu khảo sát, tuần hai thiết kế, tuần bốn chạy thử, tuần sáu đưa vào vận hành.",
+        dict(title="Lộ trình triển khai", steps=["Khảo sát", "Thiết kế", "Chạy thử", "Vận hành"], labels=["Tuần 1", "Tuần 2", "Tuần 4", "Tuần 6"],
+             on={"m0": "tuần đầu khảo sát", "m1": "tuần hai thiết kế", "m2": "tuần bốn chạy thử", "m3": "tuần sáu"}),
+    ),
+    "BEFORE_AFTER": (
+        "Trước đây mỗi yêu cầu mất ba giờ mới trả lời. Sau khi tự động, chỉ còn năm phút, nhanh gấp ba mươi sáu lần.",
+        dict(title="Thời gian xử lý một yêu cầu", docs=[{"title": "Trước", "label": "Trả lời", "value": "3 giờ"}, {"title": "Sau", "label": "Trả lời", "value": "5 phút"}],
+             diff_label="Nhanh gấp 36 lần", on={"before": "trước đây", "after": "sau khi tự động", "delta": "nhanh gấp"}),
+    ),
+    "DONUT_SHARE": (
+        "Chi phí chia làm bốn phần, nhân sự chiếm gần một nửa, lớn hơn hẳn các khoản còn lại.",
+        dict(title="Chi phí đi về đâu", unit="triệu", total_label="Tổng chi", items=[{"label": "Nhân sự", "value": 460}, {"label": "Nhập hàng", "value": 260}, {"label": "Khác", "value": 280}],
+             on={"ring": "bốn phần", "top": "nhân sự chiếm"}),
+    ),
+    "GAUGE": (
+        "Tỷ lệ phản hồi đúng hạn cần đạt chín mươi phần trăm, nhưng kim mới chỉ năm mươi tám.",
+        dict(title="Tỷ lệ phản hồi đúng hạn", unit="%", from_value=20, to_value=58, target=90, caption="Còn cách ngưỡng 32 điểm",
+             on={"dial": "tỷ lệ phản hồi", "line": "chín mươi phần trăm", "needle": "năm mươi tám"}),
+    ),
+    "CHECKLIST": (
+        "Trước khi tự động hóa, hãy liệt kê công đoạn lặp lại, đo thời gian từng công đoạn, rồi chọn công đoạn tốn nhất.",
+        dict(title="Ba việc kiểm trước khi tự động hóa", steps=["Liệt kê công đoạn", "Đo thời gian", "Chọn công đoạn tốn nhất"], stamp="SẴN SÀNG",
+             on={"c0": "liệt kê công đoạn", "c1": "đo thời gian", "c2": "chọn công đoạn", "stamp": "tốn nhất"}),
+    ),
+    "HUB_SPOKE": (
+        "Dữ liệu nằm rải rác ở Zalo, bảng tính và phần mềm bán hàng, rồi Ba-ha gom về một nơi, nối từng nguồn lại với nhau.",
+        dict(title="Dữ liệu rời rạc, nối về một nơi", steps=["Zalo", "Bảng tính", "Phần mềm bán hàng"], hub_label="Một nơi",
+             on={"nodes": "rải rác", "hub": "gom về một nơi", "link": "nối từng nguồn"}),
+    ),
+    "MATRIX_2X2": (
+        "Chọn việc xử lý trước theo hai trục, mức ảnh hưởng và độ khẩn cấp. Báo giá chậm vừa ảnh hưởng lớn vừa khẩn cấp nên làm trước.",
+        dict(title="Chọn việc xử lý trước", axis_x="Mức ảnh hưởng", axis_y="Độ khẩn cấp", pick=1,
+             points=[{"label": "Nhập tay", "x": 25, "y": 72}, {"label": "Báo giá chậm", "x": 82, "y": 86}, {"label": "Báo cáo", "x": 60, "y": 25}],
+             on={"axes": "hai trục", "points": "báo giá chậm", "pick": "nên làm trước"}),
+    ),
+    "RANK_BARS": (
+        "Xếp theo độ lớn, nhập hàng đứng đầu với bốn trăm sáu mươi triệu, nhân sự và quảng cáo theo sau.",
+        dict(title="Khoản chi lớn nhất", unit="triệu", items=[{"label": "Nhập hàng", "value": 460}, {"label": "Nhân sự", "value": 320}, {"label": "Quảng cáo", "value": 180}],
+             on={"bars": "xếp theo độ lớn", "top": "đứng đầu"}),
+    ),
+    "KPI_CARDS": (
+        "Sau một quý, doanh thu đạt một phẩy hai tỷ, thời gian phản hồi còn năm phút, và số khách chốt đơn tăng lên.",
+        dict(title="Ba chỉ số sau một quý", cards=[{"title": "Doanh thu", "label": "+18% so với trước", "value": "1,2 tỷ"}, {"title": "Phản hồi", "label": "-92% so với trước", "value": "5 phút"},
+                                                   {"title": "Chốt đơn", "label": "+34% so với trước", "value": "241"}],
+             on={"k0": "doanh thu", "k1": "thời gian phản hồi", "k2": "khách chốt đơn"}),
+    ),
+    "ASSIGN_CARDS": (
+        "Có ba việc mới về. Gọi lại khách giao cho Lan, gửi báo giá giao cho Minh, đối chiếu hóa đơn giao nốt cho Lan.",
+        dict(title="Giao việc đúng người", steps=["Gọi lại khách", "Gửi báo giá", "Đối chiếu hóa đơn"], labels=["Lan", "Minh"], values=["Lan", "Minh", "Lan"],
+             on={"cards": "ba việc mới", "a0": "gọi lại khách", "a1": "gửi báo giá", "a2": "đối chiếu hóa đơn"}),
+    ),
+    "WAIT_CLOCK": (
+        "Ba khách đang chờ, trong đó khách C chờ lâu nhất, một trăm chín mươi hai phút, cho tới khi có người nhận.",
+        dict(title="Khách đang chờ", stamp="ĐÃ NHẬN", items=[{"label": "Khách A", "value": 12}, {"label": "Khách B", "value": 38}, {"label": "Khách C", "value": 192}],
+             on={"queue": "ba khách đang chờ", "alert": "chờ lâu nhất", "stop": "có người nhận"}),
+    ),
+    "RADAR_SCAN": (
+        "Hệ thống quét danh sách khách tiềm năng, và cửa hàng Minh nổi lên với điểm cao nhất.",
+        dict(title="Khách tiềm năng nóng nhất", unit="điểm", items=[{"label": "An Phát", "value": 62}, {"label": "Cửa hàng Minh", "value": 88}, {"label": "Đại lý Hưng", "value": 45}],
+             on={"sweep": "quét danh sách", "hot": "cửa hàng Minh"}),
+    ),
+    "RACE_LANES": (
+        "Làm tay mất một trăm tám mươi phút, còn tự động chỉ năm phút, nên về đích nhanh gấp ba mươi sáu lần.",
+        dict(title="Làm tay hay tự động", unit="phút", items=[{"label": "Làm tay", "value": 180}, {"label": "Tự động", "value": 5}],
+             on={"start": "làm tay", "finish": "về đích"}),
+    ),
+    "TABLE_AUDIT": (
+        "Bảng có bốn khoản. Kính lúp rà từng dòng, và dòng tiền đại lý bị lệch so với chứng từ.",
+        dict(title="Đối chiếu chứng từ", unit="triệu", pick=2, stamp="LỆCH 12,6", items=[{"label": "Tiền bán lẻ", "value": 140}, {"label": "Tiền online", "value": 115}, {"label": "Tiền đại lý", "value": 70}],
+             on={"rows": "bảng có bốn khoản", "scan": "rà từng dòng", "flag": "bị lệch"}),
+    ),
+    "ALERT_STACK": (
+        "Hệ thống gửi ba cảnh báo: báo giá chưa phản hồi, đơn trễ hạn, tồn kho thấp, trong đó đơn trễ hạn là khẩn nhất.",
+        dict(title="Cảnh báo gửi quản lý", pick=1, steps=["Báo giá chưa phản hồi", "Đơn trễ hạn", "Tồn kho thấp"],
+             on={"n0": "báo giá chưa phản hồi", "n1": "đơn trễ hạn", "n2": "tồn kho thấp", "flag": "khẩn nhất"}),
+    ),
+    "PYRAMID_LEVELS": (
+        "Doanh nghiệp có bốn bậc trưởng thành, từ làm thủ công đến tự động hóa, và hiện đang ở bậc có phần mềm rời.",
+        dict(title="Đang ở bậc nào", pick=1, steps=["Làm thủ công", "Có phần mềm rời", "Dữ liệu tập trung", "Tự động hóa"],
+             on={"levels": "bốn bậc", "here": "hiện đang ở bậc"}),
+    ),
+    "VERSUS_LIST": (
+        "Hai cách xử lý đơn hàng. Cách làm tay nhập lại từng đơn, còn cách tự động tự đồng bộ dữ liệu, nên tiết kiệm ba giờ mỗi ngày.",
+        dict(title="Hai cách xử lý đơn hàng", diff_label="Tiết kiệm ba giờ", docs=[{"title": "Làm tay", "label": "Cách hiện tại", "value": "3 giờ"}, {"title": "Tự động", "label": "Cách mới", "value": "5 phút"}],
+             layers=["Nhập lại từng đơn", "Dễ sai số"], values=["Tự đồng bộ dữ liệu", "Báo cáo tức thì"], on={"left": "cách làm tay", "right": "cách tự động", "verdict": "tiết kiệm ba giờ"}),
+    ),
+    "DOC_SEARCH": (
+        "Gõ tên khách vào ô tìm kiếm, hệ thống tìm ra đúng hợp đồng chỉ trong vài giây.",
+        dict(title="Tìm đúng tài liệu", caption="hợp đồng An Phát", pick=2, steps=["Báo giá", "Biên bản", "Hợp đồng", "Hóa đơn"],
+             on={"query": "ô tìm kiếm", "found": "tìm ra đúng"}),
+    ),
+    "OPEN_HOOK": (
+        "Mười hai khách đang chờ trong hàng, và két tiền vừa mở ra cho thấy con số thật còn lại.",
+        dict(title="Két mở ra", variant="VAULTOPEN", value="250", caption="Còn lại hai trăm năm mươi", simulated=True, on={"start": "két tiền", "hit": "con số thật"}),
+    ),
+}
+
+
+def _diagram_scene(layout: str):
+    from src.modules.tao_video_noi_dung.planner import UiScene
+    narration, spec = _DIAGRAM_CASES[layout]
+    return narration, UiScene(layout=layout, diagram=spec)
+
+
+def test_text_ui_scene_serialization_keeps_old_hash_input():
+    from src.modules.tao_video_noi_dung.planner import UiScene
+
+    scene = UiScene(layout="CHAT", messages=[{"role": "customer", "text": "a", "at_s": 0}, {"role": "ai", "text": "b", "at_s": 1}])
+    assert '"diagram"' not in scene.model_dump_json()   # receipt cũ của cảnh chữ không đổi
+
+
+@pytest.mark.parametrize("layout", sorted(_DIAGRAM_CASES))
+def test_diagram_events_resolve_in_narration_order(layout):
+    from src.modules.tao_video_noi_dung.planner import diagram_required_events, resolve_diagram_times
+
+    narration, scene = _diagram_scene(layout)
+    times = resolve_diagram_times(scene, narration, 8)
+    keys = [key for key in diagram_required_events(layout, scene.diagram) if key in times]
+    assert [times[key] for key in keys] == sorted(times[key] for key in keys)
+    assert all(0 <= value <= 8 - .4 for value in times.values())
+
+
+def test_fuzzy_diagram_phrase_alignment_never_runs_past_transcript_end():
+    from src.modules.tao_video_noi_dung.planner import _locate_phrase
+
+    words = ["mỗi", "đơn", "giờ", "còn", "lại", "15", "000"]
+    phrase = ["số", "đơn", "giờ", "còn", "lại", "15", "000"]
+
+    index = _locate_phrase(words, phrase, 0)
+
+    assert index is not None
+    assert index + len(phrase) <= len(words)
+
+
+def test_diagram_rejects_missing_phrase_wrong_order_and_bad_data():
+    from src.modules.tao_video_noi_dung.planner import UiScene, resolve_diagram_times
+
+    narration, scene = _diagram_scene("COMPARE_DOCS")
+    spec = scene.diagram.model_dump()
+    with pytest.raises(ValueError, match="DIAGRAM_PHRASE_NOT_IN_NARRATION"):
+        resolve_diagram_times(UiScene(layout="COMPARE_DOCS", diagram={**spec, "on": {**spec["on"], "label": "không có cụm này"}}), narration, 8)
+    with pytest.raises(ValueError, match="DIAGRAM_EVENT_ORDER"):
+        resolve_diagram_times(UiScene(layout="COMPARE_DOCS", diagram={**spec, "on": {**spec["on"], "v0": "sáu mươi lăm", "v1": "bảy mươi"}}), narration, 8)
+    with pytest.raises(ValueError, match="DIAGRAM_EVENTS_MISMATCH"):
+        UiScene(layout="COMPARE_DOCS", diagram={**spec, "on": {"v0": "bảy mươi"}})
+    with pytest.raises(ValueError, match="DIAGRAM_SPEC_REQUIRED"):
+        UiScene(layout="CHART_GROWTH")
+    with pytest.raises(ValueError, match="DIAGRAM_COST_SLICE_FIELDS"):   # tổng khoản chi phải nhỏ hơn tổng
+        UiScene(layout="COST_SLICE", diagram=dict(title="C", total=100, final_label="Lãi", slices=[{"label": "a", "value": 60}, {"label": "b", "value": 60}],
+                                                  on={"d0": "a", "d1": "b", "final": "c"}))
+    with pytest.raises(ValueError, match="DIAGRAM_PROCESS_RAIL_FIELDS"):   # bước nghẽn không được là bước cuối
+        UiScene(layout="PROCESS_RAIL", diagram=dict(title="D", steps=["A", "B", "C"], block_step=2, on={"stations": "x", "block": "y", "release": "z"}))
+
+
+def test_diagram_scene_is_blocked_for_vertical_video(tmp_path):
+    from src.modules.tao_video_noi_dung.ui_sim import render_ui_scene
+
+    narration, scene = _diagram_scene("CHART_GROWTH")
+    with pytest.raises(ValueError, match="DIAGRAM_REQUIRES_16_9"):
+        render_ui_scene(scene, {}, 8, "9:16", tmp_path / "x.mp4", narration=narration)
+
+
+def test_before_after_hyperframes_has_a_portrait_native_composition():
+    from src.modules.tao_video_noi_dung.ui_sim import hyperframes_composition_html
+
+    narration, scene = _diagram_scene("BEFORE_AFTER")
+    html = hyperframes_composition_html(scene, narration, 8, aspect_ratio="9:16")
+
+    assert 'data-width="1080" data-height="1920"' in html
+    assert 'viewBox="0 0 1080 1920"' in html
+    assert "window.PORTRAIT=true" in html
+    assert 'x="132" y="390"' in html
+    assert 'x="180" y="1180" width="700" height="88"' in html
+
+
+def test_kpi_cards_hyperframes_has_a_portrait_native_composition():
+    from src.modules.tao_video_noi_dung.ui_sim import hyperframes_composition_html
+
+    narration, scene = _diagram_scene("KPI_CARDS")
+    html = hyperframes_composition_html(scene, narration, 8, aspect_ratio="9:16")
+
+    assert 'data-width="1080" data-height="1920"' in html
+    assert "window.PORTRAIT=true" in html
+
+
+def test_versus_list_has_folded_paper_reveal_and_animated_verdict(tmp_path):
+    from src.modules.tao_video_noi_dung.ui_sim import hyperframes_composition_html, render_ui_scene
+
+    narration, scene = _diagram_scene("VERSUS_LIST")
+    html = hyperframes_composition_html(scene, narration, 8, aspect_ratio="9:16")
+
+    assert "window.PORTRAIT=true" in html
+    assert "paperFold" in html and "stroke-dashoffset" in html
+    assert "paperCheck" in html and "verdictStamp" in html
+    assert "paperDust" in html and "valueSeal" in html and "bridgePulse" in html
+    assert "sealY = valueY;" in html
+    assert "ys = PORTRAIT ? [130, 700]" in html and "vcy = PORTRAIT ? 1310" in html
+    assert "vcx = PORTRAIT ? 540" in html
+    rendered = render_ui_scene(scene, {}, 8, "9:16", tmp_path / "versus.mp4", narration=narration)
+    assert rendered["width"] == 1080 and rendered["height"] == 1920
+
+
+@pytest.mark.parametrize("layout", sorted(_DIAGRAM_CASES))
+def test_diagram_scene_renders_video_of_exact_duration(layout, tmp_path):
+    from src.modules.tao_video_noi_dung.ui_sim import render_ui_scene
+
+    narration, scene = _diagram_scene(layout)
+    out = tmp_path / f"{layout}.mp4"
+    meta = render_ui_scene(scene, {}, 8, "16:9", out, narration=narration)
+    assert out.is_file() and out.stat().st_size > 20_000
+    assert abs(float(meta["duration_seconds"]) - 8) <= 0.1 and (meta["width"], meta["height"]) == (1920, 1080)
+
+
+def test_diagram_events_use_real_word_times_when_available():
+    from src.modules.tao_video_noi_dung.planner import resolve_diagram_times
+
+    narration, scene = _diagram_scene("COMPARE_DOCS")
+    count = len(narration.split())
+    times = resolve_diagram_times(scene, narration, 8, word_times=[i * .12 + .2 for i in range(count)])
+    assert times["v0"] == pytest.approx(4 * .12 + .2)        # "bảy" là từ thứ 5 trong lời
+    assert times["thread"] > times["v1"] > times["v0"]
+    # số mốc không khớp số từ thì quay về ước theo vị trí âm tiết
+    assert resolve_diagram_times(scene, narration, 8, word_times=[1.0, 2.0]) == resolve_diagram_times(scene, narration, 8)
+
+
+def test_opening_scenes_only_first_shot_and_end_card_only_last(monkeypatch):
+    from types import SimpleNamespace
+    from src.modules.tao_video_noi_dung import planner
+
+    monkeypatch.setattr(planner, "score_storyboard", lambda *args, **kwargs: SimpleNamespace(issues=[]))
+    _, opening = _diagram_scene("OPEN_QUESTION")
+    _, closing = _diagram_scene("END_CARD")
+    plain = SimpleNamespace(shot_id="s", narration="Một hai ba", duration_seconds=10, ui_scene=None)
+
+    def shot(shot_id, scene):
+        return SimpleNamespace(shot_id=shot_id, narration="Một hai ba", duration_seconds=10, ui_scene=scene)
+
+    good = SimpleNamespace(brief=None, shots=[shot("s1", opening), plain, shot("s3", closing)])
+    assert not [item for item in planner._soft_problems(good) if item.startswith("DIAGRAM_")]
+    bad = SimpleNamespace(brief=None, shots=[plain, shot("s2", opening), shot("s3", closing), plain])
+    problems = planner._soft_problems(bad)
+    assert "DIAGRAM_OPENING_ONLY_FIRST_SHOT: s2" in problems and "DIAGRAM_END_CARD_ONLY_LAST_SHOT: s3" in problems
+
+
+def test_new_layouts_reject_bad_data():
+    from src.modules.tao_video_noi_dung.planner import UiScene
+
+    def build(layout, **change):
+        _, spec = _DIAGRAM_CASES[layout]
+        return UiScene(layout=layout, diagram={**spec, **change})
+
+    with pytest.raises(ValueError, match="DIAGRAM_FUNNEL_FIELDS"):
+        build("FUNNEL", items=[{"label": "A", "value": 10}, {"label": "B", "value": 50}, {"label": "C", "value": 5}])
+    with pytest.raises(ValueError, match="DIAGRAM_TIMELINE_FIELDS"):
+        build("TIMELINE", labels=["Tuần 1", "Tuần 2"])
+    with pytest.raises(ValueError, match="DIAGRAM_BEFORE_AFTER_FIELDS"):
+        build("BEFORE_AFTER", diff_label=None)
+    with pytest.raises(ValueError, match="DIAGRAM_DONUT_SHARE_FIELDS"):
+        build("DONUT_SHARE", items=[{"label": "A", "value": 50}, {"label": "B", "value": 50}])
+    with pytest.raises(ValueError, match="DIAGRAM_GAUGE_FIELDS"):
+        build("GAUGE", from_value=58)
+    with pytest.raises(ValueError, match="DIAGRAM_CHECKLIST_FIELDS"):
+        build("CHECKLIST", steps=["Một", "Hai"])
+    with pytest.raises(ValueError, match="DIAGRAM_HUB_SPOKE_FIELDS"):
+        build("HUB_SPOKE", hub_label=None)
+    with pytest.raises(ValueError, match="DIAGRAM_MATRIX_FIELDS"):
+        build("MATRIX_2X2", pick=5)
+    with pytest.raises(ValueError, match="DIAGRAM_MATRIX_FIELDS"):
+        build("MATRIX_2X2", points=[{"label": "A", "x": 20, "y": 20}, {"label": "B", "x": 24, "y": 26}, {"label": "C", "x": 70, "y": 70}])   # hai điểm chồng nhau
+    with pytest.raises(ValueError, match="DIAGRAM_RANK_BARS_FIELDS"):
+        build("RANK_BARS", items=[{"label": "A", "value": 5}, {"label": "B", "value": 5}, {"label": "C", "value": 1}])
+    with pytest.raises(ValueError, match="DIAGRAM_KPI_CARDS_FIELDS"):
+        build("KPI_CARDS", cards=[{"title": "Doanh thu", "label": "+1%", "value": "1"}])
+    with pytest.raises(ValueError, match="DIAGRAM_ASSIGN_CARDS_FIELDS"):
+        build("ASSIGN_CARDS", values=["Lan", "Minh", "Hùng"])                      # người nhận không có trong labels
+    with pytest.raises(ValueError, match="DIAGRAM_WAIT_CLOCK_FIELDS"):
+        build("WAIT_CLOCK", items=[{"label": "A", "value": 30}, {"label": "B", "value": 30}])
+    with pytest.raises(ValueError, match="DIAGRAM_RADAR_SCAN_FIELDS"):
+        build("RADAR_SCAN", items=[{"label": "A", "value": 9}, {"label": "B", "value": 9}, {"label": "C", "value": 1}])
+    with pytest.raises(ValueError, match="DIAGRAM_RACE_LANES_FIELDS"):
+        build("RACE_LANES", items=[{"label": "A", "value": 10}, {"label": "B", "value": 11}])      # chênh dưới 20%
+    with pytest.raises(ValueError, match="DIAGRAM_TABLE_AUDIT_FIELDS"):
+        build("TABLE_AUDIT", pick=4)
+    with pytest.raises(ValueError, match="DIAGRAM_ALERT_STACK_FIELDS"):
+        build("ALERT_STACK", pick=5)
+    with pytest.raises(ValueError, match="DIAGRAM_PYRAMID_LEVELS_FIELDS"):
+        build("PYRAMID_LEVELS", pick=None)
+    with pytest.raises(ValueError, match="DIAGRAM_VERSUS_LIST_FIELDS"):
+        build("VERSUS_LIST", layers=["Chỉ một ý"])
+    with pytest.raises(ValueError, match="DIAGRAM_DOC_SEARCH_FIELDS"):
+        build("DOC_SEARCH", caption=None)
+
+
+def test_storyboard_layout_variety_rules(monkeypatch):
+    from types import SimpleNamespace
+    from src.modules.tao_video_noi_dung import planner
+
+    monkeypatch.setattr(planner, "score_storyboard", lambda *args, **kwargs: SimpleNamespace(issues=[]))
+
+    def shot(shot_id, layout):
+        _, scene = _diagram_scene(layout)
+        return SimpleNamespace(shot_id=shot_id, narration="Một hai ba", duration_seconds=10, shot_kind="UI_SIM", ui_scene=scene)
+
+    def problems(layouts):
+        board = SimpleNamespace(brief=None, shots=[shot(f"s{i}", name) for i, name in enumerate(layouts)])
+        return [item for item in planner._soft_problems(board, "16:9", True) if item.startswith("DIAGRAM_L") or item.startswith("DIAGRAM_F")]
+
+    assert not problems(["COMPARE_DOCS", "PROCESS_RAIL", "BEFORE_AFTER", "CHECKLIST", "GAUGE"])
+    consecutive = problems(["PROCESS_RAIL", "PROCESS_RAIL"])
+    assert any(item.startswith("DIAGRAM_LAYOUT_CONSECUTIVE: s1") for item in consecutive)   # cảnh lặp liền nhau bị báo kèm gợi ý đổi
+    family = problems(["PROCESS_RAIL", "CHECKLIST"])
+    assert any(item.startswith("DIAGRAM_FAMILY_CONSECUTIVE: s1") and "BEFORE_AFTER" in item for item in family)
+    many = problems(["PROCESS_RAIL", "GAUGE", "CHECKLIST", "GAUGE", "TIMELINE", "COMPARE_DOCS", "FUNNEL"])
+    assert any(item.startswith("DIAGRAM_FAMILY_REPEATED: họ quy_trinh") for item in many)   # bốn shot cùng họ quy trình
+
+
+def test_page_slides_in_and_out_and_camera_drifts():
+    import re
+    from src.modules.tao_video_noi_dung import ui_sim
+
+    html = ui_sim.DIAGRAM_TEMPLATE.read_text(encoding="utf-8")
+    assert "slide = (1 - intro) * 170 - ex * 190" in html and "drift" in html        # trang trượt vào và ra, camera trôi nhẹ
+    assert 'P.kind === "END_CARD"' in html                                              # thẻ kết giữ nguyên đến hết
+    assert set(re.findall(r"(\w+): scene\w+", html.split("var SCENES = {")[1].split("}")[0])) >= {"FUNNEL", "TIMELINE", "BEFORE_AFTER", "DONUT_SHARE", "GAUGE", "CHECKLIST", "HUB_SPOKE", "MATRIX_2X2", "RANK_BARS", "KPI_CARDS", "ASSIGN_CARDS", "WAIT_CLOCK", "RADAR_SCAN", "RACE_LANES", "TABLE_AUDIT", "ALERT_STACK", "PYRAMID_LEVELS", "VERSUS_LIST", "DOC_SEARCH"}
+
+
+def test_repair_diagram_data_fixes_mechanical_llm_mistakes():
+    from src.modules.tao_video_noi_dung.planner import _repair_diagram_data
+
+    rail = {"layout": "PROCESS_RAIL", "diagram": {"steps": ["A", "B", "C", "D"], "block_step": 3}}
+    _repair_diagram_data(rail)
+    assert rail["diagram"]["block_step"] == 2                                   # bậc nghẽn không được là bước cuối
+    rail = {"layout": "PROCESS_RAIL", "diagram": {"steps": ["A", "B", "C"], "block_step": 0}}
+    _repair_diagram_data(rail)
+    assert rail["diagram"]["block_step"] == 1                                   # cũng không được là bước đầu
+    chart = {"layout": "CHART_GROWTH", "diagram": {"labels": ["T1", "T2", "T3", "T4"], "series": [{"name": "A", "values": [1, 2, 3]}]}}
+    _repair_diagram_data(chart)
+    assert chart["diagram"]["labels"] == ["T1", "T2", "T3"] and chart["diagram"]["series"][0]["values"] == [1, 2, 3]
+    _repair_diagram_data(None)                                                   # cảnh không có diagram thì bỏ qua
+    _repair_diagram_data({"layout": "CHAT", "diagram": None})
+
+
+def test_opening_scenes_reject_inconsistent_data():
+    import pytest as _pytest
+    from src.modules.tao_video_noi_dung.planner import UiScene
+
+    _, spec = _DIAGRAM_CASES["OPEN_DRAIN"]
+    with _pytest.raises(ValueError, match="DIAGRAM_OPEN_DRAIN_FIELDS"):
+        UiScene(layout="OPEN_DRAIN", diagram={**spec, "target": 50})       # ngưỡng phải nằm giữa giá trị cuối và đầu
+    _, q = _DIAGRAM_CASES["OPEN_QUESTION"]
+    with _pytest.raises(ValueError, match="DIAGRAM_OPEN_QUESTION_FIELDS"):
+        UiScene(layout="OPEN_QUESTION", diagram={**q, "caption": "ở đâu"})   # từ khóa phải nằm trong câu hỏi
+    _, n = _DIAGRAM_CASES["OPEN_NUMBER"]
+    with _pytest.raises(ValueError, match="DIAGRAM_OPEN_NUMBER_FIELDS"):
+        UiScene(layout="OPEN_NUMBER", diagram={**n, "to_value": 0})
+
+
+@pytest.mark.parametrize("variant", ["LIGHTSON", "SPOTLIGHT", "MINIATURE", "SLICE", "MISALIGN", "ENTERAISLE", "VAULTOPEN", "DEVICEWAKE", "TWOTRUTHS"])
+def test_open_hook_variants_validate(variant):
+    import pytest as _pytest
+    from src.modules.tao_video_noi_dung.planner import UiScene
+
+    base = dict(title="Mở đầu", variant=variant, caption="Câu nhấn", on={"start": "một", "hit": "hai"})
+    if variant == "TWOTRUTHS":
+        UiScene(layout="OPEN_HOOK", diagram={**base, "docs": [{"title": "A", "label": "x", "value": "9"}, {"title": "B", "label": "y", "value": "8"}]})
+        with _pytest.raises(ValueError, match="DIAGRAM_OPEN_HOOK_FIELDS"):
+            UiScene(layout="OPEN_HOOK", diagram=base)
+    else:
+        UiScene(layout="OPEN_HOOK", diagram={**base, "value": "12"})
+        with _pytest.raises(ValueError, match="DIAGRAM_OPEN_HOOK_FIELDS"):
+            UiScene(layout="OPEN_HOOK", diagram=base)

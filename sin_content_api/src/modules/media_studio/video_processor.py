@@ -22,6 +22,15 @@ from .ass_captions import build_karaoke_ass
 
 VIETSUB_FONT_PATH = pathlib.Path(__file__).resolve().parent / "assets" / "fonts" / "be_vietnam_pro_semibold.ttf"
 
+# Hình được co giãn tốc độ để dài đúng bằng giọng; ngoài khoảng này chuyển động hết tự nhiên nên chỉ kẹp tới biên và QC báo lệch.
+VOICE_SPEED_MIN = 0.85
+VOICE_SPEED_MAX = 1.35
+
+
+def fit_voice_speed(video_seconds: float, voice_seconds: float) -> float:
+    """Tốc độ phát hình để dài bằng giọng; dùng chung cho renderer và mốc phụ đề để hai nơi không lệch nhau."""
+    return min(VOICE_SPEED_MAX, max(VOICE_SPEED_MIN, video_seconds / voice_seconds))
+
 # Nạp công cụ tẩy watermark Veo từ cong_cu_tu_dong
 BAN_LAM_VIEC = pathlib.Path(__file__).resolve().parents[4]
 CONG_CU_TU_DONG = BAN_LAM_VIEC / "cong_cu_tu_dong"
@@ -66,6 +75,11 @@ class VideoProcessor:
 
         width = int(v_stream.get("width", 0))
         height = int(v_stream.get("height", 0))
+        pixel_format = v_stream.get("pix_fmt") or ""
+        has_alpha = "a" in pixel_format or any(
+            key.casefold() == "alpha_mode" and str(value) == "1"
+            for key, value in (v_stream.get("tags") or {}).items()
+        )
         duration = float(data.get("format", {}).get("duration", 0.0))
         rate = v_stream.get("avg_frame_rate") or v_stream.get("r_frame_rate") or "0/1"
         try:
@@ -89,6 +103,8 @@ class VideoProcessor:
             "duration_seconds": duration,
             "video_stream_duration_seconds": float(v_stream.get("duration") or duration),
             "codec_name": v_stream.get("codec_name"),
+            "pixel_format": v_stream.get("pix_fmt"),
+            "has_alpha": has_alpha,
             "frame_rate": frame_rate,
             "aspect_ratio": "9:16" if is_vertical_9_16 else aspect_ratio,
             "is_vertical_9_16": is_vertical_9_16,
@@ -324,17 +340,26 @@ class VideoProcessor:
                         fit = fit.value
                     elif isinstance(clip, dict):
                         fit = clip.get("fit", "cover")
+                    effect = clip.get("effect", "none") if isinstance(clip, dict) else getattr(clip, "effect", "none")
+                    if effect not in {None, "none", "punch_in"}:
+                        raise ValueError("VIDEO_EFFECT_UNSUPPORTED")
 
                     asset_file = asset_path_resolver(asset_id)
                     if not asset_file.exists():
                         raise FileNotFoundError(f"Không tìm thấy file nguồn của asset {asset_id}: {asset_file}")
 
                     seg_out = work_dir / f"seg_{idx:03d}_{clip_id}.mp4"
+                    audio_asset_id = clip.get("audio_asset_id", asset_id) if isinstance(clip, dict) else asset_id
+                    audio_file = asset_path_resolver(audio_asset_id)
+                    audio_trim_ms = clip.get("audio_trim_in_ms", trim_in_ms) if isinstance(clip, dict) else trim_in_ms
 
                     if fit == "contain":
                         vf_scale = f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps={fps}"
                     else:
                         vf_scale = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1,fps={fps}"
+                    if effect == "punch_in":
+                        zoom_width, zoom_height = round(width * 1.06), round(height * 1.06)
+                        vf_scale += f",scale={zoom_width}:{zoom_height},crop={width}:{height}"
 
                     if media_type == "image":
                         dur_s = max(0.1, duration_ms / 1000.0)
@@ -354,7 +379,8 @@ class VideoProcessor:
                             raise RuntimeError(f"Lỗi render phân cảnh ảnh {clip_id}: {res.stderr}")
                         seg_files.append(seg_out)
                         seg_durations.append(dur_s)
-                        native_audio_specs.append((asset_file, media_type, 0.0, dur_s))
+                        native_audio_specs.append((audio_file, "video" if audio_asset_id != asset_id else media_type,
+                                                   audio_trim_ms / 1000.0, dur_s))
                         total_duration_sec += dur_s
                     else:
                         in_s = trim_in_ms / 1000.0
@@ -393,7 +419,8 @@ class VideoProcessor:
                             raise RuntimeError(f"Lỗi render phân cảnh video {clip_id}: {res.stderr}")
                         seg_files.append(seg_out)
                         seg_durations.append(dur_s)
-                        native_audio_specs.append((asset_file, media_type, in_s, dur_s))
+                        native_audio_specs.append((audio_file, "video" if audio_asset_id != asset_id else media_type,
+                                                   audio_trim_ms / 1000.0, dur_s))
                         total_duration_sec += dur_s
 
                 # 2. Ghép các phân cảnh video. Mỗi đoạn (trừ đoạn cuối) được tpad ngay trên đầu vào để xfade
@@ -452,16 +479,55 @@ class VideoProcessor:
                 captions = getattr(timeline, "captions", [])
                 if not captions and isinstance(timeline, dict):
                     captions = timeline.get("captions", [])
+                karaoke_captions, static_captions = [], []
+                for caption in captions:
+                    words = caption.get("words") if isinstance(caption, dict) else getattr(caption, "words", None)
+                    (karaoke_captions if words else static_captions).append(caption)
 
                 current_video = concat_video
+                overlays = getattr(timeline, "overlays", [])
+                if isinstance(timeline, dict):
+                    overlays = timeline.get("overlays", [])
+                if overlays:
+                    overlay_inputs = []
+                    filters = ["[0:v]null[base]"]
+                    previous = "base"
+                    for index, overlay in enumerate(overlays):
+                        overlay_file = asset_path_resolver(overlay["asset_id"])
+                        overlay_inputs.extend(["-i", str(overlay_file)])
+                        width_px, height_px = int(overlay.get("width", 320)), int(overlay.get("height", 480))
+                        start_s = int(overlay["start_ms"]) / 1000
+                        end_s = start_s + int(overlay["duration_ms"]) / 1000
+                        next_label = f"ov{index}"
+                        filters.append(
+                            f"[{index + 1}:v]scale={width_px}:{height_px}:force_original_aspect_ratio=decrease[scaled{index}];"
+                            f"[{previous}][scaled{index}]overlay=x={int(overlay.get('x', width - width_px - 120))}:"
+                            f"y={int(overlay.get('y', 260))}:enable='between(t,{start_s:.3f},{end_s:.3f})'[${next_label}]".replace("[$", "[")
+                        )
+                        previous = next_label
+                    overlay_video = work_dir / "overlay_video.mp4"
+                    res_overlay = run_media_command([
+                        self.ffmpeg_bin, "-y", "-i", str(current_video), *overlay_inputs,
+                        "-filter_complex", ";".join(filters), "-map", f"[{previous}]", "-an",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(fps), str(overlay_video),
+                    ], capture_output=True, text=True)
+                    if res_overlay.returncode != 0:
+                        raise RuntimeError(f"Lỗi ghép lớp phủ diễn hoạ: {res_overlay.stderr[-300:]}")
+                    current_video = overlay_video
                 if captions:
                     drawtext_filters = []
                     if caption_style == "vietsub_karaoke_v2":
                         if not VIETSUB_FONT_PATH.is_file():
                             raise RuntimeError("CAPTION_FONT_NOT_FOUND")
                         shutil.copyfile(VIETSUB_FONT_PATH, work_dir / VIETSUB_FONT_PATH.name)
-                        (work_dir / "captions.ass").write_text(build_karaoke_ass(captions, width, height), encoding="utf-8")
+                        (work_dir / "captions.ass").write_text(build_karaoke_ass(karaoke_captions, width, height), encoding="utf-8")
                         drawtext_filters.append("ass=captions.ass:fontsdir=.")
+                        font_file = VIETSUB_FONT_PATH.name
+                        has_font = True
+                        font_color = "white"
+                        box_color = "0x000000@0.72"
+                        box_border = 16
+                        caption_y = "h*0.73" if height > width else "h-90"
                     elif caption_style == "vietsub_v1":
                         if not VIETSUB_FONT_PATH.is_file():
                             raise RuntimeError("CAPTION_FONT_NOT_FOUND")
@@ -479,7 +545,7 @@ class VideoProcessor:
                         box_color = "0x000000@0.7"
                         box_border = 8
                         caption_y = "h-480" if height > width else "h-160"
-                    for c_idx, cap in enumerate(captions if caption_style != "vietsub_karaoke_v2" else []):
+                    for c_idx, cap in enumerate(static_captions if caption_style == "vietsub_karaoke_v2" else captions):
                         text = getattr(cap, "text", "") or (cap.get("text", "") if isinstance(cap, dict) else "")
                         if not text:
                             continue
@@ -487,6 +553,15 @@ class VideoProcessor:
                         c_dur_s = (getattr(cap, "duration_ms", 2000) or (cap.get("duration_ms", 2000) if isinstance(cap, dict) else 2000)) / 1000.0
                         c_end_s = c_start_s + c_dur_s
                         f_size = getattr(cap, "font_size", 26) or (cap.get("font_size", 26) if isinstance(cap, dict) else 26)
+                        requested_y = getattr(cap, "position_y_px", None) or (cap.get("position_y_px") if isinstance(cap, dict) else None)
+                        visual_type = cap.get("visual_type", "") if isinstance(cap, dict) else getattr(cap, "visual_type", "")
+                        cap_font_color = font_color
+                        cap_box_color = box_color
+                        cap_box_border = box_border
+                        if visual_type == "callout":
+                            cap_box_color = "0x0F766E@0.96"
+                            cap_box_border = 24
+                        caption_y = max(150, min(height - 320, int(requested_y))) if requested_y is not None else ("h*0.73" if height > width else "h-90")
                         text = textwrap.fill(text, width=max(10, int(32 * 52 / max(1, f_size))), break_long_words=False, break_on_hyphens=False)
 
                         txt_filename = f"caption_{c_idx}.txt"
@@ -496,15 +571,15 @@ class VideoProcessor:
                         # Safe Zone: x=(w-text_w)/2, y=h-480 (nằm trên mép bottom 320px)
                         if has_font:
                             filter_str = (
-                                f"drawtext=fontfile='{font_file}':textfile='{txt_filename}':fontsize={f_size}:fontcolor={font_color}"
-                                f":box=1:boxcolor={box_color}:boxborderw={box_border}"
+                                f"drawtext=fontfile='{font_file}':textfile='{txt_filename}':fontsize={f_size}:fontcolor={cap_font_color}"
+                                f":box=1:boxcolor={cap_box_color}:boxborderw={cap_box_border}"
                                 f":x=(w-text_w)/2:y={caption_y}"
                                 f":enable='between(t,{c_start_s:.3f},{c_end_s:.3f})'"
                             )
                         else:
                             filter_str = (
-                                f"drawtext=textfile='{txt_filename}':fontsize={f_size}:fontcolor={font_color}"
-                                f":box=1:boxcolor={box_color}:boxborderw={box_border}"
+                                f"drawtext=textfile='{txt_filename}':fontsize={f_size}:fontcolor={cap_font_color}"
+                                f":box=1:boxcolor={cap_box_color}:boxborderw={cap_box_border}"
                                 f":x=(w-text_w)/2:y={caption_y}"
                                 f":enable='between(t,{c_start_s:.3f},{c_end_s:.3f})'"
                             )
@@ -550,7 +625,7 @@ class VideoProcessor:
                     voice_duration = float(audio_processor.probe_audio(final_audio)["duration_seconds"])
                     if voice_duration <= 0:
                         raise ValueError("RAW_TTS_DURATION_INVALID")
-                    video_playback_speed = min(1.1, max(0.9, total_duration_sec / voice_duration))
+                    video_playback_speed = fit_voice_speed(total_duration_sec, voice_duration)
                     video_content_duration_sec = total_duration_sec / video_playback_speed
                     final_duration_sec = max(video_content_duration_sec, voice_duration)
 

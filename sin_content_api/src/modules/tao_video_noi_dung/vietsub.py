@@ -9,12 +9,14 @@ import tempfile
 import threading
 import textwrap
 import unicodedata
+import wave
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Iterable
 
 MODEL_SIZE = "small"
 CACHE_VERSION = 1
+WORD_CACHE_VERSION = 2
 _model = None
 _model_lock = threading.Lock()
 
@@ -43,6 +45,15 @@ def _get_model():
 
 def _wrap_words(words: list[str]) -> str:
     return textwrap.fill(" ".join(words), width=38, break_long_words=False, break_on_hyphens=False)
+
+
+def _asr_timeout_seconds(audio_path: Path) -> int:
+    try:
+        with wave.open(str(audio_path), "rb") as audio:
+            duration_seconds = audio.getnframes() / audio.getframerate()
+    except (OSError, wave.Error, ZeroDivisionError):
+        return 600
+    return max(600, min(3600, int(duration_seconds * 2) + 1))
 
 
 def group_words(words: Iterable[object]) -> list[dict]:
@@ -117,10 +128,12 @@ def _transcribe_isolated(audio_path: Path, mode: str | None = None) -> list[dict
     with tempfile.TemporaryDirectory(prefix="prj069-vietsub-") as directory:
         output = Path(directory) / "cues.json"
         env = {**os.environ, "VIETSUB_INFERENCE_CHILD": "1", "OMP_NUM_THREADS": "2", "OPENBLAS_NUM_THREADS": "2", "MKL_NUM_THREADS": "2"}
+        bootstrap = f"import runpy,sys; sys.path.insert(0, sys.argv.pop(1)); runpy.run_module({__name__!r}, run_name='__main__')"
+        timeout_seconds = _asr_timeout_seconds(audio_path)
         try:
             with (Path(directory) / "asr.log").open("w") as log:
-                result = subprocess.run([sys.executable, "-m", __name__, str(audio_path), str(output), *([mode] if mode else [])],
-                    env=env, stdout=log, stderr=log, timeout=600, check=False)
+                result = subprocess.run([sys.executable, "-c", bootstrap, str(Path(__file__).resolve().parents[3]), str(audio_path), str(output), *([mode] if mode else [])],
+                    env=env, stdout=log, stderr=log, timeout=timeout_seconds, check=False)
         except subprocess.TimeoutExpired as error:
             raise VietsubError("VIETSUB_ASR_TIMEOUT") from error
         if result.returncode != 0 or not output.is_file():
@@ -195,7 +208,11 @@ def transcribe_words(audio_path: Path) -> list[dict]:
             text = (getattr(word, "word", "") or "").strip()
             start, end = float(getattr(word, "start", 0) or 0), float(getattr(word, "end", 0) or 0)
             if text and 0 <= start < end:
-                words.append({"text": text, "start_ms": round(start * 1000), "end_ms": round(end * 1000)})
+                item = {"text": text, "start_ms": round(start * 1000), "end_ms": round(end * 1000)}
+                probability = getattr(word, "probability", None)
+                if isinstance(probability, (int, float)) and 0 <= probability <= 1:
+                    item["probability"] = float(probability)
+                words.append(item)
     if not words:
         raise VietsubError("VIETSUB_WORD_TIMESTAMPS_MISSING")
     return words
@@ -206,11 +223,12 @@ def transcribe_words_cached(audio_path: Path, cache_path: Path) -> list[dict]:
         digest = hashlib.file_digest(stream, "sha256").hexdigest()
     try:
         cached = json.loads(cache_path.read_text(encoding="utf-8"))
-        if cached.get("version") == CACHE_VERSION and cached.get("model") == MODEL_SIZE and cached.get("audio_sha256") == digest:
+        if cached.get("version") == WORD_CACHE_VERSION and cached.get("model") == MODEL_SIZE and cached.get("audio_sha256") == digest:
             words = cached.get("words")
             if isinstance(words, list) and words and all(
                 isinstance(w, dict) and isinstance(w.get("text"), str)
                 and isinstance(w.get("start_ms"), int) and isinstance(w.get("end_ms"), int) and w["end_ms"] > w["start_ms"] >= 0
+                and ("probability" not in w or isinstance(w["probability"], (int, float)) and 0 <= w["probability"] <= 1)
                 for w in words
             ):
                 return words
@@ -221,7 +239,7 @@ def transcribe_words_cached(audio_path: Path, cache_path: Path) -> list[dict]:
     temporary_path = cache_path.with_suffix(cache_path.suffix + ".tmp")
     try:
         temporary_path.write_text(
-            json.dumps({"version": CACHE_VERSION, "model": MODEL_SIZE, "audio_sha256": digest, "words": words}, ensure_ascii=False),
+            json.dumps({"version": WORD_CACHE_VERSION, "model": MODEL_SIZE, "audio_sha256": digest, "words": words}, ensure_ascii=False),
             encoding="utf-8",
         )
         temporary_path.replace(cache_path)

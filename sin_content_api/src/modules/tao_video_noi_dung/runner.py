@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import math
 import logging
 import os
 import re
@@ -31,13 +32,16 @@ from src.models.entities import (
 )
 from src.modules.media_studio.security import MEDIA_ROOT_DIR, get_workspace_storage_dir
 from src.modules.media_studio.audio_processor import audio_processor
-from src.modules.media_studio.video_processor import VIETSUB_FONT_PATH, video_processor
+from src.modules.media_studio.video_processor import (
+    VIETSUB_FONT_PATH, VOICE_SPEED_MAX, VOICE_SPEED_MIN, fit_voice_speed, video_processor,
+)
 from src.schemas.contracts import TimelineAudioTrack, TimelineCaption, TimelineClip, TimelineDocument, TimelineMediaType
 from session_manager import FlowLoginRequired, FlowSubmissionNotSent, FlowQuotaExceeded
 from .cong_harness import approval_receipt_hash, dispatch_shot, verify_shot_receipt
 from .contracts import ReconcileShotRequest
-from .planner import Storyboard
-from .ui_sim import render_ui_scene
+from .planner import DIAGRAM_LAYOUTS, Storyboard
+from .brand import restore_display_words, to_spoken
+from .render_engines import assembly_mode, render_placeholder, render_scene
 from .tts_provider import TTSProviderError, tts_provider_manager
 from .vietsub import MODEL_SIZE as VIETSUB_MODEL_SIZE, VietsubError, align_script_words, karaoke_cues, to_srt, transcribe_cached, transcribe_words_cached
 
@@ -119,6 +123,8 @@ def _extract_final_reference_frame(path: Path, workspace_id: str) -> tempfile.Te
     if result.returncode != 0 or not frame_path.is_file() or frame_path.stat().st_size == 0:
         temp_dir.cleanup()
         raise RuntimeError("CONTINUITY_FRAME_EXTRACTION_FAILED")
+    # Flow tìm ảnh trong thư viện theo tên file; tên cố định làm shot sau dùng nhầm ảnh cũ cùng tên, nên gắn mã băm nội dung vào tên.
+    frame_path.rename(frame_path.with_name(f"khung_hinh_cuoi_{_file_sha256(frame_path)[:12]}.png"))
     return temp_dir
 
 
@@ -445,12 +451,15 @@ _BAHA_WORD = re.compile(r"(?<!\w)ba-?ha(?!\w)", re.IGNORECASE)
 def _prepare_run_tts(db, run: ContentVideoRun, shots: list, config: dict, token: str):
     """Lưu từng đoạn đã hoàn tất; restart không phải sinh lại toàn bộ giọng đọc."""
     import numpy as np
+    from vieneu_utils.core_utils import pause_pad_samples
+    # Ghi rõ mặc định hiệu lực vào hash để không dùng lại cache khử nhiễu cũ.
+    config = {**config, "advanced": {"denoise_reference": False, "max_chars": 128, **(config.get("advanced") or {})}}
     reference = _tts_reference_path(db, run)
     reference_hash = _file_sha256(Path(reference)) if reference else None
     steps = json.loads(run.steps_json or "[]")
     samples, rate = [], None
     for index, shot in enumerate(shots):
-        fingerprint = hashlib.sha256(json.dumps([config, shot.narration, reference_hash],
+        fingerprint = hashlib.sha256(json.dumps([config, to_spoken(shot.narration), reference_hash],
             sort_keys=True, ensure_ascii=False).encode()).hexdigest()
         key = hashlib.sha256(f"{run.id}:{index}:{fingerprint}".encode()).hexdigest()
         directory = f"workspaces/{run.workspace_id}/media/.tts/"
@@ -473,7 +482,7 @@ def _prepare_run_tts(db, run: ContentVideoRun, shots: list, config: dict, token:
         else:
             run.current_step = f"TTS:{shot.shot_id}"
             db.commit()
-            audio, source_rate = tts_provider_manager.synthesize(config, _BAHA_WORD.sub("Ba-ha", shot.narration), reference)
+            audio, source_rate = tts_provider_manager.synthesize(config, to_spoken(shot.narration), reference)
             audio = np.asarray(audio, dtype=np.float32).reshape(-1)
             if not audio.size or source_rate <= 0 or not np.isfinite(audio).all():
                 raise TTSProviderError("TTS_AUDIO_INVALID")
@@ -493,11 +502,67 @@ def _prepare_run_tts(db, run: ContentVideoRun, shots: list, config: dict, token:
             raise TTSProviderError("TTS_AUDIO_INVALID")
         if rate is not None and rate != source_rate:
             raise TTSProviderError("TTS_SAMPLE_RATE_MISMATCH")
+        steps[index]["tts_audio"]["pause_after_ms"] = 0
+        if samples:
+            previous_text = shots[index - 1].narration.rstrip().rstrip('"\'”’)]')
+            pause_seconds = 0.5 if previous_text.endswith((".", "!", "?", "…")) else 0.3 if previous_text.endswith((",", ";", ":")) else 0.0
+            padding = pause_pad_samples(samples[-1], audio, int(source_rate), pause_seconds)
+            if padding:
+                samples.append(np.zeros(padding, dtype=np.float32))
+            steps[index - 1]["tts_audio"]["pause_after_ms"] = round(padding * 1000 / source_rate)
         samples.append(audio)
         rate = int(source_rate)
     if not samples:
         raise TTSProviderError("TTS_AUDIO_INVALID")
+    _save_run(db, run, steps)
     return np.concatenate(samples), rate
+
+
+DIAGRAM_LEAD_S, DIAGRAM_TAIL_S = 0.15, 0.35
+
+
+def _is_diagram_run(storyboard) -> bool:
+    """Toàn bộ shot là cảnh giấy dựng bằng mã: mỗi cảnh có thể dài đúng bằng giọng của shot (clip Flow thì cố định 10 giây)."""
+    return all(shot.shot_kind == "UI_SIM" and shot.ui_scene and shot.ui_scene.layout in DIAGRAM_LAYOUTS for shot in storyboard.shots)
+
+
+def _fit_diagram_voice(db, run: ContentVideoRun, audio, sample_rate: int):
+    """Run toàn cảnh giấy: mỗi clip dài đúng bằng giọng của shot (gồm khoảng nghỉ sau shot) cộng đệm đầu và đuôi, nên hình luôn khớp giọng,
+    không tua hình, không có đuôi im lặng. Ghi `clip_seconds` vào từng bước và trả về giọng đã đệm cho khớp từng clip."""
+    import numpy as np
+    steps = json.loads(run.steps_json or "[]")
+    lengths = [round((step["tts_audio"]["duration_ms"] + step["tts_audio"].get("pause_after_ms", 0)) * sample_rate / 1000) for step in steps]
+    lengths[-1] = len(audio) - sum(lengths[:-1])   # phần dư do làm tròn dồn vào shot cuối
+    if lengths[-1] <= 0:
+        raise TTSProviderError("TTS_AUDIO_INVALID")
+    lead, pieces, start = round(DIAGRAM_LEAD_S * sample_rate), [], 0
+    for step, length in zip(steps, lengths):
+        chunk = audio[start:start + length]
+        start += length
+        seconds = max(4, math.ceil(length / sample_rate + DIAGRAM_LEAD_S + DIAGRAM_TAIL_S))
+        if seconds > 20:
+            error = TTSProviderError("TTS_DURATION_OUT_OF_RANGE")
+            error.detail = f"Giọng của một shot dài {length / sample_rate:.1f}s, vượt giới hạn 19s của cảnh giấy; rút gọn lời shot đó."
+            raise error
+        step["clip_seconds"] = seconds
+        pieces += [np.zeros(lead, dtype=np.float32), chunk, np.zeros(seconds * sample_rate - lead - len(chunk), dtype=np.float32)]
+    _save_run(db, run, steps)
+    return np.concatenate(pieces)
+
+
+def _check_voice_fits(audio, sample_rate: int, shots: list) -> None:
+    """Giọng lệch quá xa tổng thời lượng shot thì renderer không co giãn hình kịp (còn đuôi im lặng hoặc đứng hình); chặn trước khi tốn tín dụng Flow."""
+    voice_seconds = len(audio) / sample_rate
+    video_seconds = sum(shot.duration_seconds for shot in shots)
+    if video_seconds / VOICE_SPEED_MAX <= voice_seconds <= video_seconds / VOICE_SPEED_MIN:
+        return
+    error = TTSProviderError("TTS_DURATION_OUT_OF_RANGE")
+    error.detail = (
+        f"Giọng đọc dài {voice_seconds:.1f}s so với video {video_seconds:.0f}s, ngoài khoảng "
+        f"{video_seconds / VOICE_SPEED_MAX:.0f}s đến {video_seconds / VOICE_SPEED_MIN:.0f}s. "
+        + ("Lời thoại quá ngắn: bổ sung lời cho mỗi shot." if voice_seconds < video_seconds else "Lời thoại quá dài: rút gọn lời mỗi shot.")
+    )
+    raise error
 
 
 def _save_tts_voice(db, run: ContentVideoRun, audio, sample_rate: int) -> None:
@@ -642,39 +707,152 @@ def _file_sha256(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def _render_ui_asset(db, run: ContentVideoRun, plan: ContentVideoPlan, shot, step: dict) -> MediaAsset:
+def _diagram_word_times(shots: list, steps: list[dict], index: int, per_clip: bool = False) -> list[float] | None:
+    """Mốc bắt đầu từng từ lời đọc của shot, quy về giây trên clip hình (đã tính tốc độ co giãn toàn video).
+    None khi chưa có giọng TTS từng shot hoặc nhận dạng lỗi; khi đó cảnh neo theo vị trí âm tiết."""
+    import numpy as np
+    shot = shots[index]
+    try:
+        durations = [step.get("tts_audio", {}).get("duration_ms", 0) + step.get("tts_audio", {}).get("pause_after_ms", 0) for step in steps]
+        if not all(isinstance(item, (int, float)) and item > 0 for item in durations):
+            return None
+        checkpoint = steps[index]["tts_audio"]
+        path = (MEDIA_ROOT_DIR / checkpoint["storage_key"]).resolve()
+        if not path.is_relative_to(MEDIA_ROOT_DIR.resolve()) or _file_sha256(path) != checkpoint.get("sha256"):
+            return None
+        with np.load(path, allow_pickle=False) as data:
+            audio, rate = np.asarray(data["audio"], dtype=np.float32).reshape(-1), int(data["sample_rate"])
+        with tempfile.TemporaryDirectory(prefix="diagram_words_") as tmp:
+            wav_path = Path(tmp) / "shot.wav"
+            with wave.open(str(wav_path), "wb") as wav:
+                wav.setnchannels(1)
+                wav.setsampwidth(2)
+                wav.setframerate(rate)
+                wav.writeframes((np.clip(audio, -1.0, 1.0) * 32767).astype("<i2").tobytes())
+            asr_words = transcribe_words_cached(wav_path, MEDIA_ROOT_DIR / ".cache" / "diagram_words" / f"{checkpoint['sha256']}.json")
+        words = to_spoken(shot.narration).split()
+        aligned = align_script_words(words, asr_words)
+        if per_clip:   # clip dài đúng bằng giọng của shot: giọng bắt đầu sau đệm đầu, không cần quy đổi tốc độ
+            times = [DIAGRAM_LEAD_S + item["start_ms"] / 1000 for item in aligned]
+            return times if len(times) == len(words) else None
+        speed = fit_voice_speed(sum(item.duration_seconds for item in shots), sum(durations) / 1000)
+        voice_start, clip_start = sum(durations[:index]) / 1000, sum(item.duration_seconds for item in shots[:index])
+        times = [(voice_start + item["start_ms"] / 1000) * speed - clip_start for item in aligned]
+        return times if len(times) == len(words) else None
+    except Exception:
+        logger.warning("DIAGRAM_WORD_TIMES_UNAVAILABLE shot=%s", shot.shot_id, exc_info=True)
+        return None
+
+
+def _use_hyperframes_assembly(storyboard, style: dict) -> bool:
+    """Ghép cả video bằng một dự án HyperFrames: chỉ cho run toàn cảnh giấy dựng bằng mã, khung 16:9 (có Flow thì dùng cách ghép cũ)."""
+    return assembly_mode(style) == "hyperframes" and style.get("aspect_ratio", "9:16") == "16:9" and _is_diagram_run(storyboard)
+
+
+def _render_with_hyperframes(storyboard, steps: list[dict], voice_path: Path, words: list[dict] | None, output_path: Path) -> dict:
+    """Dựng video cuối bằng dự án HyperFrames từ storyboard, giọng đã đệm theo từng clip và mốc từ. Lỗi thì ném RuntimeError để run báo FAILED
+    (các clip từng shot lúc này chỉ là clip giữ chỗ nên không quay về cách ghép cũ được)."""
+    import shutil
+    from . import hf_project
+    from .planner import resolve_diagram_times
+
+    shots = []
+    for index, shot in enumerate(storyboard.shots):
+        seconds = steps[index]["clip_seconds"]
+        word_times = _diagram_word_times(storyboard.shots, steps, index, per_clip=True)
+        shots.append({"shot_id": shot.shot_id, "scene": shot.ui_scene, "narration": shot.narration, "seconds": seconds,
+                      "events": resolve_diagram_times(shot.ui_scene, shot.narration, seconds, word_times), "word_times": word_times})
+    work = Path(tempfile.mkdtemp(prefix="hf_run_", dir=output_path.parent))
+    try:
+        project = work / "du_an"
+        info = hf_project.build_project(project, shots, voice_path, words)
+        if os.environ.get("CONTENT_VIDEO_HF_CHECK") == "1":   # cổng check mất thêm vài phút trên NAS nên mặc định tắt
+            lint = hf_project.check_project(project)["data"].get("lint", {})
+            if lint.get("errorCount"):
+                raise RuntimeError("HYPERFRAMES_CHECK_FAILED: " + json.dumps(lint.get("findings", [])[:3], ensure_ascii=False)[:600])
+        hf_project.render_project(project, output_path)
+    except Exception as exc:
+        logger.exception("HYPERFRAMES_ASSEMBLY_FAILED")
+        raise RuntimeError("HYPERFRAMES_ASSEMBLY_FAILED: " + str(exc)[:600]) from exc
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    meta = video_processor.probe_video(output_path)
+    return {**meta, "video_content_duration_seconds": meta["duration_seconds"], "voice_audio_duration_seconds": meta["duration_seconds"],
+            "silent_tail_seconds": 0, "frozen_tail_seconds": 0, "assembly": "hyperframes", "native_scenes": info["native_scenes"], "legacy_scenes": info["legacy_scenes"]}
+
+
+def _render_ui_asset(db, run: ContentVideoRun, plan: ContentVideoPlan, shot, step: dict, word_times: list[float] | None = None, clip_seconds: int | None = None, placeholder: bool = False) -> MediaAsset:
     verify_shot_receipt(run, plan, shot, step)
     asset_id = str(uuid.uuid4())
     path = get_workspace_storage_dir(run.workspace_id) / f"ui_sim_{asset_id}.mp4"
     style = json.loads(plan.style_snapshot_json)
     aspect_ratio = style.get("aspect_ratio", "9:16")
+    seconds = clip_seconds or shot.duration_seconds
     try:
-        render_ui_scene(shot.ui_scene, style, shot.duration_seconds, aspect_ratio, path)
-        _, issues = _probe_shot_with_qc(path, shot.duration_seconds, aspect_ratio)
+        meta = render_placeholder(path, seconds, aspect_ratio) if placeholder else render_scene(shot.ui_scene, style, seconds, aspect_ratio, path, narration=shot.narration, word_times=word_times)
+        _, issues = _probe_shot_with_qc(path, seconds, aspect_ratio)
         if issues:
             raise RuntimeError(f"SHOT_QC_FAILED:{shot.shot_id}:{','.join(issues)}")
         asset = MediaAsset(
             id=asset_id, workspace_id=run.workspace_id, project_id=run.project_id,
             storage_key=path.relative_to(MEDIA_ROOT_DIR).as_posix(), sha256=_file_sha256(path),
-            byte_size=path.stat().st_size, mime_detected="video/mp4", duration_ms=shot.duration_seconds * 1000,
+            byte_size=path.stat().st_size, mime_detected="video/mp4", duration_ms=seconds * 1000,
             source_product="CONTENT_VIDEO_UI_SIM", created_by=run.created_by,
         )
         db.add(asset)
         # Asset và receipt hoàn tất cùng transaction, có thể render lại nếu worker bị ngắt.
         step.update(state="SUCCEEDED", raw_asset_id=asset.id, asset_id=asset.id,
-                    watermark_removed=False, finished_at=_now().isoformat())
+                    watermark_removed=False, finished_at=_now().isoformat(), render_engine=meta.get("render_engine", "playwright"))
         return asset
     except Exception:
         path.unlink(missing_ok=True)
         raise
 
 
+def _add_brand_end_card(video_path: Path) -> float:
+    meta = video_processor.probe_video(video_path)
+    duration = float(meta.get("duration_seconds", 0))
+    width, height = int(meta.get("width", 0)), int(meta.get("height", 0))
+    logo = Path(__file__).resolve().parent / "brand" / "logo_doc_mau.png"
+    if duration <= 0 or width <= 0 or height <= 0 or not logo.is_file():
+        raise RuntimeError("BRAND_END_CARD_INPUT_INVALID")
+    start = max(0, duration - 3)
+    card_width = min(280, round(width * 0.26))
+    logo_width = min(240, round(card_width * 0.86))
+    logo_height = round(logo_width * 495 / 684)
+    card_height = logo_height + 36
+    card_x = width - card_width - max(24, round(width * 0.05))
+    card_y = max(24, round(height * 0.08))
+    enabled = f"between(t,{start:.3f},{duration:.3f})"
+    filters = (
+        f"[0:v]drawbox=x={card_x}:y={card_y}:w={card_width}:h={card_height}:color=white:t=fill:enable='{enabled}'[card];"
+        f"[1:v]scale={logo_width}:-1[logo];"
+        f"[card][logo]overlay=x={card_x}+({card_width}-w)/2:y={card_y}+({card_height}-h)/2:enable='{enabled}'[v]"
+    )
+    temporary = video_path.with_name(f".{video_path.stem}.brand.tmp.mp4")
+    try:
+        result = run_media_command([
+            video_processor.ffmpeg_bin, "-y", "-i", str(video_path), "-i", str(logo),
+            "-filter_complex", filters, "-map", "[v]", "-map", "0:a?",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-r", "30",
+            "-c:a", "copy", "-movflags", "+faststart", str(temporary),
+        ], capture_output=True, text=True, timeout=120, check=False)
+        if result.returncode != 0:
+            raise RuntimeError("BRAND_END_CARD_RENDER_FAILED")
+        os.replace(temporary, video_path)
+        return min(3.0, duration)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
 def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard: Storyboard, asset_ids: list[str]) -> None:
     clips = []
     shot_asset_hashes = []
     start_ms = 0
-    for shot, asset_id in zip(storyboard.shots, asset_ids, strict=True):
-        duration_ms = shot.duration_seconds * 1000
+    step_clip_seconds = [step.get("clip_seconds") for step in json.loads(run.steps_json or "[]")]
+    variable_clips = len(step_clip_seconds) == len(storyboard.shots) and all(step_clip_seconds)   # run toàn cảnh giấy: clip dài theo giọng
+    for shot_index, (shot, asset_id) in enumerate(zip(storyboard.shots, asset_ids, strict=True)):
+        duration_ms = step_clip_seconds[shot_index] * 1000 if variable_clips else shot.duration_seconds * 1000
         asset = db.query(MediaAsset).filter(
             MediaAsset.id == asset_id,
             MediaAsset.workspace_id == run.workspace_id,
@@ -693,6 +871,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
             trim_out_ms=duration_ms,
         ))
         start_ms += duration_ms
+    target_seconds = start_ms // 1000 if variable_clips else plan.target_duration_seconds
 
     aspect_ratio = json.loads(plan.style_snapshot_json).get("aspect_ratio", "9:16")
     width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
@@ -702,18 +881,28 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     include_subtitles = getattr(run, "include_subtitles", True)
     is_tts_voice = bool(voice_asset and getattr(voice_asset, "source_product", None) == "CONTENT_VIDEO_TTS")
     word_aligned = False
+    karaoke_words = None
+    style = json.loads(plan.style_snapshot_json)
+    use_hf = bool(voice_input and is_tts_voice and variable_clips and _use_hyperframes_assembly(storyboard, style))
     if voice_input and include_subtitles and is_tts_voice:
-        speed = min(1.1, max(0.9, plan.target_duration_seconds * 1000 / voice_asset.duration_ms))
-        measured = [step.get("tts_audio", {}).get("duration_ms") for step in json.loads(run.steps_json or "[]")]
+        speed = fit_voice_speed(target_seconds * 1000, voice_asset.duration_ms)
+        measured = [
+            (step["clip_seconds"] * 1000 if variable_clips else step["tts_audio"]["duration_ms"] + step["tts_audio"].get("pause_after_ms", 0))
+            if step.get("tts_audio", {}).get("duration_ms") is not None else None
+            for step in json.loads(run.steps_json or "[]")
+        ]
         durations = None
         if len(measured) == len(storyboard.shots) and all(isinstance(item, (int, float)) and item > 0 for item in measured):
             # Captions burn before the renderer retimes video; undo that scale here.
             durations = [max(1, round(item * speed)) for item in measured]
         caption_cues = _tts_captions(storyboard.shots, height=height, width=width, durations_ms=durations)
         try:
-            script_words = " ".join(shot.narration for shot in storyboard.shots).split()
+            script_text = " ".join(shot.narration for shot in storyboard.shots)
             asr_words = transcribe_words_cached(voice_input[1], _word_cache_path(run, voice_asset, voice_input[1]))
-            caption_cues = _karaoke_captions(align_script_words(script_words, asr_words), height, width, speed)
+            # Căn mốc theo chữ ĐỌC (Ba-ha, Gờ-rúp) rồi trả về chữ HIỂN THỊ (BAHA, Group) cho phụ đề.
+            aligned = align_script_words(to_spoken(script_text).split(), asr_words)
+            karaoke_words = restore_display_words(script_text.split(), aligned)
+            caption_cues = _karaoke_captions(karaoke_words, height, width, speed)
             word_aligned = True
         except VietsubError:
             logger.warning("Karaoke alignment unavailable for run %s; using per-shot captions", run.id)
@@ -721,7 +910,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         audio_sha256 = voice_asset.sha256 or _file_sha256(voice_input[1])
         cache_key = hashlib.sha256(f"{run.workspace_id}:{audio_sha256}:{VIETSUB_MODEL_SIZE}".encode("utf-8")).hexdigest()
         cache_path = MEDIA_ROOT_DIR / ".cache" / "vietsub" / f"{cache_key}.json"
-        target_duration_ms = plan.target_duration_seconds * 1000
+        target_duration_ms = target_seconds * 1000
         for cue in transcribe_cached(voice_input[1], cache_path):
             cue_start = max(0, int(cue["start_ms"]))
             cue_end = min(target_duration_ms, cue_start + int(cue["duration_ms"]))
@@ -747,7 +936,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         clips=clips,
         voice_track=TimelineAudioTrack(
             asset_id=voice_asset.id,
-            duration_ms=voice_asset.duration_ms if is_tts_voice else plan.target_duration_seconds * 1000,
+            duration_ms=voice_asset.duration_ms if is_tts_voice else target_seconds * 1000,
         ) if voice_asset else None,
         captions=caption_cues,
     )
@@ -768,7 +957,11 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     filename = f"content_video_{run.id}_v{version}.mp4"
     output_path = out_dir / filename
 
+    fallback_paths: dict[str, Path] = {}   # clip dựng lại bằng Playwright khi ghép HyperFrames lỗi
+
     def resolve_asset(asset_id: str) -> Path:
+        if asset_id in fallback_paths:
+            return fallback_paths[asset_id]
         asset = db.query(MediaAsset).filter(
             MediaAsset.id == asset_id,
             MediaAsset.project_id == run.project_id,
@@ -780,12 +973,35 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
 
     run.current_step = "RENDER"
     db.commit()
-    render_meta = video_processor.render_timeline_document(
-        timeline, resolve_asset, output_path, transition_seconds=0.3,
-        caption_style="vietsub_karaoke_v2", preserve_voice_audio=is_tts_voice,
-    )
+    steps_now = json.loads(run.steps_json or "[]")
+    render_meta = None
+    if use_hf:
+        try:
+            render_meta = _render_with_hyperframes(storyboard, steps_now, voice_input[1], karaoke_words if include_subtitles else None, output_path)
+        except RuntimeError as exc:
+            if os.getenv("CONTENT_VIDEO_RENDER_FALLBACK", "1") == "0":
+                raise
+            # Đường lùi: dựng lại từng cảnh bằng Playwright rồi ghép kiểu cũ, run vẫn ra video.
+            logger.warning("Ghép HyperFrames lỗi, quay về ghép cũ: %s", str(exc)[:300])
+            output_path.unlink(missing_ok=True)
+            style_now = json.loads(plan.style_snapshot_json)
+            ratio = style_now.get("aspect_ratio", "9:16")
+            for shot_index, (shot, asset_id) in enumerate(zip(storyboard.shots, asset_ids, strict=True)):
+                path = out_dir / f"hf_fallback_{run.id}_{shot_index}.mp4"
+                word_times = _diagram_word_times(storyboard.shots, steps_now, shot_index, per_clip=True)
+                render_scene(shot.ui_scene, {**style_now, "render_engine": "playwright"}, step_clip_seconds[shot_index], ratio, path, narration=shot.narration, word_times=word_times)
+                fallback_paths[asset_id] = path
+    if render_meta is None:
+        try:
+            render_meta = video_processor.render_timeline_document(
+                timeline, resolve_asset, output_path, transition_seconds=0.3,
+                caption_style="vietsub_karaoke_v2", preserve_voice_audio=is_tts_voice,
+            )
+        finally:
+            for path in fallback_paths.values():
+                path.unlink(missing_ok=True)
     if is_tts_voice:
-        time_scale = float(render_meta.get("video_content_duration_seconds", render_meta["duration_seconds"])) / plan.target_duration_seconds
+        time_scale = float(render_meta.get("video_content_duration_seconds", render_meta["duration_seconds"])) / target_seconds
         if abs(time_scale - 1.0) > 0.001:
             for clip in timeline.clips:
                 clip.start_ms = round(clip.start_ms * time_scale)
@@ -798,6 +1014,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
                     word.end_ms = max(word.start_ms + 1, round(word.end_ms * time_scale))
             timeline_version.tracks_json = timeline.model_dump_json()
             db.commit()
+    brand_end_card_seconds = _add_brand_end_card(output_path)
     meta = video_processor.probe_video(output_path)
     meta["flow_native_audio"] = bool(render_meta.get("flow_native_audio"))
     for key in (
@@ -817,10 +1034,13 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     )
     issues = evaluate_video_qc(
         meta,
-        render_meta.get("duration_seconds", plan.target_duration_seconds) if is_tts_voice else plan.target_duration_seconds,
+        render_meta.get("duration_seconds", target_seconds) if is_tts_voice else target_seconds,
         decode.returncode == 0 and not decode.stderr.strip(),
         aspect_ratio=aspect_ratio,
     )
+    if is_tts_voice and max(meta.get("silent_tail_seconds", 0), meta.get("frozen_tail_seconds", 0)) > 1.0:
+        # Với giọng TTS, QC trên so độ dài với chính bản vừa render nên không bắt được hình/giọng lệch; kiểm riêng ở đây.
+        issues.append("VOICE_VIDEO_DURATION_MISMATCH")
     if is_tts_voice:
         audio_meta = audio_processor.probe_audio(output_path)
         audio_qc = {
@@ -834,7 +1054,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         }
     elif voice_asset:
         audio_qc = audio_processor.verify_audio_qc(
-            output_path, expected_duration_sec=plan.target_duration_seconds,
+            output_path, expected_duration_sec=target_seconds,
         )
     else:
         audio_qc = {
@@ -849,7 +1069,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         "status": "PASS" if not issues else "FAIL",
         "acceptance_mode": "HYBRID",
         "issues": issues,
-        "expected_duration_seconds": plan.target_duration_seconds,
+        "expected_duration_seconds": target_seconds,
         "measured": meta,
         "timeline_version_id": timeline_version.id,
         "shot_asset_ids": asset_ids,
@@ -858,6 +1078,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         "voice_asset_id": voice_asset.id if voice_asset else None,
         "voice_source": "TTS" if voice_asset and getattr(voice_asset, "source_product", None) == "CONTENT_VIDEO_TTS" else "UPLOAD" if voice_asset else "FLOW_NATIVE" if meta.get("flow_native_audio") else "NONE",
         "flow_native_audio": bool(meta.get("flow_native_audio")),
+        "brand_end_card": {"logo_asset": "logo_doc_mau.png", "duration_seconds": brand_end_card_seconds},
         "voice_asset_sha256": voice_asset.sha256 if voice_asset else None,
         "tts_provider": tts_config.get("provider") if tts_config and voice_asset else None,
         "tts_model": {"GWEN_TTS": "g-group-ai-lab/gwen-tts-0.6B", "VIE_NEU_V3_TURBO": "pnnbao-ump/VieNeu-TTS-v3-Turbo"}.get(tts_config.get("provider")) if tts_config and voice_asset else None,
@@ -969,6 +1190,10 @@ def process_run(run_id: str, token: str | None = None) -> None:
                 run.current_step = "TTS"
                 db.commit()
                 audio, sample_rate = _prepare_run_tts(db, run, storyboard.shots, tts_config, token)
+                if _is_diagram_run(storyboard):
+                    audio = _fit_diagram_voice(db, run, audio, sample_rate)
+                else:
+                    _check_voice_fits(audio, sample_rate, storyboard.shots)
                 _save_tts_voice(db, run, audio, sample_rate)
             _voice_input(db, run, plan)
             steps = json.loads(run.steps_json or "[]")
@@ -995,7 +1220,10 @@ def process_run(run_id: str, token: str | None = None) -> None:
                     run.current_step = shot.shot_id
                     step["started_at"] = _now().isoformat()
                     _save_run(db, run, steps)
-                    _render_ui_asset(db, run, plan, shot, step)
+                    clip_seconds = step.get("clip_seconds")
+                    hf_assembly = _use_hyperframes_assembly(storyboard, json.loads(plan.style_snapshot_json)) and bool(clip_seconds)
+                    word_times = None if hf_assembly else (_diagram_word_times(storyboard.shots, steps, shot_index, per_clip=bool(clip_seconds)) if shot.ui_scene.layout in DIAGRAM_LAYOUTS else None)
+                    _render_ui_asset(db, run, plan, shot, step, word_times, clip_seconds, placeholder=hf_assembly)
                     run.output_asset_ids_json = json.dumps([item["asset_id"] for item in steps if item.get("asset_id")])
                     _save_run(db, run, steps)
                     continue
@@ -1044,7 +1272,7 @@ def process_run(run_id: str, token: str | None = None) -> None:
                         raise RuntimeError("CONTINUITY_PREVIOUS_ASSET_NOT_FOUND")
                     previous_path = _verified_asset_path(previous_asset, "CONTINUITY_PREVIOUS_ASSET")
                     reference_temp = _extract_final_reference_frame(previous_path, run.workspace_id)
-                    reference_path = Path(reference_temp.name) / "khung_hinh_cuoi.png"
+                    reference_path = next(Path(reference_temp.name).glob("khung_hinh_cuoi*.png"))
                     reference_asset_id = previous_asset.id
                 step["state"] = "SUBMITTING"
                 step["started_at"] = _now().isoformat()
@@ -1171,7 +1399,7 @@ def process_run(run_id: str, token: str | None = None) -> None:
                     if any(step.get("shot_kind") == "UI_SIM" and step.get("shot_id") == run.current_step
                            and step.get("state") == "READY" for step in steps):
                         run.error_code = "UI_SIM_RENDER_FAILED"
-                run.error_message = str(exc)[:1000]
+                run.error_message = (getattr(exc, "detail", "") or str(exc))[:1000]
                 run.steps_json = json.dumps(steps, ensure_ascii=False, separators=(",", ":"))
                 run.finished_at = _now()
                 db.commit()

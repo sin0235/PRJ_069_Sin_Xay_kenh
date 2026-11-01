@@ -21,24 +21,25 @@ from .contracts import (
     StyleSnapshot,
 )
 from .cong_harness import approval_receipt_hash, build_shot_receipt, canonical_hash, verify_shot_receipt
-from .planner import Storyboard, generate_storyboard
+from .planner import Storyboard, fixed_shot_target, generate_storyboard
 
-_PILOT_STYLE_SNAPSHOT = StyleSnapshot(
-    style_name="Origami giấy gấp · Baha B2B v2",
+_CONTENT_VIDEO_STYLE_SNAPSHOT = StyleSnapshot(
+    style_name="BAHA Editorial Motion B2B v1",
     visual_rules=(
-        "Nhân vật, đạo cụ và bối cảnh đều là mô hình giấy origami gấp nếp rõ, bề mặt giấy mịn có thớ nhẹ; "
-        "không bắt buộc có nhân vật; đa dạng cảnh vật, đạo cụ, quy trình và môi trường để biểu thị nội dung khi tắt tiếng; "
-        "chỉ thêm người khi hành động của họ giúp giải thích vấn đề; giữ nhận diện nhất quán khi nhân vật xuất hiện lại; "
-        "tuyệt đối không có người thật, bàn tay, ngón tay hay thao tác gấp giấy; bố cục theo tỷ lệ người dùng chọn; "
-        "ánh sáng mềm, bóng đổ giấy nhất quán, cỡ cảnh và máy quay phục vụ nội dung; "
-        "nếu có nhân vật: dáng người hoàn chỉnh, đầu và thân rõ, đủ hai tay, hai chân và bàn chân với tỷ lệ tự nhiên; khuôn mặt origami cách điệu, không mô phỏng da người thật; hai mắt cùng kích thước và cao độ, cân đối hai bên; mũi giấy nhỏ ở giữa; miệng khép kín rõ nét với biểu cảm thân thiện tự nhiên; "
-        "không mắt lác hoặc lệch, không mặt nạ trống, không nét mặt méo hoặc đáng sợ; "
-        "không thiếu chi, không mặt trống, không dị dạng, quái vật hoặc hình thể ngoài loài người; "
-        "không đổi chất liệu sang ảnh thật hoặc 3D nhựa, không sinh chữ trong cảnh."
+        "Phong cách hoạt họa biên tập cao cấp cho nội dung B2B: kể bằng đạo cụ, không gian và hành động có nguyên nhân-kết quả; "
+        "chất liệu sành điệu, ánh sáng điện ảnh, có chiều sâu tiền-trung-hậu cảnh và bố cục động. "
+        "Không dàn dựng như slide hoặc bài thuyết trình, không để dashboard chiếm toàn màn hình; chọn chất liệu theo câu chuyện. "
+        "Theo nhận diện BAHA Midnight Champagne: nền midnight #0B0F17, bảng kính xám xanh nhiều lớp, viền sáng champagne #D9B26A và chữ #F2EEE6; "
+        "xanh BAHA #0562AF và #5FA8FF là tuyến hành động chính/xử lý đúng, đỏ BAHA #ED1B24 chỉ đánh dấu vấn đề, vàng #FABC11 là CTA hoặc mốc quan trọng. "
+        "Không phát sáng champagne và xanh trên cùng một vật thể. Dùng 3 lớp tiền-trung-hậu cảnh; lớp gần camera chuyển nhanh hơn nền, đường neo dẫn mắt và dolly chuyển cảnh; "
+        "xếp lớp, rọi sáng màu, parallax và chuyển động có nguyên nhân; không thêm hiệu ứng trang trí làm đổi nghĩa. "
+        "Flow không sinh chữ, số, logo hoặc watermark; giao diện cần đọc được dùng cảnh UI_SIM hoặc HyperFrames, thẻ cuối ghép logo BAHA chính thức."
     ),
-    palette=["xanh navy", "trắng ngà", "xanh teal"],
+    palette=["midnight #0B0F17", "champagne #D9B26A", "chữ sáng #F2EEE6", "xanh BAHA #0562AF", "xanh sáng #5FA8FF", "đỏ BAHA #ED1B24", "vàng CTA #FABC11"],
 )
 
+
+_PILOT_STYLE_SNAPSHOT = _CONTENT_VIDEO_STYLE_SNAPSHOT
 
 def _e2e_test_self_approval_enabled() -> bool:
     try:
@@ -85,15 +86,18 @@ def create_plan(db: Session, project_id: str, workspace_id: str, user_id: str, r
     if len(content.encode("utf-8")) > 12000:
         raise HTTPException(status_code=422, detail={"error_code": "CONTENT_TOO_LARGE", "message": "Content vượt quá 12 KB."})
 
+    target_seconds = fixed_shot_target(request.target_duration_seconds)
     client = LLMClient.from_db(db)
     if not client.is_enabled:
         raise HTTPException(status_code=503, detail={"error_code": "LLM_NOT_CONFIGURED", "message": "LLM chưa được cấu hình hoặc đang tắt; chưa tạo storyboard."})
     try:
-        style_data = _PILOT_STYLE_SNAPSHOT.model_copy(update={"aspect_ratio": request.aspect_ratio}).model_dump(mode="json")
+        style_data = _CONTENT_VIDEO_STYLE_SNAPSHOT.model_copy(update={"aspect_ratio": request.aspect_ratio}).model_dump(mode="json")
+        # Chỉ cảnh giấy (CONTENT_VIDEO_DIAGRAM_ONLY=1, khung 16:9): cờ chỉ đi vào lời nhắc, KHÔNG lưu vào style_snapshot (StyleSnapshot cấm khóa lạ).
+        planning_style = {**style_data, "diagram_only": True} if os.getenv("CONTENT_VIDEO_DIAGRAM_ONLY") == "1" and request.aspect_ratio == "16:9" else style_data
         storyboard, model = generate_storyboard(
             content,
-            request.target_duration_seconds,
-            style_data,
+            target_seconds,
+            planning_style,
             client,
         )
     except LLMClientError as exc:
@@ -118,7 +122,7 @@ def create_plan(db: Session, project_id: str, workspace_id: str, user_id: str, r
         status="DRAFT",
         source_content=content,
         content_sha256=hashlib.sha256(content.encode("utf-8")).hexdigest(),
-        target_duration_seconds=request.target_duration_seconds,
+        target_duration_seconds=target_seconds,
         style_snapshot_json=json.dumps(style_data, ensure_ascii=False, sort_keys=True),
         style_snapshot_sha256=canonical_hash(style_data),
         storyboard_json=storyboard.model_dump_json(),
@@ -276,6 +280,7 @@ def _tts_config(request: CreateRunRequest) -> dict | None:
     return {
         "provider": request.tts_provider,
         "voice_id": request.tts_voice_id,
+        "advanced": {"denoise_reference": False, "max_chars": 128},
         "reference_asset_id": request.tts_reference_asset_id,
         "reference_text": request.tts_reference_text,
         "voice_clone_consent": request.voice_clone_consent,

@@ -109,15 +109,15 @@ class TTSProviderManager:
         options = {"ref_audio": reference_path} if reference_path else {"voice": config.get("voice_id") or "Hải Đăng"}
         audio = model.infer(
             text, **options,
-            denoise=advanced.get("denoise_reference", True),
+            denoise=advanced.get("denoise_reference", False),
             use_ref_codes=advanced.get("use_reference_codes", True),
             temperature=advanced.get("temperature", 0.8),
             top_k=advanced.get("top_k", 25),
             top_p=advanced.get("top_p", 0.95),
             max_new_frames=advanced.get("max_new_frames", 300),
             repetition_penalty=advanced.get("repetition_penalty", 1.2),
-            # 256 pushed a 233-char voice-clone shot past the 3.5 GiB worker limit (OOM); 100 keeps the peak bounded.
-            max_chars=advanced.get("max_chars", 100),
+            # Đã thử 446 ký tự chia cụm 128 trên worker 6 GiB; không sinh liền 446 ký tự (OOM).
+            max_chars=advanced.get("max_chars", 128),
         )
         return audio, model.sample_rate
 

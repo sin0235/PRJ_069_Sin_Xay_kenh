@@ -6,11 +6,19 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
+def first_json_object(text: str) -> Any:
+    """LLM đôi khi thêm chữ hoặc rào markdown quanh JSON (lỗi "Extra data"); lấy object JSON đầu tiên thay vì từ chối cả phản hồi."""
+    start = text.find("{")
+    if start < 0:
+        return json.loads(text)
+    return json.JSONDecoder().raw_decode(text[start:])[0]
+
+
 class KeyMessage(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: str = Field(min_length=1, max_length=64)
-    text: str = Field(min_length=1, max_length=1000)
+    text: str = Field(min_length=1, max_length=2000)
     source: Literal["content", "inferred"]
 
     @model_validator(mode="after")
@@ -23,11 +31,11 @@ class KeyMessage(BaseModel):
 class ContentBrief(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    pains: list[KeyMessage] = Field(min_length=1, max_length=30)
-    consequences: list[KeyMessage] = Field(default_factory=list, max_length=30)
-    insights: list[KeyMessage] = Field(default_factory=list, max_length=30)
-    solutions: list[KeyMessage] = Field(default_factory=list, max_length=30)
-    outcomes: list[KeyMessage] = Field(default_factory=list, max_length=30)
+    pains: list[KeyMessage] = Field(min_length=1, max_length=60)
+    consequences: list[KeyMessage] = Field(default_factory=list, max_length=60)
+    insights: list[KeyMessage] = Field(default_factory=list, max_length=60)
+    solutions: list[KeyMessage] = Field(default_factory=list, max_length=60)
+    outcomes: list[KeyMessage] = Field(default_factory=list, max_length=60)
     cta: KeyMessage | None = None
     needs_ui_demo: bool = False
 
@@ -61,5 +69,5 @@ def generate_brief(content: str, client: Any) -> ContentBrief:
             "needs_ui_demo chỉ true khi hội thoại chatbot, bảng AI hoặc dữ liệu cần được nhìn thấy bằng chữ thật."
         )},
         {"role": "user", "content": json.dumps({"content": content, "schema": ContentBrief.model_json_schema()}, ensure_ascii=False)},
-    ], max_tokens=min(4000, client.max_output_tokens))
-    return ContentBrief.model_validate_json(result.content)
+    ], max_tokens=min(8000, client.max_output_tokens))
+    return ContentBrief.model_validate(first_json_object(result.content))
