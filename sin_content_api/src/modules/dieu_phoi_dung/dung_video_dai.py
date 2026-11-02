@@ -5,6 +5,7 @@ import hashlib
 import math
 import os
 import re
+import subprocess
 import tempfile
 import uuid
 from pathlib import Path
@@ -1505,17 +1506,23 @@ _BLACK_SEGMENT_PATTERN = re.compile(
 
 
 def _kiem_tra_khung_den(path: Path) -> list[dict]:
-    result = run_media_command([
-        video_processor.ffmpeg_bin, "-hide_banner", "-xerror", "-loglevel", "info",
-        "-i", str(path), "-vf", "blackdetect=d=1.5:pix_th=0.02", "-f", "null", "-",
-    ], capture_output=True, text=True, check=False)
-    if result.returncode != 0:
-        raise ValueError("AUTO_EDIT_FULL_DECODE_FAILED")
-    return [{
-        "start_ms": round(float(match["start"]) * 1000),
-        "end_ms": round(float(match["end"]) * 1000),
-        "duration_ms": round(float(match["duration"]) * 1000),
-    } for match in _BLACK_SEGMENT_PATTERN.finditer(result.stderr or "")]
+    with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as log:
+        result = run_media_command([
+            video_processor.ffmpeg_bin, "-hide_banner", "-xerror", "-loglevel", "info",
+            "-i", str(path), "-vf", "blackdetect=d=1.5:pix_th=0.02", "-f", "null", "-",
+        ], stdout=subprocess.DEVNULL, stderr=log, check=False)
+        log.flush()
+        if result.returncode != 0:
+            raise ValueError("AUTO_EDIT_FULL_DECODE_FAILED")
+        log.seek(0)
+        segments = []
+        for line in log:
+            segments.extend({
+                "start_ms": round(float(match["start"]) * 1000),
+                "end_ms": round(float(match["end"]) * 1000),
+                "duration_ms": round(float(match["duration"]) * 1000),
+            } for match in _BLACK_SEGMENT_PATTERN.finditer(line))
+        return segments
 
 
 def danh_dau_clip_nhip_hinh_yeu(clip: ClipTuDong, duration_ms: int, visual_actions: list[dict]) -> bool:

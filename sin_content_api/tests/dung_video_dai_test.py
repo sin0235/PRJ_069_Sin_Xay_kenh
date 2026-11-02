@@ -118,12 +118,11 @@ def test_storyboard_tinh_callout_don_le_la_mot_diem_chu_khong_phu_day_clip():
 def test_qc_khung_den_dung_ffmpeg_decode_va_tra_ve_khoang_can_ra_soat(monkeypatch, tmp_path):
     commands = []
 
-    def ffmpeg(command, **_kwargs):
+    def ffmpeg(command, **kwargs):
         commands.append(command)
-        return SimpleNamespace(
-            returncode=0,
-            stderr="[blackdetect @ 0x1] black_start:2.000 black_end:4.125 black_duration:2.125\n",
-        )
+        assert "capture_output" not in kwargs
+        kwargs["stderr"].write("[blackdetect @ 0x1] black_start:2.000 black_end:4.125 black_duration:2.125\n")
+        return SimpleNamespace(returncode=0)
 
     monkeypatch.setattr("src.modules.dieu_phoi_dung.dung_video_dai.run_media_command", ffmpeg)
 
@@ -137,7 +136,7 @@ def test_qc_khung_den_dung_ffmpeg_decode_va_tra_ve_khoang_can_ra_soat(monkeypatc
 def test_qc_khung_den_dung_lai_neu_ffmpeg_decode_that_bai(monkeypatch, tmp_path):
     monkeypatch.setattr(
         "src.modules.dieu_phoi_dung.dung_video_dai.run_media_command",
-        lambda *_args, **_kwargs: SimpleNamespace(returncode=1, stderr="decoder failed"),
+        lambda *_args, **_kwargs: SimpleNamespace(returncode=1),
     )
 
     with pytest.raises(ValueError, match="AUTO_EDIT_FULL_DECODE_FAILED"):
