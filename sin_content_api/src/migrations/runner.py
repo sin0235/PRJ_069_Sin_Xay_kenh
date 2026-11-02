@@ -1,5 +1,5 @@
 # Migration Runner cho co so du lieu SIN (Ho tro Up va Down/Rollback)
-from sqlalchemy import inspect, text
+from sqlalchemy import BigInteger, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from src.database import engine, Base
 from src.models import (
@@ -16,6 +16,8 @@ def migration_up():
     """Ap dung migration: Khoi tao toan bo cac bang du lieu"""
     from src.modules.flow_sessions import models as flow_models
     Base.metadata.create_all(bind=engine)
+    migrate_production_project_workflow_up()
+    migrate_media_asset_byte_size_up()
     from src.modules.flow_sessions.migrations import migrate_flow_sessions_up
     migrate_flow_sessions_up(engine)
     migrate_content_video_up()
@@ -36,6 +38,29 @@ def get_current_tables():
     inspector = inspect(engine)
     return inspector.get_table_names()
 
+
+def migrate_production_project_workflow_up(bind=engine):
+    """Thêm loại workflow và phân loại lại dự án cũ có asset Auto Edit."""
+    inspector = inspect(bind)
+    tables = set(inspector.get_table_names())
+    if "production_projects" not in tables:
+        return False
+    columns = {column["name"] for column in inspector.get_columns("production_projects")}
+    if "workflow_type" not in columns:
+        with bind.begin() as connection:
+            connection.execute(text(
+                "ALTER TABLE production_projects ADD COLUMN workflow_type VARCHAR(32) "
+                "NOT NULL DEFAULT 'AI_VIDEO'"
+            ))
+    if "media_assets" in tables:
+        with bind.begin() as connection:
+            connection.execute(text(
+                "UPDATE production_projects SET workflow_type = 'AUTO_EDIT' "
+                "WHERE id IN (SELECT DISTINCT project_id FROM media_assets "
+                "WHERE source_product = 'AUTO_EDIT' AND project_id IS NOT NULL)"
+            ))
+    return True
+
 def migrate_platform_llm_config_up():
     """Migration nang cap luy dang (Idempotent): Chi tao bang platform_llm_configurations neu chua co."""
     PlatformLLMConfig.__table__.create(bind=engine, checkfirst=True)
@@ -47,6 +72,25 @@ def migrate_platform_llm_config_down():
     PlatformLLMConfig.__table__.drop(bind=engine, checkfirst=True)
     inspector = inspect(engine)
     return "platform_llm_configurations" not in inspector.get_table_names()
+
+
+def migrate_media_asset_byte_size_up():
+    inspector = inspect(engine)
+    if "media_assets" not in inspector.get_table_names():
+        return False
+    column = next((item for item in inspector.get_columns("media_assets") if item["name"] == "byte_size"), None)
+    if not column:
+        return False
+    if isinstance(column["type"], BigInteger):
+        return True
+    if engine.dialect.name == "sqlite":
+        return True  # SQLite INTEGER đã lưu số nguyên có dấu 64 bit dù khai báo cột là INTEGER.
+    if engine.dialect.name != "postgresql":
+        raise RuntimeError("MEDIA_ASSET_SIZE_MIGRATION_UNSUPPORTED_DIALECT")
+    with engine.begin() as connection:
+        connection.execute(text("ALTER TABLE media_assets ALTER COLUMN byte_size TYPE BIGINT"))
+    return isinstance(next(item["type"] for item in inspect(engine).get_columns("media_assets")
+                           if item["name"] == "byte_size"), BigInteger)
 
 
 def migrate_content_video_up():

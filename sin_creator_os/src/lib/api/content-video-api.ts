@@ -4,7 +4,12 @@ import { getApiBaseUrl } from "@/lib/api/base-url";
 const API_BASE_URL = getApiBaseUrl();
 
 export class ContentVideoApiError extends Error {
-  constructor(message: string, readonly code?: string) {
+  constructor(
+    message: string,
+    readonly code?: string,
+    readonly status?: number,
+    readonly retryable = status == null || status >= 500,
+  ) {
     super(message);
     this.name = "ContentVideoApiError";
   }
@@ -58,6 +63,14 @@ export interface ContentVideoPlan {
   llm_model: string;
 }
 
+interface ContentVideoPlanJob {
+  job_id: string;
+  state: string;
+  error_code?: string | null;
+  error_message?: string | null;
+  plan?: ContentVideoPlan | null;
+}
+
 export interface ContentVideoRun {
   id: string;
   voice_asset_id?: string | null;
@@ -95,6 +108,7 @@ async function request<T>(projectId: string, path: string, init?: RequestInit): 
     throw new ContentVideoApiError(
       typeof detail === "string" ? detail : detail?.message || `Yêu cầu thất bại (${response.status}).`,
       typeof detail === "object" ? detail?.error_code : undefined,
+      response.status,
     );
   }
   return response.json();
@@ -102,10 +116,41 @@ async function request<T>(projectId: string, path: string, init?: RequestInit): 
 
 export const contentVideoApi = {
   getLatestHistory: (projectId: string) => request<ContentVideoHistory>(projectId, "/history"),
-  createPlan: (projectId: string, content: string, duration: number, aspectRatio: "9:16" | "16:9") => request<ContentVideoPlan>(projectId, "/plans", {
-    method: "POST",
-    body: JSON.stringify({ content, target_duration_seconds: duration, aspect_ratio: aspectRatio }),
-  }),
+  createPlan: async (projectId: string, content: string, duration: number, aspectRatio: "9:16" | "16:9", idempotencyKey: string) => {
+    let job: ContentVideoPlanJob;
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        job = await request<ContentVideoPlanJob>(projectId, "/plans", {
+          method: "POST",
+          headers: { "Idempotency-Key": idempotencyKey },
+          body: JSON.stringify({ content, target_duration_seconds: duration, aspect_ratio: aspectRatio }),
+        });
+        break;
+      } catch (error) {
+        const retryable = !(error instanceof ContentVideoApiError) || error.retryable;
+        if (!retryable || attempt >= 2) throw error;
+        await new Promise((resolve) => window.setTimeout(resolve, 750 * 2 ** attempt));
+      }
+    }
+
+    const terminalStates = new Set(["SUCCEEDED", "FAILED", "NEEDS_RECONCILIATION", "BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_QUOTA", "CANCELLED", "EXPIRED"]);
+    let statusFailures = 0;
+    while (true) {
+      if (job.state === "SUCCEEDED" && job.plan) return job.plan;
+      if (terminalStates.has(job.state)) {
+        throw new ContentVideoApiError(job.error_message || "Không tạo được storyboard.", job.error_code || undefined, undefined, false);
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 1500));
+      try {
+        job = await request<ContentVideoPlanJob>(projectId, `/plans/jobs/${encodeURIComponent(job.job_id)}`);
+        statusFailures = 0;
+      } catch (error) {
+        const retryable = !(error instanceof ContentVideoApiError) || error.retryable;
+        statusFailures += 1;
+        if (!retryable || statusFailures >= 5) throw error;
+      }
+    }
+  },
   getPlan: (projectId: string, planId: string) => request<ContentVideoPlan>(projectId, `/plans/${encodeURIComponent(planId)}`),
   updatePlan: (projectId: string, planId: string, storyboard: ContentVideoPlan["storyboard"]) => request<ContentVideoPlan>(projectId, `/plans/${encodeURIComponent(planId)}`, {
     method: "PUT",

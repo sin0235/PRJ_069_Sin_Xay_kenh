@@ -7,7 +7,9 @@ from sqlalchemy.orm import Session
 
 from src.auth.tenancy import TenantContext, require_action
 from src.database import get_db as get_content_db
-from src.models.entities import ProductionProject
+from src.models.entities import MediaAsset, ProductionProject
+from src.modules.llm.client import LLMClient
+from src.modules.media_queue.service import enqueue_media_job
 from .hop_dong import (
     TimelineV2,
     DinhDanhPhien,
@@ -62,13 +64,18 @@ class XuatGoiBanGiaoRequest(BaseModel):
     adapter_id: str = "FINAL_CUT_XML"
 
 
-def _kiem_tra_quyen_du_an(db: Session, project_id: str, workspace_id: str) -> None:
+class TaoVideoDaiRequest(BaseModel):
+    source_asset_id: str = Field(min_length=1, max_length=36)
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+def _kiem_tra_quyen_du_an(db: Session, project_id: str, workspace_id: str) -> ProductionProject:
     """Xác minh project thật thuộc workspace trước khi đọc hoặc đổi state Harness."""
-    exists = db.query(ProductionProject.id).filter(
+    project = db.query(ProductionProject).filter(
         ProductionProject.id == project_id,
         ProductionProject.workspace_id == workspace_id,
     ).first()
-    if not exists:
+    if not project:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy dự án trong workspace.")
     try:
         QuanLyPhienDung.kiem_tra_so_huu_du_an(project_id, workspace_id)
@@ -79,6 +86,60 @@ def _kiem_tra_quyen_du_an(db: Session, project_id: str, workspace_id: str) -> No
                 detail=f"Dự án {project_id} không thuộc quyền quản lý của workspace {workspace_id}."
             )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return project
+
+
+@router.post("/tu-dong-dung-video-dai", status_code=status.HTTP_202_ACCEPTED)
+def tu_dong_dung_video_dai(
+    project_id: str,
+    req: TaoVideoDaiRequest,
+    db: Session = Depends(get_content_db),
+    ctx: TenantContext = Depends(require_action("media.upload")),
+):
+    project = _kiem_tra_quyen_du_an(db, project_id, ctx.workspace_id)
+    if project.workflow_type != "AUTO_EDIT":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error_code": "PROJECT_WORKFLOW_MISMATCH", "message": "Auto Edit yêu cầu dự án thuộc luồng Auto Edit."},
+        )
+    source = db.query(MediaAsset).filter(
+        MediaAsset.id == req.source_asset_id,
+        MediaAsset.workspace_id == ctx.workspace_id,
+    ).first()
+    if not source or not (source.mime_detected or "").startswith("video/"):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy video nguồn trong workspace.")
+    if source.project_id and source.project_id != project_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video nguồn không thuộc dự án này.")
+
+    llm = LLMClient.from_db(db)
+    if not llm.is_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail={"error_code": "LLM_NOT_CONFIGURED", "message": "Chưa bật cấu hình LLM cho workspace."},
+        )
+
+    job = enqueue_media_job(
+        db,
+        workspace_id=ctx.workspace_id,
+        user_id=ctx.user_id,
+        provider="MEDIA_VIDEO",
+        operation="auto_edit_video",
+        backend_provider="BAHA_AUTO_EDIT",
+        provider_mode="LOCAL_CPU_AND_CONFIGURED_LLM",
+        model_id=llm.model,
+        prompt_text="Dựng video nguồn thành các clip mạng xã hội, giữ nguyên khuôn mặt gốc.",
+        parameters={"source_asset_id": source.id},
+        idempotency_key=req.idempotency_key,
+        project_id=project_id,
+        estimated_cost=0.0,
+        credits_source="LOCAL_PROCESSING",
+    )
+    return {
+        "job_id": job.id,
+        "state": job.state,
+        "source_asset_id": source.id,
+        "idempotency_key": req.idempotency_key,
+    }
 
 
 @router.post("/phien", response_model=DinhDanhPhien)

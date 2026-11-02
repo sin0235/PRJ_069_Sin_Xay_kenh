@@ -146,9 +146,12 @@ export interface ProductionProjectResponse {
   id: string;
   workspace_id: string;
   title: string;
+  workflow_type: "AI_VIDEO" | "AUTO_EDIT";
   status: string;
   created_at: string;
 }
+
+export type ProductionWorkflowType = ProductionProjectResponse["workflow_type"];
 
 export interface TimelineClip {
   clip_id: string;
@@ -328,19 +331,19 @@ export interface AssembleVideoParams {
 }
 
 export const mediaStudioApi = {
-  async listProjects(): Promise<ProductionProjectResponse[]> {
-    const res = await apiFetch(`${API_BASE_URL}/v1/media/projects`, {
+  async listProjects(workflowType: ProductionWorkflowType = "AI_VIDEO"): Promise<ProductionProjectResponse[]> {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/projects?workflow_type=${workflowType}`, {
       headers: mediaAuthHeaders(),
     });
     if (!res.ok) throw new Error(`Không thể tải dự án (${res.status}).`);
     return res.json();
   },
 
-  async createProject(title: string): Promise<ProductionProjectResponse> {
+  async createProject(title: string, workflowType: ProductionWorkflowType = "AI_VIDEO"): Promise<ProductionProjectResponse> {
     const res = await apiFetch(`${API_BASE_URL}/v1/media/projects`, {
       method: "POST",
       headers: mediaAuthHeaders(undefined, undefined, "application/json"),
-      body: JSON.stringify({ title }),
+      body: JSON.stringify({ title, workflow_type: workflowType }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

@@ -5,16 +5,19 @@ Các route: /v1/media và /v1/ai-jobs
 """
 
 import os
+import asyncio
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 import uuid
 import json
 from datetime import datetime, timezone
-from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form, status
+from typing import List, Optional, Literal
+from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, JSONResponse
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
@@ -44,6 +47,7 @@ from src.schemas.contracts import (
 )
 
 from src.modules.media_studio.service import media_service
+from src.modules.media_studio.service import VIDEO_UPLOAD_CHUNK_BYTES
 from src.modules.media_studio.job_engine import job_engine
 from src.modules.media_queue.service import FLOW_BACKEND_PROVIDERS, enqueue_media_job, is_production, media_idempotency_hash, resolve_profile_id
 from src.modules.media_studio.music_provider import music_orchestrator
@@ -55,12 +59,18 @@ LOCAL_BROWSER_PROFILE_DIR = getattr(flow_session_manager, "LOCAL_BROWSER_PROFILE
 from src.modules.media_studio.audio_processor import audio_processor
 from src.modules.media_studio.video_processor import video_processor
 from src.modules.media_studio.security import (
-    get_workspace_storage_dir, MEDIA_ROOT_DIR, hash_file, stream_media_to_tempfile,
+    get_workspace_storage_dir, MEDIA_ROOT_DIR, UPLOAD_STREAM_CHUNK_BYTES, hash_file, stream_media_to_tempfile,
 )
 
 media_router = APIRouter(prefix="/v1/media", tags=["Media Studio"])
 jobs_router = APIRouter(prefix="/v1/ai-jobs", tags=["AI Generation Jobs"])
 FLOW_SESSION_MANAGER = Path(__file__).resolve().parents[4] / "cong_cu_tu_dong" / "flow_bridge" / "session_manager.py"
+
+
+class VideoUploadSessionCreate(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+    byte_size: int = Field(gt=0)
+    project_id: str = Field(min_length=1)
 
 
 def _flow_login_session_running() -> bool:
@@ -90,9 +100,10 @@ def create_media_project(
 @media_router.get("/projects", response_model=List[ProductionProjectOut])
 def list_media_projects(
     db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(require_action("media.read"))
+    tenant: TenantContext = Depends(require_action("media.read")),
+    workflow_type: Literal["AI_VIDEO", "AUTO_EDIT"] = Query(default="AI_VIDEO"),
 ):
-    return media_service.list_projects(db, tenant.workspace_id)
+    return media_service.list_projects(db, tenant.workspace_id, workflow_type=workflow_type)
 
 
 @media_router.post("/flow/login")
@@ -183,6 +194,66 @@ def upload_asset(
         expected_category=expected_category
     )
     # Gán URL truy cập có thời hạn an toàn
+    out = MediaAssetOut.model_validate(asset)
+    out.url = f"/v1/media/assets/{asset.id}/download?ttl=3600"
+    return out
+
+
+@media_router.post("/upload-sessions", status_code=status.HTTP_201_CREATED)
+def create_video_upload_session(
+    payload: VideoUploadSessionCreate,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(require_action("media.upload")),
+):
+    return media_service.create_video_upload_session(
+        db, tenant.workspace_id, tenant.user_id, payload.filename, payload.byte_size, payload.project_id,
+    )
+
+
+@media_router.get("/upload-sessions/{session_id}")
+def get_video_upload_session(
+    session_id: str,
+    tenant: TenantContext = Depends(require_action("media.upload")),
+):
+    return media_service.video_upload_session_status(session_id, tenant.workspace_id, tenant.user_id)
+
+
+@media_router.put("/upload-sessions/{session_id}/chunks")
+async def upload_video_chunk(
+    session_id: str,
+    request: Request,
+    offset: int = Query(..., ge=0),
+    tenant: TenantContext = Depends(require_action("media.upload")),
+):
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > VIDEO_UPLOAD_CHUNK_BYTES:
+                raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail="Khối tải lên vượt kích thước cho phép.")
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Content-Length không hợp lệ.") from exc
+
+    with tempfile.SpooledTemporaryFile(max_size=UPLOAD_STREAM_CHUNK_BYTES, mode="w+b") as chunk_file:
+        received = 0
+        async for body in request.stream():
+            received += len(body)
+            if received > VIDEO_UPLOAD_CHUNK_BYTES:
+                raise HTTPException(status_code=status.HTTP_413_CONTENT_TOO_LARGE, detail="Khối tải lên vượt kích thước cho phép.")
+            chunk_file.write(body)
+        chunk_file.seek(0)
+        return await asyncio.to_thread(
+            media_service.append_video_upload_chunk,
+            session_id, tenant.workspace_id, tenant.user_id, offset, chunk_file,
+        )
+
+
+@media_router.post("/upload-sessions/{session_id}/complete", response_model=MediaAssetOut)
+def complete_video_upload_session(
+    session_id: str,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(require_action("media.upload")),
+):
+    asset = media_service.complete_video_upload_session(db, session_id, tenant.workspace_id, tenant.user_id)
     out = MediaAssetOut.model_validate(asset)
     out.url = f"/v1/media/assets/{asset.id}/download?ttl=3600"
     return out
@@ -1393,6 +1464,8 @@ def save_project_timeline(
     asset_ids_to_check = set()
     for clip in payload.timeline.clips:
         asset_ids_to_check.add(clip.asset_id)
+        if clip.audio_asset_id:
+            asset_ids_to_check.add(clip.audio_asset_id)
         if clip.duration_ms <= 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -1403,11 +1476,14 @@ def save_project_timeline(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={"error_code": "INVALID_TRIM", "message": f"Clip {clip.clip_id}: trim_in_ms và trim_out_ms phải >= 0."}
             )
+
         if clip.media_type in ("video", TimelineClip) and clip.trim_out_ms > 0 and clip.trim_out_ms <= clip.trim_in_ms:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={"error_code": "INVALID_TRIM_RANGE", "message": f"Clip {clip.clip_id}: trim_out_ms ({clip.trim_out_ms}) phải lớn hơn trim_in_ms ({clip.trim_in_ms})."}
             )
+
+    asset_ids_to_check.update(overlay.asset_id for overlay in payload.timeline.overlays)
 
     if payload.timeline.voice_track and payload.timeline.voice_track.asset_id:
         asset_ids_to_check.add(payload.timeline.voice_track.asset_id)
@@ -1560,9 +1636,11 @@ def render_project_timeline(
 
     try:
         meta = video_processor.render_timeline_document(
-            timeline=timeline_doc,
+            timeline=timeline_doc.model_dump(mode="json"),
             asset_path_resolver=resolve_asset_path,
-            output_path=out_path
+            output_path=out_path,
+            transition_seconds=timeline_doc.transition_seconds,
+            caption_style=timeline_doc.caption_style,
         )
     except Exception as exc:
         if out_path.exists():

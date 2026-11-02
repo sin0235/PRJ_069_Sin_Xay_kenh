@@ -150,7 +150,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
   const createPlan = async (event: React.FormEvent) => {
     event.preventDefault(); setBusy(true); setError(null); setErrorCode(null);
     try {
-      const next = await contentVideoApi.createPlan(projectId, content, duration, aspectRatio);
+      const next = await contentVideoApi.createPlan(projectId, content, duration, aspectRatio, randomUuid());
       setPlan(next);
       setStoryboardDraft(null);
       setEditingContent(false);
@@ -358,7 +358,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
       {(!plan || editingContent) && !loadingHistory && <Card className="p-5"><form className="flex flex-col gap-4" onSubmit={createPlan}>
         <div className="flex items-center justify-between gap-3"><label className="text-sm font-medium" htmlFor="content-source">Nội dung nguồn (40–12.000 ký tự; tối đa 12 KB UTF-8)</label><span className="text-xs text-muted-foreground">{contentBytes.toLocaleString("vi-VN")} / 12.000 byte</span></div>
         <textarea id="content-source" required minLength={40} maxLength={12000} value={content} onChange={(event) => setContent(event.target.value)} className="min-h-48 rounded-md border bg-background p-3 text-sm" placeholder="Dán bài viết, đề cương hoặc nội dung cần chuyển thành video..." />
-        <label className="flex items-center gap-3 text-sm">Thời lượng mục tiêu <Input type="number" min={20} max={180} step={1} value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="w-28" /> giây</label>
+        <label className="flex items-center gap-3 text-sm">Thời lượng mục tiêu <Input type="number" min={20} max={180} step={10} value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="w-28" /> giây</label>
         <label className="flex items-center gap-3 text-sm" htmlFor="aspect-ratio">Tỷ lệ video
           <select id="aspect-ratio" value={aspectRatio} onChange={(event) => setAspectRatio(event.target.value as "9:16" | "16:9")} className="h-10 rounded-md border bg-background px-3 text-sm">
             <option value="9:16">Dọc 9:16</option><option value="16:9">Ngang 16:9</option>

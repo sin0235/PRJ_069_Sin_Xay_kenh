@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { contentVideoApi, ContentVideoApiError } from "@/lib/api/content-video-api";
 import { mediaStudioApi, ProductionProjectResponse } from "@/lib/api/media-studio-api";
+import { randomUuid } from "@/lib/utils";
 
 const FLOW_STEPS = [
   ["01", "Nhập nội dung"],
@@ -34,7 +35,7 @@ export default function VideoStudioIndexPage() {
     setLoading(true);
     setError(null);
     try {
-      setProjects(await mediaStudioApi.listProjects());
+      setProjects(await mediaStudioApi.listProjects("AI_VIDEO"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không thể tải danh sách dự án.");
     } finally {
@@ -54,13 +55,13 @@ export default function VideoStudioIndexPage() {
     try {
       let projectId = draftProjectId;
       if (!projectId) {
-        const project = await mediaStudioApi.createProject(projectTitle.trim());
+        const project = await mediaStudioApi.createProject(projectTitle.trim(), "AI_VIDEO");
         projectId = project.id;
         setDraftProjectId(project.id);
         setProjects((current) => [project, ...current.filter((item) => item.id !== project.id)]);
       }
 
-      const plan = await contentVideoApi.createPlan(projectId, content.trim(), duration, aspectRatio);
+      const plan = await contentVideoApi.createPlan(projectId, content.trim(), duration, aspectRatio, randomUuid());
       router.push(`/video-studio/${projectId}/production?plan=${encodeURIComponent(plan.id)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không tạo được storyboard.");
@@ -102,7 +103,7 @@ export default function VideoStudioIndexPage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <label htmlFor="target-duration" className="grid gap-2 text-sm font-medium">Thời lượng mục tiêu
-              <div className="flex items-center gap-2"><Input id="target-duration" type="number" min={20} max={180} step={1} value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="w-32" /><span className="font-normal text-muted-foreground">giây</span></div>
+              <div className="flex items-center gap-2"><Input id="target-duration" type="number" min={20} max={180} step={10} value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="w-32" /><span className="font-normal text-muted-foreground">giây</span></div>
             </label>
             <label htmlFor="aspect-ratio" className="grid gap-2 text-sm font-medium">Tỷ lệ khung hình
               <select id="aspect-ratio" value={aspectRatio} onChange={(event) => setAspectRatio(event.target.value as "9:16" | "16:9")} className="h-10 rounded-md border bg-background px-3 text-sm font-normal">

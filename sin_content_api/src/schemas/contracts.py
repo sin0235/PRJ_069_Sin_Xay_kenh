@@ -848,12 +848,14 @@ class AIGenerationJobOut(BaseModel):
 class ProductionProjectCreate(BaseModel):
     title: str = Field(..., min_length=2, max_length=255)
     script_id: Optional[str] = None
+    workflow_type: Literal["AI_VIDEO", "AUTO_EDIT"] = "AI_VIDEO"
 
 class ProductionProjectOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
     workspace_id: str
     title: str
+    workflow_type: Literal["AI_VIDEO", "AUTO_EDIT"] = "AI_VIDEO"
     script_id: Optional[str] = None
     status: str
     created_by: str

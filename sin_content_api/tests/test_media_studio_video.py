@@ -14,6 +14,7 @@ import hashlib
 import pathlib
 import subprocess
 import pytest
+from pydantic import ValidationError
 from fastapi.testclient import TestClient
 
 PROJECT_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -33,7 +34,7 @@ os.environ["BAHA_AUTH_JWT_AUDIENCE"] = "baha-auth-audience"
 from src.main import app
 from src.database import Base, SessionLocal, engine
 from baha_auth.src.database import Base as AuthBase, SessionLocal as AuthSessionLocal, engine as AuthEngine
-from src.models.entities import Workspace, User, MediaAsset, ProductionProject, TimelineVersion
+from src.models.entities import Workspace, User, MediaAsset, ProductionProject, TimelineVersion, AIGenerationJob
 from baha_auth.src.models.entities import (
     GlobalUser, Membership as AuthMembership, Role as AuthRole,
     RoleAssignment, Workspace as AuthWorkspace
@@ -47,6 +48,51 @@ from src.modules.media_studio.video_provider import video_orchestrator
 from src.modules.media_studio.audio_processor import audio_processor
 
 client = TestClient(app)
+
+
+def test_timeline_giu_duoc_cac_lop_va_style_auto_edit():
+    timeline = TimelineDocument.model_validate({
+        "width": 1080,
+        "height": 1920,
+        "fps": 30,
+        "caption_style": "vietsub_v1",
+        "transition_seconds": 0.16,
+        "clips": [{
+            "clip_id": "speaker_1", "asset_id": "source", "media_type": "video",
+            "start_ms": 0, "duration_ms": 4000, "trim_in_ms": 1000,
+            "trim_out_ms": 5000, "fit": "cover", "effect": "punch_in",
+            "audio_asset_id": "source", "audio_trim_in_ms": 1000,
+        }],
+        "overlays": [{
+            "asset_id": "paper-alpha", "start_ms": 1000, "duration_ms": 3000,
+            "x": 640, "y": 260, "width": 320, "height": 480,
+        }],
+        "captions": [{
+            "text": "Nhãn", "start_ms": 1000, "duration_ms": 1500,
+            "font_size": 50, "position_y_px": 660, "visual_type": "callout",
+        }],
+    })
+
+    assert timeline.caption_style == "vietsub_v1"
+    assert timeline.clips[0].audio_asset_id == "source"
+    assert timeline.clips[0].effect == "punch_in"
+    assert timeline.overlays[0].asset_id == "paper-alpha"
+    assert timeline.captions[0].visual_type == "callout"
+    assert timeline.captions[0].position_y_px == 660
+
+
+def test_timeline_rejects_overlay_outside_vertical_canvas():
+    with pytest.raises(ValidationError):
+        TimelineDocument.model_validate({
+            "clips": [{
+                "clip_id": "speaker", "asset_id": "source", "media_type": "video",
+                "duration_ms": 5000,
+            }],
+            "overlays": [{
+                "asset_id": "paper-alpha", "start_ms": 0, "duration_ms": 1000,
+                "x": 900, "y": 1700, "width": 200, "height": 300,
+            }],
+        })
 
 
 def tao_bearer_jwt(user_id: str) -> str:
@@ -137,6 +183,126 @@ def video_fixture(tmp_path):
         "audio_file": audio_file,
         "tmp_dir": tmp_path
     }
+
+
+def test_resumable_video_upload_retries_chunk_and_registers_asset(video_fixture, monkeypatch):
+    from src.modules.media_studio.service import media_service
+    from src.auth.tenancy import TenantContext, get_current_tenant_context
+
+    project_id = f"proj-upload-{uuid.uuid4().hex[:8]}"
+    with SessionLocal() as db:
+        db.add(ProductionProject(
+            id=project_id,
+            workspace_id=video_fixture["ws_id"],
+            title="Dự án tải video dài",
+            created_by=video_fixture["user_id"],
+        ))
+        db.commit()
+
+    storage = video_fixture["tmp_dir"] / "media"
+    monkeypatch.setattr(media_service, "storage_base", storage)
+    headers = {
+        "Authorization": f"Bearer {video_fixture['token']}",
+        "X-Workspace-Id": video_fixture["ws_id"],
+    }
+    assert client.post("/v1/media/upload-sessions", json={
+        "filename": "video_dai.mp4", "byte_size": 1, "project_id": project_id,
+    }).status_code == 401
+    tenant = TenantContext(video_fixture["ws_id"], video_fixture["user_id"], None, None, "upload-test", True)
+    monkeypatch.setitem(app.dependency_overrides, get_current_tenant_context, lambda: tenant)
+    video = b"\x00\x00\x00\x18ftypmp42" + bytes(range(64))
+    oversized = client.post("/v1/media/upload-sessions", json={
+        "filename": "video_qua_lon.mp4",
+        "byte_size": 12 * 1024 ** 3 + 1,
+        "project_id": project_id,
+    }, headers=headers)
+    assert oversized.status_code == 413
+
+    created = client.post("/v1/media/upload-sessions", json={
+        "filename": "video_dai.mp4",
+        "byte_size": len(video),
+        "project_id": project_id,
+    }, headers=headers)
+    assert created.status_code == 201, created.text
+    session_id = created.json()["session_id"]
+
+    tenant.workspace_id = "ws-other"
+    assert client.get(f"/v1/media/upload-sessions/{session_id}", headers=headers).status_code == 404
+    tenant.workspace_id = video_fixture["ws_id"]
+
+    future = client.put(
+        f"/v1/media/upload-sessions/{session_id}/chunks?offset=1",
+        content=video[:1], headers=headers,
+    )
+    assert future.status_code == 409
+    assert future.json()["detail"]["next_offset"] == 0
+
+    first = client.put(
+        f"/v1/media/upload-sessions/{session_id}/chunks?offset=0",
+        content=video[:20], headers=headers,
+    )
+    assert first.status_code == 200
+    assert first.json()["next_offset"] == 20
+
+    retry = client.put(
+        f"/v1/media/upload-sessions/{session_id}/chunks?offset=0",
+        content=video[:20], headers=headers,
+    )
+    assert retry.status_code == 200
+    assert retry.json()["next_offset"] == 20
+
+    resumed = client.put(
+        f"/v1/media/upload-sessions/{session_id}/chunks?offset=20",
+        content=video[20:], headers=headers,
+    )
+    assert resumed.status_code == 200
+    assert resumed.json()["next_offset"] == len(video)
+
+    completed = client.post(f"/v1/media/upload-sessions/{session_id}/complete", headers=headers)
+    assert completed.status_code == 200
+    asset = completed.json()
+    assert asset["project_id"] == project_id
+    assert asset["byte_size"] == len(video)
+    assert asset["sha256"] == hashlib.sha256(video).hexdigest()
+    assert asset["approval_state"] == "UNREVIEWED"
+    assert (storage / asset["storage_key"]).read_bytes() == video
+
+
+def test_resumable_video_upload_rejects_oversized_chunk_without_advancing(video_fixture, monkeypatch):
+    from src.modules.media_studio.service import media_service
+    from src.auth.tenancy import TenantContext, get_current_tenant_context
+
+    project_id = f"proj-upload-{uuid.uuid4().hex[:8]}"
+    with SessionLocal() as db:
+        db.add(ProductionProject(
+            id=project_id,
+            workspace_id=video_fixture["ws_id"],
+            title="Dự án tải video dài",
+            created_by=video_fixture["user_id"],
+        ))
+        db.commit()
+
+    monkeypatch.setattr(media_service, "storage_base", video_fixture["tmp_dir"] / "media")
+    monkeypatch.setattr("src.modules.media_studio.router.VIDEO_UPLOAD_CHUNK_BYTES", 8)
+    tenant = TenantContext(video_fixture["ws_id"], video_fixture["user_id"], None, None, "upload-limit-test", True)
+    monkeypatch.setitem(app.dependency_overrides, get_current_tenant_context, lambda: tenant)
+    headers = {
+        "Authorization": f"Bearer {video_fixture['token']}",
+        "X-Workspace-Id": video_fixture["ws_id"],
+    }
+    created = client.post("/v1/media/upload-sessions", json={
+        "filename": "video_dai.mp4", "byte_size": 9, "project_id": project_id,
+    }, headers=headers)
+    session_id = created.json()["session_id"]
+
+    response = client.put(
+        f"/v1/media/upload-sessions/{session_id}/chunks?offset=0",
+        content=b"123456789", headers=headers,
+    )
+
+    assert response.status_code == 413
+    status_response = client.get(f"/v1/media/upload-sessions/{session_id}", headers=headers)
+    assert status_response.json()["next_offset"] == 0
 
 # ==============================================================================
 # TEST CASE GF02-01: ffprobe Video Specs Extraction
@@ -685,7 +851,7 @@ def test_timeline_put_round_trips_document(video_fixture):
         data={"source_product": "UPLOAD", "expected_category": "video"},
         headers=headers
     )
-    assert r_v.status_code == 200
+    assert r_v.status_code == 200, f"video upload failed: {r_v.text}"
     v_asset_id = r_v.json()["id"]
 
     r_a = client.post(
@@ -711,9 +877,21 @@ def test_timeline_put_round_trips_document(video_fixture):
                     "duration_ms": 2000,
                     "trim_in_ms": 0,
                     "trim_out_ms": 2000,
-                    "fit": "cover"
+                    "fit": "cover",
+                    "effect": "punch_in",
+                    "audio_asset_id": v_asset_id,
+                    "audio_trim_in_ms": 0,
                 }
             ],
+            "overlays": [{
+                "asset_id": v_asset_id,
+                "start_ms": 500,
+                "duration_ms": 1000,
+                "x": 640,
+                "y": 260,
+                "width": 320,
+                "height": 480,
+            }],
             "voice_track": {
                 "asset_id": a_asset_id,
                 "start_ms": 0,
@@ -727,9 +905,13 @@ def test_timeline_put_round_trips_document(video_fixture):
                     "start_ms": 0,
                     "duration_ms": 2000,
                     "font_size": 28,
-                    "safe_zone": True
+                    "safe_zone": True,
+                    "position_y_px": 660,
+                    "visual_type": "callout",
                 }
-            ]
+            ],
+            "caption_style": "vietsub_v1",
+            "transition_seconds": 0.16,
         },
         "expected_version": 0
     }
@@ -740,13 +922,22 @@ def test_timeline_put_round_trips_document(video_fixture):
     assert data["version"] == 1
     assert len(data["timeline"]["clips"]) == 1
     assert data["timeline"]["clips"][0]["asset_id"] == v_asset_id
+    assert data["timeline"]["clips"][0]["audio_asset_id"] == v_asset_id
+    assert data["timeline"]["clips"][0]["effect"] == "punch_in"
+    assert data["timeline"]["overlays"][0]["asset_id"] == v_asset_id
     assert data["timeline"]["captions"][0]["text"] == "TIKTOK REELS MASTER 2026"
+    assert data["timeline"]["captions"][0]["position_y_px"] == 660
+    assert data["timeline"]["captions"][0]["visual_type"] == "callout"
+    assert data["timeline"]["caption_style"] == "vietsub_v1"
+    assert data["timeline"]["transition_seconds"] == 0.16
 
     # GET lại phai round-trip chính xác
     resp_get = client.get(f"/v1/media/projects/{proj_id}/timeline", headers=headers)
     assert resp_get.status_code == 200
     assert resp_get.json()["version"] == 1
     assert resp_get.json()["timeline"]["clips"][0]["clip_id"] == "clip_01"
+    assert resp_get.json()["timeline"]["overlays"][0]["duration_ms"] == 1000
+    assert resp_get.json()["timeline"]["caption_style"] == "vietsub_v1"
 
 
 def test_timeline_put_rejects_stale_version(video_fixture):
@@ -1025,6 +1216,31 @@ def test_timeline_render_keeps_flow_generated_audio(video_fixture, tmp_path):
     assert 2.9 <= meta["duration_seconds"] <= 3.1
 
 
+def test_timeline_renders_speaker_pip_at_llm_selected_position(video_fixture, tmp_path):
+    timeline = {
+        "width": 1080, "height": 1920, "fps": 30,
+        "clips": [{"clip_id": "paper", "asset_id": "paper", "media_type": "video",
+                   "duration_ms": 1500, "trim_out_ms": 1500}],
+        "overlays": [{"asset_id": "speaker", "mode": "speaker_pip", "trim_in_ms": 0,
+                       "start_ms": 0, "duration_ms": 1500, "x": 120, "y": 600,
+                       "width": 270, "height": 480}],
+    }
+    output = tmp_path / "speaker_pip_selected_layout.mp4"
+
+    meta = video_processor.render_timeline_document(
+        timeline,
+        lambda asset_id: video_fixture["clip_1"] if asset_id == "speaker" else video_fixture["clip_2"],
+        output,
+    )
+    decode = subprocess.run(
+        [video_processor.ffmpeg_bin, "-v", "error", "-i", str(output), "-f", "null", "-"],
+        capture_output=True, text=True, check=False,
+    )
+
+    assert meta["width"] == 1080 and meta["height"] == 1920
+    assert decode.returncode == 0 and not decode.stderr.strip()
+
+
 def test_timeline_crossfade_keeps_requested_duration_and_decodes(video_fixture, tmp_path):
     timeline_doc = TimelineDocument(
         width=1080,
@@ -1054,6 +1270,78 @@ def test_timeline_crossfade_keeps_requested_duration_and_decodes(video_fixture, 
     assert 4.4 <= meta["duration_seconds"] <= 4.6
     assert decode.returncode == 0 and not decode.stderr.strip()
     assert audio_processor.probe_audio(output)["codec_name"] == "aac"
+
+
+def test_timeline_applies_selected_wipe_transition(video_fixture, monkeypatch, tmp_path):
+    import importlib
+
+    renderer = importlib.import_module("src.modules.media_studio.video_processor")
+    commands = []
+    run = renderer.run_media_command
+
+    def capture(command, **kwargs):
+        if "-filter_complex" in command:
+            commands.append(" ".join(command))
+        return run(command, **kwargs)
+
+    monkeypatch.setattr(renderer, "run_media_command", capture)
+    timeline = {
+        "width": 1080, "height": 1920, "fps": 30, "transition_type": "wipeleft",
+        "clips": [
+            {"clip_id": "first", "asset_id": "first", "media_type": "video", "duration_ms": 1500, "trim_out_ms": 1500},
+            {"clip_id": "second", "asset_id": "second", "media_type": "video", "duration_ms": 1500, "trim_out_ms": 1500},
+        ],
+    }
+    output = tmp_path / "wipeleft.mp4"
+
+    meta = video_processor.render_timeline_document(
+        timeline, lambda aid: video_fixture["clip_1"] if aid == "first" else video_fixture["clip_2"],
+        output, transition_seconds=0.3,
+    )
+
+    assert any("xfade=transition=wipeleft" in command for command in commands)
+    assert 2.9 <= meta["duration_seconds"] <= 3.1
+
+
+def test_timeline_cut_skips_crossfade_even_when_duration_is_set(video_fixture, monkeypatch, tmp_path):
+    import importlib
+
+    renderer = importlib.import_module("src.modules.media_studio.video_processor")
+    commands = []
+    run = renderer.run_media_command
+
+    def capture(command, **kwargs):
+        if "-filter_complex" in command:
+            commands.append(" ".join(command))
+        return run(command, **kwargs)
+
+    monkeypatch.setattr(renderer, "run_media_command", capture)
+    timeline = {
+        "width": 1080, "height": 1920, "fps": 30, "transition_type": "cut",
+        "clips": [
+            {"clip_id": "first", "asset_id": "first", "media_type": "video", "duration_ms": 1500, "trim_out_ms": 1500},
+            {"clip_id": "second", "asset_id": "second", "media_type": "video", "duration_ms": 1500, "trim_out_ms": 1500},
+        ],
+    }
+
+    video_processor.render_timeline_document(
+        timeline, lambda aid: video_fixture["clip_1"] if aid == "first" else video_fixture["clip_2"],
+        tmp_path / "cut.mp4", transition_seconds=0.3,
+    )
+
+    assert not commands
+
+
+def test_timeline_rejects_unlisted_transition(video_fixture, tmp_path):
+    timeline = {
+        "width": 1080, "height": 1920, "fps": 30, "transition_type": "custom_filter",
+        "clips": [{"clip_id": "clip", "asset_id": "source", "media_type": "video", "duration_ms": 1000}],
+    }
+
+    with pytest.raises(ValueError, match="VIDEO_TRANSITION_UNSUPPORTED"):
+        video_processor.render_timeline_document(
+            timeline, lambda _: video_fixture["clip_1"], tmp_path / "invalid_transition.mp4",
+        )
 
 
 def test_timeline_render_mixed_order_and_durations(video_fixture, tmp_path):
@@ -1201,7 +1489,10 @@ def test_timeline_render_caption_failure_raises_error(video_fixture, tmp_path, m
 def test_timeline_render_respects_fit_mode(video_fixture, tmp_path):
     """M-P5: Hỗ trợ cả 2 chế độ cover và contain chuẩn 1080x1920."""
     img_file = tmp_path / "photo_fit.png"
-    make_test_image(img_file)
+    subprocess.run([
+        video_processor.ffmpeg_bin, "-y", "-f", "lavfi", "-i",
+        "color=c=0x2563EB:s=1280x720:d=1", "-vframes", "1", str(img_file),
+    ], check=True, capture_output=True)
 
     out_cover = tmp_path / "out_fit_cover.mp4"
     out_contain = tmp_path / "out_fit_contain.mp4"
@@ -1210,7 +1501,7 @@ def test_timeline_render_respects_fit_mode(video_fixture, tmp_path):
         clips=[TimelineClip(clip_id="c_cov", asset_id="img", media_type=TimelineMediaType.IMAGE, duration_ms=1000, fit=TimelineFitMode.COVER)]
     )
     doc_contain = TimelineDocument(
-        clips=[TimelineClip(clip_id="c_cnt", asset_id="img", media_type=TimelineMediaType.IMAGE, duration_ms=1000, fit=TimelineFitMode.CONTAIN)]
+        clips=[TimelineClip(clip_id="c_cnt", asset_id="img", media_type=TimelineMediaType.IMAGE, duration_ms=1000, fit=TimelineFitMode.CONTAIN, pad_color="0B1F2A")]
     )
 
     meta_cov = video_processor.render_timeline_document(timeline=doc_cover, asset_path_resolver=lambda a: img_file, output_path=out_cover, temp_dir=tmp_path / "tmp_cov")
@@ -1218,6 +1509,11 @@ def test_timeline_render_respects_fit_mode(video_fixture, tmp_path):
 
     assert meta_cov["width"] == 1080 and meta_cov["height"] == 1920
     assert meta_cnt["width"] == 1080 and meta_cnt["height"] == 1920
+    pixel = subprocess.run([
+        video_processor.ffmpeg_bin, "-v", "error", "-ss", "0.5", "-i", str(out_contain),
+        "-vf", "crop=1:1:0:0,format=rgb24", "-frames:v", "1", "-f", "rawvideo", "-",
+    ], check=True, capture_output=True).stdout
+    assert len(pixel) == 3 and max(abs(value - expected) for value, expected in zip(pixel, (11, 31, 42))) <= 5
 
 
 def test_timeline_render_audio_shorter_and_longer_than_video(video_fixture, tmp_path):
@@ -1644,8 +1940,53 @@ def test_flow_provider_uses_native_portrait_output(video_fixture, monkeypatch, t
     assert audio_processor.probe_audio(pathlib.Path(result["storage_path"]))["codec_name"] == "unknown"
 
 
+def test_timeline_renderer_keeps_original_face_geometry_with_punch_in(video_fixture, tmp_path):
+    source_with_audio = tmp_path / "source_with_audio.mp4"
+    subprocess.run([
+        video_processor.ffmpeg_bin, "-y", "-i", str(video_fixture["clip_1"]),
+        "-f", "lavfi", "-i", "sine=frequency=440:duration=2",
+        "-map", "0:v:0", "-map", "1:a:0", "-shortest", "-c:v", "copy", "-c:a", "aac",
+        str(source_with_audio),
+    ], check=True, capture_output=True)
+    timeline = {
+        "width": 1080,
+        "height": 1920,
+        "fps": 30,
+        "clips": [{
+            "clip_id": "punch-in",
+            "asset_id": "video",
+            "media_type": "video",
+            "duration_ms": 1500,
+            "trim_out_ms": 1500,
+            "fit": "cover",
+            "effect": "punch_in",
+        }],
+        "captions": [{
+            "text": "Diễn họa từ nguyên văn",
+            "start_ms": 200,
+            "duration_ms": 1000,
+            "font_size": 50,
+            "position_y_px": 660,
+            "visual_type": "callout",
+        }],
+    }
+    output = tmp_path / "punch_in.mp4"
+
+    meta = video_processor.render_timeline_document(timeline, lambda _: source_with_audio, output)
+
+    assert meta["aspect_ratio"] == "9:16"
+    assert audio_processor.probe_audio(output)["codec_name"] == "aac"
+    decode = subprocess.run(
+        [video_processor.ffmpeg_bin, "-v", "error", "-i", str(output), "-f", "null", "-"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert decode.returncode == 0 and not decode.stderr.strip()
+
+
 def test_timeline_renderer_wraps_long_captions(video_fixture, tmp_path):
-    caption = "Dải màu ngang dịch chuyển qua bảng kiểm tra với các sọc màu dọc"
+    caption = "Dải màu ngang dịch chuyển qua bảng kiểm tra với các sọc màu dọc, lợi nhuận giả 10 %"
     timeline = TimelineDocument(
         width=1080,
         height=1920,
@@ -1665,24 +2006,6 @@ def test_timeline_renderer_wraps_long_captions(video_fixture, tmp_path):
     assert max(map(len, lines)) <= 32
 
 
-def _v4_planning_reply(messages, storyboard):
-    # Lượt phân tích brief và lượt dựng cảnh có hợp đồng khác nhau.
-    brief = {"pains": [{"id": "p1", "text": "Thông tin rời rạc.", "source": "inferred"}],
-             "solutions": [{"id": "s1", "text": "Tìm nguồn liên quan.", "source": "content"}]}
-    if "required_schema" not in json.loads(messages[1]["content"]):
-        return json.dumps(brief, ensure_ascii=False)
-    storyboard = json.loads(json.dumps(storyboard))
-    storyboard["narration"] = storyboard["narration"].replace("RAG", "rắc")
-    for index, shot in enumerate(storyboard["shots"]):
-        shot["narration"] = shot["narration"].replace("RAG", "rắc")
-        shot.update(prompt_contract_version=4, beat=["PAIN", "SOLUTION", "OUTCOME"][index],
-                    message_ids=[["p1"], ["s1"], []][index], action_beats=[
-                        {"start_s": 0, "end_s": 4, "action": "Nhân viên mở hồ sơ."},
-                        {"start_s": 4, "end_s": 10, "action": "Nhân viên tìm thẻ và đặt cạnh kết quả."}])
-        shot.setdefault("continues_previous", False)
-    return json.dumps(storyboard, ensure_ascii=False)
-
-
 def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_fixture, monkeypatch, tmp_path):
     from datetime import datetime, timedelta, timezone
     from types import SimpleNamespace
@@ -1693,9 +2016,10 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
         "narration": "RAG giúp truy xuất thông tin trước khi trả lời.",
         "continuity_anchor": "Một chuyên gia công nghệ mặc áo xanh navy giải thích trong studio tối giản cùng bảng màu navy và teal.",
         "shots": [
-            {"shot_id": "s1", "scene": "Vấn đề", "narration": "Thông tin rời rạc.", "prompt": "Tư liệu rời rạc trên bàn làm việc", "flow_prompt_en": "Three paper cards slide apart and settle on the desk beside the same navy paper assistant in the same studio, with the same navy and teal palette.", "duration_seconds": 10},
-            {"shot_id": "s2", "scene": "Cách làm", "narration": "RAG tìm nguồn liên quan.", "prompt": "Tìm kiếm tài liệu theo câu hỏi", "flow_prompt_en": "The same navy paper assistant moves one card from the shelf to the computer in the same studio, with the same navy and teal palette.", "duration_seconds": 10},
-            {"shot_id": "s3", "scene": "Kết quả", "narration": "Câu trả lời có căn cứ.", "prompt": "Trình bày câu trả lời cùng nguồn", "flow_prompt_en": "The same navy paper assistant places the answer beside its source in the same studio, with the same navy and teal palette, then holds the pose.", "duration_seconds": 10},
+            {"shot_id": "s1", "scene": "Vấn đề", "narration": "Thông tin rời rạc.", "prompt": "Tư liệu rời rạc trên bàn làm việc", "flow_prompt_en": "Three paper cards slide apart and settle on the desk beside the same navy paper assistant in the same studio, with the same navy and teal palette.", "duration_seconds": 6, "prompt_contract_version": 4, "beat": "PAIN", "message_ids": ["pain-rag"], "shot_kind": "FLOW_ORIGAMI", "continues_previous": False, "action_beats": [{"start_s": 0, "end_s": 6, "action": "Các thẻ tài liệu tách rời trên bàn."}]},
+            {"shot_id": "s2", "scene": "Cách làm", "narration": "RAG tìm nguồn liên quan.", "prompt": "Tìm kiếm tài liệu theo câu hỏi", "flow_prompt_en": "The same navy paper assistant moves one card from the shelf to the computer in the same studio, with the same navy and teal palette.", "duration_seconds": 6, "prompt_contract_version": 4, "beat": "SOLUTION", "message_ids": ["solution-rag"], "shot_kind": "FLOW_ORIGAMI", "continues_previous": True, "action_beats": [{"start_s": 0, "end_s": 6, "action": "Trợ lý tìm và lấy tài liệu liên quan."}]},
+            {"shot_id": "s3", "scene": "Kết quả", "narration": "Câu trả lời có căn cứ.", "prompt": "Trình bày câu trả lời cùng nguồn", "flow_prompt_en": "The same navy paper assistant places the answer beside its source in the same studio, with the same navy and teal palette, then holds the pose.", "duration_seconds": 6, "prompt_contract_version": 4, "beat": "OUTCOME", "message_ids": ["solution-rag"], "shot_kind": "FLOW_ORIGAMI", "continues_previous": False, "action_beats": [{"start_s": 0, "end_s": 6, "action": "Câu trả lời được đặt cạnh nguồn tài liệu."}]},
+            {"shot_id": "s4", "scene": "Nguồn được kiểm tra", "narration": "Nguồn hỗ trợ câu trả lời.", "prompt": "Đối chiếu câu trả lời với tài liệu nguồn", "duration_seconds": 6, "prompt_contract_version": 4, "beat": "DEMO", "message_ids": ["solution-rag"], "shot_kind": "FLOW_ORIGAMI", "continues_previous": False, "action_beats": [{"start_s": 0, "end_s": 6, "action": "Tài liệu nguồn mở cạnh câu trả lời để đối chiếu."}]},
         ],
     }
 
@@ -1704,7 +2028,12 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
         max_output_tokens = 6000
 
         def complete(self, messages, max_tokens=None):
-            return SimpleNamespace(content=_v4_planning_reply(messages, storyboard), model="test-storyboard")
+            if "Phân tích content thành brief" in messages[0]["content"]:
+                return SimpleNamespace(content=json.dumps({
+                    "pains": [{"id": "pain-rag", "text": "Khó tìm tài liệu liên quan trước khi trả lời.", "source": "content"}],
+                    "solutions": [{"id": "solution-rag", "text": "RAG truy xuất tài liệu liên quan trước khi trả lời.", "source": "content"}],
+                }, ensure_ascii=False), model="test-brief")
+            return SimpleNamespace(content=json.dumps(storyboard, ensure_ascii=False), model="test-storyboard")
 
     monkeypatch.setattr(LLMClient, "from_db", classmethod(lambda cls, db: FakeLLM()))
     from src.models.entities import ProductionProject
@@ -1737,7 +2066,7 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
             video_fixture["user_id"],
             CreatePlanRequest.model_validate({
             "content": "RAG truy xuất tài liệu liên quan trước khi tạo câu trả lời có căn cứ.",
-            "target_duration_seconds": 30,
+            "target_duration_seconds": 24,
             "aspect_ratio": "16:9",
             }),
         )
@@ -1748,20 +2077,20 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
             video_fixture["user_id"],
             CreatePlanRequest.model_validate({
                 "content": "RAG tìm tài liệu đáng tin trước rồi mới tạo câu trả lời cho người dùng.",
-                "target_duration_seconds": 30,
+                "target_duration_seconds": 24,
             "aspect_ratio": "16:9",
             }),
         )
         assert response.style_snapshot_sha256 == second_plan.style_snapshot_sha256
 
     assert response.status == "DRAFT"
-    assert len(response.storyboard.shots) == 3
+    assert len(response.storyboard.shots) == 4
     assert response.storyboard.shots[0].shot_id == "s1"
     assert "flow_prompt_en" not in response.storyboard.shots[0].model_dump()
     assert response.style_snapshot.aspect_ratio == "16:9"
-    assert response.style_snapshot.style_name.startswith("Origami")
-    assert "Nhân vật, đạo cụ và bối cảnh" in response.style_snapshot.visual_rules
-    assert "không có người thật" in response.style_snapshot.visual_rules
+    assert response.style_snapshot.style_name == "BAHA Editorial Motion B2B v1"
+    assert "#0562AF" in response.style_snapshot.visual_rules
+    assert "mẫu nhân vật cố định" in response.style_snapshot.visual_rules
 
     with SessionLocal() as db:
         with pytest.raises(Exception) as self_approval:
@@ -1890,9 +2219,10 @@ def test_content_video_plan_calls_llm_and_persists_reviewable_storyboard(video_f
 
     assert run.id == duplicate.id
     assert run.status == "QUEUED"
-    assert len(run.steps) == 3
+    assert len(run.steps) == 4
     assert all(step["state"] == "READY" and step["command_sha256"] for step in run.steps)
-    assert all("mô hình origami đã gấp thành hình hoàn chỉnh" in step["prompt"] for step in run.steps)
+    assert all("BAHA Editorial Motion B2B v1" in step["prompt"] for step in run.steps)
+    assert all("#0562AF" in step["prompt"] for step in run.steps)
     assert native_run.voice_asset_id is None
     assert all(step["voice_asset_id"] is None for step in native_run.steps)
 
@@ -1914,9 +2244,11 @@ def test_content_video_worker_allows_optional_flow_audio_and_uses_reference_fram
         "narration": "RAG truy xuất tài liệu rồi mới tạo câu trả lời.",
         "continuity_anchor": "Một chuyên gia công nghệ mặc áo xanh navy giải thích trong studio tối giản, ánh sáng mềm.",
         "shots": [
-            {"shot_id": "shot-1", "scene": "Trợ lý mở hồ sơ trong văn phòng", "narration": "Lời dẫn một", "prompt": "Trợ lý mở hồ sơ", "duration_seconds": 10, "continues_previous": False},
-            {"shot_id": "shot-2", "scene": "Cùng cảnh văn phòng, trợ lý tiếp tục đọc hồ sơ", "narration": "Lời dẫn hai", "prompt": "Trợ lý tiếp tục đọc hồ sơ", "duration_seconds": 10, "continues_previous": True},
-            {"shot_id": "shot-3", "scene": "Chuyển sang phòng họp", "narration": "Lời dẫn ba", "prompt": "Nhóm xem kết quả truy xuất", "duration_seconds": 10, "continues_previous": False},
+            {"shot_id": "shot-1", "scene": "Trợ lý mở hồ sơ trong văn phòng", "narration": "Lời dẫn một", "prompt": "Trợ lý mở hồ sơ", "duration_seconds": 6, "continues_previous": False, "prompt_contract_version": 4, "beat": "PAIN", "message_ids": ["pain-rag"], "shot_kind": "FLOW_ORIGAMI", "action_beats": [{"start_s": 0, "end_s": 6, "action": "Trợ lý mở các hồ sơ rời rạc."}]},
+            {"shot_id": "shot-2", "scene": "Cùng cảnh văn phòng, trợ lý tiếp tục đọc hồ sơ", "narration": "Lời dẫn hai", "prompt": "Trợ lý tiếp tục đọc hồ sơ", "duration_seconds": 6, "continues_previous": True, "prompt_contract_version": 4, "beat": "SOLUTION", "message_ids": ["solution-rag"], "shot_kind": "FLOW_ORIGAMI", "action_beats": [{"start_s": 0, "end_s": 6, "action": "Trợ lý tìm tài liệu liên quan rồi đặt cạnh câu hỏi."}]},
+            {"shot_id": "shot-3", "scene": "Chuyển sang phòng họp", "narration": "Lời dẫn ba", "prompt": "Nhóm xem kết quả truy xuất", "duration_seconds": 6, "continues_previous": False, "prompt_contract_version": 4, "beat": "OUTCOME", "message_ids": ["solution-rag"], "shot_kind": "FLOW_ORIGAMI", "action_beats": [{"start_s": 0, "end_s": 6, "action": "Nhóm xem câu trả lời cùng nguồn."}]},
+            {"shot_id": "shot-4", "scene": "Đối chiếu câu trả lời với nguồn", "narration": "Nguồn được kiểm tra.", "prompt": "Tài liệu mở cạnh câu trả lời", "duration_seconds": 6, "continues_previous": False, "prompt_contract_version": 4, "beat": "DEMO", "message_ids": ["solution-rag"], "shot_kind": "FLOW_ORIGAMI", "action_beats": [{"start_s": 0, "end_s": 6, "action": "Tài liệu nguồn mở cạnh câu trả lời để đối chiếu."}]},
+            {"shot_id": "shot-5", "scene": "Kết quả đã có căn cứ", "narration": "Trả lời dựa trên tài liệu.", "prompt": "Câu trả lời và nguồn cùng hiện diện", "duration_seconds": 6, "continues_previous": False, "prompt_contract_version": 4, "beat": "OUTCOME", "message_ids": ["solution-rag"], "shot_kind": "FLOW_ORIGAMI", "action_beats": [{"start_s": 0, "end_s": 6, "action": "Câu trả lời và tài liệu nguồn được đặt cạnh nhau."}]},
         ],
     }
 
@@ -1925,7 +2257,12 @@ def test_content_video_worker_allows_optional_flow_audio_and_uses_reference_fram
         max_output_tokens = 6000
 
         def complete(self, messages, max_tokens=None):
-            return SimpleNamespace(content=_v4_planning_reply(messages, storyboard), model="worker-test")
+            if "Phân tích content thành brief" in messages[0]["content"]:
+                return SimpleNamespace(content=json.dumps({
+                    "pains": [{"id": "pain-rag", "text": "Khó tìm tài liệu liên quan trước khi trả lời.", "source": "content"}],
+                    "solutions": [{"id": "solution-rag", "text": "RAG truy xuất tài liệu liên quan trước khi trả lời.", "source": "content"}],
+                }, ensure_ascii=False), model="worker-brief")
+            return SimpleNamespace(content=json.dumps(storyboard, ensure_ascii=False), model="worker-test")
 
     monkeypatch.setattr(LLMClient, "from_db", classmethod(lambda cls, db: FakeLLM()))
     monkeypatch.setattr(runner, "MEDIA_ROOT_DIR", tmp_path)
@@ -1934,7 +2271,7 @@ def test_content_video_worker_allows_optional_flow_audio_and_uses_reference_fram
         audio_probe_calls.append(path)
         return {"duration_seconds": 30, "codec_name": "mp3" if with_voice_asset else "unknown"}
     monkeypatch.setattr(runner.audio_processor, "probe_audio", probe_audio)
-    monkeypatch.setattr(runner, "LEASE_SECONDS", 0.4)
+    monkeypatch.setattr(runner, "LEASE_SECONDS", 1.0)
     monkeypatch.setattr(runner.video_processor, "probe_video", lambda path: {
         "width": 1080, "height": 1920, "codec_name": "h264", "duration_seconds": 10.0, "frame_rate": 30.0,
     })
@@ -1961,7 +2298,7 @@ def test_content_video_worker_allows_optional_flow_audio_and_uses_reference_fram
         else:
             assert flow_project_url == "https://flow.google.com/project/run-e2e"
         if index == 0:
-            time.sleep(0.55)
+            time.sleep(1.1)
             with SessionLocal() as contender_db:
                 assert not _acquire_lease(contender_db, str(uuid.uuid4()))
             with SessionLocal() as heartbeat_db:
@@ -2046,14 +2383,74 @@ def test_content_video_worker_allows_optional_flow_audio_and_uses_reference_fram
         steps = json.loads(completed.steps_json)
     assert completed.status == "COMPLETED", (completed.error_code, completed.error_message, completed.steps_json)
     assert completed.lease_token is None and completed.lease_expires_at is None
-    assert [step["state"] for step in steps] == ["SUCCEEDED"] * 3
+    assert [step["state"] for step in steps] == ["SUCCEEDED"] * 5
     assert steps[0]["flow_project_url"] == "https://flow.google.com/project/run-e2e"
-    assert len(calls) == 3
-    assert [call["prompt_language"] for call in calls] == ["vi", "vi", "vi"]
-    assert [call["include_audio"] for call in calls] == [True, True, True]
-    assert [call["aspect_ratio"] for call in calls] == ["9:16", "9:16", "9:16"]
-    assert [call["start_image_asset_id"] for call in calls] == [None, calls[0]["asset_id"], None]
+    assert len(calls) == 5
+    assert [call["prompt_language"] for call in calls] == ["vi"] * 5
+    assert [call["include_audio"] for call in calls] == [True] * 5
+    assert [call["aspect_ratio"] for call in calls] == ["9:16"] * 5
+    assert [call["start_image_asset_id"] for call in calls] == [None, calls[0]["asset_id"], None, None, None]
     assert len(extracted_frames) == 1
     assert bool(audio_probe_calls) is with_voice_asset
     assert "cảnh độc lập" in calls[2]["prompt"]
-    assert [call["flow_project_url"] for call in calls] == ["https://flow.google.com/project/run-e2e"] * 3
+    assert [call["flow_project_url"] for call in calls] == ["https://flow.google.com/project/run-e2e"] * 5
+
+
+def test_auto_edit_api_queues_only_when_real_llm_configured(video_fixture, monkeypatch):
+    from src.modules.llm.client import LLMClient
+
+    project_id = f"project-auto-edit-{uuid.uuid4().hex[:8]}"
+    source_id = f"source-auto-edit-{uuid.uuid4().hex[:8]}"
+    with SessionLocal() as db:
+        db.add(ProductionProject(
+            id=project_id,
+            workspace_id=video_fixture["ws_id"],
+            title="Auto edit API test",
+            workflow_type="AUTO_EDIT",
+            created_by=video_fixture["user_id"],
+        ))
+        db.add(MediaAsset(
+            id=source_id,
+            workspace_id=video_fixture["ws_id"],
+            project_id=project_id,
+            storage_key=f"workspaces/{video_fixture['ws_id']}/media/source.mp4",
+            sha256="c" * 64,
+            byte_size=128,
+            mime_detected="video/mp4",
+            source_product="UPLOAD",
+            original_filename="source.mp4",
+            created_by=video_fixture["user_id"],
+            duration_ms=12000,
+        ))
+        db.commit()
+
+    class ConfiguredLLM:
+        def __init__(self, enabled):
+            self.is_enabled = enabled
+            self.model = "model-kiem-thu" if enabled else ""
+
+    monkeypatch.setattr(LLMClient, "from_db", classmethod(lambda _cls, _db: ConfiguredLLM(False)))
+    headers = {
+        "Authorization": f"Bearer {video_fixture['token']}",
+        "X-Workspace-Id": video_fixture["ws_id"],
+    }
+    url = f"/v1/media/projects/{project_id}/dung/tu-dong-dung-video-dai"
+    payload = {"source_asset_id": source_id, "idempotency_key": f"auto-edit-{uuid.uuid4().hex}"}
+    disabled = client.post(url, headers=headers, json=payload)
+    assert disabled.status_code == 503
+    assert disabled.json()["detail"]["error_code"] == "LLM_NOT_CONFIGURED"
+
+    monkeypatch.setattr(LLMClient, "from_db", classmethod(lambda _cls, _db: ConfiguredLLM(True)))
+    queued = client.post(url, headers=headers, json=payload)
+    assert queued.status_code == 202
+    job_id = queued.json()["job_id"]
+    with SessionLocal() as db:
+        job = db.get(AIGenerationJob, job_id)
+        assert job.state == "QUEUED"
+        request = json.loads(job.request_payload_json)
+        assert request["operation"] == "auto_edit_video"
+        assert request["parameters"]["source_asset_id"] == source_id
+
+    repeated = client.post(url, headers=headers, json=payload)
+    assert repeated.status_code == 202
+    assert repeated.json()["job_id"] == job_id

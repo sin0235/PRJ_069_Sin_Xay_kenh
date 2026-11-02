@@ -1,7 +1,7 @@
 import json
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import Column, String, Integer, Float, Boolean, DateTime, ForeignKey, Text, UniqueConstraint, text
+from sqlalchemy import BigInteger, Column, String, Integer, Float, Boolean, DateTime, ForeignKey, Text, UniqueConstraint, text
 from sqlalchemy.orm import relationship
 from src.database import Base
 
@@ -685,6 +685,7 @@ class ProductionProject(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     workspace_id = Column(String(36), ForeignKey("workspaces.id"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
+    workflow_type = Column(String(32), nullable=False, default="AI_VIDEO", server_default=text("'AI_VIDEO'"))
     script_id = Column(String(36), ForeignKey("script_draft_versions.id"), nullable=True, index=True)
     status = Column(String(50), nullable=False, default="DRAFT") # DRAFT, IN_PRODUCTION, REVIEW, APPROVED, PUBLISH_READY
 
@@ -774,7 +775,7 @@ class MediaAsset(Base):
     project_id = Column(String(36), ForeignKey("production_projects.id"), nullable=True, index=True)
     storage_key = Column(String(512), nullable=False)
     sha256 = Column(String(64), nullable=False, index=True)
-    byte_size = Column(Integer, nullable=False)
+    byte_size = Column(BigInteger, nullable=False)
     mime_detected = Column(String(100), nullable=False)
     duration_ms = Column(Integer, nullable=True)
     source_product = Column(String(50), nullable=False) # UPLOAD, FLOW_MUSIC, LYRIA_API, GEMINI_IMAGE, GEMINI_VIDEO, GEMINI_TTS
