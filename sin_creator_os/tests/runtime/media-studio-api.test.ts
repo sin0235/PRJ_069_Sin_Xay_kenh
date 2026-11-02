@@ -20,6 +20,7 @@ function loadApi(fetchRequest: typeof fetch, open: (...args: unknown[]) => void 
         },
       };
       if (id === "@/lib/api/base-url") return { getApiBaseUrl: () => "https://studio.test" };
+      if (id === "@/lib/utils") return { randomUuid: () => "test-request-id" };
       throw new Error(`Unexpected module: ${id}`);
     },
     fetch: fetchRequest,
@@ -68,6 +69,24 @@ test("video enqueue polls the job and output asset using cookies without an empt
     "https://studio.test/v1/ai-jobs/job-video",
     "https://studio.test/v1/media/assets/asset-video",
   ]);
+});
+
+test("asset preview preserves the authenticated API error detail", async () => {
+  const api = loadApi((async () => json({ detail: "Không thể kiểm tra membership hoặc kết nối kho phân quyền." }, 503)) as typeof fetch);
+
+  await assert.rejects(
+    api.getAssetText("https://studio.test/v1/media/assets/asset-video/download"),
+    /Không thể kiểm tra membership hoặc kết nối kho phân quyền\./,
+  );
+});
+
+test("Auto Edit asset listing surfaces API errors instead of hiding clips", async () => {
+  const api = loadApi((async () => json({ detail: "Kho media tạm thời không sẵn sàng." }, 503)) as typeof fetch);
+
+  await assert.rejects(
+    api.listAssets({ project_id: "project-1", limit: 100, throwOnError: true }),
+    /Kho media tạm thời không sẵn sàng\./,
+  );
 });
 
 for (const [state, errorCode, canResume] of [

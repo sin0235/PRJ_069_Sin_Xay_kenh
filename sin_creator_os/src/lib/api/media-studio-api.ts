@@ -58,6 +58,13 @@ interface AsyncMediaJobResponse {
   state: string;
 }
 
+export interface AutoEditJobStatus {
+  state: string;
+  output_asset_ids?: string[];
+  error_code?: string | null;
+  error_message?: string | null;
+}
+
 function mediaJobError(job: MediaJobStatusResponse, jobId?: string): Error & {
   jobId?: string;
   canResume?: boolean;
@@ -114,7 +121,7 @@ async function fetchAssetBlob(url: string): Promise<Blob> {
   const res = await apiFetch(url, {
     headers: mediaAuthHeaders(),
   });
-  if (!res.ok) throw new Error(`Không thể tải tệp media (${res.status}).`);
+  if (!res.ok) throw new Error(await responseErrorMessage(res, `Không thể tải tệp media (${res.status}).`));
   return res.blob();
 }
 
@@ -129,6 +136,7 @@ export interface MediaAssetResponse {
   duration_ms?: number;
   source_product: string;
   original_filename?: string;
+  parent_asset_id?: string | null;
   approval_state: string;
   url?: string;
   created_at: string;
@@ -168,6 +176,18 @@ export interface TimelineCaption {
   duration_ms: number;
   font_size?: number;
   safe_zone?: boolean;
+  visual_type?: "callout";
+  position_y_px?: number;
+}
+
+export interface TimelineOverlay {
+  asset_id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  start_ms: number;
+  duration_ms: number;
 }
 
 export interface TimelineDocument {
@@ -178,6 +198,9 @@ export interface TimelineDocument {
   voice_track?: TimelineAudioTrack | null;
   music_track?: TimelineAudioTrack | null;
   captions?: TimelineCaption[];
+  overlays?: TimelineOverlay[];
+  caption_style?: "legacy" | "vietsub_v1" | "vietsub_karaoke_v2";
+  transition_seconds?: number;
 }
 
 export interface TimelineVersionResponse {
@@ -197,6 +220,25 @@ export interface UploadAssetParams {
   source_product?: string;
   workspace_id?: string;
   token?: string;
+  onProgress?: (loadedBytes: number, totalBytes: number) => void;
+}
+
+export interface UploadVideoInChunksParams {
+  file: File;
+  project_id: string;
+  resume_session_id?: string;
+  workspace_id?: string;
+  token?: string;
+  onProgress?: (loadedBytes: number, totalBytes: number) => void;
+  onSessionId?: (sessionId: string) => void;
+}
+
+function getVideoUploadStorage(): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
 }
 
 export interface CompiledVideoPromptResponse {
@@ -576,6 +618,10 @@ export const mediaStudioApi = {
     return URL.createObjectURL(await fetchAssetBlob(url));
   },
 
+  async getAssetText(url: string): Promise<string> {
+    return fetchAssetBlob(url).then((blob) => blob.text());
+  },
+
   async downloadAsset(url: string, filename: string): Promise<void> {
     const objectUrl = URL.createObjectURL(await fetchAssetBlob(url));
     const link = document.createElement("a");
@@ -587,20 +633,52 @@ export const mediaStudioApi = {
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
   },
 
-  async listAssets(opts: string | { workspace_id?: string; project_id?: string; token?: string } = "default_ws", token?: string): Promise<MediaAssetResponse[]> {
+  async listAssets(opts: string | { workspace_id?: string; project_id?: string; token?: string; limit?: number; throwOnError?: boolean } = "default_ws", token?: string): Promise<MediaAssetResponse[]> {
     const wsId = typeof opts === "string" ? opts : (opts.workspace_id || AuthApi.getWorkspaceId());
     const tok = typeof opts === "string" ? token : opts.token;
     const headers = mediaAuthHeaders(wsId, tok);
     const projectId = typeof opts === "string" ? undefined : opts.project_id;
-    const query = projectId ? `?project_id=${encodeURIComponent(projectId)}` : "";
+    const limit = typeof opts === "string" || opts.limit === undefined ? "" : `&limit=${opts.limit}`;
+    const query = projectId ? `?project_id=${encodeURIComponent(projectId)}${limit}` : "";
 
     const res = await apiFetch(`${API_BASE_URL}/v1/media/assets${query}`, {
       headers,
     });
 
-    if (!res.ok) return [];
+    if (!res.ok) {
+      if (typeof opts !== "string" && opts.throwOnError) {
+        throw new Error(await responseErrorMessage(res, `Không thể tải danh sách tư liệu (${res.status}).`));
+      }
+      return [];
+    }
     const data = await res.json();
     return Array.isArray(data) ? data.map(formatAsset) : [];
+  },
+
+  async getAsset(assetId: string): Promise<MediaAssetResponse> {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/assets/${encodeURIComponent(assetId)}`, {
+      headers: mediaAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(await responseErrorMessage(res, `Không thể tải tệp media (${res.status}).`));
+    return formatAsset(await res.json());
+  },
+
+  async startAutoEditVideo(projectId: string, sourceAssetId: string): Promise<{ job_id: string; state: string }> {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/projects/${encodeURIComponent(projectId)}/dung/tu-dong-dung-video-dai`, {
+      method: "POST",
+      headers: mediaAuthHeaders(undefined, undefined, "application/json"),
+      body: JSON.stringify({ source_asset_id: sourceAssetId, idempotency_key: `auto-edit-${randomUuid()}` }),
+    });
+    if (!res.ok) throw new Error(await responseErrorMessage(res, `Không thể tạo yêu cầu dựng video (${res.status}).`));
+    return res.json();
+  },
+
+  async getAutoEditJob(jobId: string): Promise<AutoEditJobStatus> {
+    const res = await apiFetch(`${API_BASE_URL}/v1/ai-jobs/${encodeURIComponent(jobId)}`, {
+      headers: mediaAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(await responseErrorMessage(res, `Không thể kiểm tra tác vụ (${res.status}).`));
+    return res.json();
   },
 
   // 6. Tải lên tệp tư liệu (ảnh, video, audio)
@@ -626,6 +704,79 @@ export const mediaStudioApi = {
     }
     const data: MediaAssetResponse = await res.json();
     return formatAsset(data);
+  },
+
+  async uploadVideoInChunks(params: UploadVideoInChunksParams): Promise<MediaAssetResponse> {
+    const headers = mediaAuthHeaders(params.workspace_id, params.token);
+    const storage = getVideoUploadStorage();
+    const sessionKey = `prj069:auto-edit-upload:${encodeURIComponent(params.workspace_id || AuthApi.getWorkspaceId())}:${encodeURIComponent(params.project_id)}:${params.file.size}:${params.file.lastModified}:${encodeURIComponent(params.file.name)}`;
+    type UploadSession = { session_id: string; next_offset: number; byte_size: number; chunk_size: number; project_id?: string };
+    let session: UploadSession | null = null;
+    let resumeSessionId = params.resume_session_id;
+    try {
+      resumeSessionId ||= storage?.getItem(sessionKey) || undefined;
+    } catch {
+      // Storage can be disabled; the upload still works for the current page.
+    }
+
+    if (resumeSessionId) {
+      const res = await apiFetch(`${API_BASE_URL}/v1/media/upload-sessions/${encodeURIComponent(resumeSessionId)}`, { headers });
+      if (res.ok) {
+        const resumed = await res.json() as UploadSession;
+        if (resumed.byte_size !== params.file.size || resumed.project_id !== params.project_id) {
+          throw new Error("Phiên tải trước không khớp video hoặc dự án đang chọn.");
+        }
+        session = resumed;
+      } else if (res.status !== 404 && res.status !== 410) {
+        throw new Error(await responseErrorMessage(res, "Không thể tiếp tục phiên tải video."));
+      }
+    }
+    if (!session) {
+      const res = await apiFetch(`${API_BASE_URL}/v1/media/upload-sessions`, {
+        method: "POST",
+        headers: mediaAuthHeaders(params.workspace_id, params.token, "application/json"),
+        body: JSON.stringify({ filename: params.file.name, byte_size: params.file.size, project_id: params.project_id }),
+      });
+      if (!res.ok) throw new Error(await responseErrorMessage(res, "Không thể tạo phiên tải video."));
+      session = await res.json() as UploadSession;
+    }
+    const uploadSession = session;
+    if (!uploadSession) throw new Error("Máy chủ không trả về phiên tải video.");
+    params.onSessionId?.(uploadSession.session_id);
+    try {
+      storage?.setItem(sessionKey, uploadSession.session_id);
+    } catch {
+      // The server session remains resumable from the current page.
+    }
+
+    const chunkSize = Math.min(uploadSession.chunk_size, 64 * 1024 * 1024);
+    if (!Number.isSafeInteger(chunkSize) || chunkSize <= 0) throw new Error("Kích thước khối tải video không hợp lệ.");
+    let offset = uploadSession.next_offset;
+    params.onProgress?.(offset, params.file.size);
+    while (offset < params.file.size) {
+      const end = Math.min(offset + chunkSize, params.file.size);
+      const res = await apiFetch(
+        `${API_BASE_URL}/v1/media/upload-sessions/${encodeURIComponent(uploadSession.session_id)}/chunks?offset=${offset}`,
+        { method: "PUT", headers, body: params.file.slice(offset, end) },
+      );
+      if (!res.ok) throw new Error(await responseErrorMessage(res, "Tải video bị gián đoạn; có thể tiếp tục từ phần đã nhận."));
+      const result = await res.json() as { next_offset: number };
+      if (result.next_offset <= offset || result.next_offset > end) throw new Error("Máy chủ trả về vị trí tải video không hợp lệ.");
+      offset = result.next_offset;
+      params.onProgress?.(offset, params.file.size);
+    }
+
+    const completed = await apiFetch(
+      `${API_BASE_URL}/v1/media/upload-sessions/${encodeURIComponent(uploadSession.session_id)}/complete`,
+      { method: "POST", headers },
+    );
+    if (!completed.ok) throw new Error(await responseErrorMessage(completed, "Không thể hoàn tất đăng ký video."));
+    try {
+      storage?.removeItem(sessionKey);
+    } catch {
+      // A stale local entry is harmless; the server has already completed the upload.
+    }
+    return formatAsset(await completed.json());
   },
 
   // 7. Lấy phiên bản timeline mới nhất của dự án
