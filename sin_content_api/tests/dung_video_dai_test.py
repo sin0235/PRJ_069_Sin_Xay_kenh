@@ -2242,7 +2242,8 @@ def test_dung_video_dai_render_luu_nhieu_clip_va_giu_nguyen_nguon(monkeypatch, t
         assert manifest["clips"][0]["timeline"]["quality_checks"] == {
             "full_decode": "PASS", "long_black_segments": [],
         }
-        assert manifest["clips"][0]["timeline"]["brand_end_card"]["logo_asset"] == "logo_doc_mau.png"
+        assert manifest["clips"][0]["timeline"]["brand_end_card"]["logo_asset"] == "logo_ngang_am_ban.png"
+        assert manifest["clips"][0]["timeline"]["brand_end_card"]["shot_asset"] == "shot_ket_baha_midnight_doc_3s.mp4"
         assert security.hash_file(source_path)[0] == original_hash
     finally:
         db.close()
