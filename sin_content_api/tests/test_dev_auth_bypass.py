@@ -1,4 +1,6 @@
-from fastapi import Request
+from types import SimpleNamespace
+
+from fastapi import HTTPException, Request
 import pytest
 
 from src.auth import tenancy
@@ -75,3 +77,38 @@ def test_dev_auth_bypass_requires_explicit_flag(monkeypatch):
     monkeypatch.delenv("DEV_AUTH_BYPASS", raising=False)
     monkeypatch.setattr(settings, "app_env", "offline")
     assert not tenancy.dev_auth_bypass_enabled(_request("127.0.0.1"))
+
+
+def test_membership_store_failure_logs_original_exception_without_leaking_token(monkeypatch, caplog):
+    monkeypatch.delenv("DEV_AUTH_BYPASS", raising=False)
+
+    def broken_auth_db():
+        def fail_on_connect():
+            raise RuntimeError("auth database unavailable")
+            yield
+        return fail_on_connect()
+
+    monkeypatch.setattr(tenancy, "_canonical_auth_modules", lambda: {
+        "secret": "unused",
+        "issuer": "test",
+        "audience": "test",
+        "set_tenant_context": lambda *args: None,
+        "clear_tenant_context": lambda *args: None,
+        "verify_bearer_token": lambda *args, **kwargs: SimpleNamespace(
+            user_id="user-current", workspace_id="ws-current"
+        ),
+        "get_auth_db": broken_auth_db,
+    })
+
+    with caplog.at_level("ERROR", logger="src.auth.tenancy"):
+        with pytest.raises(HTTPException) as error:
+            next(tenancy.get_current_tenant_context(
+                _request("192.0.2.10"),
+                authorization="Bearer secret-test-token",
+                x_workspace_id="ws-current",
+                content_db=object(),
+            ))
+
+    assert error.value.status_code == 503
+    assert "auth database unavailable" in caplog.text
+    assert "secret-test-token" not in caplog.text

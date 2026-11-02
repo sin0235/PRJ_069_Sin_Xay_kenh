@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import sys
@@ -22,6 +23,7 @@ from src.config import settings
 
 
 _WORKSPACE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -301,6 +303,7 @@ def get_current_tenant_context(
     except Exception as exc:
         if auth_db is not None:
             auth_db.rollback()
+        logger.exception("Membership verification failed against authorization store")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Không thể kiểm tra membership hoặc kết nối kho phân quyền.",
