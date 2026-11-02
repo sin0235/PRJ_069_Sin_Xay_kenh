@@ -1786,7 +1786,7 @@ def dung_video_dai(
                         if brief["renderer"] == "FLOW":
                             prompt = brief["prompt"]
                             parameters = {
-                                "aspect_ratio": "9:16", "remove_watermark": False,
+                                "aspect_ratio": "9:16", "remove_watermark": True,
                                 "target_clip_id": brief["target_clip_id"], "include_audio": False,
                             }
                             operation, backend, mode, model_id, credits = (
