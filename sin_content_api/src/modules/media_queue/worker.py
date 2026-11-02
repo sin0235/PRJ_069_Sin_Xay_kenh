@@ -232,6 +232,10 @@ def _execute_job(db: Session, job: AIGenerationJob, request: dict) -> MediaAsset
         from src.modules.media_studio.job_engine import job_engine
 
         return job_engine._execute_flow_payload(db, job, request)
+    if operation == "render_auto_edit_diagram":
+        from src.modules.dieu_phoi_dung.dung_video_dai import render_auto_edit_diagram
+
+        return render_auto_edit_diagram(db, job, request)
     raise ValueError("INVALID_JOB_OPERATION: Unsupported media queue operation.")
 
 
