@@ -2326,7 +2326,11 @@ def test_auto_edit_enqueue_hyperframes_diagram_child(monkeypatch, tmp_path):
         ]))
         style = _PILOT_STYLE_SNAPSHOT.model_dump(mode="json")
         style_hash = hashlib.sha256(json.dumps(style, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-        monkeypatch.setattr(editor, "tao_y_tuong_dien_hoa_flow", lambda *_args: [{
+        from src.modules.flow_sessions import service as flow_service
+        monkeypatch.setattr(flow_service, "resolve_profile", lambda *_args: SimpleNamespace(
+            id="flow-profile", google_flow_state="READY",
+        ))
+        diagram_brief = {
             "clip_id": "part1_01", "target_clip_id": "part1_01", "renderer": "HYPERFRAMES",
             "start_word_id": "w000000", "end_word_id": "w000007",
             "scene": "So sánh số đơn trước và sau", "action": "Hai tấm giấy mở ra để so sánh",
@@ -2338,7 +2342,14 @@ def test_auto_edit_enqueue_hyperframes_diagram_child(monkeypatch, tmp_path):
                     {"title": "Sau", "label": "Đơn", "value": "60"},
                 ], "diff_label": "Giảm 40", "on": {"before": "trước", "after": "sau", "delta": "sáu mươi"},
             }},
-        }])
+        }
+        flow_brief = {
+            "clip_id": "part1_01", "target_clip_id": "part1_01", "renderer": "FLOW",
+            "start_word_id": "w000001", "end_word_id": "w000003",
+            "scene": "M?t t?a nh? gi?y g?i h?ng", "action": "C?a s? m? v? l?e l?n",
+            "prompt": "M?t t?a nh? gi?y g?i h?ng, c?a s? m? v? l?e l?n.",
+        }
+        monkeypatch.setattr(editor, "tao_y_tuong_dien_hoa_flow", lambda *_args: [diagram_brief, flow_brief])
 
         deferred = editor.dung_video_dai(
             db, source_asset_id=source.id, workspace_id=workspace_id, user_id=user_id,
@@ -2349,6 +2360,9 @@ def test_auto_edit_enqueue_hyperframes_diagram_child(monkeypatch, tmp_path):
         child_id = parent_request["parameters"]["flow_job_ids"][0]
         child = db.get(AIGenerationJob, child_id)
         child_request = json.loads(child.request_payload_json)
+        flow_child = db.get(AIGenerationJob, parent_request["parameters"]["flow_job_ids"][1])
+        flow_request = json.loads(flow_child.request_payload_json)
+        assert flow_request["parameters"]["remove_watermark"] is True
         assert child_request["operation"] == "render_auto_edit_diagram"
         assert child_request["backend_provider"] == "BAHA_AUTO_EDIT"
         assert child_request["parameters"]["style_snapshot_hash"] == style_hash
