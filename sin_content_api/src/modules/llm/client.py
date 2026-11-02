@@ -2,6 +2,7 @@
 import time
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 import httpx
 
@@ -358,3 +359,69 @@ class LLMClient:
             completion_tokens=completion_tokens,
             usage_valid=usage_valid
         )
+
+    def transcribe_audio(self, audio_path: Path, model: str = "cx/transcribe") -> str:
+        if not self.api_key:
+            raise LLMConfigError("Cần API Key để gửi audio tới 9Router.", error_code="API_KEY_NOT_CONFIGURED")
+        if not model.strip():
+            raise LLMConfigError("Thiếu model STT.", error_code="STT_MODEL_NOT_CONFIGURED")
+        if not audio_path.is_file():
+            raise LLMResponseError("Không tìm thấy tệp audio để nhận dạng.", error_code="AUDIO_FILE_NOT_FOUND")
+        if not 0 < audio_path.stat().st_size <= 5 * 1024 * 1024:
+            raise LLMResponseError("Tệp audio phải có kích thước từ 1 byte đến 5 MiB.", error_code="AUDIO_FILE_SIZE_INVALID")
+
+        endpoint = f"{self.base_url}/audio/transcriptions"
+        headers = {"Authorization": f"Bearer {self.api_key}", "Accept": "application/json"}
+        start_time = time.perf_counter()
+        request_id = None
+        try:
+            with httpx.Client(transport=self.transport, timeout=max(self.timeout_seconds, 60.0)) as client:
+                with audio_path.open("rb") as audio:
+                    response = client.post(
+                        endpoint,
+                        headers=headers,
+                        data={"model": model, "response_format": "json"},
+                        files={"file": (audio_path.name, audio, "audio/mpeg")},
+                    )
+                request_id = response.headers.get("x-request-id") or response.headers.get("request-id")
+                duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
+                if response.status_code != 200:
+                    error_code = "UPSTREAM_UNAUTHORIZED" if response.status_code == 401 else (
+                        "UPSTREAM_RATE_LIMITED" if response.status_code == 429 else
+                        "UPSTREAM_SERVER_ERROR" if response.status_code >= 500 else "UPSTREAM_UNEXPECTED_STATUS"
+                    )
+                    logger.warning(
+                        "STT call failed: error_code=%s, status=%d, model=%s, duration_ms=%.1f, request_id=%s",
+                        error_code, response.status_code, model, duration_ms, request_id,
+                    )
+                    raise LLMResponseError(
+                        "Yêu cầu nhận dạng audio tới 9Router thất bại.", error_code=error_code,
+                        status_code=response.status_code, model=model, duration_ms=duration_ms, request_id=request_id,
+                    )
+                try:
+                    data = response.json()
+                except Exception as exc:
+                    raise LLMResponseError(
+                        "Phản hồi nhận dạng audio không phải JSON hợp lệ.", error_code="INVALID_RESPONSE_JSON",
+                        status_code=200, model=model, duration_ms=duration_ms, request_id=request_id,
+                    ) from exc
+        except httpx.TimeoutException as exc:
+            raise LLMTimeoutError(
+                "Quá thời gian chờ khi nhận dạng audio qua 9Router.", error_code="UPSTREAM_TIMEOUT", model=model,
+            ) from exc
+        except httpx.RequestError as exc:
+            raise LLMNetworkError(
+                "Lỗi mạng khi nhận dạng audio qua 9Router.", error_code="NETWORK_ERROR", model=model,
+            ) from exc
+
+        transcript = data.get("text") if isinstance(data, dict) else None
+        if not isinstance(transcript, str) or not transcript.strip():
+            raise LLMResponseError(
+                "9Router không trả transcript hợp lệ.", error_code="EMPTY_TRANSCRIPTION",
+                status_code=200, model=model, request_id=request_id,
+            )
+        logger.info(
+            "STT call success: model=%s, response_chars=%d, duration_ms=%.1f, request_id=%s",
+            model, len(transcript), duration_ms, request_id,
+        )
+        return transcript.strip()

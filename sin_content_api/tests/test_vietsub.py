@@ -1,5 +1,7 @@
+import json
 import sys
 import subprocess
+import wave
 from types import SimpleNamespace
 
 from src.modules.tao_video_noi_dung import vietsub
@@ -64,6 +66,46 @@ def test_production_asr_times_out_in_child_process(monkeypatch, tmp_path):
     assert calls[0][1]["env"]["VIETSUB_INFERENCE_CHILD"] == "1"
 
 
+def test_production_asr_child_bootstraps_project_import_path(monkeypatch, tmp_path):
+    import pytest
+
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.delenv("VIETSUB_INFERENCE_CHILD", raising=False)
+    calls = []
+    monkeypatch.setattr(vietsub.subprocess, "run", lambda command, **options: calls.append(command) or SimpleNamespace(returncode=1))
+
+    with pytest.raises(vietsub.VietsubError, match="VIETSUB_ASR_FAILED"):
+        vietsub.transcribe_vietnamese(tmp_path / "voice.wav")
+
+    command = calls[0]
+    assert command[1] == "-c"
+    assert "sys.path.insert(0, sys.argv.pop(1))" in command[2]
+    assert command[3] == str(vietsub.Path(vietsub.__file__).resolve().parents[3])
+
+
+def test_production_asr_timeout_scales_with_wav_duration(monkeypatch, tmp_path):
+    import pytest
+
+    audio = tmp_path / "long.wav"
+    with wave.open(str(audio), "wb") as output:
+        output.setnchannels(1)
+        output.setsampwidth(2)
+        output.setframerate(16000)
+        output.writeframes(b"\0\0" * (310 * 16000))
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.delenv("VIETSUB_INFERENCE_CHILD", raising=False)
+    calls = []
+
+    def timeout(command, **options):
+        calls.append(options)
+        raise subprocess.TimeoutExpired(command, options["timeout"])
+
+    monkeypatch.setattr(vietsub.subprocess, "run", timeout)
+    with pytest.raises(vietsub.VietsubError, match="VIETSUB_ASR_TIMEOUT"):
+        vietsub.transcribe_words(audio)
+    assert calls[0]["timeout"] == 621
+
+
 def test_production_asr_uses_durable_model_cache(monkeypatch, tmp_path):
     calls = []
     monkeypatch.setenv("APP_ENV", "production")
@@ -104,6 +146,44 @@ def test_vietsub_splits_long_cues_at_word_boundaries():
 
     assert [cue["text"] for cue in cues] == ["từ0 từ1 từ2 từ3 từ4 từ5", "từ6 từ7 từ8"]
     assert all(cue["duration_ms"] <= 6000 for cue in cues)
+
+
+def test_transcribe_words_preserves_probability_when_model_provides_it(monkeypatch, tmp_path):
+    class FakeModel:
+        def transcribe(self, *_args, **_kwargs):
+            words = [
+                SimpleNamespace(word=" Xin", start=0.0, end=0.3, probability=0.93),
+                SimpleNamespace(word=" chào", start=0.3, end=0.7, probability=None),
+            ]
+            return iter([SimpleNamespace(words=words)]), None
+
+    monkeypatch.setattr(vietsub, "_get_model", lambda: FakeModel())
+    monkeypatch.setenv("VIETSUB_INFERENCE_CHILD", "1")
+    assert vietsub.transcribe_words(tmp_path / "voice.wav") == [
+        {"text": "Xin", "start_ms": 0, "end_ms": 300, "probability": 0.93},
+        {"text": "chào", "start_ms": 300, "end_ms": 700},
+    ]
+
+
+def test_word_cache_retranscribes_entries_without_probability(tmp_path, monkeypatch):
+    import hashlib
+
+    audio = tmp_path / "voice.wav"
+    audio.write_bytes(b"audio-one")
+    cache = tmp_path / "words.json"
+    cache.write_text(json.dumps({
+        "version": vietsub.CACHE_VERSION,
+        "model": vietsub.MODEL_SIZE,
+        "audio_sha256": hashlib.sha256(b"audio-one").hexdigest(),
+        "words": [{"text": "Xin", "start_ms": 0, "end_ms": 300}],
+    }), encoding="utf-8")
+    calls = []
+    fresh = [{"text": "Xin", "start_ms": 0, "end_ms": 300, "probability": 0.91}]
+    monkeypatch.setattr(vietsub, "transcribe_words", lambda _path: calls.append(1) or fresh)
+
+    assert vietsub.transcribe_words_cached(audio, cache) == fresh
+    assert vietsub.transcribe_words_cached(audio, cache) == fresh
+    assert calls == [1]
 
 
 def test_vietsub_preset_renders_vietnamese_with_bundled_font(tmp_path):

@@ -72,9 +72,14 @@ class SlowEditorPage:
                     "count": lambda _self: 1,
                     "is_visible": lambda _self: True,
                     "wait_for": lambda _self, **_kwargs: None,
+                    "click": lambda _self, **_kwargs: None,
+                    "locator": lambda _self, _selector: _self,
+                    "filter": lambda _self, **_kwargs: _self,
                 },
             )()
             return locator
+        if selector in ("div.settings-section", "button.video-model-picker-button", "button.settings-save-button"):
+            return type("SettingOption", (), {"first": property(lambda self: self), "wait_for": lambda _self, **_kwargs: None, "click": lambda _self, **_kwargs: None, "locator": lambda _self, _selector: _self, "filter": lambda _self, **_kwargs: _self})()
         locator = type(
             "Missing",
             (),

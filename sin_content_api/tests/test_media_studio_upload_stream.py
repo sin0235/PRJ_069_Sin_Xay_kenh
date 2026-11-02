@@ -63,6 +63,10 @@ class BoundedSeekableReader:
         return self.wrapped.seek(*args)
 
 
+def test_video_upload_limit_accepts_quality_source_over_eight_gibibytes():
+    assert security.UPLOAD_SIZE_LIMITS["video"] >= 9 * 1024**3
+
+
 def test_stream_upload_hashes_and_stores_real_seekable_file_in_bounded_chunks(upload_context):
     db, service, workspace_id, _, media_root = upload_context
     project_id = f"project-{uuid.uuid4().hex[:8]}"
@@ -231,25 +235,6 @@ def test_router_upload_uses_sync_streaming_service(upload_context, monkeypatch):
     assert (media_root / response.storage_key).read_bytes() == content
 
 
-def test_video_upload_session_accepts_8_4_gb_source(upload_context):
-    db, service, workspace_id, _, _ = upload_context
-    project_id = f"project-{uuid.uuid4().hex[:8]}"
-    db.add(ProductionProject(id=project_id, workspace_id=workspace_id, title="Large video", created_by="user-stream"))
-    db.commit()
-
-    session = service.create_video_upload_session(
-        db=db,
-        workspace_id=workspace_id,
-        user_id="user-stream",
-        filename="DJI_20261027202121_0203_D.MP4",
-        byte_size=8_428_283_732,
-        project_id=project_id,
-    )
-
-    assert session["byte_size"] == 8_428_283_732
-    assert session["chunk_size"] == 64 * 1024 * 1024
-
-
 @pytest.mark.parametrize("filename,expected", [
     (r"..\windows\system32\evil.mp4", "evil.mp4"),
     ("../../../clip...take.mp4", "clip_take.mp4"),
@@ -257,3 +242,52 @@ def test_video_upload_session_accepts_8_4_gb_source(upload_context):
 ])
 def test_upload_filename_normalization_preserves_extension(filename, expected):
     assert security._check_filename_safe(filename) == expected
+
+def test_video_stream_stores_probed_duration_for_long_source(upload_context, monkeypatch):
+    from src.modules.media_studio.video_processor import video_processor
+
+    db, service, workspace_id, _, media_root = upload_context
+    content = b"\x00\x00\x00\x18ftypmp42" + b"v" * 100
+    probed = []
+
+    def probe(path):
+        probed.append((path.is_file(), path.stat().st_size))
+        return {"duration_seconds": 926.859}
+
+    monkeypatch.setattr(video_processor, "probe_video", probe)
+    with tempfile.TemporaryFile(mode="w+b") as real_file:
+        real_file.write(content)
+        real_file.seek(0)
+        asset = service.upload_asset_stream(
+            db=db,
+            workspace_id=workspace_id,
+            user_id="user-stream",
+            filename="long.mp4",
+            file_obj=BoundedSeekableReader(real_file),
+            expected_category="video",
+        )
+
+    assert asset.duration_ms == 926_859
+    assert probed == [(True, len(content))]
+    assert (media_root / asset.storage_key).is_file()
+
+
+def test_video_upload_keeps_unknown_duration_if_probe_fails(upload_context, monkeypatch):
+    from src.modules.media_studio.video_processor import video_processor
+
+    db, service, workspace_id, _, media_root = upload_context
+    monkeypatch.setattr(video_processor, "probe_video", lambda _path: (_ for _ in ()).throw(RuntimeError("probe failed")))
+    with tempfile.TemporaryFile(mode="w+b") as real_file:
+        real_file.write(b"\x00\x00\x00\x18ftypmp42" + b"v" * 100)
+        real_file.seek(0)
+        asset = service.upload_asset_stream(
+            db=db,
+            workspace_id=workspace_id,
+            user_id="user-stream",
+            filename="unknown.mp4",
+            file_obj=BoundedSeekableReader(real_file),
+            expected_category="video",
+        )
+
+    assert asset.duration_ms is None
+    assert (media_root / asset.storage_key).is_file()

@@ -199,3 +199,14 @@ def test_ffmpeg_uses_two_threads_for_filter_and_output(monkeypatch):
     assert command[command.index('-filter_threads') + 1] == '2'
     assert command[command.index('-filter_complex_threads') + 1] == '2'
     assert command[-3:] == ['-threads', '2', 'output.mp4']
+
+
+def test_ffmpeg_bounds_decoder_threads_before_each_input(monkeypatch):
+    import subprocess
+    from src.media_process import run_media_command
+    commands = []
+    monkeypatch.setattr(subprocess, 'run', lambda command, **kwargs: commands.append(command))
+    run_media_command(['/usr/bin/ffmpeg', '-i', 'video.mp4', '-i', 'overlay.mov', '-filter_complex', 'x', 'output.mp4'])
+    command = commands[0]
+    input_positions = [index for index, value in enumerate(command) if value == '-i']
+    assert [command[index - 2:index] for index in input_positions] == [['-threads:v', '2'], ['-threads:v', '2']]

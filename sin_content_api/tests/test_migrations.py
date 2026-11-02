@@ -6,11 +6,12 @@ Tests: Schema migration lifecycle (Up/Down/Rollback), new entities CRUD, Pydanti
 import pytest
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import inspect
+from sqlalchemy import BigInteger, create_engine, inspect, text
 from pydantic import ValidationError
 
 from src.database import Base, SessionLocal, engine
 from src.migrations.runner import migration_up, migration_down, get_current_tables
+from src.migrations import runner as migration_runner
 from src.models import (
     Workspace,
     User,
@@ -77,6 +78,25 @@ def test_stage1_columns_and_constraints():
     assert "workspace_id" in ms_cols, "Column 'workspace_id' missing on metric_snapshots"
     assert "is_paid" in ms_cols, "Column 'is_paid' missing on metric_snapshots"
     assert "channel_id" in ms_cols, "Column 'channel_id' missing on metric_snapshots"
+
+
+def test_media_asset_byte_size_uses_64_bit_and_upgrade_keeps_large_rows(tmp_path, monkeypatch):
+    from src.models.entities import MediaAsset
+
+    assert isinstance(MediaAsset.__table__.c.byte_size.type, BigInteger)
+    test_engine = create_engine(f"sqlite:///{tmp_path / 'asset_size.db'}")
+    try:
+        with test_engine.begin() as connection:
+            connection.execute(text("CREATE TABLE media_assets (id TEXT PRIMARY KEY, byte_size INTEGER NOT NULL)"))
+            connection.execute(text("INSERT INTO media_assets (id, byte_size) VALUES ('dji', 8428283732)"))
+        monkeypatch.setattr(migration_runner, "engine", test_engine)
+
+        assert migration_runner.migrate_media_asset_byte_size_up() is True
+        assert migration_runner.migrate_media_asset_byte_size_up() is True
+        with test_engine.connect() as connection:
+            assert connection.execute(text("SELECT byte_size FROM media_assets WHERE id='dji'")).scalar_one() == 8428283732
+    finally:
+        test_engine.dispose()
 
 def test_stage1_entities_crud_workflow():
     """Verify creation, relationship binding and querying of new ORM entities."""

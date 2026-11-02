@@ -27,7 +27,7 @@ class PlatformLLMConfigUpdate(BaseModel):
     base_url: str = Field(..., min_length=1)
     model: str = Field(..., min_length=1)
     new_api_key: Optional[str] = None # None hoac chuoi rong de giu nguyen key cu da luu
-    timeout_seconds: float = Field(30.0, gt=0, le=300)
+    timeout_seconds: float = Field(30.0, gt=0, le=1800)
     max_output_tokens: int = Field(1500, ge=1, le=32000)
     max_input_bytes: int = Field(20000, ge=10, le=10000000)
     input_usd_per_1k_tokens: float = Field(0.00015, ge=0)

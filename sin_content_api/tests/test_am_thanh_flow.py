@@ -1,11 +1,30 @@
 """Kiểm định audio Flow thật qua FFmpeg khi các cảnh chênh lệch âm lượng."""
 
 import subprocess
+from pathlib import Path
 
 import pytest
 
 from src.modules.media_studio.audio_processor import audio_processor
 from src.modules.media_studio.video_processor import video_processor
+
+
+def test_audio_qc_khong_nap_toan_bo_tep_vao_ram(tmp_path, monkeypatch):
+    media = tmp_path / "video_lon.mp4"
+    media.write_bytes(b"x" * 2048)
+    monkeypatch.setattr(Path, "read_bytes", lambda *_: pytest.fail("không được đọc toàn bộ media vào RAM"))
+    monkeypatch.setattr(audio_processor, "probe_audio", lambda _: {
+        "codec_name": "aac", "channels": 2, "duration_seconds": 1,
+        "sample_rate_hz": 44100,
+    })
+    monkeypatch.setattr(audio_processor, "measure_loudness", lambda _: {
+        "measured_i_lufs": -14.0, "measured_tp_dbtp": -2.0, "measured_lra_lu": 3.0,
+    })
+
+    result = audio_processor.verify_audio_qc(media)
+
+    assert result["passed"]
+    assert result["byte_size"] == 2048
 
 
 @pytest.mark.parametrize("mix_existing", [False, True])

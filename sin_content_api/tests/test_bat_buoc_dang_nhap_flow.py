@@ -133,8 +133,7 @@ def test_google_flow_enters_video_mode_before_attaching_image():
             self.first = self
 
         def wait_for(self, **kwargs):
-            if "agent-mode-chip" in self.selector:
-                calls.append(("ready", kwargs["state"]))
+            calls.append(("ready", kwargs["state"]))
 
         def count(self):
             selector = self.selector
@@ -194,7 +193,7 @@ def test_flow_video_keeps_raw_source_for_next_scene(monkeypatch, tmp_path):
     source = tmp_path / "flow_source.mp4"
     subprocess.run(
         [video_processor_module.video_processor.ffmpeg_bin, "-y", "-f", "lavfi", "-i",
-         "color=c=0x1E293B:s=1080x1920:d=2", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(source)],
+         "color=c=0x1E293B:s=1080x1920:r=30:d=9.9666667", "-c:v", "libx264", "-pix_fmt", "yuv420p", str(source)],
         check=True, capture_output=True,
     )
     flow_call = {}
@@ -219,7 +218,9 @@ def test_flow_video_keeps_raw_source_for_next_scene(monkeypatch, tmp_path):
         result["filename"].replace("flow_native_9_16_", "flow_source_9_16_", 1)
     )
     assert raw_source.read_bytes() == source.read_bytes()
-    assert video_processor_module.video_processor.probe_video(pathlib.Path(result["storage_path"]))["aspect_ratio"] == "9:16"
+    result_meta = video_processor_module.video_processor.probe_video(pathlib.Path(result["storage_path"]))
+    assert result_meta["aspect_ratio"] == "9:16"
+    assert result_meta["duration_seconds"] == pytest.approx(10.0, abs=0.001)
     assert flow_call["flow_project_url"] == project_url
     assert flow_call["on_flow_project_created"] is on_project_created
 
@@ -250,6 +251,8 @@ def test_image_video_flow_preserves_selected_aspect_ratio(monkeypatch, tmp_path)
 
     assert received["flow"]["aspect_ratio"] == "16:9"
     assert any(argument.startswith("scale=1920:1080") for argument in received["command"])
+    assert "tpad=stop_mode=clone" in next(argument for argument in received["command"] if argument.startswith("scale="))
+    assert received["command"][received["command"].index("-t") + 1] == "10"
     assert result["aspect_ratio"] == "16:9"
     assert result["watermark_removed"] is False
     raw_source = pathlib.Path(result["storage_path"]).with_name(

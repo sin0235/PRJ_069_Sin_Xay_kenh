@@ -151,6 +151,38 @@ def test_production_generic_flow_job_uses_media_envelope_without_sync_execution(
     assert duplicate.id == job.id
 
 
+def test_media_job_accepts_multiple_auto_edit_outputs(media_db):
+    from src.modules.media_queue import worker
+
+    db, workspace_id, _ = media_db
+    job = enqueue_media_job(
+        db,
+        workspace_id=workspace_id,
+        user_id="user-queue",
+        provider="MEDIA_VIDEO",
+        operation="auto_edit_video",
+        backend_provider="BAHA_AUTO_EDIT",
+        provider_mode="LOCAL_CPU_AND_CONFIGURED_LLM",
+        model_id="model-kiem-thu",
+        prompt_text="Dựng video nguồn thành clip ngắn.",
+        parameters={"source_asset_id": "source-01"},
+        idempotency_key="auto-edit-output-list-01",
+        project_id="project-01",
+    )
+    token = "auto-edit-worker-token"
+    job.state = "RUNNING"
+    job.lease_token = token
+    job.lease_expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+    db.add(ContentVideoWorkerLease(name=worker.LEASE_NAME, token=token, expires_at=job.lease_expires_at))
+    db.commit()
+    outputs = [SimpleNamespace(id="clip-01"), SimpleNamespace(id="clip-02"), SimpleNamespace(id="manifest-01")]
+
+    assert worker._finish_job(db, job, token, state="SUCCEEDED", asset=outputs)
+
+    db.refresh(job)
+    assert json.loads(job.output_asset_ids_json) == ["clip-01", "clip-02", "manifest-01"]
+
+
 def test_production_video_form_queues_active_profile_without_running_provider(media_db, monkeypatch):
     db, workspace_id, _ = media_db
     media_router = _media_router_module(monkeypatch)
@@ -954,3 +986,110 @@ def test_media_lease_heartbeat_extends_job_and_shared_lease(media_db, monkeypatc
     new_shared_expiry = db.get(ContentVideoWorkerLease, "content-video-flow").expires_at.replace(tzinfo=timezone.utc)
     assert new_job_expiry > old_job_expiry.replace(tzinfo=timezone.utc)
     assert new_shared_expiry > old_shared_expiry.replace(tzinfo=timezone.utc)
+
+
+def test_worker_dispatches_auto_edit_hyperframes_scene_to_existing_renderer(media_db, monkeypatch):
+    from src.modules.dieu_phoi_dung import dung_video_dai as editor
+    from src.modules.media_queue import worker
+
+    db, workspace_id, _ = media_db
+    job = SimpleNamespace(workspace_id=workspace_id, created_by="user-queue", project_id="project-queue")
+    request = {
+        "operation": "render_auto_edit_diagram",
+        "backend_provider": "BAHA_AUTO_EDIT",
+        "parameters": {"target_clip_id": "part1_01"},
+    }
+    expected = object()
+    calls = []
+
+    def render(database, render_job, payload):
+        calls.append((database, render_job, payload))
+        return expected
+
+    monkeypatch.setattr(editor, "render_auto_edit_diagram", render)
+
+    result = worker._execute_job(db, job, request)
+
+    assert result is expected
+    assert calls == [(db, job, request)]
+
+
+@pytest.mark.parametrize("use_profile_context", [False, True])
+
+def test_auto_edit_waits_for_flow_children_then_resumes_once(media_db):
+    from src.modules.media_queue import worker
+
+    db, workspace_id, _ = media_db
+    parent = enqueue_media_job(
+        db, workspace_id=workspace_id, user_id="user-queue", provider="MEDIA_VIDEO",
+        operation="auto_edit_video", backend_provider="BAHA_AUTO_EDIT",
+        provider_mode="LOCAL_CPU_AND_CONFIGURED_LLM", model_id="model-kiem-thu",
+        prompt_text="Dựng video và tạo diễn hoạ.", parameters={"phase": "waiting_for_flow"},
+        idempotency_key="auto-edit-parent-wait-01", project_id="project-01",
+    )
+    first = enqueue_media_job(
+        db, workspace_id=workspace_id, user_id="user-queue", provider="MEDIA_VIDEO",
+        operation="generate_video_scene", backend_provider="GOOGLE_FLOW",
+        provider_mode="FLOW_BROWSER_PILOT", model_id="google-flow",
+        prompt_text="Cảnh origami thứ nhất.", parameters={},
+        idempotency_key="auto-edit-child-one-01", project_id="project-01",
+    )
+    second = enqueue_media_job(
+        db, workspace_id=workspace_id, user_id="user-queue", provider="MEDIA_VIDEO",
+        operation="generate_video_scene", backend_provider="GOOGLE_FLOW",
+        provider_mode="FLOW_BROWSER_PILOT", model_id="google-flow",
+        prompt_text="Cảnh origami thứ hai.", parameters={},
+        idempotency_key="auto-edit-child-two-01", project_id="project-01",
+    )
+    request = json.loads(parent.request_payload_json)
+    request["parameters"].update(phase="waiting_for_flow", flow_job_ids=[first.id, second.id])
+    parent.request_payload_json = json.dumps(request)
+    parent.state = "WAITING_FOR_FLOW"
+    second.state = "SUCCEEDED"
+    db.commit()
+    token = "auto-edit-resume-token"
+    db.add(ContentVideoWorkerLease(name=worker.LEASE_NAME, token=token,
+                                   expires_at=datetime.now(timezone.utc) + timedelta(minutes=5)))
+    db.commit()
+
+    assert worker._resume_waiting_auto_edit_jobs(db, token) == 0
+    assert db.get(AIGenerationJob, parent.id).state == "WAITING_FOR_FLOW"
+
+    first.state = "FAILED"
+    db.commit()
+    assert worker._resume_waiting_auto_edit_jobs(db, token) == 1
+    assert db.get(AIGenerationJob, parent.id).state == "QUEUED"
+    resumed = json.loads(db.get(AIGenerationJob, parent.id).request_payload_json)
+    assert resumed["parameters"]["phase"] == "render"
+    assert resumed["parameters"]["flow_job_ids"] == [first.id, second.id]
+    assert worker._resume_waiting_auto_edit_jobs(db, token) == 0
+
+
+
+def test_auto_edit_cleanup_removes_only_its_persisted_plan(tmp_path, monkeypatch):
+    from src.modules.media_queue import worker
+    from src.modules.media_studio import security
+
+    monkeypatch.setattr(security, "MEDIA_ROOT_DIR", tmp_path)
+    plan = tmp_path / ".cache" / "auto_edit" / "parent-job.json"
+    plan.parent.mkdir(parents=True)
+    plan.write_text("{}", encoding="utf-8")
+    outside = tmp_path / "outside.json"
+    outside.write_text("{}", encoding="utf-8")
+
+    worker._cleanup_auto_edit_plan(
+        SimpleNamespace(id="parent-job"),
+        {"operation": "auto_edit_video", "parameters": {
+            "phase": "render", "plan_storage_key": "../outside.json",
+        }},
+    )
+
+    assert plan.is_file()
+    assert outside.is_file()
+    worker._cleanup_auto_edit_plan(
+        SimpleNamespace(id="parent-job"),
+        {"operation": "auto_edit_video", "parameters": {
+            "phase": "render", "plan_storage_key": ".cache/auto_edit/parent-job.json",
+        }},
+    )
+    assert not plan.exists()

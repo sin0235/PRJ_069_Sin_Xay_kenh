@@ -115,8 +115,8 @@ class GoogleFlowZeroCostProvider:
         audio_options = ["-c:a", "aac", "-b:a", "192k"] if include_audio else ["-an"]
         normalize = run_media_command(
             [video_processor.ffmpeg_bin, "-y", "-i", str(input_path), "-vf",
-             f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1,fps=30",
-             "-c:v", "libx264", *audio_options, "-pix_fmt", "yuv420p", str(output_path)],
+             f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1,fps=30,tpad=stop_mode=clone:stop_duration=0.1",
+             "-t", "10", "-c:v", "libx264", *audio_options, "-pix_fmt", "yuv420p", str(output_path)],
             capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
         )
         if normalize.returncode != 0:
@@ -124,6 +124,8 @@ class GoogleFlowZeroCostProvider:
         if clean_path.exists():
             clean_path.unlink()
         meta = video_processor.probe_video(output_path)
+        if abs(float(meta.get("duration_seconds", 0)) - 10.0) > 0.02:
+            raise RuntimeError("FLOW_VIDEO_DURATION_INVALID: Flow output phải đủ 10 giây.")
 
         with output_path.open("rb") as video_file:
             sha = hashlib.file_digest(video_file, "sha256").hexdigest()
@@ -184,13 +186,15 @@ class GoogleFlowZeroCostProvider:
             audio_options = ["-c:a", "aac", "-b:a", "192k"] if include_audio else ["-an"]
             normalized = run_media_command(
                 [video_processor.ffmpeg_bin, "-y", "-i", flow_res["storage_path"], "-vf",
-                 f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1,fps=30",
-                 "-c:v", "libx264", *audio_options, "-pix_fmt", "yuv420p", str(output_path)],
+                 f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1,fps=30,tpad=stop_mode=clone:stop_duration=0.1",
+                 "-t", "10", "-c:v", "libx264", *audio_options, "-pix_fmt", "yuv420p", str(output_path)],
                 capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
             )
             if normalized.returncode != 0:
                 raise RuntimeError(f"FLOW_VIDEO_NORMALIZATION_FAILED: {normalized.stderr[-1000:]}")
             meta = video_processor.probe_video(output_path)
+            if abs(float(meta.get("duration_seconds", 0)) - 10.0) > 0.02:
+                raise RuntimeError("FLOW_VIDEO_DURATION_INVALID: Flow output phải đủ 10 giây.")
         except (FlowLoginRequired, FlowSubmissionNotSent, FlowQuotaExceeded):
             raise
         except Exception as ex:

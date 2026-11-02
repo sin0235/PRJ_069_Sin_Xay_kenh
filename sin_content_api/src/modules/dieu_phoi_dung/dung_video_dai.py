@@ -528,7 +528,7 @@ def render_auto_edit_diagram(db: Session, job: AIGenerationJob, request: dict) -
         transparent_background = parameters.get("transparent_background", False)
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError("HYPERFRAMES_REQUEST_INVALID") from exc
-    if (scene.layout not in DIAGRAM_LAYOUTS or not 1 <= duration <= 20 or not target_clip_id
+    if (scene.layout not in DIAGRAM_LAYOUTS or not 3 <= duration <= 6 or not target_clip_id
             or not isinstance(transparent_background, bool)):
         raise ValueError("HYPERFRAMES_REQUEST_INVALID")
     if word_times is not None and (
@@ -1024,9 +1024,9 @@ def tao_y_tuong_dien_hoa_flow(
             plan = KeHoachDienHoaFlow(visuals=[item[0] for item in validated])
             visual_words = {index: item[1] for index, item in enumerate(validated)}
             diagram_windows = {index: item[2] for index, item in enumerate(validated) if item[2]}
-            if fallback_visuals and len(plan.visuals) < len(fallback_visuals) and fallback_validated:
+            if fallback_visuals and len(plan.visuals) < len(fallback_visuals):
+                plan = KeHoachDienHoaFlow(visuals=fallback_visuals)
                 validated = fallback_validated
-                plan = KeHoachDienHoaFlow(visuals=[item[0] for item in validated])
                 visual_words = {index: item[1] for index, item in enumerate(validated)}
                 diagram_windows = {index: item[2] for index, item in enumerate(validated) if item[2]}
                 for clip in chosen:
@@ -1786,7 +1786,7 @@ def dung_video_dai(
                         if brief["renderer"] == "FLOW":
                             prompt = brief["prompt"]
                             parameters = {
-                                "aspect_ratio": "9:16", "remove_watermark": True,
+                                "aspect_ratio": "9:16", "remove_watermark": False,
                                 "target_clip_id": brief["target_clip_id"], "include_audio": False,
                             }
                             operation, backend, mode, model_id, credits = (

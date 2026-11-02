@@ -2237,6 +2237,16 @@ def test_kpi_cards_hyperframes_has_a_portrait_native_composition():
     assert "window.PORTRAIT=true" in html
 
 
+def test_checklist_hyperframes_uses_dark_ink_on_light_paper():
+    from src.modules.tao_video_noi_dung.ui_sim import hyperframes_composition_html
+
+    narration, scene = _diagram_scene("CHECKLIST")
+    html = hyperframes_composition_html(scene, narration, 8, aspect_ratio="9:16")
+    checklist = html.split("function sceneChecklist", 1)[1].split("/* ----------", 1)[0]
+
+    assert 'font-weight="700" fill="#163344"' in checklist
+
+
 def test_versus_list_has_folded_paper_reveal_and_animated_verdict(tmp_path):
     from src.modules.tao_video_noi_dung.ui_sim import hyperframes_composition_html, render_ui_scene
 

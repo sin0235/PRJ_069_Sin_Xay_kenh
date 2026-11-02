@@ -8,39 +8,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 API_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DB_PATH = (API_ROOT / "sin_content_offline.db").resolve().as_posix()
 
-
-def read_llm_api_key_file(path: Path) -> str:
-    try:
-        raw = path.read_text(encoding="utf-8")
-    except OSError as exc:
-        raise ValueError("Không thể đọc LLM_API_KEY_FILE.") from exc
-    if len(raw.encode("utf-8")) > 16_384:
-        raise ValueError("LLM_API_KEY_FILE vượt quá kích thước cho phép.")
-
-    key_lines = [line for line in raw.splitlines() if line.strip() and not line.lstrip().startswith("#")]
-    known_names = {"base_url", "api-key", "api_key", "llm_api_key"}
-    key = ""
-    if len(key_lines) == 1:
-        name, separator, _ = key_lines[0].partition("=")
-        if not separator or name.strip().casefold() not in known_names:
-            key = key_lines[0].strip()
-    if not key:
-        values: dict[str, str] = {}
-        for line in key_lines:
-            name, separator, value = line.partition("=")
-            normalized_name = name.strip().casefold()
-            if not separator or normalized_name not in known_names:
-                raise ValueError("LLM_API_KEY_FILE có định dạng không hợp lệ.")
-            if normalized_name in values:
-                raise ValueError("LLM_API_KEY_FILE có khóa bị lặp.")
-            values[normalized_name] = value.strip()
-        key = values.get("api-key") or values.get("api_key") or values.get("llm_api_key", "")
-
-    if not key or any(char.isspace() for char in key):
-        raise ValueError("LLM_API_KEY_FILE phải chứa một khóa hợp lệ trên một dòng.")
-    return key
-
-
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=API_ROOT / ".env",
@@ -115,8 +82,8 @@ class Settings(BaseSettings):
     @field_validator("llm_timeout_seconds")
     @classmethod
     def validate_timeout_seconds(cls, v: float) -> float:
-        if not math.isfinite(v) or v <= 0.0 or v > 300.0:
-            raise ValueError(f"LLM_TIMEOUT_SECONDS phải là số thực hữu hạn trong khoảng (0, 300] giây (nhận được: {v}).")
+        if not math.isfinite(v) or v <= 0.0 or v > 1800.0:
+            raise ValueError(f"LLM_TIMEOUT_SECONDS phải là số thực hữu hạn trong khoảng (0, 1800] giây (nhận được: {v}).")
         return v
 
     @field_validator("llm_max_input_bytes")
@@ -182,7 +149,13 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_llm_activation(self) -> "Settings":
         if self.llm_enabled and not self.llm_api_key.strip() and self.llm_api_key_file.is_file():
-            self.llm_api_key = read_llm_api_key_file(self.llm_api_key_file)
+            try:
+                key = self.llm_api_key_file.read_text(encoding="utf-8").strip()
+            except OSError as exc:
+                raise ValueError("Không thể đọc LLM_API_KEY_FILE.") from exc
+            if len(key.encode("utf-8")) > 16_384 or any(char.isspace() for char in key):
+                raise ValueError("LLM_API_KEY_FILE phải chứa một khóa hợp lệ trên một dòng.")
+            self.llm_api_key = key
         if self.llm_enabled:
             if not self.llm_model or not self.llm_model.strip():
                 raise ValueError("LLM_MODEL (hoặc LLM_DEFAULT_MODEL) bắt buộc phải được cấu hình khi LLM_ENABLED=True.")

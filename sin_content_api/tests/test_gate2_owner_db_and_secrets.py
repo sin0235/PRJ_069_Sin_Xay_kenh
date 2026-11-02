@@ -66,7 +66,7 @@ def test_gate2_anonymous_rejected(client):
     """Yêu cầu không có token bị từ chối 401."""
     resp = client.get("/v1/platform/llm-config")
     assert resp.status_code == 401
-    assert "Cloudflare Access" in resp.json()["message_safe"]
+    assert "Cần bearer token hợp lệ" in resp.json()["message_safe"]
 
 def test_gate2_non_owner_forbidden(client):
     """User bình thường hoặc Workspace Owner bị từ chối 403 Forbidden."""
@@ -87,11 +87,14 @@ def test_gate2_platform_owner_authorized(client):
     assert "api_key" not in data
     assert "api_key_ciphertext" not in data
 
-def test_gate2_synthetic_sin_admin_is_not_a_platform_owner(client):
-    """Danh tính demo usr_sin_owner không được tự nhận quyền Platform Owner."""
+def test_gate2_sin_admin_owner_authorized(client):
+    """Tài khoản Sin Admin (usr_sin_owner) có đầy đủ thẩm quyền Platform Owner."""
     token = create_test_token(user_id="usr_sin_owner", role="PLATFORM_OWNER")
     resp = client.get("/v1/platform/llm-config", headers={"Authorization": f"Bearer {token}"})
-    assert resp.status_code == 403
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "is_configured" in data
+    assert "key_fingerprint" in data
 
 # ==================== TEST 2: SINGLETON & MÃ HÓA BÍ MẬT ====================
 

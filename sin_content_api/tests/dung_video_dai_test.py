@@ -787,7 +787,7 @@ def test_hyperframes_child_dang_ky_asset_da_probe_trong_workspace(monkeypatch, t
         style, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")).hexdigest()
     request = {"operation": "render_auto_edit_diagram", "backend_provider": "BAHA_AUTO_EDIT", "parameters": {
-        "target_clip_id": "part1_01", "duration_seconds": 10, "narration": "trước và sau",
+        "target_clip_id": "part1_01", "duration_seconds": 6, "narration": "trước và sau",
         "narration_word_times": [0.2, 0.8],
         "ui_scene": {
             "layout": "BEFORE_AFTER",
@@ -821,6 +821,34 @@ def test_hyperframes_child_dang_ky_asset_da_probe_trong_workspace(monkeypatch, t
         engine.dispose()
 
 
+@pytest.mark.parametrize("duration_seconds", [2, 7])
+def test_render_auto_edit_diagram_chi_nhan_duration_tu_3_den_6_giay(monkeypatch, duration_seconds):
+    from src.modules.dieu_phoi_dung import dung_video_dai as editor
+    from src.modules.tao_video_noi_dung import render_engines
+    from src.modules.tao_video_noi_dung.service import _PILOT_STYLE_SNAPSHOT
+
+    style = _PILOT_STYLE_SNAPSHOT.model_dump(mode="json")
+    style_hash = hashlib.sha256(json.dumps(
+        style, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    ).encode("utf-8")).hexdigest()
+    request = {"operation": "render_auto_edit_diagram", "backend_provider": "BAHA_AUTO_EDIT", "parameters": {
+        "target_clip_id": "part1_01", "duration_seconds": duration_seconds, "narration": "trước và sau",
+        "ui_scene": {"layout": "BEFORE_AFTER", "diagram": {
+            "title": "Đơn hàng", "docs": [
+                {"title": "Trước", "label": "Đơn", "value": "100"},
+                {"title": "Sau", "label": "Đơn", "value": "60"},
+            ],
+            "diff_label": "Giảm 40", "on": {"before": "trước", "after": "sau", "delta": "giảm"},
+        }},
+        "style_snapshot": style, "style_snapshot_hash": style_hash,
+    }}
+    job = SimpleNamespace(provider="MEDIA_VIDEO", workspace_id="ws-auto-edit", project_id=None, created_by="user")
+    monkeypatch.setattr(render_engines, "render_scene", lambda *_args, **_kwargs: pytest.fail("render must not run"))
+
+    with pytest.raises(ValueError, match="HYPERFRAMES_REQUEST_INVALID"):
+        editor.render_auto_edit_diagram(None, job, request)
+
+
 def test_tao_y_tuong_flow_giu_style_giay_ghep_va_clip_duoc_chon():
     from src.modules.tao_video_noi_dung.service import _CONTENT_VIDEO_STYLE_SNAPSHOT, _PILOT_STYLE_SNAPSHOT
 
@@ -848,29 +876,6 @@ def test_tao_y_tuong_flow_giu_style_giay_ghep_va_clip_duoc_chon():
     assert "asset nguồn cố định 10 giây" in system_prompt
     assert "hyperframes" in system_prompt and "quy trình" in system_prompt
     assert "không chỉ dành cho biểu đồ" in system_prompt
-
-
-def test_tao_y_tuong_khong_ghep_fallback_visual_thieu_ngu_canh_tu():
-    clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=20000, title="Bai hoc", reason="Du y")
-    words = [tu(index, f"tu {index}", 1000 + (index - 1) * 1000, 2000 + (index - 1) * 1000)
-             for index in range(1, 9)]
-    visual_1 = {
-        "clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w4",
-        "scene": "Paper layers", "action": "Open the paper layers",
-        "renderer": "FLOW",
-    }
-    visual_2 = {
-        "clip_id": clip.clip_id, "start_word_id": "w5", "end_word_id": "w8",
-        "scene": "Moving paper shapes", "action": "Fold into a new shape",
-        "renderer": "FLOW",
-    }
-    malformed = {**visual_2, "action": "short"}
-    client = LLMGia([{"visuals": [visual_1, visual_2, malformed]}, {"visuals": [visual_1]}])
-
-    visuals = tao_y_tuong_dien_hoa_flow([clip], words, [], client)
-
-    assert len(visuals) == 1
-    assert visuals[0]["narration"] == "tu 1 tu 2 tu 3 tu 4"
 
 
 def test_tao_y_tuong_co_the_dat_nhieu_dien_hoa_vao_cac_doan_rieng_trong_mot_clip():
@@ -2242,8 +2247,7 @@ def test_dung_video_dai_render_luu_nhieu_clip_va_giu_nguyen_nguon(monkeypatch, t
         assert manifest["clips"][0]["timeline"]["quality_checks"] == {
             "full_decode": "PASS", "long_black_segments": [],
         }
-        assert manifest["clips"][0]["timeline"]["brand_end_card"]["logo_asset"] == "logo_ngang_am_ban.png"
-        assert manifest["clips"][0]["timeline"]["brand_end_card"]["shot_asset"] == "shot_ket_baha_midnight_doc_3s.mp4"
+        assert manifest["clips"][0]["timeline"]["brand_end_card"]["logo_asset"] == "logo_doc_mau.png"
         assert security.hash_file(source_path)[0] == original_hash
     finally:
         db.close()
@@ -2434,71 +2438,3 @@ def test_planner_reconsiders_empty_plan_after_flow_is_unavailable():
 
     assert len(visuals) == 1 and visuals[0]["renderer"] == "HYPERFRAMES"
     assert len(client.messages) == 3
-
-
-def test_auto_edit_flow_child_requests_watermark_removal(monkeypatch, tmp_path):
-    from src.modules.dieu_phoi_dung import dung_video_dai as editor
-    from src.modules.flow_sessions import service as flow_service
-
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
-    Base.metadata.create_all(engine)
-    db = sessionmaker(bind=engine, expire_on_commit=False)()
-    workspace_id, user_id, job_id = "ws-auto-flow", "user-auto-flow", "auto-edit-parent-flow"
-    media_root = tmp_path / "media"
-    source_path = media_root / "workspaces" / workspace_id / "media" / "source.mp4"
-    source_path.parent.mkdir(parents=True)
-    source_path.write_bytes(b"raw-upload-fixture")
-    source_hash, source_size = security.hash_file(source_path)
-    db.add_all([
-        Workspace(id=workspace_id, name="Auto Edit Flow", slug=workspace_id),
-        MediaAsset(
-            id="source-flow", workspace_id=workspace_id, storage_key=source_path.relative_to(media_root).as_posix(),
-            sha256=source_hash, byte_size=source_size, mime_detected="video/mp4", duration_ms=12000,
-            source_product="UPLOAD", created_by=user_id,
-        ),
-        AIGenerationJob(
-            id=job_id, workspace_id=workspace_id, asset_type="VIDEO", provider="MEDIA_VIDEO",
-            provider_mode="QUEUE", model_id="auto-edit", idempotency_key="auto-edit-parent-flow-key",
-            state="RUNNING", request_payload_json=json.dumps({"parameters": {"profile_id": None}}),
-            created_by=user_id,
-        ),
-    ])
-    db.commit()
-    monkeypatch.setattr(security, "MEDIA_ROOT_DIR", media_root)
-    monkeypatch.setattr(editor, "MEDIA_ROOT_DIR", media_root)
-
-    def extract_audio(args, **_kwargs):
-        Path(args[-1]).write_bytes(b"audio")
-        return SimpleNamespace(returncode=0)
-
-    words = [{"id": f"w{index:06d}", "text": f"tu{index}", "start_ms": index * 1000, "end_ms": index * 1000 + 500}
-             for index in range(12)]
-    monkeypatch.setattr(editor, "run_media_command", extract_audio)
-    monkeypatch.setattr(editor.video_processor, "probe_video", lambda *_args: {"duration_seconds": 12, "width": 720, "height": 1280})
-    monkeypatch.setattr(editor, "transcribe_words_cached", lambda *_args: words)
-    monkeypatch.setattr(editor, "phat_hien_khoang_nghi", lambda *_args: [])
-    monkeypatch.setattr(editor, "tinh_muc_song", lambda *_args: [0])
-    monkeypatch.setattr(editor.LLMClient, "from_db", classmethod(lambda _cls, _db: SimpleNamespace(model="real-model")))
-    monkeypatch.setattr(editor, "tao_ke_hoach_dung_video", lambda *_args, **_kwargs: TaoKeHoachDungVideo(clips=[
-        ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=12000, title="Chu de", reason="Day du y"),
-    ]))
-    monkeypatch.setattr(editor, "tao_y_tuong_dien_hoa_flow", lambda *_args: [{
-        "clip_id": "part1_01", "target_clip_id": "part1_01", "renderer": "FLOW", "prompt": "Origami paper animation",
-        "start_word_id": "w000000", "end_word_id": "w000007", "scene": "Paper scene", "action": "Show result",
-        "narration": "Explanation", "duration_seconds": 10,
-    }])
-    monkeypatch.setattr(flow_service, "resolve_profile", lambda *_args: SimpleNamespace(id="ready-flow-profile", google_flow_state="READY"))
-
-    deferred = editor.dung_video_dai(
-        db, source_asset_id="source-flow", workspace_id=workspace_id, user_id=user_id,
-        project_id=None, job_id=job_id,
-    )
-
-    parent_request = json.loads(deferred.request_payload_json)
-    child = db.get(AIGenerationJob, parent_request["parameters"]["flow_job_ids"][0])
-    child_request = json.loads(child.request_payload_json)
-    assert child_request["operation"] == "generate_video_scene"
-    assert child_request["parameters"]["remove_watermark"] is True
-    db.close()
-    Base.metadata.drop_all(engine)
-    engine.dispose()

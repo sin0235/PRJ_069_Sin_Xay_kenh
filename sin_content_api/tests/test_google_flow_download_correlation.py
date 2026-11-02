@@ -188,6 +188,15 @@ def test_localized_flow_agent_editor_is_accepted_without_legacy_video_mode_menu(
         def is_visible(self):
             return self.visible
 
+        def click(self, **_kwargs):
+            pass
+
+        def locator(self, _selector):
+            return Locator(True)
+
+        def filter(self, **_kwargs):
+            return Locator(True)
+
     class Page:
         def locator(self, selector):
             if selector == "button.agent-mode-chip":
@@ -202,11 +211,75 @@ def test_localized_flow_agent_editor_is_accepted_without_legacy_video_mode_menu(
                 return Locator(True)
             if "crop_16_9" in selector:
                 return Locator(False)
-            if "button.agent-action-button[aria-label='Cài đặt']" in selector:
+            if selector == "button.agent-action-button[aria-label='Settings'], button.agent-action-button:has-text('tune')":
+                return Locator(True)
+            if selector in ("div.settings-section", "button.video-model-picker-button", "button.settings-save-button"):
                 return Locator(True)
             raise AssertionError(selector)
 
     flow_client.GoogleFlowClient._ensure_video_mode(Page())
+
+
+def test_flow_agent_settings_selects_portrait_video_ratio():
+    clicks = []
+
+    class Locator:
+        first = property(lambda self: self)
+
+        def __init__(self, name, found=False):
+            self.name = name
+            self.found = found
+
+        def count(self):
+            return int(self.found)
+
+        def is_visible(self):
+            return self.found
+
+        def wait_for(self, **_kwargs):
+            pass
+
+        def get_attribute(self, _name):
+            return None
+
+        def click(self, **_kwargs):
+            clicks.append(self.name)
+
+        def filter(self, *, has=None, has_text=None):
+            if has is not None:
+                return Locator("video-section", True)
+            return Locator("video-9:16", self.found)
+
+        def locator(self, selector):
+            return Locator("video-radios", self.found)
+
+    class Page:
+        def locator(self, selector):
+            if selector == "button.agent-mode-chip":
+                return Locator("agent-mode", False)
+            if selector == "button.agent-action-button[aria-label='Settings'], button.agent-action-button:has-text('tune')":
+                return Locator("agent-settings", True)
+            if selector.startswith("button.settings-trigger-button") or "aria-label*='settings'" in selector:
+                return Locator("settings-trigger", False)
+            if "Nano Banana" in selector or "button:has-text('Video')" in selector or "button:has-text('Veo')" in selector:
+                return Locator("legacy-model", False)
+            if selector == '[role="textbox"]':
+                return Locator("legacy-textbox", False)
+            if "data-slate-editor" in selector or "ProseMirror" in selector:
+                return Locator("editor", True)
+            if "crop_16_9" in selector or "crop_9_16" in selector or "crop_square" in selector:
+                return Locator("legacy-ratio-menu", False)
+            if selector == "div.settings-section":
+                return Locator("settings-section", True)
+            if selector == "button.video-model-picker-button":
+                return Locator("video-model", True)
+            if selector == "button.settings-save-button":
+                return Locator("save", True)
+            raise AssertionError(selector)
+
+    flow_client.GoogleFlowClient._ensure_video_mode(Page(), "9:16")
+
+    assert clicks == ["agent-settings", "video-9:16", "save"]
 
 
 def test_flow_video_mode_selects_requested_portrait_ratio():
@@ -327,7 +400,11 @@ def test_flow_agent_can_attach_start_frame_from_media_library(tmp_path, attach_o
 
         def get_by_role(self, role, name=None):
             if role == "dialog":
-                return SimpleNamespace(get_by_role=lambda *_args, **_kwargs: Locator(True, lambda: events.append("consent")))
+                class HiddenConsent:
+                    first = property(lambda self: self)
+                    def wait_for(self, **_kwargs):
+                        raise flow_client.PlaywrightTimeoutError("consent dialog not shown")
+                return SimpleNamespace(get_by_role=lambda *_args, **_kwargs: HiddenConsent())
             if name == "Thêm vào câu lệnh":
                 events.append(("role_button", name))
                 def attach_chip():
@@ -354,8 +431,7 @@ def test_flow_agent_can_attach_start_frame_from_media_library(tmp_path, attach_o
 
     flow_client.GoogleFlowClient._attach_start_image(Page(), image_path, 10)
     assert ("set_files", str(image_path)) in events
-    assert events.index("consent") > events.index(("set_files", str(image_path)))
-    assert events.count("click") == (4 if attach_on_wait else 5)
+    assert events.count("click") == (3 if attach_on_wait else 4)
     assert ("press", "Escape") in events
     assert ("wait_image", 15000) in events
     assert ("upload_button", "button.sidebar-upload-btn") in events
@@ -436,3 +512,50 @@ def test_generate_from_image_preserves_pre_submit_flow_failure(monkeypatch, tmp_
     monkeypatch.setattr(flow_client.GoogleFlowClient, "create_video", fail_before_submit)
     with pytest.raises(FlowSubmissionNotSent, match="before submit"):
         GoogleFlowZeroCostProvider().generate_from_image("prompt", tmp_path / "frame.jpg")
+
+
+def test_unusual_activity_error_after_new_prompt_is_detected():
+    # Chuỗi bong bóng thực tế từ log NAS ngày 30-10-2026: phản hồi cũ, prompt mới, rồi bong bóng lỗi.
+    bubbles = [
+        "play_circleTôi đang tạo video 10 giây tỷ lệ 16:9",
+        "Tạo video 16:9, thời lượng 10 giây",
+        "errorChúng tôi nhận thấy có hoạt động bất thường nào đó. Xin lưu ý rằng các tiện ích trình duyệt",
+    ]
+
+    assert flow_client._flow_unusual_activity_after_prompt(bubbles, 1)
+    # Phản hồi cũ nằm trước prompt mới không được tính.
+    assert not flow_client._flow_unusual_activity_after_prompt(bubbles[:2], 1)
+    assert not flow_client._flow_unusual_activity_after_prompt(bubbles[:2] + ["Video đã được lên lịch"], 1)
+
+
+def test_unusual_activity_is_not_auto_retried_but_is_blocked_as_not_sent():
+    exc = flow_client.FlowUnusualActivity("FLOW_UNUSUAL_ACTIVITY: Google từ chối phiên Flow tự động")
+
+    assert isinstance(exc, flow_client.FlowSubmissionNotSent)
+    assert "FLOW_SUBMIT_NOT_SENT" not in str(exc)
+
+
+def test_agent_reply_after_prompt_ignores_error_bubbles():
+    bubbles = ["Tạo video 16:9", "errorChúng tôi nhận thấy có hoạt động bất thường"]
+    assert not flow_client._flow_agent_replied_after_prompt(bubbles, 0)
+    assert flow_client._flow_agent_replied_after_prompt(bubbles + ["Video đã được lên lịch và đang chờ trong hàng đợi"], 0)
+    assert not flow_client._flow_agent_replied_after_prompt(bubbles[:1], 0)
+
+
+def test_unusual_activity_cooldown_marker_roundtrip(tmp_path, monkeypatch):
+    assert flow_client._unusual_cooldown_remaining(tmp_path) == 0
+    flow_client._mark_unusual_activity(tmp_path)
+    assert 0 < flow_client._unusual_cooldown_remaining(tmp_path) <= flow_client._UNUSUAL_COOLDOWN_SEC
+    monkeypatch.setattr(flow_client, "_UNUSUAL_COOLDOWN_SEC", 0)
+    assert flow_client._unusual_cooldown_remaining(tmp_path) == 0
+    flow_client._clear_unusual_activity(tmp_path)
+    assert not (tmp_path / flow_client._UNUSUAL_MARKER).exists()
+
+
+def test_browser_display_falls_back_to_headless_without_xvfb(monkeypatch):
+    config = importlib.import_module("config")
+    monkeypatch.setattr(config.shutil, "which", lambda name: None)
+    with config.browser_display(True) as (headless, env):
+        assert headless is True and env is None
+    with config.browser_display(False) as (headless, env):
+        assert headless is False and env is None

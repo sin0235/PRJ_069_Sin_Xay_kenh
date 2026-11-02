@@ -34,7 +34,7 @@ def test_vieneu_loads_turbo_on_cpu_with_isolated_non_shared_cache(tmp_path, monk
     assert hf_constants.HF_HUB_DISABLE_SYMLINKS is True
 
 
-def test_vieneu_clone_uses_reference_denoising_and_sdk_sample_rate():
+def test_vieneu_clone_keeps_reference_without_denoising_and_sdk_sample_rate():
     class Model:
         sample_rate = 48_000
 
@@ -50,7 +50,7 @@ def test_vieneu_clone_uses_reference_denoising_and_sdk_sample_rate():
     np.testing.assert_allclose(audio, [0.1, -0.1])
     assert sample_rate == 48_000
     assert model.request == ("Xin chào", {
-        "ref_audio": "voice.wav", "denoise": True, "use_ref_codes": True,
+        "ref_audio": "voice.wav", "denoise": False, "use_ref_codes": True,
         "temperature": 0.8, "top_k": 25, "top_p": 0.95,
-        "repetition_penalty": 1.2, "max_new_frames": 300, "max_chars": 100,
+        "repetition_penalty": 1.2, "max_new_frames": 300, "max_chars": 128,
     })

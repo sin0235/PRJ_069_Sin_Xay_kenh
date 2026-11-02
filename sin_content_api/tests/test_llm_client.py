@@ -304,3 +304,57 @@ def test_gate2_incomplete_or_invalid_usage_rejected():
     assert res3.usage_valid is False
     assert res3.prompt_tokens == 0
 
+
+
+def test_router_transcription_uploads_multipart_audio_and_returns_text(tmp_path):
+    audio_path = tmp_path / "doan.mp3"
+    audio_path.write_bytes(b"audio-bytes")
+    captured = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured["authorization"] = request.headers.get("authorization")
+        captured["content_type"] = request.headers.get("content-type")
+        captured["body"] = request.content
+        return httpx.Response(200, json={"text": "Lời thoại đã nhận dạng."})
+
+    client = LLMClient(settings=make_settings(), transport=httpx.MockTransport(handler))
+
+    transcript = client.transcribe_audio(audio_path)
+
+    assert transcript == "Lời thoại đã nhận dạng."
+    assert captured["url"] == "http://127.0.0.1:20128/v1/audio/transcriptions"
+    assert captured["authorization"] == "Bearer sk-test-secret-key-12345"
+    assert captured["content_type"].startswith("multipart/form-data;")
+    assert b'name="model"' in captured["body"] and b"cx/transcribe" in captured["body"]
+    assert b'name="response_format"' in captured["body"] and b"json" in captured["body"]
+    assert b'filename="doan.mp3"' in captured["body"] and b"audio-bytes" in captured["body"]
+
+
+def test_router_transcription_rejects_empty_text(tmp_path):
+    audio_path = tmp_path / "doan.mp3"
+    audio_path.write_bytes(b"audio-bytes")
+    client = LLMClient(
+        settings=make_settings(),
+        transport=httpx.MockTransport(lambda _request: httpx.Response(200, json={"text": "  "})),
+    )
+
+    with pytest.raises(LLMResponseError) as exc_info:
+        client.transcribe_audio(audio_path)
+
+    assert exc_info.value.error_code == "EMPTY_TRANSCRIPTION"
+
+
+def test_router_transcription_rejects_audio_over_five_mib_before_upload(tmp_path):
+    audio_path = tmp_path / "doan.mp3"
+    audio_path.write_bytes(b"x" * (5 * 1024 * 1024 + 1))
+    client = LLMClient(
+        settings=make_settings(),
+        transport=httpx.MockTransport(lambda _request: pytest.fail("audio must not be uploaded")),
+    )
+
+    with pytest.raises(LLMResponseError) as exc_info:
+        client.transcribe_audio(audio_path)
+
+    assert exc_info.value.error_code == "AUDIO_FILE_SIZE_INVALID"
+
