@@ -256,7 +256,6 @@ def download_asset(
     }
 
     if download:
-        headers["Content-Disposition"] = f'attachment; filename="{filename}"'
         return FileResponse(
             path=str(file_path),
             media_type=media_type,
@@ -265,10 +264,10 @@ def download_asset(
             content_disposition_type="attachment"
         )
     else:
-        headers["Content-Disposition"] = f'inline; filename="{filename}"'
         return FileResponse(
             path=str(file_path),
             media_type=media_type,
+            filename=filename,
             headers=headers,
             content_disposition_type="inline"
         )

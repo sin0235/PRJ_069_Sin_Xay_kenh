@@ -639,6 +639,45 @@ def test_b10_download_requires_workspace_authorization(media_fixture):
     assert r_b.status_code in (401, 403, 404), f"Cross-tenant download should be blocked: {r_b.status_code}"
 
 
+def test_tai_media_ten_tieng_viet_phat_duoc(media_fixture, monkeypatch, tmp_path):
+    from src.modules.media_studio import router as media_router_module
+    from src.auth.tenancy import TenantContext
+    from src.modules.media_studio.router import download_asset
+
+    fix = media_fixture
+    tenant = TenantContext(fix["ws_a_id"], fix["user_a_id"], None, None, str(uuid.uuid4()), True)
+    monkeypatch.setattr(media_router_module, "MEDIA_ROOT_DIR", tmp_path)
+    asset_id = str(uuid.uuid4())
+    filename = "giọng nói rất rõ.mp3"
+    storage_key = f"workspaces/{fix['ws_a_id']}/media/{filename}"
+    media_path = tmp_path / storage_key
+    media_path.parent.mkdir(parents=True)
+    media_path.write_bytes(b"ID3" + b"\x00" * 200)
+    with SessionLocal() as db:
+        db.add(MediaAsset(
+            id=asset_id,
+            workspace_id=fix["ws_a_id"],
+            storage_key=storage_key,
+            sha256=hashlib.sha256(media_path.read_bytes()).hexdigest(),
+            byte_size=media_path.stat().st_size,
+            mime_detected="audio/mpeg",
+            source_product="UPLOAD",
+            original_filename=filename,
+            created_by=fix["user_a_id"],
+        ))
+        db.commit()
+
+    with SessionLocal() as db:
+        try:
+            downloaded = download_asset(asset_id, None, None, False, db, tenant)
+        except UnicodeEncodeError as exc:
+            pytest.fail(f"Tên tiếng Việt không được mã hóa trong Content-Disposition: {exc}")
+
+    disposition = downloaded.headers["content-disposition"]
+    assert "filename*=utf-8''" in disposition
+    assert "gi%E1%BB%8Dng%20n%C3%B3i%20r%E1%BA%A5t%20r%C3%B5.mp3" in disposition
+
+
 # ==============================================================================
 # TEST CASE B11: Upload Rejects Oversize File (M-P2)
 # ==============================================================================
