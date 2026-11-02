@@ -850,6 +850,29 @@ def test_tao_y_tuong_flow_giu_style_giay_ghep_va_clip_duoc_chon():
     assert "không chỉ dành cho biểu đồ" in system_prompt
 
 
+def test_tao_y_tuong_khong_ghep_fallback_visual_thieu_ngu_canh_tu():
+    clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=20000, title="Bai hoc", reason="Du y")
+    words = [tu(index, f"tu {index}", 1000 + (index - 1) * 1000, 2000 + (index - 1) * 1000)
+             for index in range(1, 9)]
+    visual_1 = {
+        "clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w4",
+        "scene": "Paper layers", "action": "Open the paper layers",
+        "renderer": "FLOW",
+    }
+    visual_2 = {
+        "clip_id": clip.clip_id, "start_word_id": "w5", "end_word_id": "w8",
+        "scene": "Moving paper shapes", "action": "Fold into a new shape",
+        "renderer": "FLOW",
+    }
+    malformed = {**visual_2, "action": "short"}
+    client = LLMGia([{"visuals": [visual_1, visual_2, malformed]}, {"visuals": [visual_1]}])
+
+    visuals = tao_y_tuong_dien_hoa_flow([clip], words, [], client)
+
+    assert len(visuals) == 1
+    assert visuals[0]["narration"] == "tu 1 tu 2 tu 3 tu 4"
+
+
 def test_tao_y_tuong_co_the_dat_nhieu_dien_hoa_vao_cac_doan_rieng_trong_mot_clip():
     clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=20000, title="Kết quả", reason="Đủ ý")
     words = [

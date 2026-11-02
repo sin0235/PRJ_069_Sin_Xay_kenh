@@ -1024,9 +1024,9 @@ def tao_y_tuong_dien_hoa_flow(
             plan = KeHoachDienHoaFlow(visuals=[item[0] for item in validated])
             visual_words = {index: item[1] for index, item in enumerate(validated)}
             diagram_windows = {index: item[2] for index, item in enumerate(validated) if item[2]}
-            if fallback_visuals and len(plan.visuals) < len(fallback_visuals):
-                plan = KeHoachDienHoaFlow(visuals=fallback_visuals)
+            if fallback_visuals and len(plan.visuals) < len(fallback_visuals) and fallback_validated:
                 validated = fallback_validated
+                plan = KeHoachDienHoaFlow(visuals=[item[0] for item in validated])
                 visual_words = {index: item[1] for index, item in enumerate(validated)}
                 diagram_windows = {index: item[2] for index, item in enumerate(validated) if item[2]}
                 for clip in chosen:
