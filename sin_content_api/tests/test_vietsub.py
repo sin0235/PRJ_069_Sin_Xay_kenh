@@ -165,6 +165,38 @@ def test_transcribe_words_preserves_probability_when_model_provides_it(monkeypat
     ]
 
 
+def test_transcribe_words_processes_segments_before_consuming_next(monkeypatch, tmp_path):
+    state = {"first_processed": False}
+
+    class Segment:
+        def __init__(self, words, processed=None):
+            self._words = words
+            self._processed = processed
+
+        @property
+        def words(self):
+            if self._processed:
+                self._processed()
+            return self._words
+
+    class FakeModel:
+        def transcribe(self, *_args, **_kwargs):
+            def segments():
+                yield Segment([SimpleNamespace(word="hello", start=0.0, end=0.3)], lambda: state.update(first_processed=True))
+                assert state["first_processed"]
+                yield Segment([SimpleNamespace(word=" world", start=0.3, end=0.7)])
+
+            return segments(), None
+
+    monkeypatch.setattr(vietsub, "_get_model", lambda: FakeModel())
+    monkeypatch.setenv("VIETSUB_INFERENCE_CHILD", "1")
+
+    assert vietsub.transcribe_words(tmp_path / "voice.wav") == [
+        {"text": "hello", "start_ms": 0, "end_ms": 300},
+        {"text": "world", "start_ms": 300, "end_ms": 700},
+    ]
+
+
 def test_word_cache_retranscribes_entries_without_probability(tmp_path, monkeypatch):
     import hashlib
 

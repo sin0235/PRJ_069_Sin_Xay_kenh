@@ -199,20 +199,19 @@ def transcribe_words(audio_path: Path) -> list[dict]:
             str(audio_path), language="vi", task="transcribe", beam_size=5,
             word_timestamps=True, vad_filter=True, condition_on_previous_text=False,
         )
-        segments = list(segments)
+        words = []
+        for segment in segments:
+            for word in getattr(segment, "words", None) or []:
+                text = (getattr(word, "word", "") or "").strip()
+                start, end = float(getattr(word, "start", 0) or 0), float(getattr(word, "end", 0) or 0)
+                if text and 0 <= start < end:
+                    item = {"text": text, "start_ms": round(start * 1000), "end_ms": round(end * 1000)}
+                    probability = getattr(word, "probability", None)
+                    if isinstance(probability, (int, float)) and 0 <= probability <= 1:
+                        item["probability"] = float(probability)
+                    words.append(item)
     except Exception as exc:
         raise VietsubError("VIETSUB_ASR_FAILED") from exc
-    words = []
-    for segment in segments:
-        for word in getattr(segment, "words", None) or []:
-            text = (getattr(word, "word", "") or "").strip()
-            start, end = float(getattr(word, "start", 0) or 0), float(getattr(word, "end", 0) or 0)
-            if text and 0 <= start < end:
-                item = {"text": text, "start_ms": round(start * 1000), "end_ms": round(end * 1000)}
-                probability = getattr(word, "probability", None)
-                if isinstance(probability, (int, float)) and 0 <= probability <= 1:
-                    item["probability"] = float(probability)
-                words.append(item)
     if not words:
         raise VietsubError("VIETSUB_WORD_TIMESTAMPS_MISSING")
     return words
