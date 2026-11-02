@@ -85,19 +85,39 @@ def require_platform_owner(
         require_trusted_origin(request)
 
     auth = _canonical_auth_modules()
-    try:
-        identity = auth["verify_bearer_token"](
-            token,
-            secret=auth["secret"],
-            issuer=auth["issuer"],
-            audience=auth["audience"],
-        )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Bearer token không hợp lệ hoặc đã hết hạn.",
-            headers={"WWW-Authenticate": "Bearer"},
-        ) from exc
+    if cf_access_assertion:
+        identity = verify_access_assertion(cf_access_assertion)
+        auth_db_generator = auth["get_auth_db"]()
+        try:
+            auth_db = next(auth_db_generator)
+            user = auth_db.query(auth["GlobalUser"]).filter(
+                func.lower(auth["GlobalUser"].email) == identity.email,
+            ).first()
+            user_id = user.id if user and user.status == "ACTIVE" else None
+        finally:
+            close = getattr(auth_db_generator, "close", None)
+            if close:
+                close()
+        if not user_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tài khoản chưa được cấp quyền nền tảng.")
+    else:
+        if not all((auth["secret"], auth["issuer"], auth["audience"])):
+            raise HTTPException(status_code=503, detail="Bearer token nội bộ chưa được cấu hình.")
+        token = authorization[len("Bearer "):].strip()
+        try:
+            identity = auth["verify_bearer_token"](
+                token,
+                secret=auth["secret"],
+                issuer=auth["issuer"],
+                audience=auth["audience"],
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Bearer token kiểm thử không hợp lệ.",
+                headers={"WWW-Authenticate": "Bearer"},
+            ) from exc
+        user_id = identity.user_id
 
     if not _is_configured_owner(identity.user_id, identity.workspace_id):
         raise HTTPException(

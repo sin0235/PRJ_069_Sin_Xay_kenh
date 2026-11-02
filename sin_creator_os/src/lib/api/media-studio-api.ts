@@ -292,7 +292,6 @@ export interface GenerateMusicParams {
   idempotency_key?: string;
   normalize_tiktok?: boolean;
   workspace_id?: string;
-  token?: string;
 }
 
 interface MusicJobStatusResponse {
@@ -308,7 +307,6 @@ export interface MixAudioParams {
   music_asset_id: string;
   music_attenuation_db?: number;
   workspace_id?: string;
-  token?: string;
 }
 
 export interface GenerateVideoParams {
@@ -320,14 +318,12 @@ export interface GenerateVideoParams {
   project_id?: string;
   idempotency_key?: string;
   workspace_id?: string;
-  token?: string;
 }
 
 export interface AssembleVideoParams {
   scene_asset_ids: string[];
   audio_asset_id: string;
   workspace_id?: string;
-  token?: string;
 }
 
 export const mediaStudioApi = {

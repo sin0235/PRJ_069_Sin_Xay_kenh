@@ -274,6 +274,61 @@ def test_owner_khong_duoc_tu_duyet_khi_creator_khac_owner(du_lieu_rbac):
     assert db.query(ApprovalRun).filter_by(id=run.id).one().status == "APPROVED"
 
 
+def test_founder_workspace_owner_duoc_tu_duyet_va_ghi_ly_do(du_lieu_rbac, monkeypatch):
+    db, _, workspace, _, resource, _ = du_lieu_rbac
+    monkeypatch.setenv("FOUNDER_EMAIL", "author@example.invalid")
+    run = _tao_run(db, workspace, [], resource)
+    ordered_steps = sorted(run.steps, key=lambda item: item.ordinal)
+    lead = _actor(db, workspace, "member-lead")
+    founder = _actor(db, workspace, "member-author")
+
+    ApprovalService.record_decision(
+        db, lead, step_id=ordered_steps[0].id, result="APPROVED",
+        artifact_version=1, content_hash=resource.content_hash,
+    )
+    db.commit()
+    db.expire_all()
+    decision = ApprovalService.record_decision(
+        db, founder, step_id=ordered_steps[1].id, result="APPROVED",
+        artifact_version=1, content_hash=resource.content_hash,
+    )
+    db.commit()
+
+    assert decision.result == "APPROVED"
+    audit = db.query(AuthorizationAuditEvent).filter_by(
+        action_key="ideas.approve_final", decision="ALLOW",
+        internal_reason="FOUNDER_SELF_APPROVAL_EXCEPTION",
+    ).one()
+    assert audit.actor_id == founder.user_id
+
+
+def test_founder_khong_tu_duyet_neu_chang_cuoi_khong_giao_cho_workspace_owner(du_lieu_rbac, monkeypatch):
+    db, _, workspace, _, resource, policy = du_lieu_rbac
+    monkeypatch.setenv("FOUNDER_EMAIL", "author@example.invalid")
+    policy.stages_json = json.dumps([
+        {"stage_key": "TEAM_REVIEW", "allowed_role": "TEAM_LEAD"},
+        {"stage_key": "FINAL_REVIEW", "allowed_role": "TEAM_LEAD"},
+    ])
+    db.commit()
+    run = _tao_run(db, workspace, [], resource)
+    ordered_steps = sorted(run.steps, key=lambda item: item.ordinal)
+    lead = _actor(db, workspace, "member-lead")
+    founder = _actor(db, workspace, "member-author")
+    ApprovalService.record_decision(
+        db, lead, step_id=ordered_steps[0].id, result="APPROVED",
+        artifact_version=1, content_hash=resource.content_hash,
+    )
+    db.commit()
+
+    with pytest.raises(ValueError, match="SELF_APPROVAL_DENIED"):
+        ApprovalService.record_decision(
+            db, founder, step_id=ordered_steps[1].id, result="APPROVED",
+            artifact_version=1, content_hash=resource.content_hash,
+        )
+
+    assert db.query(ApprovalDecision).filter_by(step_id=ordered_steps[1].id).count() == 0
+
+
 def test_evaluator_tu_choi_duyet_khi_thieu_resource_context(du_lieu_rbac):
     db, _, workspace, _, _, _ = du_lieu_rbac
     reviewer = _actor(db, workspace, "member-reviewer")

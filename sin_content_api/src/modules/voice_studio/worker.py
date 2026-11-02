@@ -114,7 +114,7 @@ def process_voice_studio_job(job_id: str, token: str) -> None:
     output_path = None
     try:
         with SessionLocal() as db:
-            job = db.query(AIGenerationJob).filter(
+            query = db.query(AIGenerationJob).filter(
                 AIGenerationJob.id == job_id,
                 AIGenerationJob.provider == "VOICE_STUDIO",
                 AIGenerationJob.state == "RUNNING",

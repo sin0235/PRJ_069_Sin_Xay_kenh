@@ -20,6 +20,7 @@ if sys.platform == "win32":
         pass
 
 from playwright.sync_api import sync_playwright
+from profile_guard import profile_locked
 
 from config import (
     BROWSER_CHANNEL,

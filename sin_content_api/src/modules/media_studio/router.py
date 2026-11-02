@@ -148,6 +148,9 @@ def open_google_flow_login(
         os.startfile(str(login_script))
         return {"success": True, "message": "Đã mở Edge để đăng nhập Google Flow trên máy chạy dịch vụ."}
 
+    if sys.platform == "linux" and os.environ.get("FLOW_PROFILE_ROOT"):
+        raise HTTPException(status_code=503, detail="NAS Flow login: use the separate login project and SSH tunnel.")
+
     if sys.platform != "linux":
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Đăng nhập Flow chỉ hỗ trợ trên Windows và Linux.")
     if not FLOW_SESSION_MANAGER.is_file():

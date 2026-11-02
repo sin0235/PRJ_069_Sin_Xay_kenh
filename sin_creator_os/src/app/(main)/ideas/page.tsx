@@ -387,19 +387,19 @@ export default function IdeasPage() {
                     <div>
                       <span className="text-muted-foreground block">Liên quan</span>
                       <span className="font-bold text-foreground">
-                        {idea.scores?.relevance || 90}%
+                        {idea.scores?.relevance == null ? "—" : `${idea.scores.relevance}%`}
                       </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground block">Bắt Trend</span>
                       <span className="font-bold text-foreground">
-                        {idea.scores?.trend || 85}%
+                        {idea.scores?.trend == null ? "—" : `${idea.scores.trend}%`}
                       </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground block">Điểm AI</span>
                       <span className="font-bold text-primary">
-                        {idea.scores?.overall || 88}
+                        {idea.scores?.overall ?? "—"}
                       </span>
                     </div>
                   </div>
@@ -495,7 +495,7 @@ export default function IdeasPage() {
                         <MetricCoverageBadge metrics={idea.evidence?.length ? { count: 1 } : null} />
                       </td>
                       <td className="py-3 px-3 text-center font-bold text-primary font-mono text-sm">
-                        {idea.scores?.overall || 88}
+                        {idea.scores?.overall ?? "—"}
                       </td>
                       <td className="py-3 px-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">

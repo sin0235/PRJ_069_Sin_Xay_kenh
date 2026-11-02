@@ -40,11 +40,9 @@ interface MediaItem {
   id: string;
   name: string;
   type: "video" | "image" | "audio" | "voice";
-  thumbnailUrl: string;
   duration?: string;
   resolution?: string;
-  isAiGenerated: boolean;
-  projectUsageCount: number;
+  isAiGenerated?: boolean;
   tags: string[];
   createdAt: string;
   url?: string;

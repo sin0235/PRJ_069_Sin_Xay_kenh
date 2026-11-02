@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 import { shouldUseSecureAuthCookie } from "../auth-cookie";
 import { isAllowedAuthOrigin } from "../auth-origin";

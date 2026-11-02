@@ -37,7 +37,7 @@ import { ScriptService } from "@/services/script-service";
 export default function ScriptStudioPage() {
   const router = useRouter();
   const params = useParams();
-  const scriptId = (params?.id as string) || "script_01";
+  const scriptId = (params?.id as string) || "";
 
   const searchParams = useSearchParams();
   const sourceIdeaId = searchParams?.get("source_idea");
@@ -45,17 +45,18 @@ export default function ScriptStudioPage() {
   const [script, setScript] = React.useState<Script | null>(null);
   const [blocks, setBlocks] = React.useState<ScriptBlock[]>([]);
   const [activeCopilotTab, setActiveCopilotTab] = React.useState<"hook" | "tone" | "broll">("hook");
-  const [isCopilotThinking, setIsCopilotThinking] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isSaving, setIsSaving] = React.useState(false);
   const [isApproving, setIsApproving] = React.useState(false);
   const [statusMessage, setStatusMessage] = React.useState<{ text: string; isError: boolean } | null>(null);
 
-  // Load script tu Backend API
   React.useEffect(() => {
     let isMounted = true;
     async function loadScript() {
       setIsLoading(true);
+      setScript(null);
+      setBlocks([]);
+      setStatusMessage(null);
       try {
         if (sourceIdeaId && scriptId === "script_01") {
           const existingList = await ScriptService.listScripts({ idea_id: sourceIdeaId });
@@ -98,10 +99,8 @@ export default function ScriptStudioPage() {
         if (isMounted) setIsLoading(false);
       }
     }
-    loadScript();
-    return () => {
-      isMounted = false;
-    };
+    void loadScript();
+    return () => { isMounted = false; };
   }, [scriptId, sourceIdeaId]);
 
   // Calculate total duration
@@ -153,10 +152,9 @@ export default function ScriptStudioPage() {
       id: `block_${Date.now()}`,
       type: "VALUE",
       title: "Giá Trị Bổ Sung (Value Section)",
-      content: "Nhập nội dung chia sẻ hoặc mẹo thực tế tại đây...",
-      durationSec: 5,
-      visualCue: "Chèn b-roll minh họa cận cảnh thao tác.",
-      tone: "energetic",
+      content: "",
+      durationSec: 0,
+      visualCue: "",
     };
     setBlocks((prev) => [...prev, newBlock]);
   };
@@ -183,24 +181,8 @@ export default function ScriptStudioPage() {
     }
   };
 
-  const triggerAICopilot = (action: string) => {
-    setIsCopilotThinking(true);
-    setTimeout(() => {
-      setIsCopilotThinking(false);
-      if (action === "hook_viral") {
-        setBlocks((prev) =>
-          prev.map((b) =>
-            b.type === "HOOK"
-              ? {
-                  ...b,
-                  content:
-                    "Đừng tự viết kịch bản TikTok nữa! 99% người xem không nhận ra video này được AI làm từ đầu đến cuối.",
-                }
-              : b
-          )
-        );
-      }
-    }, 700);
+  const triggerAICopilot = () => {
+    setStatusMessage({ text: "Trợ lý AI chưa được kết nối với dịch vụ sinh nội dung.", isError: true });
   };
 
   if (isLoading) {
@@ -473,7 +455,7 @@ export default function ScriptStudioPage() {
                       <Volume2 className="size-3 text-amber-500" /> Hiệu Ứng Âm Thanh:
                     </span>
                     <p className="text-muted-foreground leading-snug">
-                      {block.audioCue || "Âm thanh theo nhịp nhạc nền"}
+                      {block.audioCue || "—"}
                     </p>
                   </div>
                 </div>
@@ -502,8 +484,8 @@ export default function ScriptStudioPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => triggerAICopilot("hook_viral")}
-                disabled={isCopilotThinking}
+                onClick={triggerAICopilot}
+
                 className="w-full justify-start text-xs rounded-lg h-8 gap-2 hover:border-primary hover:text-primary"
               >
                 <Flame className="size-3.5 text-rose-500" />
@@ -513,8 +495,8 @@ export default function ScriptStudioPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => triggerAICopilot("conversational")}
-                disabled={isCopilotThinking}
+                onClick={triggerAICopilot}
+
                 className="w-full justify-start text-xs rounded-lg h-8 gap-2 hover:border-primary hover:text-primary"
               >
                 <Zap className="size-3.5 text-amber-500" />
@@ -524,8 +506,8 @@ export default function ScriptStudioPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => triggerAICopilot("storytelling")}
-                disabled={isCopilotThinking}
+                onClick={triggerAICopilot}
+
                 className="w-full justify-start text-xs rounded-lg h-8 gap-2 hover:border-primary hover:text-primary"
               >
                 <Layers className="size-3.5 text-teal-500" />
@@ -535,8 +517,8 @@ export default function ScriptStudioPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => triggerAICopilot("opt_30s")}
-                disabled={isCopilotThinking}
+                onClick={triggerAICopilot}
+
                 className="w-full justify-start text-xs rounded-lg h-8 gap-2 hover:border-primary hover:text-primary"
               >
                 <Clock className="size-3.5 text-blue-500" />
@@ -546,8 +528,8 @@ export default function ScriptStudioPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => triggerAICopilot("broll_gen")}
-                disabled={isCopilotThinking}
+                onClick={triggerAICopilot}
+
                 className="w-full justify-start text-xs rounded-lg h-8 gap-2 hover:border-primary hover:text-primary"
               >
                 <Film className="size-3.5 text-emerald-500" />
@@ -568,6 +550,7 @@ export default function ScriptStudioPage() {
               />
               <Button
                 size="sm"
+                onClick={triggerAICopilot}
                 className="w-full h-8 text-xs font-semibold rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground gap-1"
               >
                 <Sparkles className="size-3" />

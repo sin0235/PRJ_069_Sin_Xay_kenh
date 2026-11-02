@@ -70,7 +70,6 @@ export default function CreatorDashboardPage() {
   const { channels, activeChannelId, setChannels, setActiveChannelId } = useCreatorStore();
   const activeChannel = channels.find((c) => c.id === activeChannelId) || channels[0];
 
-  const [timeRange, setTimeRange] = React.useState<"today" | "7d" | "30d" | "90d">("7d");
   const [chartMetric, setChartMetric] = React.useState<"views" | "followers" | "engagementRate">("views");
   const [kpis, setKpis] = React.useState({
     followers: { value: 0, changePercent: 0 },
@@ -81,7 +80,7 @@ export default function CreatorDashboardPage() {
     growthRate: { value: 0, changePercent: 0 },
   });
   const [recentVideos, setRecentVideos] = React.useState<any[]>([]);
-  const [growthData, setGrowthData] = React.useState<any[]>([]);
+  const growthData: ChannelMetricPoint[] = [];
   const [isLiveConnected, setIsLiveConnected] = React.useState(false);
   const [pipelineState, setPipelineState] = React.useState({
     idea: 0,
@@ -97,57 +96,66 @@ export default function CreatorDashboardPage() {
     // 1. Tải danh sách kênh thực tế từ Backend
     TikTokService.getConnectedChannels()
       .then((liveChannels) => {
-        if (isMounted && liveChannels && liveChannels.length > 0) {
+        if (isMounted) {
           setChannels(liveChannels);
-          setIsLiveConnected(true);
+          setIsLiveConnected(liveChannels.some((channel) => channel.status === "connected"));
         }
       })
       .catch(() => {});
 
     // 2. Tải KPIs cho kênh hiện tại
-    const targetChannelId = activeChannel?.id || "tiktok_baha_official";
-    TikTokService.getChannelKPIs(targetChannelId, timeRange)
-      .then((liveKpis) => {
-        if (isMounted && liveKpis) {
-          setKpis(liveKpis);
-          setIsLiveConnected(true);
-        }
-      })
-      .catch(() => {});
+    const targetChannelId = activeChannel?.id;
+    setKpis(null);
+    if (targetChannelId) {
+      TikTokService.getChannelKPIs(targetChannelId)
+        .then((liveKpis) => {
+          if (isMounted) setKpis(liveKpis);
+        })
+        .catch(() => {});
+    }
 
     // 3. Tải danh sách video nguồn thực tế từ CSDL
     DiscoverService.searchContent()
       .then((videos) => {
-        if (isMounted && videos && videos.length > 0) {
-          setRecentVideos(videos);
-          setIsLiveConnected(true);
-        }
+        if (isMounted) setRecentVideos(videos);
       })
       .catch(() => {});
 
-    // 4. Tải chuỗi dữ liệu tăng trưởng từ Cohort thực tế
-    TikTokService.getGrowthHistory(targetChannelId, timeRange)
-      .then((hist) => {
-        if (isMounted && hist && hist.length > 0) {
-          setGrowthData(hist);
-        }
-      })
-      .catch(() => {});
-
-    // 5. Đếm số lượng thực tế trong Pipeline
-    Promise.all([IdeaService.getIdeas(), ScriptService.listScripts()])
-      .then(([ideas, scripts]) => {
-        if (isMounted) {
+    // 4. Đếm số lượng thực tế trong Pipeline
+    IdeaService.getIdeas()
+      .then((ideas) => {
+        if (isMounted && Array.isArray(ideas)) {
           const reviewCount = ideas.filter(
             (i: any) => i.status === "READY_FOR_REVIEW" || i.status === "NEEDS_EVIDENCE"
           ).length;
-          setPipelineState({
-            idea: ideas.length || 6,
-            script: scripts.length || 2,
-            production: 1,
-            review: reviewCount || 2,
-            scheduled: 2,
-          });
+          setPipelineState((prev) => ({
+            ...prev,
+            idea: ideas.length,
+            review: reviewCount,
+          }));
+        }
+      })
+      .catch(() => {});
+
+    ScriptService.listScripts()
+      .then((scripts) => {
+        if (isMounted && Array.isArray(scripts)) {
+          setPipelineState((prev) => ({
+            ...prev,
+            script: scripts.length,
+            production: scripts.filter((script) => script.status === "approved").length,
+          }));
+        }
+      })
+      .catch(() => {});
+
+    PublishingService.listPublishedLinks()
+      .then((links) => {
+        if (isMounted && Array.isArray(links)) {
+          setPipelineState((prev) => ({
+            ...prev,
+            scheduled: links.filter((link) => link.status === "SCHEDULED").length,
+          }));
         }
       })
       .catch(() => {});
@@ -155,7 +163,7 @@ export default function CreatorDashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [activeChannel?.id, timeRange, setChannels]);
+  }, [activeChannel?.id, setChannels]);
 
   const formatViews = (val: number) => {
     if (val >= 1000000) return `${(val / 1000000).toFixed(1)}M`;
@@ -173,10 +181,10 @@ export default function CreatorDashboardPage() {
               BAHA Creator Studio
             </h1>
             <Badge variant="outline" className="border-primary/40 text-primary bg-primary/5 text-xs font-semibold">
-              TikTok AI Active
+              Hệ thống nội dung
             </Badge>
             <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 bg-emerald-500/10 text-xs font-semibold gap-1">
-              <Database className="size-3" /> Dữ liệu trực tiếp
+              <Database className="size-3" /> {isLiveConnected ? "Dữ liệu trực tiếp" : "Chưa có dữ liệu kết nối"}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -190,13 +198,13 @@ export default function CreatorDashboardPage() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="h-9 gap-2 text-xs font-medium border-border/80">
-                <img
-                  src={activeChannel?.avatarUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100"}
-                  alt={activeChannel?.displayName || "Kênh"}
-                  className="size-4 rounded-full object-cover"
-                />
-                <span className="font-semibold">{activeChannel?.displayName || "BAHA Group Official"}</span>
-                <span className="text-muted-foreground font-mono">{activeChannel?.username || "@bahagroup"}</span>
+                {activeChannel?.avatarUrl ? (
+                  <img src={activeChannel.avatarUrl} alt={activeChannel.displayName} className="size-4 rounded-full object-cover" />
+                ) : (
+                  <Users className="size-4 text-muted-foreground" aria-hidden="true" />
+                )}
+                <span className="font-semibold">{activeChannel?.displayName || "Chưa kết nối kênh"}</span>
+                <span className="text-muted-foreground font-mono">{activeChannel?.username || ""}</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56 rounded-xl">
@@ -211,7 +219,7 @@ export default function CreatorDashboardPage() {
                 >
                   <span className="font-medium">{c.displayName}</span>
                   <Badge variant="secondary" className="text-[10px]">
-                    {formatViews(c.followersCount)}
+                    {c.followersCount == null ? "—" : formatViews(c.followersCount)}
                   </Badge>
                 </DropdownMenuItem>
               ))}
@@ -241,45 +249,43 @@ export default function CreatorDashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <MetricCard
           title="Người Theo Dõi (Followers)"
-          value={kpis.followers.value.toLocaleString("vi-VN")}
-          changePercent={kpis.followers.changePercent}
+          value={kpis?.followers.value == null ? "—" : kpis.followers.value.toLocaleString("vi-VN")}
+          changePercent={kpis?.followers.changePercent}
           icon={Users}
           period="7 ngày qua"
         />
         <MetricCard
           title="Lượt Xem Profile (7 ngày)"
-          value={formatViews(kpis.views.value)}
-          changePercent={kpis.views.changePercent}
+          value={kpis?.views.value == null ? "—" : formatViews(kpis.views.value)}
+          changePercent={kpis?.views.changePercent}
           icon={Eye}
           period="7 ngày qua"
         />
         <MetricCard
           title="Tỉ Lệ Tương Tác"
-          value={`${kpis.engagement.value}%`}
-          changePercent={kpis.engagement.changePercent}
+          value={kpis?.engagement.value == null ? "—" : `${kpis.engagement.value}%`}
+          changePercent={kpis?.engagement.changePercent}
           icon={TrendingUp}
           period="Trung bình"
         />
         <MetricCard
           title="Số Video Đã Đăng"
-          value={kpis.posts.value.toString()}
-          changePercent={kpis.posts.changePercent}
+          value={kpis?.posts.value == null ? "—" : kpis.posts.value.toString()}
+          changePercent={kpis?.posts.changePercent}
           icon={Video}
           period="Tổng số"
         />
         <MetricCard
           title="Thời Lượng Xem TB"
-          value={`${kpis.avgWatchTime.value}s`}
-          changePercent={kpis.avgWatchTime.changePercent}
+          value={kpis?.avgWatchTime.value == null ? "—" : `${kpis.avgWatchTime.value}s`}
+          changePercent={kpis?.avgWatchTime.changePercent}
           icon={Clock}
-          period="Tỉ lệ 62%"
         />
         <MetricCard
           title="Tốc Độ Tăng Trưởng"
-          value={`+${kpis.growthRate.value}%`}
-          changePercent={kpis.growthRate.changePercent}
+          value={kpis?.growthRate.value == null ? "—" : `${kpis.growthRate.value}%`}
+          changePercent={kpis?.growthRate.changePercent}
           icon={Sparkles}
-          period="Velocity tuần"
         />
       </div>
 
@@ -589,13 +595,11 @@ export default function CreatorDashboardPage() {
                     <td className="py-3 px-3">
                       <div className="flex items-center gap-3 max-w-sm">
                         <div className="relative size-12 rounded-lg overflow-hidden shrink-0 bg-muted border border-border/60">
-                          <img
-                            src={video.thumbnailUrl}
-                            alt={video.title}
-                            className="size-full object-cover"
-                          />
+                          <div className="size-full flex items-center justify-center text-muted-foreground">
+                            <Video className="size-5" aria-hidden="true" />
+                          </div>
                           <span className="absolute bottom-0.5 right-0.5 text-[9px] bg-black/70 text-white px-1 rounded font-mono">
-                            {video.durationSec}s
+                            {video.durationSec ? `${video.durationSec}s` : "—"}
                           </span>
                         </div>
                         <div className="flex flex-col min-w-0">
@@ -610,36 +614,33 @@ export default function CreatorDashboardPage() {
                     </td>
 
                     <td className="py-3 px-3 font-mono text-[11px] text-muted-foreground">
-                      {video.channelName || "@bahagroup"}
+                      {video.channelName || "—"}
                     </td>
 
                     <td className="py-3 px-3">
-                      <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10">
-                        Đã xác thực
+                      <Badge variant="outline" className="text-[10px]">
+                        Đã xuất bản
                       </Badge>
                     </td>
 
                     <td className="py-3 px-3 text-right font-bold text-foreground font-mono">
-                      {formatViews(video.metrics?.views || 0)}
+                      {video.metrics?.views == null ? "—" : formatViews(video.metrics.views)}
                     </td>
 
                     <td className="py-3 px-3 text-right font-mono text-muted-foreground">
-                      {video.metrics?.likes?.toLocaleString("vi-VN") || "—"}
+                      {video.metrics?.likes == null ? "—" : video.metrics.likes.toLocaleString("vi-VN")}
                     </td>
 
                     <td className="py-3 px-3 text-right font-mono text-muted-foreground">
-                      {video.metrics?.comments?.toLocaleString("vi-VN") || "—"}
+                      {video.metrics?.comments == null ? "—" : video.metrics.comments.toLocaleString("vi-VN")}
                     </td>
 
                     <td className="py-3 px-3 text-right font-mono text-muted-foreground">
-                      {video.metrics?.shares?.toLocaleString("vi-VN") || "—"}
+                      {video.metrics?.shares == null ? "—" : video.metrics.shares.toLocaleString("vi-VN")}
                     </td>
 
                     <td className="py-3 px-3 min-w-[120px]">
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                        <TrendingUp className="size-3" />
-                        {video.growthVelocity || "+15% / ngày"}
-                      </span>
+                      {video.growthVelocity || "—"}
                     </td>
 
                     <td className="py-3 px-3 text-right">

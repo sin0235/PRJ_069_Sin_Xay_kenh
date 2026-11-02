@@ -133,7 +133,8 @@ def test_google_flow_enters_video_mode_before_attaching_image():
             self.first = self
 
         def wait_for(self, **kwargs):
-            calls.append(("ready", kwargs["state"]))
+            if "agent-mode-chip" in self.selector:
+                calls.append(("ready", kwargs["state"]))
 
         def count(self):
             selector = self.selector

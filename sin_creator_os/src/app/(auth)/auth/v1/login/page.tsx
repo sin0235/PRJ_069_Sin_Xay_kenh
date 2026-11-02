@@ -29,7 +29,9 @@ export default function LoginV1() {
               {APP_CONFIG.fullName}
             </h1>
             <p className="text-xs text-muted-foreground">
-              Nhập thông tin tài khoản của bạn để tiếp tục
+              {process.env.NEXT_PUBLIC_AUTH_MODE === "local_password"
+                ? "Đăng nhập bằng tài khoản Founder của PRJ_069"
+                : "Xác minh tài khoản bằng mã OTP của Cloudflare Access"}
             </p>
           </div>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, ChevronsUpDown, Smartphone, RefreshCw } from "lucide-react";
+import { Check, ChevronsUpDown, Smartphone } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,14 +19,16 @@ export function ChannelSelector() {
   const { channels, setChannels, activeChannelId, setActiveChannelId } = useCreatorStore();
 
   React.useEffect(() => {
-    TikTokService.getConnectedChannels().then((data) => {
-      if (data.length > 0) {
-        setChannels(data);
-      }
-    }).catch(() => {});
+    TikTokService.getConnectedChannels().then(setChannels).catch(() => setChannels([]));
   }, [setChannels]);
 
   const activeChannel = channels.find((c) => c.id === activeChannelId) || channels[0];
+  const formatFollowers = (count: number | null | undefined) => {
+    if (count == null) return "";
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
+    return count.toString();
+  };
 
   return (
     <DropdownMenu>
@@ -67,8 +69,8 @@ export function ChannelSelector() {
       <DropdownMenuContent className="w-64 rounded-xl shadow-lg border-border/80" align="end">
         <DropdownMenuLabel className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-3 py-1.5 flex items-center justify-between">
           <span>Kênh TikTok Đang Chọn</span>
-          <span className="text-emerald-500 font-semibold flex items-center gap-1">
-            <span className="size-1.5 rounded-full bg-emerald-500" /> Live TikTok
+          <span className="text-muted-foreground font-semibold">
+            {activeChannel?.status === "connected" ? "Đã kết nối" : activeChannel ? "Cần kết nối lại" : "Chưa có kênh"}
           </span>
         </DropdownMenuLabel>
         {channels.length === 0 ? (

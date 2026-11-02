@@ -1,15 +1,7 @@
 "use client";
 
-import * as React from "react";
-import { Loader2, Sparkles, AlertCircle, CheckCircle2, RotateCw } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Sparkles } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -28,33 +20,13 @@ export function AIJobIndicator() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-2 rounded-lg border-primary/20 bg-primary/5 hover:bg-primary/10 text-primary font-medium text-xs px-2.5 transition-all"
-        >
-          {activeJobs.length > 0 ? (
-            <Loader2 className="size-3.5 animate-spin text-primary" />
-          ) : (
-            <Sparkles className="size-3.5 text-primary" />
-          )}
-          <span className="font-semibold">Tác Vụ AI</span>
-          {activeJobs.length > 0 && (
-            <span className="inline-flex items-center justify-center size-4 rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-              {activeJobs.length}
-            </span>
-          )}
+        <Button variant="outline" size="sm" className="h-8 gap-2 rounded-lg text-xs">
+          <Sparkles className="size-3.5" aria-hidden="true" />
+          <span>T?c v? AI</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-80 rounded-xl shadow-xl border-border/80 p-2" align="end">
-        <DropdownMenuLabel className="text-xs font-semibold px-2 py-1.5 flex items-center justify-between text-foreground">
-          <span className="flex items-center gap-1.5">
-            <Sparkles className="size-3.5 text-primary" /> Tiến Trình AI Hoạt Động
-          </span>
-          <Badge variant="secondary" className="text-[10px] font-medium">
-            Credit: 420 BAHA Group
-          </Badge>
-        </DropdownMenuLabel>
+      <DropdownMenuContent className="w-80 rounded-xl p-2" align="end">
+        <DropdownMenuLabel className="text-xs">L?ch s? t?c v? AI</DropdownMenuLabel>
         <DropdownMenuSeparator />
 
         <div className="max-h-72 overflow-y-auto space-y-2 py-1">

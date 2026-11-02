@@ -4,6 +4,8 @@ import hashlib
 import hmac
 import math
 import os
+import ipaddress
+import threading
 import time
 from collections import OrderedDict
 from threading import Lock
@@ -41,11 +43,6 @@ class LoginRequest(BaseModel):
     workspace_id: Optional[str] = Field(default=None, max_length=64)
 
 
-class UserProfile(BaseModel):
-    id: str
-    email: str
-    full_name: str
-    role: str
 
 
 class WorkspaceSummary(BaseModel):
@@ -172,6 +169,32 @@ def _create_jwt(user_id: str, workspace_id: str) -> str:
         audience=audience,
         lifetime_seconds=SESSION_SECONDS,
     )
+    _clear_login_failures(attempt_key)
+    response.set_cookie(
+        key=SESSION_COOKIE,
+        value=token,
+        max_age=8 * 60 * 60,
+        path="/",
+        secure=False,
+        httponly=True,
+        samesite="lax",
+    )
+    return {"success": True}
+
+
+@auth_router.post("/logout")
+def logout_local_founder(request: Request, response: Response):
+    if not _same_site_loopback_request(request):
+        raise HTTPException(status_code=403, detail="Yêu cầu đăng xuất không hợp lệ.")
+    response.delete_cookie(
+        key=SESSION_COOKIE,
+        path="/",
+        secure=_cookie_secure(),
+        httponly=True,
+        samesite="strict",
+    )
+    return {"success": True}
+
 
 
 @auth_router.post("/login", response_model=LoginResponse)

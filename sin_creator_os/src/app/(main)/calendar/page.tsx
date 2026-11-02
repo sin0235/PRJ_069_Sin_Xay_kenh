@@ -13,6 +13,7 @@ import {
   Share2,
   CheckCircle2,
   Flame,
+  Film,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -34,11 +35,10 @@ interface ScheduledPost {
   dateStr: string;
   time: string;
   title: string;
-  thumbnailUrl: string;
   status: "scheduled" | "published" | "draft";
-  channel: string;
-  pillar: string;
-  durationSec: number;
+  channel?: string;
+  externalPostId?: string;
+  externalPostUrl?: string;
 }
 
 const scheduledPosts: ScheduledPost[] = [];
@@ -49,7 +49,6 @@ export default function CalendarPage() {
   const [selectedPost, setSelectedPost] = React.useState<ScheduledPost | null>(null);
   const [posts, setPosts] = React.useState<ScheduledPost[]>([]);
 
-  // Nạp bài đăng thật từ Backend Publishing API
   React.useEffect(() => {
     PublishingService.listPublishedLinks()
       .then((items) => {
@@ -85,9 +84,6 @@ export default function CalendarPage() {
       });
   }, []);
 
-  // Calendar days grid for October 2026
-  const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1);
-
   return (
     <div className="space-y-6 pb-20">
       {/* Header */}
@@ -98,7 +94,7 @@ export default function CalendarPage() {
               Lịch Xuất Bản Video (Content Calendar)
             </h1>
             <Badge variant="outline" className="border-primary/40 text-primary bg-primary/5 text-xs font-semibold">
-              Tháng 10, 2026
+              {currentDate.toLocaleDateString("vi-VN", { month: "long", year: "numeric" })}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -142,7 +138,7 @@ export default function CalendarPage() {
           <div className="grid grid-cols-7 gap-2 pt-3">
             {daysInMonth.map((day) => {
               const postsOnDay = posts.filter((p) => p.day === day);
-              const isToday = day === 21;
+              const isToday = day === currentDate.getDate();
 
               return (
                 <div
@@ -178,7 +174,6 @@ export default function CalendarPage() {
                       >
                         <div className="flex items-center justify-between text-[10px]">
                           <span className="font-mono text-primary font-bold">{post.time}</span>
-                          <span className="text-[9px] font-mono text-muted-foreground">{post.durationSec}s</span>
                         </div>
                         <div className="text-[11px] font-semibold text-foreground line-clamp-1 leading-tight">
                           {post.title}
@@ -258,23 +253,19 @@ export default function CalendarPage() {
                 Chi Tiết Bài Đăng Đã Lên Lịch
               </DialogTitle>
               <DialogDescription className="text-xs">
-                Kênh {selectedPost.channel} • Xuất bản lúc {selectedPost.time} ngày {selectedPost.dateStr}
+                Kênh {selectedPost.channel || "—"} • Xuất bản lúc {selectedPost.time} ngày {selectedPost.dateStr}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 pt-2">
               <div className="relative aspect-[16/9] rounded-xl overflow-hidden bg-black/80">
-                <img
-                  src={selectedPost.thumbnailUrl}
-                  alt={selectedPost.title}
-                  className="size-full object-cover"
-                />
+                <div className="size-full flex items-center justify-center text-white/70"><Film className="size-8" aria-hidden="true" /></div>
               </div>
 
               <div className="space-y-1.5 text-xs">
                 <span className="font-bold text-foreground text-sm block">{selectedPost.title}</span>
                 <p className="text-muted-foreground leading-relaxed text-xs">
-                  Video chuẩn tỉ lệ dọc 9:16, âm lượng -14 LUFS, Safe zone chuẩn TikTok 2026.
+                  Mã bài đăng: {selectedPost.externalPostId || "—"}
                 </p>
               </div>
 

@@ -232,7 +232,7 @@ class _RunHeartbeat:
 
 
 def _recover_expired_runs(db) -> None:
-    stale_runs = db.query(ContentVideoRun).filter(
+    query = db.query(ContentVideoRun).filter(
         ContentVideoRun.status == "RUNNING",
         or_(ContentVideoRun.lease_expires_at < _now(), ContentVideoRun.lease_expires_at.is_(None)),
     )
@@ -265,10 +265,13 @@ def _claim_next_run(db, token: str) -> ContentVideoRun | None:
     run = query.order_by(ContentVideoRun.created_at).first()
     if not run:
         return None
-    result = db.query(ContentVideoRun).filter(
+    claim = db.query(ContentVideoRun).filter(
         ContentVideoRun.id == run.id,
         ContentVideoRun.status == "QUEUED",
-    ).update({
+    )
+    if workspace_id:
+        claim = claim.filter(ContentVideoRun.workspace_id == workspace_id)
+    result = claim.update({
         "status": "RUNNING",
         "lease_token": token,
         "lease_expires_at": _now() + timedelta(seconds=LEASE_SECONDS),
