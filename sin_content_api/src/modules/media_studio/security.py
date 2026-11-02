@@ -83,7 +83,7 @@ _MB = 1024 * 1024
 UPLOAD_SIZE_LIMITS: dict = {
     "audio": int(os.environ.get("UPLOAD_LIMIT_AUDIO_MB", "50")) * _MB,
     "image": int(os.environ.get("UPLOAD_LIMIT_IMAGE_MB", "20")) * _MB,
-    "video": int(os.environ.get("UPLOAD_LIMIT_VIDEO_MB", "500")) * _MB,
+    "video": int(os.environ.get("UPLOAD_LIMIT_VIDEO_MB", "12288")) * _MB,
 }
 UPLOAD_STREAM_CHUNK_BYTES = 1024 * 1024
 _MIME_SNIFF_BYTES = 64 * 1024

@@ -231,6 +231,25 @@ def test_router_upload_uses_sync_streaming_service(upload_context, monkeypatch):
     assert (media_root / response.storage_key).read_bytes() == content
 
 
+def test_video_upload_session_accepts_8_4_gb_source(upload_context):
+    db, service, workspace_id, _, _ = upload_context
+    project_id = f"project-{uuid.uuid4().hex[:8]}"
+    db.add(ProductionProject(id=project_id, workspace_id=workspace_id, title="Large video", created_by="user-stream"))
+    db.commit()
+
+    session = service.create_video_upload_session(
+        db=db,
+        workspace_id=workspace_id,
+        user_id="user-stream",
+        filename="DJI_20261027202121_0203_D.MP4",
+        byte_size=8_428_283_732,
+        project_id=project_id,
+    )
+
+    assert session["byte_size"] == 8_428_283_732
+    assert session["chunk_size"] == 64 * 1024 * 1024
+
+
 @pytest.mark.parametrize("filename,expected", [
     (r"..\windows\system32\evil.mp4", "evil.mp4"),
     ("../../../clip...take.mp4", "clip_take.mp4"),
