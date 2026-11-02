@@ -5,7 +5,6 @@ import { FileVideo2, Upload, WandSparkles } from "lucide-react";
 
 import { type MediaAssetResponse, mediaStudioApi } from "@/lib/api/media-studio-api";
 import { docManifestDungTuDong, type ManifestDungTuDong } from "@/lib/video_studio/phan_tich_manifest_dung_tu_dong";
-import { taoDuongDanVideoStudio } from "@/lib/video_studio/lien_ket_studio";
 
 interface TuDongDungVideoDaiProps {
   projectId: string;
@@ -56,6 +55,7 @@ export function TuDongDungVideoDai({ projectId, assets, onAssetsChanged, initial
   const visibleOutputs = outputs.length > 0
     ? outputs
     : (starting || (jobId !== null && !TERMINAL_STATES.has(jobState)) ? [] : persistedOutputs);
+  const visibleVideoOutputs = visibleOutputs.filter((asset) => asset.mime_detected.startsWith("video/"));
   const manifestAsset = visibleOutputs.find((item) => item.mime_detected === "application/json");
 
 
@@ -350,7 +350,7 @@ export function TuDongDungVideoDai({ projectId, assets, onAssetsChanged, initial
         </p>
       )}
 
-      {visibleOutputs.length > 0 && (
+      {visibleVideoOutputs.length > 0 && (
         <div className="space-y-3 border-t pt-5">
           <div className="flex items-start gap-3">
             <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -358,7 +358,7 @@ export function TuDongDungVideoDai({ projectId, assets, onAssetsChanged, initial
             </div>
             <div>
               <h4 className="font-semibold text-base text-foreground">Clip đã dựng</h4>
-              <p className="mt-1 text-sm text-muted-foreground">Xem lại từng clip và duyệt trước khi tải xuống hoặc chỉnh sửa.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Xem, duyệt hoặc yêu cầu chỉnh sửa từng clip ngay tại đây.</p>
             </div>
           </div>
           {manifest && (
@@ -419,7 +419,7 @@ export function TuDongDungVideoDai({ projectId, assets, onAssetsChanged, initial
               </ol>
             </div>
           )}
-          {visibleOutputs.map((asset) => (
+          {visibleVideoOutputs.map((asset) => (
             <div
               key={asset.id}
               className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-card p-3"
@@ -432,14 +432,6 @@ export function TuDongDungVideoDai({ projectId, assets, onAssetsChanged, initial
                   </span>
                 )}
               </div>
-              {asset.mime_detected.startsWith("video/") && (
-                <a
-                  href={taoDuongDanVideoStudio(projectId, asset.id, manifestAsset?.id)}
-                  className="shrink-0 rounded px-2 py-1 font-medium text-primary text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  Chỉnh trong Studio
-                </a>
-              )}
               {asset.url && (
                 <div className="flex shrink-0 flex-wrap justify-end gap-1">
                   {asset.mime_detected.startsWith("video/") && (
@@ -509,7 +501,7 @@ export function TuDongDungVideoDai({ projectId, assets, onAssetsChanged, initial
             </video>
           )}
           <p className="text-amber-300 text-xs">
-            Đầu ra chưa được duyệt để đăng. Xem từng clip và chỉnh lần cuối trong Studio.
+            Đầu ra chưa được duyệt để đăng. Nhân viên có thể rà soát và yêu cầu chỉnh sửa từng clip tại đây.
           </p>
         </div>
       )}

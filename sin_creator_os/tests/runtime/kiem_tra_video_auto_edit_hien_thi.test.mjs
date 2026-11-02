@@ -62,6 +62,45 @@ test("clip Auto Edit đã lưu vẫn hiện sau khi mở lại trang và chưa c
       url: "https://studio.test/v1/media/assets/processed-video/download",
       created_at: "2026-11-01T00:01:00Z",
     },
+    {
+      id: "processed-subtitle",
+      project_id: "project-1",
+      storage_key: "phu_de.srt",
+      sha256: "subtitle-hash",
+      byte_size: 20,
+      mime_detected: "application/x-subrip",
+      source_product: "AUTO_EDIT",
+      original_filename: "phu_de.srt",
+      parent_asset_id: "processed-video",
+      approval_state: "UNREVIEWED",
+      created_at: "2026-11-01T00:01:00Z",
+    },
+    {
+      id: "processed-audio",
+      project_id: "project-1",
+      storage_key: "am_thanh.mp3",
+      sha256: "audio-hash",
+      byte_size: 20,
+      mime_detected: "audio/mpeg",
+      source_product: "AUTO_EDIT",
+      original_filename: "am_thanh.mp3",
+      parent_asset_id: "processed-video",
+      approval_state: "UNREVIEWED",
+      created_at: "2026-11-01T00:01:00Z",
+    },
+    {
+      id: "processed-manifest",
+      project_id: "project-1",
+      storage_key: "manifest.json",
+      sha256: "manifest-hash",
+      byte_size: 20,
+      mime_detected: "application/json",
+      source_product: "AUTO_EDIT",
+      original_filename: "manifest.json",
+      parent_asset_id: "processed-video",
+      approval_state: "UNREVIEWED",
+      created_at: "2026-11-01T00:01:00Z",
+    },
   ];
   const html = renderToStaticMarkup(React.createElement(exports.TuDongDungVideoDai, {
     projectId: "project-1",
@@ -70,5 +109,7 @@ test("clip Auto Edit đã lưu vẫn hiện sau khi mở lại trang và chưa c
   }));
 
   assert.match(html, /clip_da_dung\.mp4/);
+  assert.doesNotMatch(html, /phu_de\.srt|am_thanh\.mp3|manifest\.json/);
+  assert.doesNotMatch(html, /Chỉnh trong Studio|video-studio/);
   assert.match(html, /Chờ nhân viên rà soát/);
 });
