@@ -844,8 +844,8 @@ def test_tao_y_tuong_flow_giu_style_giay_ghep_va_clip_duoc_chon():
     assert "trọn 10 giây" in visuals[0]["prompt"].casefold()
     assert "2 đến 4 lớp chuyển động" in visuals[0]["prompt"].casefold()
     system_prompt = client.messages[0][0]["content"].casefold()
-    assert "flow dài từ 3 đến 10 giây" in system_prompt
-    assert "hyperframes dài từ 3 đến 6 giây" in system_prompt
+    assert "đoạn flow và hyperframes đều dài từ 3 đến 6 giây" in system_prompt
+    assert "asset nguồn cố định 10 giây" in system_prompt
     assert "hyperframes" in system_prompt and "quy trình" in system_prompt
     assert "không chỉ dành cho biểu đồ" in system_prompt
 
@@ -1186,22 +1186,29 @@ def test_tao_y_tuong_hyperframes_tu_choi_neu_cac_moc_vuot_qua_6_giay():
     assert "6 giây" in feedback
 
 
-def test_tao_y_tuong_flow_giu_nguyen_clip_10_giay_khi_loi_thoai_dai_hon_6_giay():
+def test_flow_tao_nguon_10_giay_nhung_neo_visual_toi_da_6_giay():
     clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=12_000, title="Ket qua", reason="Du y")
-    response = {"visuals": [{
+    too_long = {"visuals": [{
         "clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w3",
+        "scene": "Paper stack", "action": "Paper opens", "renderer": "FLOW",
+    }]}
+    valid = {"visuals": [{
+        "clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w2",
         "scene": "Paper stack", "action": "Paper opens", "renderer": "FLOW",
     }]}
     words = [tu(1, "invest", 1_000, 2_000), tu(2, "one million", 3_000, 5_000),
              tu(3, "later", 7_000, 8_000)]
-    client = LLMGia([response, response, response, response])
+    client = LLMGia([too_long, valid])
 
     visuals = tao_y_tuong_dien_hoa_flow([clip], words, [], client)
 
     assert len(visuals) == 1
     assert visuals[0]["duration_seconds"] == 10
+    assert visuals[0]["end_word_id"] == "w2"
     assert "10 giây" in visuals[0]["prompt"]
-    assert "3 đến 6" not in visuals[0]["prompt"]
+    assert len(client.messages) == 2
+    feedback = json.loads(client.messages[1][1]["content"])["validator_feedback"]
+    assert "3 đến 6 giây" in feedback
 
 
 def test_tao_y_tuong_goi_dung_hinh_dang_versus_list_sau_loi_schema():

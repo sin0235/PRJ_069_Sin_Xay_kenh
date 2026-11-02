@@ -872,7 +872,7 @@ def tao_y_tuong_dien_hoa_flow(
         "Nếu câu kết luận trùng cụm nói về kết quả sau thay đổi, BEFORE_AFTER.after và delta được phép dùng cùng một cụm nguyên văn. "
         "Chỉ đề xuất tối đa ba visual mới, khác ý nghĩa với asset đã có. "
         "Ưu tiên HYPERFRAMES cho so sánh, quy trình, checklist, giao việc, trình tự, câu hỏi-kết quả, CTA và số liệu có dữ kiện rõ; HyperFrames không chỉ dành cho biểu đồ. Chỉ dùng layout phù hợp nội dung, không ép dữ liệu vào sơ đồ. "
-        "Mỗi visual phải chọn start_word_id và end_word_id từ transcript có gắn ID; đoạn FLOW dài từ 3 đến 10 giây để khớp asset 10 giây, còn HYPERFRAMES dài từ 3 đến 6 giây. Các visual trong cùng clip phải minh họa các đoạn lời khác nhau, không chồng nhau. "
+        "Mỗi visual phải chọn start_word_id và end_word_id từ transcript có gắn ID; đoạn FLOW và HYPERFRAMES đều dài từ 3 đến 6 giây. Flow vẫn tạo asset nguồn cố định 10 giây; chỉ dùng 3-6 giây phù hợp trong clip. Các visual trong cùng clip phải minh họa các đoạn lời khác nhau, không chồng nhau. "
         "Với HYPERFRAMES, start_word_id đến end_word_id phải bao trùm mọi cụm trong ui_scene.diagram.on theo thứ tự lời nói; không thu hẹp đoạn neo hơn các sự kiện. "
         "Chọn FLOW cho cảnh tự sự, nhân vật, vật thể hoặc tương tác cần chuyển động tự do; chọn HYPERFRAMES cho nội dung có cấu trúc, so sánh, quy trình hoặc dữ kiện nói rõ trong transcript. "
         "Không tự bịa số liệu. Với HYPERFRAMES, chỉ dùng ui_scene.layout thuộc nhóm diagram và neo sự kiện vào cụm lời nói nguyên văn. "
@@ -977,7 +977,7 @@ def tao_y_tuong_dien_hoa_flow(
                         raise ValueError("VISUAL_WORD_RANGE_INVALID")
                     selected_words = clip_words[first:last + 1]
                     span_ms = selected_words[-1]["end_ms"] - selected_words[0]["start_ms"]
-                    if visual.renderer == "FLOW" and not 3_000 <= span_ms <= 10_000:
+                    if visual.renderer == "FLOW" and not 3_000 <= span_ms <= 6_000:
                         raise ValueError("FLOW_VISUAL_SPAN_INVALID")
                     window = None
                     if visual.renderer == "HYPERFRAMES":
@@ -1096,7 +1096,7 @@ def tao_y_tuong_dien_hoa_flow(
             elif "VISUAL_GAP_ABOVE_TARGET" in str(exc):
                 pass
             elif "FLOW_VISUAL_SPAN_INVALID" in str(exc):
-                feedback = "FLOW_VISUAL_SPAN_INVALID: Hoạt cảnh Flow cần neo vào đoạn lời thoại liên tục từ 3 đến 10 giây; chọn lại mốc hoặc bỏ hoạt cảnh."
+                feedback = "FLOW_VISUAL_SPAN_INVALID: Chọn đoạn lời thoại liên tục từ 3 đến 6 giây; asset Flow nguồn vẫn cố định 10 giây."
             elif "DIAGRAM_EVENT_SPAN_TOO_LONG" in str(exc):
                 feedback = "DIAGRAM_EVENT_SPAN_TOO_LONG: Không kéo dài một sơ đồ qua khoảng kể; tách thành visual riêng, mỗi đoạn từ 3 đến 6 giây, hoặc bỏ sơ đồ."
             elif "DIAGRAM_VERSUS_LIST_CONTENT" in str(exc):
