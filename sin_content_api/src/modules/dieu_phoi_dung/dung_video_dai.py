@@ -895,6 +895,7 @@ def tao_y_tuong_dien_hoa_flow(
             "Mỗi visual bắt buộc trả start_word_id và end_word_id theo ID được gắn trước từ trong transcript; không tự tạo ID.",
             "Mỗi cảnh phải minh hoạ đúng lời nói của clip được chọn, không suy diễn dữ kiện.",
             "FLOW: theo chất liệu và màu trong style snapshot; hoàn tất hành động có nguyên nhân-kết quả trong 3 đến 6 giây đầu của asset nguồn 10 giây, phối hợp 2 đến 4 lớp chuyển động có chủ đích; không sinh chữ, logo hoặc watermark.",
+            "D\u00e0nh v\u00f9ng d\u01b0\u1edbi c\u00f9ng cao 320 px c\u1ee7a khung 1080x1920 cho ph\u1ee5 \u0111\u1ec1 karaoke; kh\u00f4ng \u0111\u1eb7t th\u1ebb gi\u1ea5y, ch\u1eef, s\u1ed1, checklist ho\u1eb7c ch\u1ee7 th\u1ec3 quan tr\u1ecdng \u1edf v\u00f9ng n\u00e0y.",
             "HYPERFRAMES: không chỉ dành cho biểu đồ; chọn layout UiScene phù hợp cho so sánh, quy trình, checklist, giao việc, trình tự, câu hỏi-kết quả hoặc CTA có căn cứ. Dùng chuyển động mở lớp, trượt, đường nối và dấu kết luận để dẫn mắt; không dựng như slide tĩnh.",
             "Neo mỗi hoạt cảnh FLOW vào đoạn lời thoại liên tục 3 đến 6 giây. Mốc sơ đồ HyperFrames phải có căn cứ, tối đa 6 giây; nếu cách xa thì tách visual hoặc bỏ sơ đồ.",
             "Nếu validator_feedback báo VISUAL_GAP_ABOVE_TARGET, giữ nguyên mọi visual hợp lệ được liệt kê và chỉ bổ sung visual mới vào đúng khoảng thiếu, neo bằng word ID nằm trong khoảng đó.",
@@ -1153,6 +1154,7 @@ def tao_y_tuong_dien_hoa_flow(
                 "Tạo 2 đến 4 lớp chuyển động có chủ đích: chủ thể và đạo cụ tương tác, motif đường chỉ BAHA nối hành động, chiều sâu tiền-trung-hậu cảnh và camera mượt; thể hiện mở cảnh, nguyên nhân, phản ứng và kết quả bằng hình ảnh. "
                 "Chất liệu theo câu chuyện và style snapshot. Dùng xanh dương BAHA #0562AF làm màu chính, đỏ #ED1B24 và vàng #FABC11 làm điểm nhấn tiết chế. Không dựng như slide hoặc bài thuyết trình; không rung, nhấp nháy hay thêm chuyển động trang trí. "
                 "Không chèn chữ, phụ đề, logo, watermark, người thật, bàn tay hoặc thao tác gấp giấy."
+                "D\u00e0nh v\u00f9ng d\u01b0\u1edbi c\u00f9ng cao 320 px c\u1ee7a khung 1080x1920 cho ph\u1ee5 \u0111\u1ec1 karaoke; kh\u00f4ng \u0111\u1eb7t th\u1ebb gi\u1ea5y, ch\u1eef, s\u1ed1 ho\u1eb7c ch\u1ee7 th\u1ec3 quan tr\u1ecdng \u1edf v\u00f9ng n\u00e0y."
             )
         else:
             scene = UiScene.model_validate(visual.ui_scene)

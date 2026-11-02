@@ -936,6 +936,24 @@ def test_planner_tu_bo_sung_visual_khi_storyboard_clip_dai_con_khoang_trong_lon(
     assert clip.needs_review is False
 
 
+def test_visual_prompts_leave_bottom_tiktok_caption_safe_zone():
+    clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=12_000, title="So sánh", reason="Nêu chênh lệch")
+    response = {"visuals": [{
+        "clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w3",
+        "scene": "Một tờ giấy gấp mở thành hai thẻ", "action": "Hai thẻ lần lượt mở ra",
+        "renderer": "FLOW",
+    }]}
+    words = [tu(1, "trước", 1_000, 2_000), tu(2, "một trăm", 2_000, 3_000),
+             tu(3, "sau", 3_000, 4_000)]
+    client = LLMGia([response])
+
+    visuals = tao_y_tuong_dien_hoa_flow([clip], words, [], client)
+
+    request = json.loads(client.messages[0][1]["content"])
+    assert any("320 px" in item and "phụ đề karaoke" in item for item in request["yeu_cau"])
+    assert "320 px" in visuals[0]["prompt"]
+
+
 def test_planner_danh_dau_ra_soat_neu_llm_khong_sua_khoang_trong_storyboard():
     clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=60_000, title="Một câu chuyện", reason="Đủ ý")
     words = [tu(1, "ý đầu", 10_000, 12_500), tu(2, "kết quả đầu", 12_500, 15_000),
