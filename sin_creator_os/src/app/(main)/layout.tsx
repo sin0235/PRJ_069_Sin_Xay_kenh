@@ -71,7 +71,7 @@ export default async function MainLayout({ children }: Readonly<{ children: Reac
           </header>
 
           {/* Workspace Canvas Body */}
-          <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden p-4 md:p-6">
+          <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden p-4 md:p-6 animate-in fade-in-50 duration-200">
             {children}
           </main>
           <VectorConfettiCanvas />

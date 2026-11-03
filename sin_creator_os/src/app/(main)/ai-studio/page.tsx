@@ -48,8 +48,7 @@ import { AIJob } from "@/types";
 import { mediaStudioApi, MediaAssetResponse, CompiledVideoPromptResponse } from "@/lib/api/media-studio-api";
 import { voiceStudioApi } from "@/lib/api/voice-studio-api";
 import { contentVideoApi } from "@/lib/api/content-video-api";
-import { StatusBeacon, SoundEqualizer, ShimmerProgressBar, FloatingSparkleSVG } from "@/components/creator/dynamic-visuals";
-import { BorderBeam, ShimmerButton, triggerGlobalVectorConfetti } from "@/components/creator/motion-primitives";
+import { StatusBeacon, SoundEqualizer } from "@/components/creator/dynamic-visuals";
 
 const AI_TOOLS = [
   {
@@ -535,7 +534,7 @@ export default function AIStudioPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <FloatingSparkleSVG size={22} className="text-primary" />
+            <Sparkles className="size-5 text-primary" />
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
               Trung Tâm Sáng Tạo AI (AI Studio)
             </h1>
@@ -561,19 +560,19 @@ export default function AIStudioPage() {
             <span>{isOpeningFlowLogin ? "Đang kết nối..." : "Kết nối Google Flow"}</span>
           </Button>
 
-          <ShimmerButton
+          <Button
+            size="sm"
             onClick={() => router.push("/video-studio")}
-            className="h-8 text-xs font-semibold py-1.5 px-3.5"
+            className="h-8 text-xs font-semibold py-1.5 px-3.5 gap-1.5"
           >
             <Video className="size-3.5" />
             <span>Mở Video Studio 9:16</span>
-          </ShimmerButton>
+          </Button>
         </div>
       </div>
 
       {/* INTERACTIVE GENERATIVE MEDIA STUDIO CARD */}
-      <Card className="relative rounded-2xl border-primary/30 bg-gradient-to-b from-card to-primary/5 shadow-sm overflow-hidden">
-        <BorderBeam size={260} duration={8} colorFrom="#2b6fb8" colorTo="#60a5fa" />
+      <Card className="relative rounded-2xl border-border/80 bg-card shadow-xs overflow-hidden">
         <CardHeader className="p-5 pb-3 border-b border-border/50">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div>
@@ -1101,7 +1100,7 @@ export default function AIStudioPage() {
                           <span>Đang xử lý</span>
                           <span className="font-semibold text-primary">{job.progress}%</span>
                         </div>
-                        <ShimmerProgressBar value={job.progress} isProcessing={true} />
+                        <Progress value={job.progress} className="h-1.5" />
                       </div>
                     )}
 

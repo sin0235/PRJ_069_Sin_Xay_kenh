@@ -50,7 +50,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { MetricCard } from "@/components/creator/metric-card";
-import { InfiniteMarquee, BorderBeam, ShimmerButton } from "@/components/creator/motion-primitives";
+import { InfiniteMarquee, ParticleConstellationCanvas } from "@/components/creator/motion-primitives";
 import { useCreatorStore } from "@/stores/use-creator-store";
 import { TikTokService } from "@/services/tiktok-service";
 import { DiscoverService } from "@/services/discover-service";
@@ -166,75 +166,84 @@ export default function CreatorDashboardPage() {
 
   return (
     <div className="space-y-6 pb-12">
-      {/* Top Banner & Quick Controls */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              BAHA Creator Studio
-            </h1>
-            <Badge variant="outline" className="border-primary/40 text-primary bg-primary/5 text-xs font-semibold">
-              TikTok AI Active
-            </Badge>
-            <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 bg-emerald-500/10 text-xs font-semibold gap-1">
-              <Database className="size-3" /> Dữ liệu trực tiếp
-            </Badge>
+      {/* Top Hero Banner with Interactive Particle Constellation */}
+      <div className="relative rounded-2xl border border-border/80 bg-gradient-to-r from-card via-card/95 to-primary/5 p-5 md:p-6 overflow-hidden shadow-xs">
+        <ParticleConstellationCanvas
+          particleCount={25}
+          maxDistance={95}
+          particleColor="rgba(43, 111, 184, 0.3)"
+          lineColor="rgba(43, 111, 184, 0.08)"
+          className="opacity-70"
+        />
+        <div className="relative z-10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                BAHA Creator Studio
+              </h1>
+              <Badge variant="outline" className="border-primary/40 text-primary bg-primary/5 text-xs font-semibold">
+                TikTok AI Active
+              </Badge>
+              <Badge variant="outline" className="border-emerald-500/40 text-emerald-600 bg-emerald-500/10 text-xs font-semibold gap-1">
+                <Database className="size-3" /> Dữ liệu trực tiếp
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Tổng quan hiệu suất kênh TikTok, chu trình phát triển ý tưởng &amp; kịch bản tự động hóa.
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Tổng quan hiệu suất kênh TikTok, chu trình phát triển ý tưởng &amp; kịch bản tự động hóa.
-          </p>
-        </div>
 
-        {/* Channel Selector & Actions */}
-        <div className="flex items-center gap-2.5">
-          {/* Channel dropdown */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-9 gap-2 text-xs font-medium border-border/80">
-                <img
-                  src={activeChannel?.avatarUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100"}
-                  alt={activeChannel?.displayName || "Kênh"}
-                  className="size-4 rounded-full object-cover"
-                />
-                <span className="font-semibold">{activeChannel?.displayName || "BAHA Group Official"}</span>
-                <span className="text-muted-foreground font-mono">{activeChannel?.username || "@bahagroup"}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 rounded-xl">
-              <div className="p-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Kênh TikTok Đang Quản Lý
-              </div>
-              {channels.map((c) => (
+          {/* Channel Selector & Actions */}
+          <div className="flex items-center gap-2.5">
+            {/* Channel dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="h-9 gap-2 text-xs font-medium border-border/80 bg-background/80 backdrop-blur-xs">
+                  <img
+                    src={activeChannel?.avatarUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100"}
+                    alt={activeChannel?.displayName || "Kênh"}
+                    className="size-4 rounded-full object-cover"
+                  />
+                  <span className="font-semibold">{activeChannel?.displayName || "BAHA Group Official"}</span>
+                  <span className="text-muted-foreground font-mono">{activeChannel?.username || "@bahagroup"}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 rounded-xl">
+                <div className="p-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  Kênh TikTok Đang Quản Lý
+                </div>
+                {channels.map((c) => (
+                  <DropdownMenuItem
+                    key={c.id}
+                    onClick={() => setActiveChannelId(c.id)}
+                    className="flex items-center justify-between text-xs cursor-pointer"
+                  >
+                    <span className="font-medium">{c.displayName}</span>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {formatViews(c.followersCount)}
+                    </Badge>
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  key={c.id}
-                  onClick={() => setActiveChannelId(c.id)}
-                  className="flex items-center justify-between text-xs cursor-pointer"
+                  onClick={() => router.push("/settings/channels")}
+                  className="text-xs cursor-pointer text-primary"
                 >
-                  <span className="font-medium">{c.displayName}</span>
-                  <Badge variant="secondary" className="text-[10px]">
-                    {formatViews(c.followersCount)}
-                  </Badge>
+                  + Kết nối kênh TikTok mới
                 </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => router.push("/settings/channels")}
-                className="text-xs cursor-pointer text-primary"
-              >
-                + Kết nối kênh TikTok mới
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
-          {/* Quick Idea Gen */}
-          <Button
-            size="sm"
-            onClick={() => router.push("/ideas/generate")}
-            className="h-9 text-xs font-semibold rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-sm"
-          >
-            <Sparkles className="size-3.5" />
-            <span>Sinh Ý Tưởng AI</span>
-          </Button>
+            {/* Quick Idea Gen */}
+            <Button
+              size="sm"
+              onClick={() => router.push("/ideas/generate")}
+              className="h-9 text-xs font-semibold rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-sm"
+            >
+              <Sparkles className="size-3.5" />
+              <span>Sinh Ý Tưởng AI</span>
+            </Button>
+          </div>
         </div>
       </div>
 

@@ -4,13 +4,12 @@ import * as React from "react";
 import { cn } from "cn";
 import {
   easeOutExpo,
-  calculateTiltAngles,
   generateVectorConfettiParticles,
   type ConfettiParticle,
   type ConfettiShape,
 } from "../../lib/motion-math";
 
-export { easeOutExpo, calculateTiltAngles, generateVectorConfettiParticles };
+export { easeOutExpo, generateVectorConfettiParticles };
 export type { ConfettiParticle, ConfettiShape };
 
 /**
@@ -25,7 +24,7 @@ export interface SpotlightCardProps extends React.HTMLAttributes<HTMLDivElement>
 export function SpotlightCard({
   children,
   className,
-  spotlightColor = "rgba(43, 111, 184, 0.16)",
+  spotlightColor = "rgba(43, 111, 184, 0.05)",
   spotlightSize = 350,
   borderGlow = true,
   ...props
@@ -58,7 +57,7 @@ export function SpotlightCard({
       )}
       {...props}
     >
-      {/* Lớp hào quang theo chuột */}
+      {/* Lớp hào quang theo chuột cực kỳ tinh tế */}
       <div
         className="pointer-events-none absolute -inset-px transition-opacity duration-300"
         style={{
@@ -68,7 +67,7 @@ export function SpotlightCard({
       />
       {borderGlow && (
         <div
-          className="pointer-events-none absolute inset-0 rounded-xl transition-opacity duration-300 border border-primary/20"
+          className="pointer-events-none absolute inset-0 rounded-xl transition-opacity duration-300 border border-primary/10"
           style={{
             opacity,
             maskImage: `radial-gradient(${spotlightSize * 0.75}px circle at ${position.x}px ${position.y}px, black, transparent 80%)`,
@@ -82,137 +81,7 @@ export function SpotlightCard({
 }
 
 /**
- * 2. BorderBeam: Đường tia sáng laser chuyển động bao quanh viền thẻ (SVG Vector Driven)
- */
-export interface BorderBeamProps {
-  className?: string;
-  size?: number;
-  duration?: number;
-  colorFrom?: string;
-  colorTo?: string;
-  borderWidth?: number;
-  anchor?: number;
-}
-
-export function BorderBeam({
-  className,
-  size = 200,
-  duration = 10,
-  colorFrom = "#2b6fb8",
-  colorTo = "#60a5fa",
-  borderWidth = 1.5,
-}: BorderBeamProps) {
-  return (
-    <div
-      aria-hidden="true"
-      className={cn(
-        "pointer-events-none absolute inset-0 rounded-[inherit] overflow-hidden border border-transparent [mask-clip:padding-box,border-box] [mask-composite:intersect] [mask:linear-gradient(transparent,transparent),linear-gradient(white,white)]",
-        className
-      )}
-    >
-      <div
-        className="absolute aspect-square bg-gradient-to-l from-[var(--color-from)] via-[var(--color-to)] to-transparent"
-        style={
-          {
-            width: `${size}px`,
-            offsetPath: `rect(0 auto auto 0 round calc(var(--radius, 12px) - ${borderWidth}px))`,
-            animation: `border-beam ${duration}s infinite linear`,
-            "--color-from": colorFrom,
-            "--color-to": colorTo,
-          } as React.CSSProperties
-        }
-      />
-    </div>
-  );
-}
-
-/**
- * 3. TiltCard: Thẻ tương tác 3D nghiêng theo góc độ con trỏ chuột kèm phản quang Glare
- */
-export interface TiltCardProps extends React.HTMLAttributes<HTMLDivElement> {
-  maxTilt?: number;
-  glare?: boolean;
-  scale?: number;
-}
-
-export function TiltCard({
-  children,
-  className,
-  maxTilt = 8,
-  glare = true,
-  scale = 1.015,
-  ...props
-}: TiltCardProps) {
-  const cardRef = React.useRef<HTMLDivElement>(null);
-  const [style, setStyle] = React.useState<React.CSSProperties>({});
-  const [glareStyle, setGlareStyle] = React.useState<React.CSSProperties>({ opacity: 0 });
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    const { tiltX, tiltY, percentageX, percentageY } = calculateTiltAngles(
-      mouseX,
-      mouseY,
-      rect.width,
-      rect.height,
-      maxTilt
-    );
-
-    setStyle({
-      transform: `perspective(1000px) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) scale3d(${scale}, ${scale}, ${scale})`,
-      transition: "transform 0.1s ease-out",
-    });
-
-    if (glare) {
-      const glareAngle = Math.atan2(percentageY, percentageX) * (180 / Math.PI) - 90;
-      setGlareStyle({
-        opacity: 0.18,
-        background: `linear-gradient(${glareAngle}deg, rgba(255,255,255,0.7) 0%, transparent 70%)`,
-        transition: "opacity 0.2s ease-out",
-      });
-    }
-  };
-
-  const handleMouseLeave = () => {
-    setStyle({
-      transform: "perspective(1000px) rotateX(0deg) rotateY(0deg) scale3d(1, 1, 1)",
-      transition: "transform 0.45s cubic-bezier(0.16, 1, 0.3, 1)",
-    });
-    setGlareStyle({
-      opacity: 0,
-      transition: "opacity 0.45s ease-out",
-    });
-  };
-
-  return (
-    <div
-      ref={cardRef}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      style={style}
-      className={cn(
-        "relative rounded-xl border border-border bg-card text-card-foreground shadow-xs preserve-3d will-change-transform",
-        className
-      )}
-      {...props}
-    >
-      {glare && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 rounded-xl z-20 overflow-hidden"
-          style={glareStyle}
-        />
-      )}
-      <div className="relative z-10">{children}</div>
-    </div>
-  );
-}
-
-/**
- * 4. NumberTicker: Bộ đếm số chuyển động lăn mượt (Exponential Easing)
+ * 2. NumberTicker: Bộ đếm số chuyển động lăn mượt (Exponential Easing)
  */
 export interface NumberTickerProps {
   value: number;
@@ -346,23 +215,25 @@ export function InfiniteMarquee({
 }
 
 /**
- * 6. ShimmerButton: Nút bấm sang trọng với dải lụa sáng quét góc chéo
+ * 6. ShimmerButton: Nút bấm sang trọng với dải lụa sáng quét góc chéo vi mô (kích hoạt khi hover, không chạy liên tục)
  */
 export interface ShimmerButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   shimmerColor?: string;
   variant?: "primary" | "secondary" | "outline";
+  alwaysShimmer?: boolean;
 }
 
 export function ShimmerButton({
   children,
   className,
-  shimmerColor = "rgba(255, 255, 255, 0.35)",
+  shimmerColor = "rgba(255, 255, 255, 0.16)",
   variant = "primary",
+  alwaysShimmer = false,
   disabled,
   ...props
 }: ShimmerButtonProps) {
   const variantStyles = {
-    primary: "bg-primary text-primary-foreground hover:bg-primary/95 shadow-md shadow-primary/20",
+    primary: "bg-primary text-primary-foreground hover:bg-primary/95 shadow-xs",
     secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
     outline: "border border-border bg-background hover:bg-muted text-foreground",
   };
@@ -371,7 +242,7 @@ export function ShimmerButton({
     <button
       disabled={disabled}
       className={cn(
-        "relative inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 overflow-hidden active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer",
+        "group relative inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 overflow-hidden active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none cursor-pointer",
         variantStyles[variant],
         className
       )}
@@ -380,7 +251,10 @@ export function ShimmerButton({
       {!disabled && (
         <span
           aria-hidden="true"
-          className="absolute inset-0 -translate-x-full animate-shimmer"
+          className={cn(
+            "pointer-events-none absolute inset-0 -translate-x-full transition-transform duration-700 ease-out",
+            alwaysShimmer ? "animate-shimmer" : "group-hover:translate-x-full"
+          )}
           style={{
             background: `linear-gradient(90deg, transparent 0%, ${shimmerColor} 50%, transparent 100%)`,
           }}
@@ -522,11 +396,11 @@ export interface ParticleConstellationCanvasProps {
 }
 
 export function ParticleConstellationCanvas({
-  particleCount = 35,
-  maxDistance = 110,
+  particleCount = 30,
+  maxDistance = 100,
   className,
-  particleColor = "rgba(43, 111, 184, 0.45)",
-  lineColor = "rgba(43, 111, 184, 0.12)",
+  particleColor = "rgba(43, 111, 184, 0.35)",
+  lineColor = "rgba(43, 111, 184, 0.08)",
 }: ParticleConstellationCanvasProps) {
   const canvasRef = React.useRef<HTMLCanvasElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -577,9 +451,10 @@ export function ParticleConstellationCanvas({
       mouse.y = -1000;
     };
 
+    const targetEl = container.parentElement || container;
     window.addEventListener("resize", handleResize);
-    container.addEventListener("mousemove", handleMouseMove);
-    container.addEventListener("mouseleave", handleMouseLeave);
+    targetEl.addEventListener("mousemove", handleMouseMove);
+    targetEl.addEventListener("mouseleave", handleMouseLeave);
 
     const render = () => {
       ctx.clearRect(0, 0, width, height);
@@ -623,7 +498,7 @@ export function ParticleConstellationCanvas({
           ctx.beginPath();
           ctx.moveTo(node.x, node.y);
           ctx.lineTo(mouse.x, mouse.y);
-          ctx.strokeStyle = "rgba(43, 111, 184, 0.25)";
+          ctx.strokeStyle = "rgba(43, 111, 184, 0.2)";
           ctx.lineWidth = 1.2 - distMouse / (maxDistance * 1.3);
           ctx.stroke();
         }
@@ -636,14 +511,14 @@ export function ParticleConstellationCanvas({
 
     return () => {
       window.removeEventListener("resize", handleResize);
-      container.removeEventListener("mousemove", handleMouseMove);
-      container.removeEventListener("mouseleave", handleMouseLeave);
+      targetEl.removeEventListener("mousemove", handleMouseMove);
+      targetEl.removeEventListener("mouseleave", handleMouseLeave);
       cancelAnimationFrame(animationFrameId);
     };
   }, [particleCount, maxDistance, particleColor, lineColor]);
 
   return (
-    <div ref={containerRef} className={cn("absolute inset-0 overflow-hidden pointer-events-auto", className)}>
+    <div ref={containerRef} className={cn("absolute inset-0 overflow-hidden pointer-events-none", className)}>
       <canvas ref={canvasRef} className="block w-full h-full" />
     </div>
   );

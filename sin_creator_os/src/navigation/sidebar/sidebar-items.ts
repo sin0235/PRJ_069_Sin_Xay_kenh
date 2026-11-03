@@ -95,13 +95,6 @@ export const sidebarItems: NavGroup[] = [
         url: "/auto-edit",
         icon: Clapperboard,
       },
-      {
-        id: "animations",
-        title: "Hiệu ứng chuyển động",
-        url: "/animations",
-        icon: Wand2,
-        badge: "new",
-      },
     ],
   },
   {

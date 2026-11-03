@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ContentCard } from "@/components/creator/content-card";
+import { InfiniteMarquee } from "@/components/creator/motion-primitives";
 import { DiscoverService } from "@/services/discover-service";
 import { ContentItem } from "@/types";
 
@@ -131,6 +132,30 @@ export default function DiscoverPage() {
             <span>Sinh Ý Tưởng Từ Trend Này</span>
           </Button>
         </div>
+      </div>
+
+      {/* Dải Băng Chuyền Tín Hiệu Xu Hướng TikTok */}
+      <div className="rounded-xl border border-border/80 bg-card/40 px-3 py-2 overflow-hidden backdrop-blur-xs">
+        <InfiniteMarquee speed="normal" pauseOnHover={true}>
+          <span className="text-xs font-semibold text-primary px-3 py-1 bg-primary/10 rounded-full shrink-0">
+            Tín Hiệu Thị Trường:
+          </span>
+          <span className="text-xs text-muted-foreground px-2 shrink-0">
+            #xuhuongtiktok • Tỷ lệ xem hết 3s tăng 38%
+          </span>
+          <span className="text-xs text-muted-foreground px-2 shrink-0">
+            #sin_agency • Hook kích hoạt tò mò &quot;Đừng làm điều này...&quot;
+          </span>
+          <span className="text-xs text-muted-foreground px-2 shrink-0">
+            #kinhdoanh • Khung hình dọc 9:16 tối ưu Safe Zone
+          </span>
+          <span className="text-xs text-muted-foreground px-2 shrink-0">
+            #flow_music • Âm thanh không bản quyền -14 LUFS giữ chân người xem
+          </span>
+          <span className="text-xs text-muted-foreground px-2 shrink-0">
+            #auto_edit • Tự động bóc tách kịch bản từ video dài
+          </span>
+        </InfiniteMarquee>
       </div>
 
       {/* Search Header & Primary Filters */}
