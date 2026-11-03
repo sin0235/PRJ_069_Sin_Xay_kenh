@@ -1,0 +1,26 @@
+{
+  "trang_thai": "E2E xu?t MP4 v? ph?t HTTP th?nh c?ng; ch?a nghi?m thu to?n b? ch?t l??ng",
+  "task_render": "17ea910c-1e98-4f80-ba65-25f9d4dfa3a5",
+  "github_run": "41589191558",
+  "duration_seconds": 66.466667,
+  "width": 1080,
+  "height": 1920,
+  "fps": 30,
+  "bytes": 20495764,
+  "sha256": "8672c0cda1fc11bde7decce173d5f79f81edd1530b4cffa9745c5332da5ba8e6",
+  "flow_scenes": 5,
+  "hyperframes_scenes": 1,
+  "watermark_removed_all_sources": true,
+  "decode_ok": true,
+  "http_asset_status": 200,
+  "http_video_range_status": 206,
+  "url": "https://nhap-xaykenh-prj069.bahagroup.vn/auto-edit?project_id=d39ecdf3-07a1-5390-b938-dd171799bf20&asset_id=c6bde0f4-dc9a-5a18-ade5-e0f0aa5cda98",
+  "con_thieu": [
+    "Ch?a ??i chi?u to?n b? nh?p d?ng v?i mau1/mau2",
+    "Checklist c?n nh?",
+    "C?nh Flow hi?n l? 3D k?nh, ch?a ??ng nh?t style gi?y g?p theo y?u c?u",
+    "Ch?a ki?m th? n?p tr?n file 8 GB",
+    "Ch?a ki?m tra to?n b? ch?t l??ng ?m thanh v? n?i dung ph? ??",
+    "Ch?a ho?n t?t ??nh gi? t?ch h?p 10 repo tham kh?o"
+  ]
+}
