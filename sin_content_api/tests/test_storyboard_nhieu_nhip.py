@@ -5,6 +5,23 @@ from types import SimpleNamespace
 from src.modules.dieu_phoi_dung.dung_video_dai import ClipTuDong, tao_y_tuong_dien_hoa_flow
 
 
+def test_storyboard_nhan_ca_loi_thoai_cuoi_clip():
+    clip = ClipTuDong(clip_id='cuoi', start_ms=0, end_ms=29000, title='Đủ nội dung', reason='Đủ ý')
+    words = [{'id':f'w{i}', 'text':'nội dung giải thích', 'start_ms':i*80, 'end_ms':i*80+70}
+             for i in range(200)]
+
+    class Client:
+        max_output_tokens = 4000
+        max_input_bytes = 60000
+
+        def complete(self, messages, **kwargs):
+            transcript = json.loads(messages[1]['content'])['clips'][0]['transcript']
+            assert 'w199[15920-15990]=' in transcript
+            return SimpleNamespace(content='{"visuals":[]}')
+
+    tao_y_tuong_dien_hoa_flow([clip], words, [], Client())
+
+
 def test_clip_hai_phut_bo_sung_duoc_sau_canh_thu_ba():
     clip = ClipTuDong(clip_id='clip_dai', start_ms=0, end_ms=120000, title='Một câu chuyện', reason='Đủ ý')
     words = [{'id':f'w{i}', 'text':f'ý thứ {i}', 'start_ms':start, 'end_ms':start+5000}

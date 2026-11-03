@@ -862,13 +862,10 @@ def tao_y_tuong_dien_hoa_flow(
         for clip in chosen
     }
     def transcript_with_ids(clip):
-        tagged, text_length = [], 0
-        for word in clip_words_by_id[clip.clip_id]:
-            if text_length >= 600:
-                break
-            tagged.append(f"{word['id']}[{word['start_ms']}-{word['end_ms']}]={word['text']}")
-            text_length += len(word["text"]) + 1
-        return " ".join(tagged)
+        return " ".join(
+            f"{word['id']}[{word['start_ms']}-{word['end_ms']}]={word['text']}"
+            for word in clip_words_by_id[clip.clip_id]
+        )
 
     clip_context = [{
         "clip_id": clip.clip_id,
@@ -1093,7 +1090,10 @@ def tao_y_tuong_dien_hoa_flow(
                         absolute_start, absolute_end = clip.start_ms + start, clip.start_ms + end
                         gap_words = [word for word in clip_words_by_id[clip_id]
                                      if word["start_ms"] < absolute_end and word["end_ms"] > absolute_start]
-                        anchors = ", ".join(f"{word['id']}={word['text']}" for word in gap_words)
+                        anchors = ", ".join(
+                            f"{word['id']}={word['text']} [{word['start_ms']}-{word['end_ms']}ms]"
+                            for word in gap_words
+                        )
                         gap_details.append(
                             f"{clip_id} còn khoảng trống {start / 1000:.1f}-{end / 1000:.1f}s; từ neo trong khoảng: {anchors or 'không có'}"
                         )
