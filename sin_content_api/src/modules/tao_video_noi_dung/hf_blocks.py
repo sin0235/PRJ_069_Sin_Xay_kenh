@@ -233,6 +233,15 @@ PORTRAIT_SCALE = {"MARK_PHRASE": 1.5, "WORD_SWAP": 1.5, "CHART_STORY": 1.25}
 SQUARE_BLOCKS = ("AI_RANK",)   # ai-answer-rank vẽ trong khung vuông 1080x1080
 
 
+def portrait_scale(layout: str, data: dict) -> float:
+    """Hệ số phóng ở khung 9:16. Khối chữ một dòng đã tự co theo chiều rộng nên câu dài phóng thêm sẽ tràn mép: câu càng dài phóng càng ít."""
+    base = PORTRAIT_SCALE.get(layout, 1.0)
+    if layout in ("MARK_PHRASE", "WORD_SWAP"):
+        size = len(str(data.get("title") or "")) + (sum(len(s) for s in data.get("steps") or []) // max(1, len(data.get("steps") or [1])) if layout == "WORD_SWAP" else 0)             + len(str(data.get("caption") or "")) * (layout == "WORD_SWAP")
+        return base if size <= 22 else 1.15 if size <= 30 else 1.0
+    return base
+
+
 def pick_variant(layout: str, data: dict) -> Variant:
     variants = [v for v in BLOCK_SCENES[layout] if len(str(data.get("title") or "")) <= v.max_chars] or BLOCK_SCENES[layout][-1:]
     key = json.dumps([layout, data.get("title"), data.get("tag")], ensure_ascii=False, sort_keys=True)
@@ -242,7 +251,7 @@ def pick_variant(layout: str, data: dict) -> Variant:
 def scene_composition(layout: str, cid: str, data: dict, duration: float | None = None) -> tuple[str, str, str]:
     """(mã composition, thuộc tính host, style host) cho một cảnh khối; style host mang bảng màu thương hiệu."""
     variant = pick_variant(layout, data)
-    scale = PORTRAIT_SCALE.get(layout, 1.0) if data.get("portrait") else 1.0   # khung 9:16 hẹp hơn nên khối cỡ chữ theo chiều ngang trông nhỏ
+    scale = portrait_scale(layout, data) if data.get("portrait") else 1.0   # khung 9:16 hẹp hơn nên khối cỡ chữ theo chiều ngang trông nhỏ
     style = THEME_STYLE + (f";transform:scale({scale});transform-origin:50% 50%" if scale != 1.0 else "")
     if layout in SQUARE_BLOCKS:   # khối vuông 1080x1080 đặt giữa khung
         style += ";transform:translate(0,420px)" if data.get("portrait") else ";transform:translate(420px,0)"

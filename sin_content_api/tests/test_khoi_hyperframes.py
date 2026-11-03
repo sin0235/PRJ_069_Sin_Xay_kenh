@@ -147,8 +147,16 @@ def test_ghep_nhieu_canh_dung_du_kieu_chuyen_canh(tmp_path):
     assert "assets/vendor/CustomEase.min.js" in index and (tmp_path / "p" / "assets" / "vendor" / "CustomEase.min.js").is_file()
 
 
+def test_he_so_phong_giam_khi_cau_dai():
+    ngan = {"title": "Một con số"}
+    dai = {"title": "896 đơn phản ánh năm 2025 chưa rõ nguyên nhân"}
+    assert hf_blocks.portrait_scale("MARK_PHRASE", ngan) == 1.5
+    assert hf_blocks.portrait_scale("MARK_PHRASE", dai) == 1.0
+    assert hf_blocks.portrait_scale("CHART_STORY", dai) == 1.25
+
+
 def test_khung_doc_phong_to_canh_chu_nho():
-    data = {**VALID["MARK_PHRASE"], "portrait": True}
+    data = {**VALID["MARK_PHRASE"], "title": "Mỗi bộ phận giữ", "tag": "giữ", "portrait": True}
     assert "transform:scale(1.5)" in hf_blocks.scene_composition("MARK_PHRASE", "s01", data, 5)[2]
     assert "transform:scale" not in hf_blocks.scene_composition("MARK_PHRASE", "s01", VALID["MARK_PHRASE"], 5)[2]
     assert "transform:scale" not in hf_blocks.scene_composition("STAT_RING", "s01", {**VALID["STAT_RING"], "portrait": True}, 5)[2]
