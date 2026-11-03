@@ -188,3 +188,19 @@ def test_suggested_shot_counts_follow_the_flow_budget():
     flow, ui = planner._suggested_shot_counts(100)
     assert flow * planner.FLOW_SHOT_SECONDS <= 0.7 * 100 and flow * 10 + ui * 6 >= 100
     assert planner._suggested_shot_counts(20) == (1, 2)
+
+
+def test_failed_shot_is_found_in_both_error_location_formats():
+    for message in ("1 validation error for Storyboard\nshots.9\n  Value error, DIAGRAM_PHRASE_NOT_IN_NARRATION:block [type=value_error]",
+                    "1 validation error for Storyboard\nshots.9.ui_scene\n  Value error, DIAGRAM_PROCESS_RAIL_FIELDS [type=value_error]"):
+        data = _with_scene(9, _process_rail(9))
+        assert planner._demote_failed_diagram_shots(data, message) == [9]
+        assert data["shots"][9]["shot_kind"] == "FLOW_ORIGAMI" and data["shots"][9]["ui_scene"] is None
+
+
+def test_phrase_not_in_narration_on_every_attempt_still_returns_a_storyboard():
+    bad = _process_rail(9)
+    bad["diagram"]["on"]["block"] = "cụm không có trong lời đọc"
+    (storyboard, _), client = _run(*[_with_scene(9, bad) for _ in range(3)])
+    assert storyboard.shots[9].shot_kind == "FLOW_ORIGAMI"
+    assert sum(s.duration_seconds for s in storyboard.shots) == 100

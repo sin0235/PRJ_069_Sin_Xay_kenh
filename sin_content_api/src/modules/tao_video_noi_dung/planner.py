@@ -1187,7 +1187,7 @@ def _demote_failed_diagram_shots(data: dict | None, error_text: str) -> list[int
     if not isinstance(data, dict) or not isinstance(data.get("shots"), list):
         return []
     demoted = []
-    for raw in sorted({int(index) for index in re.findall(r"shots\.(\d+)\.ui_scene", error_text)}):
+    for raw in sorted({int(index) for index in re.findall(r"shots\.(\d+)(?!\d)", error_text)}):
         if 0 <= raw < len(data["shots"]) and isinstance(data["shots"][raw], dict)                 and data["shots"][raw].get("shot_kind") == "UI_SIM":
             _demote_to_flow(data["shots"][raw])
             demoted.append(raw)
