@@ -1,0 +1,34 @@
+name: Build giao diện cho máy local
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    env:
+      API_INTERNAL_URL: http://127.0.0.1:8001
+      NODE_OPTIONS: --max-old-space-size=3072
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Cài dependency và build FE
+        working-directory: sin_creator_os
+        run: |
+          npm install --global pnpm@10.24.0
+          pnpm install --frozen-lockfile
+          pnpm build
+          Copy-Item -Recurse public .next/standalone/public
+          Copy-Item -Recurse .next/static .next/standalone/.next/static
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: giao_dien_windows
+          path: sin_creator_os/.next/standalone/
+          include-hidden-files: true
+          retention-days: 1
