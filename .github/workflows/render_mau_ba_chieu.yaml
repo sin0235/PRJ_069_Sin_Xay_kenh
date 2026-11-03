@@ -1,0 +1,31 @@
+﻿name: Render mẫu HyperFrames 3D
+on:
+  push:
+    branches: [dev/local-remote-video-tests]
+    paths: [sin_content_api/engines/hyperframes/mau_ba_chieu/**]
+permissions:
+  contents: read
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - run: |
+          npm ci --prefix sin_content_api/engines/hyperframes
+          cp sin_content_api/engines/vendor/gsap.min.js sin_content_api/engines/hyperframes/mau_ba_chieu/
+          cp sin_content_api/src/modules/tao_video_noi_dung/brand/utm_helvetins.ttf sin_content_api/engines/hyperframes/mau_ba_chieu/font.ttf
+      - name: Render HyperFrames
+        working-directory: sin_content_api/engines/hyperframes/mau_ba_chieu
+        env:
+          HYPERFRAMES_NO_TELEMETRY: '1'
+          DO_NOT_TRACK: '1'
+        run: node ../node_modules/hyperframes/bin/hyperframes.mjs render -q looks -w 1 -o mau_ba_chieu.mp4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mau_hyperframes_ba_chieu
+          path: sin_content_api/engines/hyperframes/mau_ba_chieu/mau_ba_chieu.mp4
+          retention-days: 3
