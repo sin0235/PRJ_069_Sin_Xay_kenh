@@ -20,7 +20,7 @@ from src.modules.llm.client import LLMClient, LLMClientError
 from src.modules.media_queue.contracts import GIOI_HAN_TAC_VU_DIEN_HOA
 from src.modules.media_studio.security import MEDIA_ROOT_DIR, get_workspace_storage_dir, hash_file
 from src.modules.media_studio.video_processor import video_processor
-from src.modules.dieu_phoi_dung.phat_hien_khoang_nghi import hop_nhat_khoang_nghi, phat_hien_khoang_nghi, tinh_muc_song
+from src.modules.dieu_phoi_dung.phat_hien_khoang_nghi import hop_nhat_khoang_nghi, phan_tich_am_thanh_nguon
 from src.modules.tao_video_noi_dung.planner import (
     DIAGRAM_LAYOUTS, PORTRAIT_DIAGRAM_LAYOUTS, UiScene, _locate_phrase, _tokens, diagram_feedback, diagram_required_events,
     resolve_diagram_times,
@@ -1755,9 +1755,10 @@ def dung_video_dai(
                  **({"probability": word["probability"]} if "probability" in word else {})}
                 for index, word in enumerate(words)
             ]
-            audio_pause_intervals = phat_hien_khoang_nghi(audio_path)
+            audio_features = phan_tich_am_thanh_nguon(audio_path)
+            audio_pause_intervals = audio_features["pause_intervals"]
             pause_candidates = hop_nhat_khoang_nghi(words, audio_pause_intervals, duration_ms)
-            waveform_peaks = tinh_muc_song(audio_path)
+            waveform_peaks = audio_features["waveform_peaks"]
             client = LLMClient.from_db(db)
             plan = tao_ke_hoach_dung_video(
                 words, client, duration_ms, pause_candidates,

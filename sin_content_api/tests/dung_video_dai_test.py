@@ -2324,8 +2324,7 @@ def test_auto_edit_enqueue_hyperframes_diagram_child(monkeypatch, tmp_path):
             for index, text in enumerate(("trước", "là", "một", "trăm", "sau", "còn", "sáu", "mươi"))
         ]
         monkeypatch.setattr(editor, "transcribe_words_cached", lambda *_args: words)
-        monkeypatch.setattr(editor, "phat_hien_khoang_nghi", lambda *_args: [])
-        monkeypatch.setattr(editor, "tinh_muc_song", lambda *_args: [0])
+        monkeypatch.setattr(editor, "phan_tich_am_thanh_nguon", lambda *_args: {"pause_intervals": [], "waveform_peaks": [0]})
         monkeypatch.setattr(editor.LLMClient, "from_db", classmethod(lambda _cls, _db: SimpleNamespace(model="real-model")))
         monkeypatch.setattr(editor, "tao_ke_hoach_dung_video", lambda *_args, **_kwargs: TaoKeHoachDungVideo(clips=[
             ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=12000, title="Đơn hàng", reason="Có phép so sánh"),
