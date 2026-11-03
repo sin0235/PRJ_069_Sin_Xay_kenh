@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from src.database import SessionLocal
 from src.models.entities import AIGenerationJob, ContentVideoWorkerLease, MediaAsset, WorkspaceBudget
-from src.modules.media_queue.contracts import DeferredMediaJob
+from src.modules.media_queue.contracts import DeferredMediaJob, GIOI_HAN_TAC_VU_DIEN_HOA
 from src.modules.media_queue.service import FLOW_BACKEND_PROVIDERS, MEDIA_QUEUE_PROVIDERS, TEST_PROVIDERS, authorized_worker_tenant, is_production
 
 logger = logging.getLogger(__name__)
@@ -184,7 +184,7 @@ def _resume_waiting_auto_edit_jobs(db: Session, token: str) -> int:
             or parameters.get("phase") not in {"waiting_for_flow", "render"}
             or not isinstance(child_ids, list)
             or not child_ids
-            or len(child_ids) > 20
+            or len(child_ids) > GIOI_HAN_TAC_VU_DIEN_HOA
             or any(not isinstance(child_id, str) or not child_id for child_id in child_ids)
             or len(child_ids) != len(set(child_ids))
         ):

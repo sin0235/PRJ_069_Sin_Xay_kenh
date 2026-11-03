@@ -1,5 +1,6 @@
 """Giữ cảnh hợp lệ qua nhiều lượt bổ sung cho một content dài."""
 import json
+import pytest
 from types import SimpleNamespace
 
 from src.modules.dieu_phoi_dung.dung_video_dai import ClipTuDong, tao_y_tuong_dien_hoa_flow
@@ -71,3 +72,41 @@ def test_canh_khong_chong_lan_duoc_sap_theo_moc_loi():
     result = tao_y_tuong_dien_hoa_flow([clip],words,[],Client())
     assert [item['start_word_id'] for item in result] == ['dau','cuoi']
     assert not clip.needs_review
+
+
+def test_moi_kich_ban_duoc_llm_lap_storyboard_rieng_khong_bo_clip_cuoi():
+    clips = [ClipTuDong(clip_id=f'c{i}', start_ms=i*20000, end_ms=(i+1)*20000,
+                       title=f'Kịch bản {i}', reason='Đủ ý') for i in range(21)]
+    words = [{'id':f'w{i}','text':f'Nội dung {i}','start_ms':i*20000+1000,'end_ms':i*20000+5000}
+             for i in range(21)]
+
+    class Client:
+        max_output_tokens = 4000
+        calls = 0
+
+        def complete(self, messages, **kwargs):
+            request = json.loads(messages[1]['content'])
+            assert len(request['clips']) == 1
+            i = self.calls
+            assert request['clips'][0]['clip_id'] == f'c{i}'
+            self.calls += 1
+            return SimpleNamespace(content=json.dumps({'visuals':[{
+                'clip_id':f'c{i}','renderer':'FLOW','start_word_id':f'w{i}','end_word_id':f'w{i}',
+                'scene':'Đạo cụ giấy minh họa','action':'Đạo cụ mở ra rồi gấp lại theo lời kể'
+            }]},ensure_ascii=False))
+
+    client = Client()
+    result = tao_y_tuong_dien_hoa_flow(clips,words,[],client)
+    assert client.calls == 21
+    assert [item['clip_id'] for item in result] == [c.clip_id for c in clips]
+
+
+@pytest.mark.parametrize(('count','error'), [(21,'VIDEO_SOURCE_NOT_FOUND'),(2001,'AUTO_EDIT_FLOW_JOBS_INVALID')])
+def test_render_nhan_nhieu_clip_nhung_van_chan_danh_sach_vuot_gioi_han(count,error):
+    from src.modules.dieu_phoi_dung.dung_video_dai import dung_video_dai
+
+    query = SimpleNamespace(filter=lambda *_: SimpleNamespace(first=lambda: None))
+    db = SimpleNamespace(query=lambda *_: query)
+    with pytest.raises(ValueError,match=error):
+        dung_video_dai(db,source_asset_id='nguon',workspace_id='workspace',user_id='user',project_id=None,
+                      phase='render',flow_job_ids=[f'child{i}' for i in range(count)],plan_storage_key='plan.json')

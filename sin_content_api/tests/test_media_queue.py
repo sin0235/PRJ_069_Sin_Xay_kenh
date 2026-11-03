@@ -1067,10 +1067,6 @@ def test_auto_edit_waits_for_flow_children_then_resumes_once(media_db, child_cou
 
     first.state = "FAILED"
     db.commit()
-    if child_count > 20:
-        assert worker._resume_waiting_auto_edit_jobs(db, token) == 0
-        assert db.get(AIGenerationJob, parent.id).state == "WAITING_FOR_FLOW"
-        return
     assert worker._resume_waiting_auto_edit_jobs(db, token) == 1
     assert db.get(AIGenerationJob, parent.id).state == "QUEUED"
     resumed = json.loads(db.get(AIGenerationJob, parent.id).request_payload_json)

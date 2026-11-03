@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from src.models.entities import AIGenerationJob, ContentVideoPlan, ContentVideoRun, MediaAsset
 from src.modules.llm.client import LLMClient, LLMClientError
+from src.modules.media_queue.contracts import GIOI_HAN_TAC_VU_DIEN_HOA
 from src.modules.media_studio.security import MEDIA_ROOT_DIR, get_workspace_storage_dir, hash_file
 from src.modules.media_studio.video_processor import video_processor
 from src.modules.dieu_phoi_dung.phat_hien_khoang_nghi import hop_nhat_khoang_nghi, phat_hien_khoang_nghi, tinh_muc_song
@@ -778,6 +779,10 @@ def tao_y_tuong_dien_hoa_flow(
 ) -> list[dict]:
     if not clips:
         return []
+    if len(clips) > 1:
+        return [brief for clip in clips for brief in tao_y_tuong_dien_hoa_flow(
+            [clip], words, candidates, client, flow_available,
+        )]
     from src.modules.tao_video_noi_dung.service import _PILOT_STYLE_SNAPSHOT
 
     # Auto Edit giữ chất liệu giấy đã duyệt, không đổi style của luồng AI Video.
@@ -793,9 +798,7 @@ def tao_y_tuong_dien_hoa_flow(
         ),
     })
 
-    chosen = clips if len(clips) <= 20 else [
-        clips[round(index * (len(clips) - 1) / 19)] for index in range(20)
-    ]
+    chosen = clips
     def diagram_window(scene, clip_words):
         transcript_tokens, token_word_indexes = [], []
         for index, word in enumerate(clip_words):
@@ -1675,7 +1678,7 @@ def dung_video_dai(
     if phase == "render" and (
         not isinstance(flow_job_ids, list)
         or not flow_job_ids
-        or len(flow_job_ids) > 20
+        or len(flow_job_ids) > GIOI_HAN_TAC_VU_DIEN_HOA
         or any(not isinstance(child_id, str) or not child_id for child_id in flow_job_ids)
         or len(flow_job_ids) != len(set(flow_job_ids))
         or not isinstance(plan_storage_key, str)
