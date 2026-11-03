@@ -1,0 +1,15 @@
+{
+    admin off
+    auto_https off
+}
+http://127.0.0.1:13069 {
+    @api path /v1/* /healthz /readyz
+    handle @api {
+        reverse_proxy 127.0.0.1:8001 {
+            header_up X-Forwarded-Proto https
+        }
+    }
+    handle {
+        reverse_proxy 127.0.0.1:3000
+    }
+}
