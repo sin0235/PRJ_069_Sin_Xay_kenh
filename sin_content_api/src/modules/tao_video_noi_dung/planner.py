@@ -29,6 +29,10 @@ SHOT_SECONDS = 6
 FLOW_SHOT_SECONDS = 10        # Flow luôn tạo clip đúng 10 giây (cố định của Google): shot Flow dùng trọn clip
 FLOW_SHOT_MIN_SECONDS = 5     # chỉ co ngắn khi tổng không khớp; phần thừa của clip bị cắt
 UI_SHOT_MIN_SECONDS, UI_SHOT_MAX_SECONDS = 3, 6   # cảnh dựng bằng mã
+# Cảnh vốn chỉ có một hai mốc hình (câu hỏi, con số, thẻ kết) không được kéo dài: sau mốc cuối hình đứng yên.
+UI_LAYOUT_MAX_SECONDS = {"OPEN_QUESTION": 4, "OPEN_NUMBER": 5, "OPEN_DRAIN": 5, "OPEN_HOOK": 5, "END_CARD": 5}
+DIAGRAM_SECONDS_PER_EVENT = 2.5   # shot sơ đồ cần ít nhất một mốc hình mới mỗi chừng này giây
+FLOW_BEAT_MIN_WORDS = 8
 
 
 def fixed_shot_target(seconds: int) -> int:
@@ -852,6 +856,49 @@ def _layout_alternatives(layout: str) -> str:
     return _ALTERNATIVES.get(DIAGRAM_FAMILY.get(layout, ""), "một loại cảnh khác khớp đúng ý lời đọc")
 
 
+def _richness_problems(storyboard: Storyboard) -> list[str]:
+    """Nội dung hình phải đủ phong phú cho thời lượng shot: sơ đồ có mốc hình rải đến cuối lời, cảnh Flow đủ nhịp hành động cụ thể."""
+    problems = []
+    for shot in storyboard.shots:
+        seconds = shot.duration_seconds
+        scene = shot.ui_scene
+        if shot.shot_kind == "UI_SIM" and scene and scene.diagram and scene.layout in DIAGRAM_LAYOUTS and seconds >= 5:
+            try:
+                events = resolve_diagram_times(scene, shot.narration, seconds, None)
+            except ValueError:
+                continue
+            times = [events[key] for key in scene.diagram.on if key in events]
+            need = math.ceil(seconds / DIAGRAM_SECONDS_PER_EVENT)
+            if times and (len(times) < need or max(times) < 0.6 * seconds):
+                problems.append(
+                    f"DIAGRAM_SPARSE: {shot.shot_id} dài {seconds} giây nhưng sơ đồ {scene.layout} chỉ có {len(times)} mốc hình (cần ít nhất {need}), "
+                    f"mốc cuối ở giây {max(times):.1f}; thêm bước, hàng hoặc thẻ cho sơ đồ và đặt các cụm neo rải đều đến cuối lời đọc, "
+                    "hoặc chọn loại sơ đồ nhiều mốc hơn, hoặc rút ngắn shot rồi thêm shot khác")
+        elif shot.shot_kind != "UI_SIM" and seconds >= 8:
+            thin = [beat for beat in shot.action_beats if len(beat.action.split()) < FLOW_BEAT_MIN_WORDS]
+            if len(shot.action_beats) < 3 or thin:
+                problems.append(
+                    f"FLOW_BEATS_THIN: {shot.shot_id} dài {seconds} giây cần ít nhất 3 nhịp hành động, mỗi nhịp tối thiểu {FLOW_BEAT_MIN_WORDS} từ nêu "
+                    "ai hoặc vật gì tác động lên gì và kết quả nhìn thấy; hiện có "
+                    f"{len(shot.action_beats)} nhịp, {len(thin)} nhịp quá ngắn")
+    stretched = [shot.shot_id for shot in storyboard.shots if shot.shot_kind == "UI_SIM" and shot.duration_seconds > UI_SHOT_MAX_SECONDS]
+    if stretched:
+        total = sum(shot.duration_seconds for shot in storyboard.shots)
+        flow, ui = _suggested_shot_counts(total)
+        problems.append(
+            f"UI_SHOT_STRETCHED: {', '.join(stretched)} bị kéo dài quá {UI_SHOT_MAX_SECONDS} giây vì số shot quá ít cho {total} giây (hiện có {len(storyboard.shots)} shot); "
+            f"tạo khoảng {flow + ui} shot gồm khoảng {flow} shot Flow {FLOW_SHOT_SECONDS} giây xen kẽ khoảng {ui} shot UI_SIM mỗi shot "
+            f"{UI_SHOT_MIN_SECONDS} đến {UI_SHOT_MAX_SECONDS} giây, mỗi shot một ý riêng, thay vì kéo dài sơ đồ")
+    return problems
+
+
+def _suggested_shot_counts(total_seconds: int) -> tuple[int, int]:
+    """Cấu trúc gợi ý: khoảng 60% thời lượng là Flow (clip 10 giây), phần còn lại là sơ đồ khoảng 5 giây."""
+    flow = max(1, round(0.6 * total_seconds / FLOW_SHOT_SECONDS))
+    ui = max(1, math.ceil((total_seconds - flow * FLOW_SHOT_SECONDS) / 5))
+    return flow, ui
+
+
 def _soft_problems(storyboard: Storyboard, aspect_ratio: str | None = None, diagram_only: bool = False) -> list[str]:
     problems = list(score_storyboard(storyboard, storyboard.brief).issues)
     for position, shot in enumerate(storyboard.shots):
@@ -880,6 +927,7 @@ def _soft_problems(storyboard: Storyboard, aspect_ratio: str | None = None, diag
     if words:
         problems.append("TTS_PRONUNCIATION_REQUIRED: " + ", ".join(words[:8]) + " (viết cách đọc tiếng Việt trong lời đọc, ví dụ Group thành Grúp)")
     problems.extend(narration_length_problems(storyboard.shots))
+    problems.extend(_richness_problems(storyboard))
     return problems
 
 
@@ -956,31 +1004,40 @@ def _repair_diagram_data(scene, narration: str | None = None) -> None:
             last_index = index
 
 
+def _ui_cap(shot: dict) -> int:
+    scene = shot.get("ui_scene")
+    layout = scene.get("layout") if isinstance(scene, dict) else None
+    return UI_LAYOUT_MAX_SECONDS.get(layout, UI_SHOT_MAX_SECONDS)
+
+
 def _fit_shot_durations(shots: list[dict], target_seconds: int) -> None:
-    """Shot Flow dài đúng 10 giây (clip Flow luôn 10 giây), shot dựng bằng mã 3 đến 6 giây; khớp tổng với thời lượng mục tiêu."""
+    """Shot Flow dài đúng 10 giây (clip Flow luôn 10 giây), shot dựng bằng mã 3 đến 6 giây (loại ít mốc hình ngắn hơn);
+    khớp tổng với thời lượng mục tiêu."""
     for shot in shots:
         if shot.get("shot_kind") == "UI_SIM":
             value = shot.get("duration_seconds")
             value = round(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else SHOT_SECONDS
-            shot["duration_seconds"] = min(UI_SHOT_MAX_SECONDS, max(UI_SHOT_MIN_SECONDS, value))
+            shot["duration_seconds"] = min(_ui_cap(shot), max(UI_SHOT_MIN_SECONDS, value))
         else:
             shot["duration_seconds"] = FLOW_SHOT_SECONDS
     diff = target_seconds - sum(shot["duration_seconds"] for shot in shots)
     ui = [shot for shot in shots if shot.get("shot_kind") == "UI_SIM"]
     flow = [shot for shot in shots if shot.get("shot_kind") != "UI_SIM"]
-    # Thiếu giờ: cảnh dựng bằng mã dài thêm (không tốn clip). Thừa giờ: co shot Flow trước (clip vẫn dùng gần hết, chỉ cắt đuôi),
-    # vì sơ đồ cần đủ thời gian cho các mốc hoạt cảnh; co sơ đồ chỉ khi shot Flow đã ở mức tối thiểu hợp lý.
-    stages = [(ui, UI_SHOT_MAX_SECONDS, True), (ui, FLOW_SHOT_SECONDS, True)]   # còn thiếu: sơ đồ dài hơn mức thường thay vì báo lỗi
-    stages += [(flow, 7, False), (ui, 4, False), (flow, FLOW_SHOT_MIN_SECONDS, False), (ui, UI_SHOT_MIN_SECONDS, False)]
+    # Thiếu giờ: cảnh dựng bằng mã dài thêm trong giới hạn của loại cảnh; vẫn thiếu thì nới giới hạn (kiểm tra độ giàu nội dung sẽ báo để LLM làm lại).
+    # Thừa giờ: co shot Flow trước (clip vẫn dùng gần hết, chỉ cắt đuôi), vì sơ đồ cần đủ thời gian cho các mốc hoạt cảnh.
+    stages = [(ui, _ui_cap, True), (ui, lambda _s: UI_SHOT_MAX_SECONDS, True), (ui, lambda _s: FLOW_SHOT_SECONDS, True),
+              (flow, lambda _s: 7, False), (ui, lambda _s: 4, False), (flow, lambda _s: FLOW_SHOT_MIN_SECONDS, False),
+              (ui, lambda _s: UI_SHOT_MIN_SECONDS, False)]
     for group, bound, growing in stages:
         while diff and ((diff > 0) == growing):
             moved = False
             for shot in (group if growing else list(reversed(group))):
-                if growing and shot["duration_seconds"] < bound:
+                limit = bound(shot)
+                if growing and shot["duration_seconds"] < limit:
                     shot["duration_seconds"] += 1
                     diff -= 1
                     moved = True
-                elif not growing and shot["duration_seconds"] > bound:
+                elif not growing and shot["duration_seconds"] > limit:
                     shot["duration_seconds"] -= 1
                     diff += 1
                     moved = True
@@ -1161,6 +1218,13 @@ def generate_storyboard(
             f"Thời lượng shot theo loại: shot Flow (shot_kind=FLOW_ORIGAMI) dài ĐÚNG {FLOW_SHOT_SECONDS} giây vì Flow luôn tạo clip {FLOW_SHOT_SECONDS} giây; "
             f"shot UI_SIM dựng bằng mã dài từ {UI_SHOT_MIN_SECONDS} đến {UI_SHOT_MAX_SECONDS} giây. Số shot tự quyết, tổng duration_seconds phải bằng target_duration_seconds. "
             "Mỗi clip Flow rất tốn kém: tổng thời lượng các shot Flow không quá 60% target_duration_seconds, xen kẽ shot UI_SIM cho mọi ý cần chữ, số, quy trình, so sánh hoặc kết quả. "
+            "MẬT ĐỘ THÔNG TIN: hình phải kể được thông tin suốt thời lượng shot, không chỉ vài giây đầu. "
+            f"Shot sơ đồ từ 5 giây trở lên cần ít nhất một mốc hình mới (một mục trong on) mỗi {DIAGRAM_SECONDS_PER_EVENT:g} giây và mốc cuối nằm sau 60% thời lượng: "
+            "chọn sơ đồ có nhiều phần (CHECKLIST 4 đến 5 việc, PROCESS_RAIL 4 đến 5 bước, KPI_CARDS 3 đến 4 thẻ, TABLE_AUDIT 4 đến 5 dòng, FUNNEL 4 đến 5 tầng) "
+            "và rải các cụm neo đều theo lời đọc. Cảnh chỉ có một hai mốc hình (OPEN_QUESTION, OPEN_NUMBER, OPEN_DRAIN, OPEN_HOOK, END_CARD) chỉ dài tối đa "
+            f"{UI_LAYOUT_MAX_SECONDS['OPEN_QUESTION']} đến {UI_LAYOUT_MAX_SECONDS['END_CARD']} giây. "
+            f"Shot Flow {FLOW_SHOT_SECONDS} giây cần 4 đến 5 action_beats (khoảng 2 giây một nhịp); mỗi nhịp tối thiểu {FLOW_BEAT_MIN_WORDS} từ, nêu ai hoặc vật gì tác động lên gì "
+            "và thay đổi nhìn thấy được; không lặp ý giữa các nhịp, không mô tả cảnh đứng yên. "
             f"Lời đọc dài theo duration_seconds: shot {FLOW_SHOT_SECONDS} giây cần khoảng {round(FLOW_SHOT_SECONDS * NARRATION_SYLLABLES_MIN_RATIO)} đến {round(FLOW_SHOT_SECONDS * NARRATION_SYLLABLES_MAX_RATIO)} âm tiết. "
             "Chia lời đọc và action_beats theo duration_seconds của từng shot; phủ đủ mọi id của brief trong message_ids, không tạo id mới. "
             "Mỗi shot có beat, prompt_contract_version=4, shot_kind, continues_previous. "
@@ -1289,6 +1353,11 @@ def generate_storyboard(
         messages[0]["content"] += (
             " KHUNG 9:16: mọi loại ui_scene.layout sơ đồ đều dùng được (hệ thống dựng khung ngang 16:9 rồi mở rộng thành khung dọc bằng phản chiếu), "
             "nên ưu tiên UI_SIM cho mọi shot có chữ, số, quy trình, so sánh hoặc kết quả và dành Flow cho vài cảnh diễn xuất then chốt.")
+    flow_count, ui_count = _suggested_shot_counts(target_duration_seconds)
+    messages[0]["content"] += (
+        f" CẤU TRÚC SHOT cho {target_duration_seconds} giây: khoảng {flow_count + ui_count} shot, gồm khoảng {flow_count} shot Flow ({FLOW_SHOT_SECONDS} giây) "
+        f"xen kẽ khoảng {ui_count} shot UI_SIM ({UI_SHOT_MIN_SECONDS} đến {UI_SHOT_MAX_SECONDS} giây). Mỗi shot một ý riêng và có hình đủ nội dung cho thời lượng của nó; "
+        "không gộp nhiều ý vào ít shot rồi kéo dài sơ đồ.")
     log = logging.getLogger(__name__)
     rewritten = False
     last_parseable: tuple[Storyboard, str] | None = None

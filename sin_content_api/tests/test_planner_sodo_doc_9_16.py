@@ -130,3 +130,61 @@ def test_message_times_are_refit_when_ui_shot_shrinks():
     planner._repair_shot_sequence(shots)
     times = [m["at_s"] for m in shots[0]["ui_scene"]["messages"]]
     assert times == sorted(times) and times[0] == 0 and times[-1] < 3
+
+
+def _storyboard_with(index, ui_scene, seconds):
+    data = _with_scene(index, ui_scene) if ui_scene else copy.deepcopy(BASE)
+    data["shots"][index]["duration_seconds"] = seconds
+    return planner.Storyboard.model_validate(data)
+
+
+def test_sparse_diagram_is_flagged_when_events_end_early():
+    problems = planner._richness_problems(_storyboard_with(9, _process_rail(9), 8))
+    assert any(p.startswith("DIAGRAM_SPARSE: s10") for p in problems)
+
+
+def test_short_diagram_shot_is_not_flagged_for_sparseness():
+    assert not [p for p in planner._richness_problems(_storyboard_with(9, _process_rail(9), 4)) if p.startswith("DIAGRAM_SPARSE")]
+
+
+def test_thin_flow_beats_are_flagged_and_rich_ones_pass():
+    data = copy.deepcopy(BASE)
+    shot = data["shots"][0]
+    shot["duration_seconds"] = 10
+    shot["action_beats"] = [{"start_s": 0.0, "end_s": 5.0, "action": "Người quản lý mở báo cáo"}, {"start_s": 5.0, "end_s": 10.0, "action": "Số liệu hiện ra"}]
+    assert any(p.startswith(f"FLOW_BEATS_THIN: {BASE['shots'][0]['shot_id']} ") for p in planner._richness_problems(planner.Storyboard.model_validate(data)))
+    shot["action_beats"] = [
+        {"start_s": 0.0, "end_s": 2.5, "action": "Người quản lý giấy mở tập báo cáo dày trên bàn làm việc"},
+        {"start_s": 2.5, "end_s": 5.0, "action": "Các cột số đỏ bật lên khỏi trang giấy và đổ bóng xuống mặt bàn"},
+        {"start_s": 5.0, "end_s": 7.5, "action": "Tờ lịch cuối tháng rơi xuống che một nửa tập báo cáo trước mặt người quản lý"},
+        {"start_s": 7.5, "end_s": 10.0, "action": "Camera đẩy vào gương mặt lo lắng khi chiếc đồng hồ cát trên bàn đổ hết cát"},
+    ]
+    assert not [p for p in planner._richness_problems(planner.Storyboard.model_validate(data)) if p.startswith(f"FLOW_BEATS_THIN: {BASE['shots'][0]['shot_id']} ")]
+
+
+def test_low_content_layouts_stay_short_when_time_allows():
+    shots = [{"shot_kind": "FLOW_ORIGAMI", "duration_seconds": 10} for _ in range(8)] + [
+        {"shot_kind": "UI_SIM", "duration_seconds": 9, "ui_scene": {"layout": "OPEN_QUESTION"}},
+        {"shot_kind": "UI_SIM", "duration_seconds": 9, "ui_scene": {"layout": "END_CARD"}},
+        {"shot_kind": "UI_SIM", "duration_seconds": 6, "ui_scene": {"layout": "CHECKLIST"}},
+    ]
+    planner._fit_shot_durations(shots, 80 + 4 + 5 + 6)
+    assert [s["duration_seconds"] for s in shots[8:]] == [4, 5, 6]
+
+
+def test_layout_caps_are_relaxed_when_total_cannot_otherwise_be_reached():
+    shots = [{"shot_kind": "UI_SIM", "duration_seconds": 9, "ui_scene": {"layout": "OPEN_QUESTION"}}]
+    planner._fit_shot_durations(shots, 8)
+    assert shots[0]["duration_seconds"] == 8   # không báo lỗi tổng; kiểm tra độ giàu nội dung sẽ yêu cầu LLM làm lại
+
+
+def test_stretched_ui_shot_is_reported_with_suggested_shot_counts():
+    problems = planner._richness_problems(_storyboard_with(9, _process_rail(9), 9))
+    stretched = [p for p in problems if p.startswith("UI_SHOT_STRETCHED: s10")]
+    assert stretched and "khoảng" in stretched[0] and "shot Flow" in stretched[0]
+
+
+def test_suggested_shot_counts_follow_the_flow_budget():
+    flow, ui = planner._suggested_shot_counts(100)
+    assert flow * planner.FLOW_SHOT_SECONDS <= 0.7 * 100 and flow * 10 + ui * 6 >= 100
+    assert planner._suggested_shot_counts(20) == (1, 2)

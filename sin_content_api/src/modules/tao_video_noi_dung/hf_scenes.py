@@ -211,7 +211,7 @@ def checklist(cid, scene, lead, seconds, ev):
     stamp = f'<div class="stamp" id="{cid}-stamp">{esc(scene["stamp"])}</div>' if scene.get("stamp") else ""
     body = f'<div class="cl"><div class="clip-bar">DANH SÁCH</div>{rows}</div>{stamp}'
     css = r'''
-@@S@@ .cl{position:absolute;left:330px;top:190px;width:900px;height:640px;border-radius:24px;background:#fffdf7;border:4px solid #cdbf9c;box-shadow:12px 14px 0 rgba(205,191,156,.55)}
+@@S@@ .cl{color:#1b2a41;position:absolute;left:330px;top:190px;width:900px;height:640px;border-radius:24px;background:#fffdf7;border:4px solid #cdbf9c;box-shadow:12px 14px 0 rgba(205,191,156,.55)}
 @@S@@ .clip-bar{position:absolute;left:300px;top:-30px;width:300px;height:56px;border-radius:16px;background:#0f5f57;color:#fff;font-size:28px;font-weight:700;display:flex;align-items:center;justify-content:center}
 @@S@@ .cr{position:absolute;left:40px;width:820px;border-bottom:3px dotted #e1d9c0}
 @@S@@ .cb{position:absolute;left:10px;top:50%;margin-top:-30px;width:60px;height:60px;border-radius:12px;border:5px solid #b9ab86;background:#fffdf7}
@@ -250,7 +250,7 @@ def before_after(cid, scene, lead, seconds, ev):
                 f'<div class="bv" id="{cid}-{side}v">{esc(d["value"])}<i class="strike" id="{cid}-strike"></i></div></div>')
     body = card("before", b, "#8c7f5f") + card("after", a, "#178777") + f'<div class="pill" id="{cid}-pill">{esc(scene["diff_label"])}</div>'
     css = r'''
-@@S@@ .ba{position:absolute;top:180px;width:660px;height:520px;border-radius:20px;background:#fffdf7;border:4px solid #cdbf9c;box-shadow:12px 14px 0 rgba(205,191,156,.55);opacity:0;overflow:hidden}
+@@S@@ .ba{color:#1b2a41;position:absolute;top:180px;width:660px;height:520px;border-radius:20px;background:#fffdf7;border:4px solid #cdbf9c;box-shadow:12px 14px 0 rgba(205,191,156,.55);opacity:0;overflow:hidden}
 @@S@@ .before{left:70px;background:#f3eedf}@@S@@ .after{left:850px;border-color:#3fae9c}
 @@S@@ .bh{height:92px;color:#fff;font-size:44px;font-weight:800;display:flex;align-items:center;justify-content:center}
 @@S@@ .bl{margin-top:34px;font-size:30px;color:#5b7a82;text-align:center}
@@ -284,7 +284,7 @@ def hub_spoke(cid, scene, lead, seconds, ev):
             f'<div class="hub" id="{cid}-hub">{esc(scene.get("hub_label") or "Một nơi")}</div>')
     css = r'''
 @@S@@ .hsvg{position:absolute;inset:0;width:1576px;height:860px}
-@@S@@ .hn{position:absolute;width:340px;height:116px;border-radius:20px;background:#fffdf7;border:5px dashed #d9694a;box-shadow:12px 14px 0 rgba(205,191,156,.55);display:flex;align-items:center;justify-content:center;font-size:38px;font-weight:700;opacity:0;text-align:center}
+@@S@@ .hn{color:#1b2a41;position:absolute;width:340px;height:116px;border-radius:20px;background:#fffdf7;border:5px dashed #d9694a;box-shadow:12px 14px 0 rgba(205,191,156,.55);display:flex;align-items:center;justify-content:center;font-size:38px;font-weight:700;opacity:0;text-align:center}
 @@S@@ .hub{position:absolute;left:670px;top:240px;width:240px;height:240px;border-radius:50%;background:#178777;color:#fff;font-size:40px;font-weight:800;display:flex;align-items:center;justify-content:center;opacity:0;box-shadow:0 10px 0 rgba(11,42,63,.35);text-align:center}
 @@S@@ .hring{position:absolute;left:670px;top:240px;width:240px;height:240px;border-radius:50%;border:6px solid #178777;opacity:0}
 '''
@@ -317,7 +317,7 @@ def timeline(cid, scene, lead, seconds, ev):
 @@S@@ .tbar{position:absolute;left:100px;top:395px;width:1380px;height:30px;border-radius:15px;background:#e4dcc3}
 @@S@@ .tfill{position:absolute;left:100px;top:395px;width:1380px;height:30px;border-radius:15px;background:#178777;transform:scaleX(0);transform-origin:0 50%}
 @@S@@ .tm{position:absolute;top:380px;width:60px;height:60px;border-radius:50%;background:#fff;border:10px solid #0f5f57;opacity:0}
-@@S@@ .tc{position:absolute;width:300px;height:150px;border-radius:20px;background:#fffdf7;border:4px solid #cdbf9c;box-shadow:12px 14px 0 rgba(205,191,156,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0}
+@@S@@ .tc{color:#1b2a41;position:absolute;width:300px;height:150px;border-radius:20px;background:#fffdf7;border:4px solid #cdbf9c;box-shadow:12px 14px 0 rgba(205,191,156,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0}
 @@S@@ .tc b{font-size:32px;color:#d9694a;font-weight:800}@@S@@ .tc span{font-size:40px;font-weight:700;margin-top:8px}
 '''
     js = f'''
@@ -343,7 +343,7 @@ def open_question(cid, scene, lead, seconds, ev):
         words += f'<span class="qm"><span class="q{" hot" if hot else ""}">{esc(w)}</span></span> '
     body = f'<div class="qc"><div class="qt">{words}</div><svg class="qs" viewBox="0 0 900 60"><path id="{cid}-sq" d="M10 34 C90 6 150 58 240 30 S400 8 480 34 S640 56 700 28 S840 14 890 32" fill="none" stroke="#d9694a" stroke-width="10" stroke-linecap="round"/></svg></div>'
     css = r'''
-@@S@@ .qc{position:absolute;left:260px;top:230px;width:1060px;height:400px;border-radius:26px;background:#fffdf7;border:4px solid #cdbf9c;box-shadow:14px 16px 0 rgba(205,191,156,.5);display:flex;align-items:center;justify-content:center}
+@@S@@ .qc{color:#1b2a41;position:absolute;left:260px;top:230px;width:1060px;height:400px;border-radius:26px;background:#fffdf7;border:4px solid #cdbf9c;box-shadow:14px 16px 0 rgba(205,191,156,.5);display:flex;align-items:center;justify-content:center}
 @@S@@ .qt{width:900px;text-align:center;font-size:84px;font-weight:800;line-height:1.18}
 @@S@@ .qm{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:12px}@@S@@ .qm>span{display:inline-block}
 @@S@@ .hot{color:#d9694a}
@@ -365,7 +365,7 @@ def end_card(cid, scene, lead, seconds, ev):
             f'<div class="bars"><i style="background:#ED1B24"></i><i style="background:#FABC11"></i><i style="background:#0562AF"></i></div>'
             f'<div class="cta" id="{cid}-cta">{esc(scene["cta"])}</div>')
     css = r'''
-@@S@@ .ec{position:absolute;left:338px;top:110px;width:900px;height:580px;border-radius:18px;background:#fff;border:3px solid #cdbf9c;box-shadow:14px 16px 0 rgba(205,191,156,.55);overflow:hidden}
+@@S@@ .ec{color:#1b2a41;position:absolute;left:338px;top:110px;width:900px;height:580px;border-radius:18px;background:#fff;border:3px solid #cdbf9c;box-shadow:14px 16px 0 rgba(205,191,156,.55);overflow:hidden}
 @@S@@ .ec img{position:absolute;left:158px;top:36px;width:580px;height:420px}
 @@S@@ .et{position:absolute;left:0;right:0;bottom:30px;text-align:center;font-family:"BrandSans","Viet",sans-serif;font-size:36px;color:#163344}
 @@S@@ .crease{position:absolute;left:0;right:0;top:50%;border-top:3px dashed #b9ab86;opacity:0}
