@@ -30,6 +30,12 @@ jobs:
       APP_ENV: test
       TESTING: '1'
     steps:
+      - name: Giải phóng dung lượng runner cho nguồn video lớn
+        run: |
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          df -h "$RUNNER_TEMP"
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h "$RUNNER_TEMP"
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
