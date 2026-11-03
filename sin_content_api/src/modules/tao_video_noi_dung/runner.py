@@ -495,7 +495,8 @@ def _prepare_run_tts(db, run: ContentVideoRun, shots: list, config: dict, token:
     for index, shot in enumerate(shots):
         fingerprint = hashlib.sha256(json.dumps([config, to_spoken(shot.narration), reference_hash],
             sort_keys=True, ensure_ascii=False).encode()).hexdigest()
-        key = hashlib.sha256(f"{run.id}:{index}:{fingerprint}".encode()).hexdigest()
+        # Tên tệp ngắn (32 ký tự băm): đường dẫn đầy đủ phải dưới 260 ký tự của Windows (thư mục dự án nằm sâu).
+        key = hashlib.sha256(f"{run.id}:{index}:{fingerprint}".encode()).hexdigest()[:32]
         directory = f"workspaces/{run.workspace_id}/media/.tts/"
         storage_key = f"{directory}{key}_{token[:8]}.npz"
         checkpoint = steps[index].get("tts_audio", {})
@@ -521,7 +522,7 @@ def _prepare_run_tts(db, run: ContentVideoRun, shots: list, config: dict, token:
             if not audio.size or source_rate <= 0 or not np.isfinite(audio).all():
                 raise TTSProviderError("TTS_AUDIO_INVALID")
             path.parent.mkdir(parents=True, exist_ok=True)
-            temporary = path.with_suffix(f".{token}.tmp")
+            temporary = path.with_suffix(f".{token[:8]}.tmp")
             try:
                 with temporary.open("wb") as stream:
                     np.savez(stream, audio=audio, sample_rate=int(source_rate))
