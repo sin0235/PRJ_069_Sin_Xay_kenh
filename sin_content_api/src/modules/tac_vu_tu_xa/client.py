@@ -195,6 +195,10 @@ def offload(operation, stage, output=None):
                 values['asset_paths'] = {asset: resolver(asset) for asset in sorted(ids)}
             if operation == 'tts' and values.get('reference_path'):
                 values['reference_path'] = Path(values['reference_path'])
+            if operation == 'render_project':
+                for item in values.get('shot_media') or []:
+                    if item and item.get('path'):
+                        item['path'] = Path(item['path'])
             if operation == 'brand_end':
                 values['video_path'] = Path(output_path)
             if operation == 'tts':

@@ -1,0 +1,24 @@
+name: Kiểm tra chuyển môi trường local
+on:
+  push:
+    branches: [dev/local-remote-video-tests]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  kiem_tra:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: sin_content_api:.
+      CONTENT_VIDEO_WORKER_ENABLED: '0'
+      TESTING: '1'
+      APP_ENV: test
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r sin_content_api/requirements.txt python-multipart soundfile numpy
+      - name: Kiểm tra transfer, fencing, upload và worker
+        run: python -m pytest sin_content_api/tests/test_tac_vu_tu_xa.py sin_content_api/tests/test_media_studio_upload_stream.py sin_content_api/tests/test_worker_dien_hoa_hyperframes.py -q
