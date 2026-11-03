@@ -966,7 +966,7 @@ def _soft_problems(storyboard: Storyboard, aspect_ratio: str | None = None, diag
                         for shot in storyboard.shots if not (shot.shot_kind == "UI_SIM" and shot.ui_scene and shot.ui_scene.layout in DIAGRAM_LAYOUTS))
     ui_layouts = [shot.ui_scene.layout for shot in storyboard.shots if shot.shot_kind == "UI_SIM" and shot.ui_scene]
     if len(ui_layouts) >= 5 and sum(layout in BLOCK_LAYOUTS for layout in ui_layouts) < 3:
-        problems.append(f"DIAGRAM_BLOCK_LAYOUT_MISSING: video có {len(ui_layouts)} shot UI_SIM nhưng chỉ {sum(layout in BLOCK_LAYOUTS for layout in ui_layouts)} shot dùng loại chuyển động dựng sẵn; "
+        problems.insert(0, f"DIAGRAM_BLOCK_LAYOUT_MISSING: video có {len(ui_layouts)} shot UI_SIM nhưng chỉ {sum(layout in BLOCK_LAYOUTS for layout in ui_layouts)} shot dùng loại chuyển động dựng sẵn; "
                         f"đổi ít nhất 3 shot sang {', '.join(BLOCK_LAYOUTS)} (nỗi đau: PILE_UP/WORD_SWAP, chuyển ý: KINETIC_TITLE, insight: MARK_PHRASE, kết quả: STAT_RING/CHART_STORY)")
     if storyboard.brief and storyboard.brief.needs_ui_demo and not any(shot.shot_kind == "UI_SIM" for shot in storyboard.shots):
         problems.append("UI_DEMO_REQUIRED")
