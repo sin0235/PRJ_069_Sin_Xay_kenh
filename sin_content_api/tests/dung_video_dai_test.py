@@ -555,7 +555,7 @@ def test_llm_duoc_nhac_lai_khi_bo_qua_asset_hyperframes_dung_target():
     assert any("checklist-alpha" in item and "bỏ qua" in item for item in retry_request["yeu_cau"])
 
 
-def test_checklist_alpha_dung_overlay_nho_neu_llm_van_bo_qua():
+def test_checklist_alpha_khong_ep_overlay_neu_llm_tu_choi_bo_cuc():
     clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=5000, title="Checklist", reason="Các bước")
     words = [tu(1, "ghi giá bán", 0, 900), tu(2, "tiền thực nhận", 1000, 1800)]
     client = LLMGia([{"actions": []}, {"actions": []}])
@@ -566,8 +566,7 @@ def test_checklist_alpha_dung_overlay_nho_neu_llm_van_bo_qua():
         "target_clip_id": "part1_01", "target_start_word_id": "w1", "target_end_word_id": "w2",
     }], client)
 
-    assert len(actions) == 1
-    assert actions[0]["mode"] == "OVERLAY" and actions[0]["layout_size"] == "small"
+    assert actions == []
     assert clip.needs_review is True
 
 
@@ -595,7 +594,7 @@ def test_checklist_alpha_overlay_khong_tu_thu_nho_large():
     }]
 
 
-def test_asset_target_duoc_dat_dung_clip_neu_llm_gan_nham_clip_khac():
+def test_asset_target_sai_clip_bi_bo_va_danh_dau_ra_soat():
     clips = [
         ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=5000, title="Kết quả", reason="Clip một"),
         ClipTuDong(clip_id="part1_02", start_ms=5000, end_ms=10000, title="Checklist", reason="Clip hai"),
@@ -614,8 +613,8 @@ def test_asset_target_duoc_dat_dung_clip_neu_llm_gan_nham_clip_khac():
         "target_clip_id": "part1_02", "target_start_word_id": "w2", "target_end_word_id": "w3",
     }], client)
 
-    assert any(action["clip_id"] == "part1_02" and action["asset_id"] == "checklist-alpha"
-               and action["mode"] == "OVERLAY" for action in actions)
+    assert actions == []
+    assert all(clip.needs_review for clip in clips)
 
 
 def test_llm_co_the_chon_speaker_pip_voi_asset_giay_nen_duc():

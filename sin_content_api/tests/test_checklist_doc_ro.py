@@ -53,3 +53,14 @@ def test_llm_nhan_duoc_kieu_the_alpha_va_co_chu_thuc():
         'renderer':'HYPERFRAMES','visual_kind':'diagram','overlay_presentation':presentation,
     }],Client())
     assert actions[0]['mode'] == 'OVERLAY' and actions[0]['layout_size'] == 'large'
+def test_timeline_auto_edit_dung_karaoke_lon_cua_he_thong():
+    from src.modules.dieu_phoi_dung.dung_video_dai import ClipTuDong, _tao_timeline
+    from src.schemas.contracts import KaraokeCaptionSettings
+
+    clip = ClipTuDong(clip_id="karaoke", start_ms=0, end_ms=10000, title="Nội dung", reason="Đủ ý")
+    timeline = _tao_timeline("nguon", clip, [{"id":"w1","text":"Nội dung","start_ms":0,"end_ms":1000}])
+    settings = KaraokeCaptionSettings.model_validate(timeline["karaoke_settings"])
+    assert settings.font_size == 70 and settings.layout == "two_line"
+    assert settings.word_pop and settings.outline and settings.shadow
+    assert settings.accent_color == "champagne"
+

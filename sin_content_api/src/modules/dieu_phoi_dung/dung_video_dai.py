@@ -685,15 +685,6 @@ def chon_dien_hoa(clips: list[ClipTuDong], words: list[dict], candidates: list[d
                 if clip:
                     clip.needs_review = True
                     clip.selection_reason += " LLM bỏ qua diễn họa đã tạo riêng cho clip; cần rà soát."
-                if (clip and asset.get("renderer") == "HYPERFRAMES" and asset.get("has_alpha")
-                        and asset.get("target_start_word_id") in word_by_id
-                        and asset.get("target_end_word_id") in word_by_id):
-                    planned.append(HanhDongDienHoa(
-                        clip_id=clip.clip_id, asset_id=asset["asset_id"], mode="OVERLAY",
-                        layout_position="upper_right", layout_size="small",
-                        start_word_id=asset["target_start_word_id"], end_word_id=asset["target_end_word_id"],
-                        reason="Lớp HyperFrames alpha bổ trợ lời nói; bố trí nhỏ để giữ người nói.",
-                    ))
         actions.extend(planned)
     clip_by_id = {clip.clip_id: clip for clip in clips}
     asset_by_id = {asset["asset_id"]: asset for asset in candidates}
@@ -1487,6 +1478,10 @@ def _tao_timeline(
         "clips": timeline_clips,
         "overlays": overlays,
         "captions": _caption_track(clip, words, cuts),
+        "karaoke_settings": {
+            "font_size": 70, "layout": "two_line", "accent_color": "champagne",
+            "outline": True, "shadow": True, "word_pop": True,
+        },
     }
 
 
