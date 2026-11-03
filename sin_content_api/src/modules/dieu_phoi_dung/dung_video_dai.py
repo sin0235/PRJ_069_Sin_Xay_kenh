@@ -949,7 +949,9 @@ def tao_y_tuong_dien_hoa_flow(
                 elif not valid_visuals or len(valid_visuals) == len(raw_visuals) and len(raw_visuals) <= 3:
                     raise schema_error
                 if partial_plan and attempt < 2:
-                    fallback_visuals = valid_visuals
+                    for clip in chosen:
+                        clip.needs_review = True
+                        clip.selection_reason += " LLM trả diễn họa sai schema; cần rà soát."
                     raise schema_error
                 plan = KeHoachDienHoaFlow(visuals=valid_visuals)
                 for clip in chosen:

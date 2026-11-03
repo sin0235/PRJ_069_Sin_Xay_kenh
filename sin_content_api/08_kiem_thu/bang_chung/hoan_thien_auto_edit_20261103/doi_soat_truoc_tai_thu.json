@@ -1,0 +1,9 @@
+{
+  "job_id": "d9104d44-9d77-445e-90b5-b58cc0e202db",
+  "source_asset_id": "f85636f3-f8a0-489b-8ea2-9070d59b13dd",
+  "child_jobs": 0,
+  "original_source": true,
+  "error": "REMOTE_UNWRAPPED_MEDIA_COMMAND",
+  "remote_tasks_active": 0,
+  "safe_to_start_new_attempt": true
+}

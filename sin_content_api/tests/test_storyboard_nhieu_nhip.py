@@ -130,3 +130,17 @@ def test_giu_tron_kich_ban_hai_phut_khi_llm_chon_cung_mot_noi_dung():
     plan = tao_ke_hoach_dung_video(words,Client(),125000)
     assert len(plan.clips) == 1
     assert (plan.clips[0].start_ms,plan.clips[0].end_ms) == (0,125000)
+
+
+def test_khong_khoi_phuc_canh_chua_kiem_moc_sau_loi_schema():
+    clip=ClipTuDong(clip_id='sua',start_ms=0,end_ms=20000,title='Nội dung',reason='Đủ ý')
+    words=[{'id':'w1','text':'nội dung','start_ms':1000,'end_ms':5000}]
+    valid={'clip_id':'sua','renderer':'FLOW','start_word_id':'w1','end_word_id':'w1',
+           'scene':'Vật thể giấy minh họa','action':'Giấy mở ra giải thích ý đang nói'}
+    class Client:
+        max_output_tokens=4000
+        replies=iter([{'visuals':[valid,{'renderer':'SAI'}]},{'visuals':[]}])
+        def complete(self,*args,**kwargs):
+            return SimpleNamespace(content=json.dumps(next(self.replies),ensure_ascii=False))
+    assert tao_y_tuong_dien_hoa_flow([clip],words,[],Client())==[]
+    assert clip.needs_review

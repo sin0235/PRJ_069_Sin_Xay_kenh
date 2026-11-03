@@ -1,0 +1,28 @@
+{
+  "job_id": "6323d72c-4491-4ed7-9338-fe30973a9ae8",
+  "state": "FAILED",
+  "source_asset_id": "f85636f3-f8a0-489b-8ea2-9070d59b13dd",
+  "previous_job_id": "d9104d44-9d77-445e-90b5-b58cc0e202db",
+  "runner_run_id": "41607286714",
+  "runner_head": "00fc831",
+  "tasks": [
+    {
+      "id": "166555eb-345f-4843-9cf6-3e947a024fa0",
+      "stage": "EXTRACT_AUDIO",
+      "state": "SUCCEEDED",
+      "operation": "extract_audio"
+    },
+    {
+      "id": "647705b1-0894-4fbf-8d4a-282329afe993",
+      "stage": "EXTRACT_AUDIO",
+      "state": "SUCCEEDED",
+      "operation": "extract_audio"
+    },
+    {
+      "id": "bb329468-5573-4d84-a4df-1a0d5240894c",
+      "stage": "QC",
+      "state": "SUCCEEDED",
+      "operation": "analyze_source_audio"
+    }
+  ]
+}
