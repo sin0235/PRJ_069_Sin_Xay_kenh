@@ -719,19 +719,30 @@ function sceneGauge(t, p) {
 
 /* CHECKLIST: tờ danh sách việc, mỗi mục được đánh dấu đúng lúc được nói, dấu son khi xong (K_STAMP, WW_STAMP) */
 function sceneChecklist(t, p) {
-  var a = p.t, n = p.steps.length, rowH = Math.min(PORTRAIT ? 136 : 124, (PORTRAIT ? 740 : 560) / n), out = "";
+  var a = p.t, n = p.steps.length, readableOverlay = PORTRAIT && TRANSPARENT_BG;
+  var rowH = readableOverlay ? 176 : Math.min(PORTRAIT ? 136 : 124, (PORTRAIT ? 740 : 560) / n), out = "";
   var x0 = PORTRAIT ? 112 : 540, cardY = PORTRAIT ? 418 : 220, cardW = PORTRAIT ? 856 : 840;
   var rowTop = PORTRAIT ? 510 : 290, rowW = PORTRAIT ? 808 : 780;
   var badgeW = PORTRAIT ? 380 : 300, badgeH = PORTRAIT ? 72 : 68, badgeX = (W - badgeW) / 2, badgeY = cardY - 28;
   var kh = eo(seg(t, .12, .52));
   out += paperCard(x0, cardY, cardW, 160 + n * rowH, "#fffdf7", "#cdbf9c") + '<g opacity="' + kh + '" transform="translate(0 ' + ((1 - kh) * -18) + ') scale(' + (.96 + .04 * kh) + ')">' + paperBadge(badgeX, badgeY, badgeW, badgeH, "DANH SÁCH", COL.tealD, 30) + '</g>';
   for (var i = 0; i < n; i++) {
-    var y = rowTop + i * rowH, k = eo(seg(t, a["c" + i], a["c" + i] + .4)), fs = fit(p.steps[i], rowW - 220, PORTRAIT ? 46 : 44, 700), w = tw(p.steps[i], fs, 700), rowY = y + 4, rowHpx = rowH - 18, rowX = x0 + 24;
+    var y = rowTop + i * rowH, k = eo(seg(t, a["c" + i], a["c" + i] + .4)), fs = readableOverlay ? 64 : fit(p.steps[i], rowW - 220, PORTRAIT ? 46 : 44, 700), w = tw(p.steps[i], fs, 700), rowY = y + 4, rowHpx = rowH - 18, rowX = x0 + 24;
+    var textLines = [''];
+    p.steps[i].split(/\s+/).forEach(function (word) {
+      var last = textLines.length - 1, next = textLines[last] ? textLines[last] + ' ' + word : word;
+      if (readableOverlay && tw(next, fs, 700) > rowW - 220 && textLines[last]) textLines.push(word);
+      else textLines[last] = next;
+    });
+    w = Math.min(rowW - 220, w);
+    var textMarkup = textLines.map(function (line, lineIndex) {
+      return '<text x="' + (x0 + 142) + '" y="' + (y + rowH / 2 + 12 + (lineIndex - (textLines.length - 1) / 2) * 70) + '" font-size="' + fs + '" font-weight="700" fill="#163344">' + esc(line) + '</text>';
+    }).join('');
     out += '<g opacity="' + k + '" transform="translate(0 ' + ((1 - k) * 18) + ') scale(' + (.985 + .015 * k) + ')"><rect x="' + (rowX + 6) + '" y="' + (rowY + 5) + '" width="' + rowW + '" height="' + rowHpx + '" rx="16" fill="#cdbf9c" opacity=".28"/><rect x="' + rowX + '" y="' + rowY + '" width="' + rowW + '" height="' + rowHpx + '" rx="16" fill="' + (k > 0 ? "#edf6f0" : "#fffdf7") + '" stroke="' + (k > 0 ? COL.tealL : "#e1d9c0") + '" stroke-width="3"/>' +
       '<path d="M' + (rowX + rowW - 24) + ' ' + rowY + ' h24 v24z" fill="' + (k > 0 ? COL.tealL : "#e8dfc7") + '" opacity=".4"/>' +
       '<rect x="' + (x0 + 50) + '" y="' + (y + rowH / 2 - 30) + '" width="60" height="60" rx="14" fill="' + (k > 0 ? "#dff1ec" : "#fffdf7") + '" stroke="' + (k > 0 ? COL.teal : "#b9ab86") + '" stroke-width="4"/>' +
       '<rect x="' + (x0 + 142) + '" y="' + (y + rowH / 2 + 20) + '" width="' + (w * k) + '" height="8" rx="4" fill="' + COL.gold + '" opacity=".95"/>' +
-      '<text x="' + (x0 + 142) + '" y="' + (y + rowH / 2 + 12) + '" font-size="' + fs + '" font-weight="700" fill="#163344">' + esc(p.steps[i]) + '</text>';
+      textMarkup;
     if (k > 0) out += '<path d="M' + (x0 + 64) + ' ' + (y + rowH / 2) + ' L' + (x0 + 82) + ' ' + (y + rowH / 2 + 20) + ' L' + (x0 + 100) + ' ' + (y + rowH / 2 - 22) + '" fill="none" stroke="' + COL.teal + '" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="90" stroke-dashoffset="' + (90 * (1 - k)) + '"/>';
     out += '</g>';
   }
