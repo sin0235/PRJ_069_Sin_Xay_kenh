@@ -62,9 +62,14 @@ export function TuDongDungVideoDai({ projectId, assets, onAssetsChanged, initial
   useEffect(() => {
     return () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
+  useEffect(() => {
+    return () => {
       if (previewCaptionUrl) URL.revokeObjectURL(previewCaptionUrl);
     };
-  }, [previewCaptionUrl, previewUrl]);
+  }, [previewCaptionUrl]);
 
   useEffect(() => {
     const asset = visibleOutputs.find((item) => item.mime_detected === "application/json");
