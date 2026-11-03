@@ -618,7 +618,8 @@ def chon_dien_hoa(clips: list[ClipTuDong], words: list[dict], candidates: list[d
                 "CUTAWAY thay hình người nói trong một đoạn ngắn, tiếng vẫn lấy nguyên từ người nói.",
                 "Khi cần minh họa song song với người nói, dùng OVERLAY; asset alpha sẽ hòa trong suốt, asset đục hiện thành khung chữ nhật chỉ khi nền có chủ ý. Chọn layout_position upper_left, upper_right, center_left hoặc center_right và layout_size small, medium hoặc large; tránh che mặt, tiêu đề và phụ đề.",
                 "Diễn họa HyperFrames có nền trong suốt; khi chi tiết phụ trợ, ưu tiên OVERLAY để giữ hình người nói bên dưới. Nền giấy và từng thẻ bên trong vẫn đục để chữ rõ. Chỉ tăng kích thước đủ đọc.",
-                "Checklist/tag/chi tiết phụ: ưu tiên HYPERFRAMES alpha OVERLAY small/medium để giữ người nói; CUTAWAY khi cần toàn khung. Dùng asset đúng target, khớp lời.",
+                "Tag một ý ngắn có thể dùng HYPERFRAMES alpha OVERLAY small/medium để giữ người nói. Checklist nhiều mục phải đủ lớn để đọc ở màn hình 360x640; nếu phải thu chữ quá nhỏ hoặc che mặt, dùng CUTAWAY hoặc bố cục khác phù hợp. Dùng asset đúng target, khớp lời.",
+                "Kiểm tra tỷ lệ chữ sau khi thu canvas: chữ 46 px trong asset rộng 1080 khi chèn rộng 270 chỉ còn 11,5 px trên output, không đọc rõ. Chữ nội dung phải còn ít nhất 22 px trên output 1080; không chọn small chỉ vì cảnh là checklist. Nếu không thể vừa khung và đọc rõ, đánh dấu cần rà soát thay vì nhận bố cục đó đã đạt.",
                 "Với visual_kind=diagram, chọn CUTAWAY khi sơ đồ là bằng chứng chính và asset có nền đục; chọn OVERLAY khi sơ đồ là panel bổ trợ và người nói cần giữ toàn khung; chọn SPEAKER_PIP khi asset đục và cả sơ đồ lẫn người nói cần xuất hiện. Dựa vào aspect_ratio để giữ đúng tỉ lệ, tránh crop và tự chọn vị trí/kích thước small, medium hoặc large theo nội dung, không ép mặc định một cỡ.",
                 "Với asset 9:16 có chữ hoặc số liệu và nền alpha, chọn OVERLAY large khi đủ chỗ đọc mà không che mặt/phụ đề; nếu không vừa, đánh dấu cần rà soát, không chuyển sơ đồ alpha thành PIP.",
                 "Khi asset có nền đục và cần giữ biểu cảm người nói, chọn SPEAKER_PIP. Chọn layout_position và layout_size để đặt người nói gọn trên nền giấy, không che phụ đề.",
@@ -748,7 +749,6 @@ def chon_dien_hoa(clips: list[ClipTuDong], words: list[dict], candidates: list[d
         layout_position, layout_size = action.layout_position, action.layout_size
         if action.mode == "OVERLAY" and asset.get("has_alpha") and asset.get("visual_kind") == "diagram":
             layout_position = "upper_left"
-            layout_size = "medium" if layout_size == "large" else layout_size
         validated.append({**action.model_dump(), "start_word_id": start_word_id, "end_word_id": end_word_id,
                           "layout_position": layout_position, "layout_size": layout_size,
                           "start_ms": start_ms, "end_ms": end_ms, "asset_duration_ms": asset_duration_ms,

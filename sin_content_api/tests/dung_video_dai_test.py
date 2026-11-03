@@ -509,13 +509,14 @@ def test_llm_duoc_huong_dan_dung_overlay_co_hoac_khong_co_alpha():
     assert opaque_actions[0]["mode"] == "OVERLAY"
 
 
-def test_llm_uu_tien_checklist_alpha_nho_de_phu_len_video_nguoi_noi():
+@pytest.mark.parametrize(("layout_size", "expected_size"), [("small", (270, 480)), ("large", (405, 720))])
+def test_llm_uu_tien_checklist_alpha_nho_de_phu_len_video_nguoi_noi(layout_size, expected_size):
     clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=5000, title="Checklist", reason="CÃ³ cÃ¡c bÆ°á»›c")
     words = [tu(1, "bÆ°á»›c má»™t", 0, 900), tu(2, "bÆ°á»›c hai", 1000, 1800)]
     client = LLMGia([{"actions": [{
         "clip_id": "part1_01", "asset_id": "checklist-alpha", "mode": "OVERLAY",
         "start_word_id": "w1", "end_word_id": "w2", "reason": "Checklist lÃ  minh há»a phá»¥",
-        "layout_position": "upper_right", "layout_size": "small",
+        "layout_position": "upper_right", "layout_size": layout_size,
     }]}])
 
     actions = chon_dien_hoa([clip], words, [{
@@ -529,7 +530,7 @@ def test_llm_uu_tien_checklist_alpha_nho_de_phu_len_video_nguoi_noi():
 
     assert actions[0]["mode"] == "OVERLAY"
     assert timeline["overlays"][0]["asset_id"] == "checklist-alpha"
-    assert (timeline["overlays"][0]["width"], timeline["overlays"][0]["height"]) == (270, 480)
+    assert (timeline["overlays"][0]["width"], timeline["overlays"][0]["height"]) == expected_size
     assert any("checklist" in item.casefold() and "tag" in item.casefold()
                and "OVERLAY" in item and "small" in item for item in requirements)
 
@@ -570,7 +571,7 @@ def test_checklist_alpha_dung_overlay_nho_neu_llm_van_bo_qua():
     assert clip.needs_review is True
 
 
-def test_checklist_alpha_overlay_khong_che_mat_khi_llm_chon_large_ben_phai():
+def test_checklist_alpha_overlay_khong_tu_thu_nho_large():
     clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=5000, title="Checklist", reason="Các bước")
     words = [tu(1, "ghi giá bán", 500, 1200), tu(2, "trừ chi phí", 1400, 2200)]
     client = LLMGia([{"actions": [{
@@ -587,10 +588,10 @@ def test_checklist_alpha_overlay_khong_che_mat_khi_llm_chon_large_ben_phai():
     }], client)
 
     assert actions[0]["mode"] == "OVERLAY"
-    assert (actions[0]["layout_position"], actions[0]["layout_size"]) == ("upper_left", "medium")
+    assert (actions[0]["layout_position"], actions[0]["layout_size"]) == ("upper_left", "large")
     assert _tao_timeline("speaker", clip, words, visual_actions=actions)["overlays"] == [{
         "asset_id": "checklist-alpha", "start_ms": 500, "duration_ms": 1700,
-        "x": 120, "y": 280, "width": 360, "height": 640,
+        "x": 120, "y": 280, "width": 405, "height": 720,
     }]
 
 
