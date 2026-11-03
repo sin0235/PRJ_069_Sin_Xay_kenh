@@ -7,8 +7,11 @@
 /*FONT_FACE*/
 * { box-sizing: border-box; }
 html, body { margin: 0; background: transparent; font-family: Viet, sans-serif; }
-#stage { width: 1920px; height: 1080px; position: relative; overflow: hidden; transform-origin: 0 0; }
+#stage { width: 1920px; height: 1080px; position: relative; overflow: hidden; transform-origin: 0 0; perspective: 1900px; perspective-origin: 50% 50%; }
+#rig { position: absolute; inset: 0; transform-style: preserve-3d; transform-origin: 50% 50%; will-change: transform; }
 svg { position: absolute; inset: 0; }
+#rig > svg { transform-style: preserve-3d; backface-visibility: hidden; }
+#caption { z-index: 5; pointer-events: none; overflow: visible; }
 text { font-family: Viet, sans-serif; }
 #bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 16px; background: #0B0F17; color: #F2EEE6; display: flex; gap: 12px; align-items: center; font: 600 15px Viet, sans-serif; z-index: 5; }
 #bar select, #bar button { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid #D9B26A; background: #0562AF; color: #F2EEE6; }
@@ -17,8 +20,9 @@ body.sach #bar { display: none; }
 </style>
 </head>
 <body>
-<div id="stage"><svg id="sv" viewBox="0 0 1920 1080" width="1920" height="1080"></svg></div>
+<div id="stage"><div id="rig" data-layout-allow-overflow><svg id="back" class="plane back" viewBox="0 0 1920 1080" width="1920" height="1080"></svg><svg id="sv" class="plane middle" viewBox="0 0 1920 1080" width="1920" height="1080"></svg><svg id="front" class="plane front" viewBox="0 0 1920 1080" width="1920" height="1080"></svg></div><svg id="caption" viewBox="0 0 1920 1080" width="1920" height="1080"><g id="cap"></g></svg></div>
 <div id="bar"><select id="ps"></select><button id="pl">Phát</button><input id="sl" type="range" min="0" max="1000" value="0"><span id="tt">0,00s</span></div>
+<script>/*CAMERA_MOTION*/</script>
 <script>/*SCENE_JSON*/</script>
 <script>
 /* Cảnh giấy xác định: mọi hình là hàm thuần của t (giây) và dữ liệu cảnh (window.SCENE); tua tới t bất kỳ để chụp khung.
@@ -49,31 +53,30 @@ function niceScale(maxv) {
   return { step: st, max: st * Math.ceil(maxv / st - 1e-9) };
 }
 
-var svg = document.getElementById("sv"), P = null, cur = null;
+var svg = document.getElementById("sv"), backSvg = document.getElementById("back"), frontSvg = document.getElementById("front"), rig = document.getElementById("rig"), stage = document.getElementById("stage"), P = null, cur = null;
 
 /* ---------- khung chung: nền, tờ giấy, tiêu đề, lưới ---------- */
 function build() {
-  var h = '<defs><linearGradient id="ambient" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#14243A"/><stop offset=".55" stop-color="#0B0F17"/><stop offset="1" stop-color="#070A10"/></linearGradient>' +
-    '<linearGradient id="panelGlass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1B2940" stop-opacity=".98"/><stop offset=".55" stop-color="#121B2B" stop-opacity=".96"/><stop offset="1" stop-color="#101827" stop-opacity=".99"/></linearGradient>' +
+  var back = '<defs><linearGradient id="backPanel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1B2940" stop-opacity=".98"/><stop offset=".55" stop-color="#121B2B" stop-opacity=".96"/><stop offset="1" stop-color="#101827" stop-opacity=".99"/></linearGradient>' +
+    '<linearGradient id="backRim" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#D9B26A" stop-opacity=".12"/><stop offset=".5" stop-color="#D9B26A" stop-opacity=".75"/><stop offset="1" stop-color="#F6E2B0" stop-opacity=".38"/></linearGradient>' +
+    '<filter id="backShadow" x="-45%" y="-35%" width="190%" height="170%"><feDropShadow dx="0" dy="20" stdDeviation="18" flood-color="#000000" flood-opacity=".52"/></filter></defs>';
+  var backShapes = !TRANSPARENT_BG ? '<rect x="-420" y="-420" width="' + (W + 840) + '" height="' + (H + 840) + '" fill="#0B0F17"/>' +
+    (PORTRAIT ? '<rect x="62" y="170" width="936" height="1536" rx="30" fill="url(#backPanel)" stroke="#D9B26A" stroke-opacity=".65" stroke-width="3" filter="url(#backShadow)"/><path d="M94 172 H966" stroke="url(#backRim)" stroke-width="4" opacity=".9"/><path d="M64 220 V1660" stroke="#D9B26A" stroke-opacity=".12" stroke-width="2"/>' :
+      '<rect x="170" y="70" width="1576" height="860" rx="26" fill="url(#backPanel)" stroke="#D9B26A" stroke-opacity=".65" stroke-width="3" filter="url(#backShadow)"/><path d="M198 72 H1718" stroke="url(#backRim)" stroke-width="4" opacity=".9"/><path d="M172 120 V880" stroke="#D9B26A" stroke-opacity=".12" stroke-width="2"/>') : "";
+  backSvg.innerHTML = back + '<g id="backContent">' + backShapes + '</g>';
+  var h = '<defs><linearGradient id="panelGlass" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#1B2940" stop-opacity=".98"/><stop offset=".55" stop-color="#121B2B" stop-opacity=".96"/><stop offset="1" stop-color="#101827" stop-opacity=".99"/></linearGradient>' +
     '<linearGradient id="panelRim" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#D9B26A" stop-opacity=".12"/><stop offset=".5" stop-color="#D9B26A" stop-opacity=".75"/><stop offset="1" stop-color="#F6E2B0" stop-opacity=".38"/></linearGradient>' +
     '<filter id="sh" x="-15%" y="-15%" width="130%" height="140%"><feDropShadow dx="0" dy="20" stdDeviation="18" flood-color="#000000" flood-opacity=".52"/></filter></defs>';
-  if (!TRANSPARENT_BG) h += '<rect width="' + W + '" height="' + H + '" fill="url(#ambient)"/><circle cx="' + (W * .78) + '" cy="' + (H * .2) + '" r="' + (PORTRAIT ? 420 : 540) + '" fill="#0562AF" opacity=".08"/>';
+  stage.style.background = TRANSPARENT_BG ? "transparent" : "radial-gradient(ellipse at 78% 20%,rgba(5,98,175,.12),transparent 34%),linear-gradient(135deg,#14243A,#0B0F17 62%,#070A10)";
   if (PORTRAIT) {
-    h += '<g id="cam"><g id="sheetG">';
-    if (!TRANSPARENT_BG) h += '<rect x="62" y="170" width="936" height="1536" rx="30" fill="url(#panelGlass)" stroke="#D9B26A" stroke-opacity=".65" stroke-width="3" filter="url(#sh)"/>' +
-         '<path d="M94 172 H966" stroke="url(#panelRim)" stroke-width="4" opacity=".9"/><path d="M64 220 V1660" stroke="#D9B26A" stroke-opacity=".12" stroke-width="2"/>';
-    h += '</g>';
+    h += '<g id="cam"><g id="sheetG"></g>';
   } else {
-    h += '<g id="cam"><g id="sheetG">';
-    if (!TRANSPARENT_BG) h += '<rect x="170" y="70" width="1576" height="860" rx="26" fill="url(#panelGlass)" stroke="#D9B26A" stroke-opacity=".65" stroke-width="3" filter="url(#sh)"/>' +
-         '<path d="M198 72 H1718" stroke="url(#panelRim)" stroke-width="4" opacity=".9"/><path d="M172 120 V880" stroke="#D9B26A" stroke-opacity=".12" stroke-width="2"/>';
-    h += '</g>';
+    h += '<g id="cam"><g id="sheetG"></g>';
   }
   h += '<g id="content">';
   var fs = fit(P.title, PORTRAIT ? 820 : 1080, PORTRAIT ? 46 : 44);
   if (P.kind !== 'END_CARD' && P.kind !== 'OPEN_QUESTION') h += '<text x="' + (PORTRAIT ? 132 : 250) + '" y="' + (PORTRAIT ? 300 : 152) + '" font-size="' + fs + '" font-weight="700" fill="' + COL.ink + '">' + esc(P.title) + '</text>';
   if (P.unit) h += '<text x="' + (PORTRAIT ? 132 : 250) + '" y="' + (PORTRAIT ? 345 : 190) + '" font-size="24" fill="#AAB7C8">Đơn vị: ' + esc(P.unit) + '</text>';
-  if (P.simulated !== false) h += '<g><rect x="1396" y="120" width="250" height="44" rx="10" fill="#1B2940" stroke="#D9B26A" stroke-opacity=".75"/><text x="1521" y="150" font-size="22" font-weight="600" text-anchor="middle" fill="#F6E2B0">Dữ liệu mô phỏng</text></g>';
   if (P.axis && P.kind !== 'STACK_HEIGHT') {
     for (var g = 0; g <= P.axis.max / P.axis.step + 1e-9; g++) {
       var y = BASE - g * P.axis.step * K;
@@ -84,8 +87,10 @@ function build() {
     for (var m = 0; m < n; m++) h += '<text x="' + (250 + gw * (m + .5)) + '" y="' + (BASE + 44) + '" font-size="' + fit(P.labels[m], gw - 12, 28, 600) + '" font-weight="600" text-anchor="middle" fill="' + COL.ink + '">' + esc(P.labels[m]) + '</text>';
   }
   if (P.kind === 'STACK_HEIGHT') h += '<line x1="250" x2="1680" y1="' + BASE + '" y2="' + BASE + '" stroke="' + COL.ink + '" stroke-width="4"/>';
-  h += '<g id="layer"></g></g></g><g id="cap"></g>';
+  h += '<g id="layer"></g></g>';
   svg.innerHTML = h;
+  var simX = PORTRAIT ? 650 : 1396, simY = PORTRAIT ? 215 : 120;
+  frontSvg.innerHTML = P.simulated === false ? "" : '<g><rect x="' + simX + '" y="' + simY + '" width="250" height="44" rx="10" fill="#1B2940" stroke="#D9B26A" stroke-opacity=".75"/><text x="' + (simX + 125) + '" y="' + (simY + 30) + '" font-size="22" font-weight="600" text-anchor="middle" fill="#F6E2B0">Dữ liệu mô phỏng</text></g>';
 }
 
 function paperBar(x, w, hpx, c, cd, cl, d) {
@@ -577,7 +582,7 @@ function paperCard(x, y, w, h, fill, stroke) {
 }
 function paperBadge(x, y, w, h, label, accent, fontSize) {
   var fold = Math.min(18, h * .22), fs = fit(label, w - 44, fontSize || 30, 800);
-  return '<g filter="url(#sh)"><rect x="' + x + '" y="' + (y + 5) + '" width="' + w + '" height="' + h + '" rx="14" fill="#cdbf9c" opacity=".45"/><rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="14" fill="#fffdf7" stroke="' + accent + '" stroke-width="4"/><rect x="' + x + '" y="' + y + '" width="12" height="' + h + '" rx="6" fill="' + accent + '"/><path d="M' + (x + w - fold) + ' ' + y + ' H' + (x + w) + ' V' + (y + fold) + ' Z" fill="' + accent + '" opacity=".24"/><path d="M' + (x + w - fold) + ' ' + y + ' V' + (y + fold) + ' H' + (x + w) + '" fill="none" stroke="' + accent + '" stroke-width="2" opacity=".65"/></g><text x="' + (x + w / 2 + 5) + '" y="' + (y + h / 2 + fs * .34) + '" font-size="' + fs + '" font-weight="800" text-anchor="middle" fill="' + COL.ink + '">' + esc(label) + '</text>';
+  return '<g filter="url(#sh)"><rect x="' + x + '" y="' + (y + 5) + '" width="' + w + '" height="' + h + '" rx="14" fill="#cdbf9c" opacity=".45"/><rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="14" fill="#fffdf7" stroke="' + accent + '" stroke-width="4"/><rect x="' + x + '" y="' + y + '" width="12" height="' + h + '" rx="6" fill="' + accent + '"/><path d="M' + (x + w - fold) + ' ' + y + ' H' + (x + w) + ' V' + (y + fold) + ' Z" fill="' + accent + '" opacity=".24"/><path d="M' + (x + w - fold) + ' ' + y + ' V' + (y + fold) + ' H' + (x + w) + '" fill="none" stroke="' + accent + '" stroke-width="2" opacity=".65"/></g><text x="' + (x + w / 2 + 5) + '" y="' + (y + h / 2 + fs * .34) + '" font-size="' + fs + '" font-weight="800" text-anchor="middle" fill="' + COL.bg + '">' + esc(label) + '</text>';
 }
 
 /* FUNNEL: các tầng giấy thu hẹp theo số liệu, tầng rơi nhiều nhất bị đánh dấu (FX14, WW_FEESLICE) */
@@ -726,7 +731,7 @@ function sceneChecklist(t, p) {
       '<path d="M' + (rowX + rowW - 24) + ' ' + rowY + ' h24 v24z" fill="' + (k > 0 ? COL.tealL : "#e8dfc7") + '" opacity=".4"/>' +
       '<rect x="' + (x0 + 50) + '" y="' + (y + rowH / 2 - 30) + '" width="60" height="60" rx="14" fill="' + (k > 0 ? "#dff1ec" : "#fffdf7") + '" stroke="' + (k > 0 ? COL.teal : "#b9ab86") + '" stroke-width="4"/>' +
       '<rect x="' + (x0 + 142) + '" y="' + (y + rowH / 2 + 20) + '" width="' + (w * k) + '" height="8" rx="4" fill="' + COL.gold + '" opacity=".95"/>' +
-      '<text x="' + (x0 + 142) + '" y="' + (y + rowH / 2 + 12) + '" font-size="' + fs + '" font-weight="700" fill="' + COL.ink + '">' + esc(p.steps[i]) + '</text>';
+      '<text x="' + (x0 + 142) + '" y="' + (y + rowH / 2 + 12) + '" font-size="' + fs + '" font-weight="700" fill="#163344">' + esc(p.steps[i]) + '</text>';
     if (k > 0) out += '<path d="M' + (x0 + 64) + ' ' + (y + rowH / 2) + ' L' + (x0 + 82) + ' ' + (y + rowH / 2 + 20) + ' L' + (x0 + 100) + ' ' + (y + rowH / 2 - 22) + '" fill="none" stroke="' + COL.teal + '" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="90" stroke-dashoffset="' + (90 * (1 - k)) + '"/>';
     out += '</g>';
   }
@@ -1078,7 +1083,7 @@ var SCENES = { RACE_LANES: sceneRace, TABLE_AUDIT: sceneTable, ALERT_STACK: scen
 
 /* chuẩn hóa dữ liệu cảnh: trục, thang, tiêu điểm camera (C_RACK nhẹ vào ý đang nói) */
 function prep(sc) {
-  var p = JSON.parse(JSON.stringify(sc)), a = p.t, f;
+  var p = JSON.parse(JSON.stringify(sc)), a = p.t, f, beats = [];
   if (p.kind === "CHART_TARGET") {
     var mx = p.target; p.series.forEach(function (s) { mx = Math.max(mx, Math.max.apply(null, s.values)); });
     p.axis = niceScale(mx * 1.04); f = { x: 1560, y: 700, from: a.gap - .1, to: a.gap + .85, k: 1.08 };
@@ -1094,21 +1099,47 @@ function prep(sc) {
   else if (p.kind === "TABLE_AUDIT") { var TG = tableGeom(p); f = { x: 960, y: 250 + 80 + TG.rowH * (p.pick + .5), from: a.flag - .1, to: a.flag + 1.0, k: 1.07 }; }
   else if (p.kind === "ALERT_STACK") { f = { x: 960, y: 320 + (p.pick + .5) * 162, from: a.flag - .1, to: a.flag + 1.0, k: 1.07 }; }
   else if (p.kind === "PYRAMID_LEVELS") { f = { x: 1100, y: 840 - (p.pick + .5) * 128, from: a.here - .1, to: a.here + 1.0, k: 1.06 }; }
-  else if (p.kind === "VERSUS_LIST") { f = { x: 1350, y: 540, from: a.verdict - .1, to: a.verdict + 1.0, k: 1.05 }; }
+  else if (p.kind === "VERSUS_LIST") {
+    f = { x: 960, y: 890, from: a.left, to: a.verdict + 1.0, k: 1.05 };
+    beats = PORTRAIT
+      ? [{ x: 540, y: 385, at: a.left + .25 }, { x: 540, y: 955, at: a.right + .25 }, { x: 540, y: 1310, at: a.verdict + .25 }]
+      : [{ x: 570, y: 535, at: a.left + .25 }, { x: 1350, y: 535, at: a.right + .25 }, { x: 960, y: 890, at: a.verdict + .25 }];
+  }
   else if (p.kind === "DOC_SEARCH") { f = { x: 960, y: 480, from: a.found - .1, to: a.found + 1.0, k: 1.07 }; }
   else if (p.kind === "HUB_SPOKE") { f = { x: 960, y: 560, from: a.link, to: a.link + 1.6, k: 1.06 }; }
   else if (p.kind === "MATRIX_2X2") { var pp = p.points[p.pick || 0]; f = { x: 400 + pp.x / 100 * 1180, y: 250 + 600 - pp.y / 100 * 600, from: a.pick - .1, to: a.pick + 1.0, k: 1.08 }; }
   else if (p.kind === "RANK_BARS") { f = { x: 1000, y: 330, from: a.top - .1, to: a.top + 1.0, k: 1.06 }; }
-  else if (p.kind === "KPI_CARDS") { var lk = "k" + (p.cards.length - 1); f = { x: 960, y: 540, from: a[lk] - .1, to: a[lk] + 1.0, k: 1.05 }; }
+  else if (p.kind === "KPI_CARDS") {
+    var lk = "k" + (p.cards.length - 1), count = p.cards.length, gap = PORTRAIT ? 24 : 36;
+    f = { x: 960, y: 540, from: a[lk] - .1, to: a[lk] + 1.0, k: 1.05 };
+    if (PORTRAIT) {
+      var cardH = Math.min(350, (760 - gap * (count - 1)) / count);
+      var startY = 350 + (760 - cardH * count - gap * (count - 1)) / 2;
+      for (var ki = 0; ki < count; ki++) beats.push({ x: 530, y: startY + ki * (cardH + gap) + cardH / 2, at: a["k" + ki] + .25 });
+    } else {
+      var cardW = (1400 - gap * (count - 1)) / count;
+      for (var kj = 0; kj < count; kj++) beats.push({ x: 260 + kj * (cardW + gap) + cardW / 2, y: 540, at: a["k" + kj] + .25 });
+    }
+  }
   else if (p.kind === "ASSIGN_CARDS") { var la = "a" + (p.steps.length - 1); f = { x: 1230, y: 560, from: a[la] - .1, to: a[la] + 1.0, k: 1.06 }; }
   else if (p.kind === "WAIT_CLOCK") { f = { x: 960, y: 560, from: a.stop - .1, to: a.stop + .9, k: 1.06 }; }
   else if (p.kind === "RADAR_SCAN") { f = { x: 1000, y: 570, from: a.hot - .1, to: a.hot + 1.0, k: 1.07 }; }
   else if (p.kind === "FUNNEL") { var FL = funnelLayout(p); f = { x: 1010, y: 250 + (FL.bi + 1) * (FL.rowH + 16), from: a.leak - .1, to: a.leak + 1.0, k: 1.06 }; }
   else if (p.kind === "TIMELINE") { var tx = timelineX(p), lm = p.steps.length - 1; f = { x: tx[lm], y: 590, from: a["m" + lm] - .1, to: a["m" + lm] + 1.0, k: 1.07 }; }
-  else if (p.kind === "BEFORE_AFTER") { f = { x: 1280, y: 560, from: a.delta - .1, to: a.delta + 1.0, k: 1.06 }; }
+  else if (p.kind === "BEFORE_AFTER") {
+    f = { x: 1280, y: 560, from: a.delta - .1, to: a.delta + 1.0, k: 1.06 };
+    beats = PORTRAIT
+      ? [{ x: 530, y: 570, at: a.before + .25 }, { x: 530, y: 960, at: a.after + .25 }, { x: 530, y: 1224, at: a.delta + .25 }]
+      : [{ x: 570, y: 510, at: a.before + .25 }, { x: 1350, y: 510, at: a.after + .25 }, { x: 960, y: 850, at: a.delta + .25 }];
+  }
   else if (p.kind === "DONUT_SHARE") { f = { x: 700, y: 540, from: a.top - .1, to: a.top + 1.0, k: 1.07 }; }
   else if (p.kind === "GAUGE") { f = { x: 960, y: 660, from: a.needle, to: a.needle + 1.8, k: 1.07 }; }
-  else if (p.kind === "CHECKLIST") { var lc = "c" + (p.steps.length - 1); f = { x: 960, y: 560, from: a[lc] - .1, to: a[lc] + 1.0, k: 1.05 }; }
+  else if (p.kind === "CHECKLIST") {
+    var lc = "c" + (p.steps.length - 1), count = p.steps.length;
+    f = { x: 960, y: 560, from: a[lc] - .1, to: a[lc] + 1.0, k: 1.05 };
+    var rowH = Math.min(PORTRAIT ? 136 : 124, (PORTRAIT ? 740 : 560) / count), rowTop = PORTRAIT ? 510 : 290;
+    for (var ci = 0; ci < count; ci++) beats.push({ x: W / 2, y: rowTop + ci * rowH + rowH / 2, at: a["c" + ci] + .2 });
+  }
   else if (p.kind === "OPEN_HOOK") { f = { x: 960, y: 700, from: a.start, to: a.hit + 1.0, k: 1.04 }; }
   else if (p.kind === "OPEN_NUMBER") { f = { x: 960, y: 700, from: a.count, to: a.count + 1.8, k: 1.05 }; }
   else if (p.kind === "OPEN_DRAIN") { f = { x: 960, y: 700, from: a.drain, to: a.drain + 1.9, k: 1.05 }; }
@@ -1117,6 +1148,20 @@ function prep(sc) {
   else if (p.kind === "COMPARE_DOCS") { f = { x: 960, y: 700, from: a.thread - .1, to: a.thread + 1.0, k: 1.06 }; }
   else if (p.kind === "PROCESS_RAIL") { f = { x: stationX(p)[p.block_step], y: 700, from: a.block, to: a.block + 1.1, k: 1.08 }; }
   else { f = { x: 540, y: 700, from: a.final - .1, to: a.final + 1.0, k: 1.07 }; }
+  if (PORTRAIT) { f.x *= W / 1920; f.y *= H / 1080; }
+  var duration = p.dur || 10;
+  beats = beats.filter(function (point) { return Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.at); })
+    .map(function (point) { return { x: point.x, y: point.y, at: Math.max(0, Math.min(duration, point.at)) }; });
+  if (beats.length) {
+    f.x = beats[beats.length - 1].x;
+    f.y = beats[beats.length - 1].y;
+    f.from = beats[0].at;
+    f.to = Math.min(duration, beats[beats.length - 1].at + .4);
+  }
+  var focusFrom = Math.max(0, Math.min(duration, f.from)), focusTo = Math.max(focusFrom, Math.min(duration, f.to));
+  var focusApproach = Math.max(0, (beats.length ? beats[0].at : focusFrom) - .9);
+  f.points = [{ x: W / 2, y: H / 2, at: 0 }, { x: W / 2, y: H / 2, at: focusApproach }]
+    .concat(beats, [{ x: f.x, y: f.y, at: focusTo }]);
   p.focus = f; K = p.axis ? KH / p.axis.max : 1; return p;
 }
 
@@ -1126,16 +1171,31 @@ function caption(t) {
   P.words.forEach(function (w) { cur.push(w); if (/[.,;]$/.test(w[0]) || cur.length >= 8) { ph.push(cur); cur = []; } }); if (cur.length) ph.push(cur);
   ph.forEach(function (g) { if (t >= g[0][1] - .05) act = g; });
   if (!act) return "";
-  var fs = 54, gap = fs * .3, x = 0, tot = 0, out = ""; act.forEach(function (w, i) { tot += tw(w[0], fs) + (i ? gap : 0); }); x = 960 - tot / 2;
-  act.forEach(function (w) { out += '<text x="' + x + '" y="1018" font-size="' + fs + '" font-weight="700" fill="' + (t >= w[1] ? COL.gold : "#fff") + '" stroke="#06131d" stroke-width="9" paint-order="stroke" stroke-linejoin="round">' + esc(w[0]) + '</text>'; x += tw(w[0], fs) + gap; });
+  var fs = PORTRAIT ? 44 : 54, gap = fs * .3, x = 0, tot = 0, out = "";
+  function measure() { tot = 0; act.forEach(function (w, i) { tot += tw(w[0], fs) + (i ? gap : 0); }); }
+  measure(); while (PORTRAIT && tot > W - 240 && fs > 32) { fs -= 2; gap = fs * .3; measure(); } x = (W - tot) / 2;
+  var y = PORTRAIT ? H - 380 : 1018;
+  act.forEach(function (w) { out += '<text x="' + x + '" y="' + y + '" font-size="' + fs + '" font-weight="700" fill="' + (t >= w[1] ? COL.gold : "#fff") + '" stroke="#06131d" stroke-width="9" paint-order="stroke" stroke-linejoin="round">' + esc(w[0]) + '</text>'; x += tw(w[0], fs) + gap; });
   return out;
 }
 
 function setT(t) {
-  var a = P.t, intro = eo(seg(t, 0, .35)), f = P.focus, cs = eio(seg(t, f.from, f.to)), ck = 1 + (f.k - 1) * cs;
-  var dur = P.dur || 10, drift = t / dur, ex = (P.kind === "END_CARD" || dur < 3) ? 0 : eio(seg(t, dur - .4, dur - .05)), slide = (1 - intro) * 170 - ex * 190;
+  var a = P.t, intro = eo(seg(t, 0, .35)), f = P.focus, cs = eio(seg(t, f.from, f.to)), movingCamera = P.camera_motion !== "STATIC", ck = 1 + (f.k - 1) * (movingCamera ? .5 : 1) * cs;
+  var dur = P.dur || 10, drift = t / dur * (movingCamera ? .25 : 1), ex = (P.kind === "END_CARD" || dur < 3) ? 0 : eio(seg(t, dur - .4, dur - .05)), slide = (1 - intro) * 170 - ex * 190;
   document.getElementById("content").setAttribute("opacity", clamp(intro * 3) * (1 - .6 * ex));
-  document.getElementById("cam").setAttribute("transform", "translate(" + slide + " 0) translate(" + f.x + " " + f.y + ") scale(" + (ck * (1 + .02 * drift)) + ") translate(" + (-f.x - 12 * drift) + " " + (-f.y) + ")");
+  var mode = P.camera_motion || "AUTO", layered = window.__bahaCamera.isLayered(P.kind, mode);
+  document.getElementById("cam").setAttribute("transform", layered ? "translate(" + ((1 - intro) * 170) + " 0)" : "translate(" + slide + " 0) translate(" + f.x + " " + f.y + ") scale(" + (ck * (1 + .02 * drift)) + ") translate(" + (-f.x - 12 * drift) + " " + (-f.y) + ")");
+  var camera = window.__bahaCamera.transform(P.kind, P.camera_motion || "AUTO", t, dur, f, W, H);
+  rig.style.transformOrigin = camera.origin;
+  rig.style.transform = camera.transform;
+  document.getElementById("backContent").setAttribute("transform", layered ? "translate(0 0)" : document.getElementById("cam").getAttribute("transform"));
+  stage.style.perspective = camera.perspective + "px";
+  stage.style.perspectiveOrigin = camera.origin;
+  ["back", "middle", "front"].forEach(function (key) {
+    var layer = key === "back" ? backSvg : key === "middle" ? svg : frontSvg;
+    layer.style.transform = "translateZ(" + camera.planes[key].z.toFixed(2) + "px)";
+    layer.style.filter = camera.planes[key].blur_px > 0 ? "blur(" + camera.planes[key].blur_px.toFixed(2) + "px)" : "none";
+  });
   document.getElementById("sheetG").setAttribute("transform", "translate(0 0)");
   document.getElementById("layer").innerHTML = SCENES[P.kind](t, P);
   document.getElementById("cap").innerHTML = caption(t);

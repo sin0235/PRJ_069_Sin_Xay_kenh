@@ -34,7 +34,7 @@ class VideoPromptCompiler:
     ) -> CompiledVideoPrompt:
         clean = user_prompt.strip()
         shot_type = "Bố cục làm rõ chủ thể và bối cảnh đã nêu trong brief"
-        camera_movement = "Máy quay ổn định, chuyển động tự nhiên; giữ nguyên chỉ dẫn góc máy của brief"
+        camera_movement = "Tối đa ba pha liên kết khi brief yêu cầu; nếu không, dùng một chuyển động nhẹ"
         lighting = "Ánh sáng và màu sắc phù hợp thời điểm, địa điểm và phong cách đã nêu"
         kinetic_action = "Thể hiện đúng hành động trong brief với diễn tiến tự nhiên, liên tục và nhất quán"
         retention_hook = "Trong 3 giây đầu, làm rõ chủ thể và hành động chính đã được yêu cầu"
@@ -47,7 +47,7 @@ class VideoPromptCompiler:
                 "Preserve the specified subject, action, setting, time, camera, colors, and exclusions. "
                 "Do not invent characters, props, text, logos, actions, or story details. "
                 "Create one continuous shot with a clear beginning, development, and natural ending; cut only when requested. "
-                "Keep shapes, clothing, objects, direction of travel, and lighting consistent. Use physically plausible, smooth motion and one simple, steady camera move. "
+                "Keep shapes, clothing, objects, direction of travel, and lighting consistent. When the brief requests camera movement, use up to three connected phases (dolly, crane, orbit, or pan) in one continuous shot; otherwise choose one restrained move. Blend phases smoothly and preserve screen direction, focus, and subject continuity. "
                 "Keep focus and subject sharp; no focus breathing, blur, distortion, duplicated objects, flicker, or unrequested text. "
                 + ("Compose natively in vertical 9:16; keep the subject and action in the central safe area, with no blurred background or borders."
                    if aspect_ratio == "9:16" else
@@ -63,11 +63,13 @@ class VideoPromptCompiler:
                 "đạo cụ, chữ, logo, hành động hoặc chi tiết cốt truyện. "
                 "Dàn dựng một cảnh liền mạch, có mở đầu, diễn tiến và kết thúc tự nhiên; "
                 "chỉ cắt cảnh khi brief yêu cầu. Duy trì hình dạng, trang phục, vật thể và hướng chuyển động "
-                "nhất quán qua toàn bộ video. Dùng chuyển động máy quay ổn định và ánh sáng phù hợp brief; "
+                "nhất quán qua toàn bộ video. Dùng ánh sáng phù hợp brief; "
                 "ưu tiên hình ảnh chân thực, chuyển động tự nhiên, không méo hình, không nhân đôi vật thể, "
                 "không nhấp nháy hoặc chèn chữ ngoài yêu cầu. "
                 "Giữ tiêu cự và độ nét ổn định, không thở nét, không làm mờ chủ thể. "
-                "Chỉ một chuyển động camera đơn giản, tốc độ đều; không tăng tốc, giật lùi hoặc đổi hướng đột ngột. "
+                "Khi brief yêu cầu chuyển động máy quay, dùng tối đa ba pha liên kết như dolly, crane, orbit hoặc pan "
+                "trong một cú máy liên tục; nếu không, giữ một chuyển động nhẹ. Nối pha bằng tăng giảm tốc mượt, "
+                "giữ trục, hướng chuyển động, độ nét và tính liên tục; không rung, giật lùi hay đổi hướng đột ngột. "
                 + ("Bố cục dọc gốc 9:16, đặt chủ thể và hành động trong vùng trung tâm an toàn, không tạo viền hoặc nền mờ."
                    if aspect_ratio == "9:16" else "")
             )

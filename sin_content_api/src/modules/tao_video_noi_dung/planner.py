@@ -10,7 +10,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_serializer, model_validator
 
 from src.modules.llm.client import LLMClient
-from .brief import ContentBrief, first_json_object, generate_brief
+from .brief import ContentBrief, LLMJsonError, first_json_object, generate_brief
 from .danh_gia import score_storyboard
 
 Beat = Literal["HOOK", "PAIN", "AGITATE", "INSIGHT", "SOLUTION", "DEMO", "OUTCOME", "CTA"]
@@ -60,9 +60,12 @@ def narration_length_problems(shots: list) -> list[str]:
 
 
 def _validate_narration_for_tts(text: str) -> None:
-    punctuation = "-–—.,!?;:'\"“”‘’…"
-    if any(not (char.isalpha() or char.isspace() or char in punctuation) for char in text):
-        raise ValueError("TTS_NARRATION_SYMBOLS: Viết số và ký hiệu thành chữ cách đọc.")
+    common_symbols = {"%", "&", "@", "#", "+", "/", "="}
+    if any(
+        not (char.isalnum() or char.isspace() or unicodedata.category(char).startswith("P") or char in common_symbols)
+        for char in text
+    ):
+        raise ValueError("TTS_NARRATION_SYMBOLS: Bỏ ký tự trang trí khỏi lời đọc.")
     if not re.findall(r"[^\W\d_]+", unicodedata.normalize("NFC", text)):
         raise ValueError("TTS_NARRATION_EMPTY")
 
@@ -170,7 +173,18 @@ class DiagramSpec(BaseModel):
     axis_y: str | None = Field(default=None, max_length=22)
     pick: int | None = Field(default=None, ge=0, le=5)
     cards: list[DiagramDoc] = Field(default_factory=list, max_length=4)
+    camera_motion: Literal[
+        "AUTO", "DOLLY_ORBIT", "TRACK_RACK", "CRANE_PUSH", "ARC_REVEAL", "STATIC",
+        "ORBIT_ARC", "CRANE_DIVE", "PARALLAX_PASS", "WHIP_PAN_SETTLE", "DOLLY_RACK", "DOLLY_ZOOM",
+    ] | None = None
     on: dict[str, str] = Field(default_factory=dict, max_length=12)
+
+    @model_serializer(mode="wrap")
+    def keep_legacy_camera_serialization(self, handler):
+        data = handler(self)
+        if self.camera_motion is None:
+            data.pop("camera_motion", None)
+        return data
 
 
 def diagram_required_events(layout: str, spec: DiagramSpec) -> list[str]:
@@ -689,12 +703,15 @@ class Storyboard(BaseModel):
     continuity_anchor: str = Field(min_length=20, max_length=3000)
     shots: list[StoryboardShot] = Field(min_length=1, max_length=30)
     brief: ContentBrief | None = None
+    music_prompt: str | None = Field(default=None, min_length=20, max_length=1000)
 
     @model_serializer(mode="wrap")
     def keep_v3_serialization(self, handler):
         data = handler(self)
         if self.brief is None:
             data.pop("brief", None)
+        if self.music_prompt is None:
+            data.pop("music_prompt", None)
         return data
 
     @field_validator("shots")
@@ -868,12 +885,44 @@ def _soft_problems(storyboard: Storyboard, aspect_ratio: str | None = None, diag
     return problems
 
 
-def _repair_diagram_data(scene) -> None:
+def _repair_diagram_data(scene, narration: str | None = None) -> None:
     """Sửa sai lệch cơ học LLM hay mắc trong dữ liệu cảnh giấy: bậc nghẽn nằm ngoài khoảng cho phép, số nhãn lệch số giá trị của biểu đồ."""
     diagram = scene.get("diagram") if isinstance(scene, dict) else None
     if not isinstance(diagram, dict):
         return
     layout = scene.get("layout")
+    on = diagram.get("on")
+    if layout not in DIAGRAM_LAYOUTS and isinstance(on, dict):
+        candidates = []
+        try:
+            spec = DiagramSpec.model_construct(**diagram)
+            for candidate in DIAGRAM_LAYOUTS:
+                expected = set(diagram_required_events(candidate, spec))
+                ignored = {"rail", "count"} if candidate == "PROCESS_RAIL" else {"block"} if candidate == "COST_SLICE" else set()
+                optional = {"doc0"} if candidate == "COMPARE_DOCS" else set()
+                keys = set(on) - ignored
+                if keys == expected or keys == expected - optional:
+                    candidates.append(candidate)
+        except (AttributeError, TypeError):
+            pass
+        if len(candidates) == 1:
+            layout = scene["layout"] = candidates[0]
+        elif isinstance(scene.get("messages"), list) and len(scene["messages"]) >= 2:
+            scene.pop("diagram", None)
+            return
+    if layout in DIAGRAM_LAYOUTS:
+        scene.pop("messages", None)
+        scene.pop("highlight", None)
+    diff_label = diagram.get("diff_label")
+    if isinstance(diff_label, str) and len(diff_label) > 20:
+        diagram["diff_label"] = diff_label[:20].rstrip().rsplit(" ", 1)[0] or diff_label[:20].rstrip()
+    if layout == "OPEN_QUESTION":
+        title, caption = diagram.get("title"), diagram.get("caption")
+        if isinstance(title, str):
+            title_tokens = " ".join(_tokens(title))
+            caption_tokens = " ".join(_tokens(caption)) if isinstance(caption, str) else ""
+            if not caption_tokens or caption_tokens not in title_tokens:
+                diagram["caption"] = title[:40].rstrip()
     steps = diagram.get("steps")
     if layout == "PROCESS_RAIL" and isinstance(steps, list) and len(steps) >= 3:
         steps = steps[:5]
@@ -888,6 +937,25 @@ def _repair_diagram_data(scene) -> None:
             diagram["labels"] = labels[:size]
             for item in series:
                 item["values"] = item["values"][:size]
+    if isinstance(narration, str) and isinstance(on, dict):
+        try:
+            events = diagram_required_events(layout, DiagramSpec.model_construct(**diagram))
+        except (AttributeError, TypeError):
+            return
+        words = _tokens(narration)
+        last_index, last_phrase = -1, None
+        for key in events:
+            phrase = on.get(key)
+            if not isinstance(phrase, str) or not phrase.strip():
+                continue
+            index = _locate_phrase(words, _tokens(phrase), max(last_index, 0))
+            if index is None:
+                if last_phrase is None or _locate_phrase(words, _tokens(phrase), 0) is None:
+                    continue
+                on[key], index = last_phrase, last_index
+            else:
+                last_phrase = phrase
+            last_index = index
 
 
 def _repair_storyboard_data(data: dict, brief: ContentBrief, target_seconds: int) -> None:
@@ -896,7 +964,7 @@ def _repair_storyboard_data(data: dict, brief: ContentBrief, target_seconds: int
     if not isinstance(shots, list) or not all(isinstance(shot, dict) for shot in shots):
         return
     for shot in shots:
-        _repair_diagram_data(shot.get("ui_scene"))
+        _repair_diagram_data(shot.get("ui_scene"), shot.get("narration"))
     known = {message.id for message in brief.all_messages()}
     for shot in shots:
         if isinstance(shot.get("message_ids"), list):
@@ -986,7 +1054,10 @@ def fix_narration_budget(storyboard: Storyboard, target_duration_seconds: int, c
         return storyboard
 
 
-def generate_storyboard(content: str, target_duration_seconds: int, style_snapshot: dict[str, Any], client: Any) -> tuple[Storyboard, str]:
+def generate_storyboard(
+    content: str, target_duration_seconds: int, style_snapshot: dict[str, Any], client: Any,
+    generate_flow_music: bool = False,
+) -> tuple[Storyboard, str]:
     content = content.strip()
     if not content or len(content.encode("utf-8")) > 12000:
         raise ValueError("Content phải có nội dung và không vượt quá 12 KB")
@@ -1027,8 +1098,9 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
             "so sánh trước sau và giao diện; được có cảnh không có người. Chỉ thêm nhân vật khi vai trò và hành động của họ "
             "giúp giải thích nội dung, không bắt mọi cảnh có người hoặc cố chèn nhân vật chính vào cảnh vật. "
             "Dùng tối đa hai chuyển động camera có chủ đích; mô tả tư thế, điểm tiếp xúc/phản ứng vật lý, quán tính và kết thúc. "
-            "Narration cho TTS tiếng Việt: không chữ số, ký hiệu (%, &, @, #, +, /, =), viết tắt, URL hay emoji; "
-            "viết bằng chữ cách đọc, ví dụ hai nghìn không trăm hai mươi lăm, năm mươi phần trăm. "
+            "Narration cho TTS tiếng Việt: giữ đúng số liệu của nguồn; ưu tiên viết số và ký hiệu thành lời tự nhiên, "
+            "nhưng nếu không chắc thì giữ dạng số và ký hiệu thông dụng để tránh bỏ hoặc sửa sai ý. Không chèn emoji. "
+            "Ví dụ có thể viết hai nghìn không trăm hai mươi lăm hoặc 2025, năm mươi phần trăm hoặc 50%. "
             "Từ viết tắt AI, UI, UX, CEO, CTO, SEO, CRM, KPI, ROI, API, FAQ giữ nguyên chữ hoa, không phiên âm thành ây ai; bộ đọc tự đọc từng chữ cái. "
             "Từ tiếng Anh khác phải phiên âm tiếng Việt: mác-két-ting, vi-đê-ô, diu-túp; không giữ từ tiếng Anh nguyên gốc trong narration. "
             "Tên thương hiệu Baha trong lời đọc viết Ba-ha; trên giao diện giữ Baha. "
@@ -1099,7 +1171,8 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
             "(3) triển khai giải pháp: mở OPEN_QUESTION, CHECKLIST (dấu hiệu), PROCESS_RAIL (điểm nghẽn), HUB_SPOKE hoặc MATRIX_2X2 (cách làm), TIMELINE (lộ trình), KPI_CARDS hoặc GAUGE hoặc CHART_GROWTH (kết quả kỳ vọng), END_CARD; (4) bán hàng và chăm sóc khách: mở OPEN_NUMBER, FUNNEL, WAIT_CLOCK, RADAR_SCAN, ASSIGN_CARDS, BEFORE_AFTER, KPI_CARDS, END_CARD. "
             "Các loại quy trình (PROCESS_RAIL, CHECKLIST, TIMELINE, FUNNEL) tối đa 3 shot và không đặt hai shot cùng họ liền nhau; không lặp một loại ở hai shot liên tiếp. "
             "Không đặt con số trong lời nói khác với con số trong diagram. Mỗi shot một ý, không dùng nhiều cảnh giấy liên tiếp nếu ý không cần. "
-            "Shot đầu continues_previous=false; chỉ true khi tiếp diễn trực tiếp cùng cảnh Flow. Bố cục theo aspect_ratio."
+            "Shot đầu continues_previous=false; chỉ true khi tiếp diễn trực tiếp cùng cảnh Flow. Bố cục theo aspect_ratio. "
+            "Với ui_scene.diagram, chọn camera_motion từ AUTO, DOLLY_ORBIT, TRACK_RACK, CRANE_PUSH, ARC_REVEAL, STATIC, ORBIT_ARC, CRANE_DIVE, PARALLAX_PASS, WHIP_PAN_SETTLE, DOLLY_RACK hoặc DOLLY_ZOOM theo nhịp lời đọc; ưu tiên AUTO vì AUTO đã chọn cú máy nhiều pha theo bố cục, dùng STATIC khi cần khung đứng yên, không tự tạo rung lắc hoặc góc quay quá mạnh."
         )},
         {"role": "user", "content": json.dumps({
             "target_duration_seconds": target_duration_seconds,
@@ -1109,6 +1182,15 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
             "content": content,
         }, ensure_ascii=False)},
     ]
+    messages[0]["content"] += (
+        " Khi generate_flow_music=true, thêm music_prompt dài 20 đến 1000 ký tự bằng tiếng Anh, mô tả bản nhạc nền không lời "
+        "phù hợp chủ đề, nhịp dựng và cảm xúc video; không nêu nghệ sĩ, bài hát hay thương hiệu có bản quyền."
+        if generate_flow_music else
+        " Khi generate_flow_music=false, bỏ music_prompt hoặc để null; không chuẩn bị yêu cầu gửi Flow Music."
+    )
+    user_payload = json.loads(messages[1]["content"])
+    user_payload["generate_flow_music"] = generate_flow_music
+    messages[1]["content"] = json.dumps(user_payload, ensure_ascii=False)
     if style_snapshot.get("diagram_only"):
         messages[0]["content"] += (
             " CHẾ ĐỘ CHỈ CẢNH GIẤY DỰNG BẰNG MÃ (style_snapshot.diagram_only): MỌI shot phải là shot_kind=UI_SIM với ui_scene.layout thuộc "
@@ -1120,7 +1202,8 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
             "Với shot UI_SIM, prompt chỉ là mô tả ngắn bằng tiếng Việt cảnh giấy sẽ dựng (tối thiểu 8 ký tự), action_beats để trống.")
     log = logging.getLogger(__name__)
     rewritten = False
-    attempts = 4 if style_snapshot.get("diagram_only") else 3
+    last_parseable: tuple[Storyboard, str] | None = None
+    attempts = 2
     for attempt in range(attempts):
         completion = client.complete(messages, max_tokens=client.max_output_tokens)
         try:
@@ -1135,21 +1218,47 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
             storyboard = parse_storyboard(json.dumps(data, ensure_ascii=False), target_duration_seconds)
             if any(shot.prompt_contract_version != 4 for shot in storyboard.shots):
                 raise ValueError("V4_SHOTS_REQUIRED")
+            if generate_flow_music and not storyboard.music_prompt:
+                raise ValueError("FLOW_MUSIC_PROMPT_REQUIRED")
+            if not generate_flow_music and storyboard.music_prompt:
+                storyboard = storyboard.model_copy(update={"music_prompt": None})
+            last_parseable = (storyboard, completion.model)
         except ValueError as exc:
             diagram_problems = diagram_feedback(str(exc))
             narration_error = any(code in str(exc) for code in ("TTS_NARRATION_SYMBOLS", "TTS_NARRATION_EMPTY"))
             shot_count_error = "SHOT_COUNT_INVALID" in str(exc)
-            if attempt >= attempts - 1 or not (narration_error or diagram_problems or shot_count_error):
+            music_prompt_error = "FLOW_MUSIC_PROMPT_REQUIRED" in str(exc)
+            json_error = isinstance(exc, LLMJsonError)
+            if attempt >= attempts - 1:
+                if last_parseable:
+                    log.warning("STORYBOARD_RETRY_FAILED_USING_LAST_VALID")
+                    return last_parseable
+                if json_error:
+                    raise ValueError("STORYBOARD_JSON_INVALID") from exc
+                raise
+            if not (json_error or narration_error or diagram_problems or shot_count_error or music_prompt_error):
+                if last_parseable:
+                    log.warning("STORYBOARD_RETRY_FAILED_USING_LAST_VALID")
+                    return last_parseable
                 raise
             problems = diagram_problems + (["TTS_NARRATION_SYMBOLS: Viết số và ký hiệu thành chữ cách đọc.",
                                             "TTS_NARRATION_EMPTY: Mỗi cảnh phải có lời thoại bằng chữ, không để trống."] if narration_error else [])
+            if json_error:
+                problems.append("STORYBOARD_JSON_INVALID: Phản hồi trước chưa phải JSON hợp lệ; trả lại toàn bộ storyboard đúng schema.")
             if shot_count_error:
                 problems.append(f"SHOT_COUNT_INVALID: Tạo đúng {math.ceil(target_duration_seconds / SHOT_SECONDS)} shot, mỗi shot từ 3 đến 6 giây.")
+            if music_prompt_error:
+                problems.append("FLOW_MUSIC_PROMPT_REQUIRED: Bổ sung music_prompt bằng tiếng Anh, mô tả nhạc nền không lời phù hợp video.")
         else:
             problems = _soft_problems(storyboard, style_snapshot.get("aspect_ratio"), bool(style_snapshot.get("diagram_only")))
             if not rewritten and any(item.startswith("NARRATION_") for item in problems):
                 rewritten = True
-                storyboard = fix_narration_budget(storyboard, target_duration_seconds, client)
+                try:
+                    storyboard = fix_narration_budget(storyboard, target_duration_seconds, client)
+                except Exception:
+                    log.warning("STORYBOARD_NARRATION_REWRITE_FAILED_USING_VALID_STORYBOARD")
+                    return last_parseable
+                last_parseable = (storyboard, completion.model)
                 problems = _soft_problems(storyboard, style_snapshot.get("aspect_ratio"), bool(style_snapshot.get("diagram_only")))
             if not problems:
                 if score_storyboard(storyboard).static_shot_ratio > 0.5:
@@ -1157,7 +1266,8 @@ def generate_storyboard(content: str, target_duration_seconds: int, style_snapsh
                 return storyboard, completion.model
             if attempt >= attempts - 1:
                 if any(item.startswith("DIAGRAM_ONLY_VIOLATION") for item in problems):
-                    raise ValueError("STORYBOARD_DIAGRAM_ONLY_VIOLATED: " + "; ".join(item for item in problems if item.startswith("DIAGRAM_ONLY_VIOLATION"))[:600])
+                    log.warning("STORYBOARD_DIAGRAM_ONLY_ISSUES: %s", "; ".join(item for item in problems if item.startswith("DIAGRAM_ONLY_VIOLATION"))[:600])
+                    return storyboard, completion.model
                 # Lỗi chất lượng chỉ cảnh báo để người dùng duyệt; không bỏ cả storyboard vì một thiếu sót nhỏ.
                 log.warning("STORYBOARD_SOFT_ISSUES: %s", "; ".join(problems))
                 return storyboard, completion.model

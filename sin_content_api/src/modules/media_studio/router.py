@@ -14,7 +14,7 @@ import uuid
 import json
 from datetime import datetime, timezone
 from typing import List, Optional, Literal
-from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form, Request, status
+from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, Form, Request, Response, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
@@ -104,6 +104,16 @@ def list_media_projects(
     workflow_type: Literal["AI_VIDEO", "AUTO_EDIT"] = Query(default="AI_VIDEO"),
 ):
     return media_service.list_projects(db, tenant.workspace_id, workflow_type=workflow_type)
+
+
+@media_router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_media_project(
+    project_id: str,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(require_action("media.upload")),
+):
+    media_service.delete_project(db, tenant.workspace_id, project_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @media_router.post("/flow/login")
@@ -477,6 +487,24 @@ def resume_ai_job(
         content=jsonable_encoder(_ai_job_response_payload(job)),
     )
 
+
+@jobs_router.get("", response_model=List[AIGenerationJobOut])
+def list_ai_jobs(
+    limit: int = Query(30, ge=1, le=100),
+    asset_type: Optional[str] = Query(None),
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(require_action("ai_job.read")),
+):
+    """Liệt kê danh sách các tác vụ xử lý nền AI của workspace (PRJ_069)."""
+    query = db.query(AIGenerationJob).filter(
+        AIGenerationJob.workspace_id == tenant.workspace_id
+    )
+    if asset_type:
+        query = query.filter(AIGenerationJob.asset_type == asset_type.upper())
+    jobs = query.order_by(AIGenerationJob.created_at.desc()).limit(limit).all()
+    return [_ai_job_response_payload(job) for job in jobs]
+
+
 @jobs_router.get("/{job_id}", response_model=AIGenerationJobOut)
 def get_ai_job(
     job_id: str,
@@ -592,6 +620,7 @@ def generate_music_track(
     mode: Optional[str] = Form(None),
     duration_sec: int = Form(30),
     project_id: Optional[str] = Form(None),
+    flow_profile_id: Optional[str] = Form(None),
     idempotency_key: Optional[str] = Form(None),
     normalize_tiktok: bool = Form(True),
     db: Session = Depends(get_db),
@@ -605,6 +634,7 @@ def generate_music_track(
     # 1. Xác định Provider & Mode (Hỗ trợ an toàn cả Dependency Injection lẫn gọi trực tiếp test)
     lyrics = lyrics if isinstance(lyrics, str) else None
     project_id = project_id if isinstance(project_id, str) else None
+    flow_profile_id = flow_profile_id.strip() if isinstance(flow_profile_id, str) and flow_profile_id.strip() else None
     idempotency_key = idempotency_key if isinstance(idempotency_key, str) else None
     provider = provider if isinstance(provider, str) else None
     mode = mode if isinstance(mode, str) else None
@@ -666,6 +696,8 @@ def generate_music_track(
         "project_id": (project_id or "").strip(),
         "normalize_tiktok": normalize_val
     }
+    if flow_profile_id:
+        canonical_payload["profile_id"] = flow_profile_id
     canonical_json = json.dumps(canonical_payload, sort_keys=True)
 
     existing_job = None

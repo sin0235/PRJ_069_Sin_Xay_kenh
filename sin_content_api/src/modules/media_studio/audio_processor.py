@@ -109,12 +109,11 @@ class AudioProcessor:
         if not filepath.exists():
             return {"passed": False, "reason": "Tệp không tồn tại"}
 
-        byte_size = filepath.stat().st_size
-        with filepath.open("rb") as source:
-            header = source.read(200)
+        data = filepath.read_bytes()
+        byte_size = len(data)
 
         # Kiểm tra giả mạo HTML trước
-        if header.startswith(b"<!DOCTYPE") or header.startswith(b"<html") or b"<body" in header:
+        if data.startswith(b"<!DOCTYPE") or data.startswith(b"<html") or b"<body" in data[:200]:
             return {"passed": False, "reason": "Tệp giả mạo: Nội dung là trang HTML thay vì âm thanh MP3"}
 
         if byte_size < min_byte_size:

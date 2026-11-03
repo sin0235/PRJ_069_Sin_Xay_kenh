@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, Body
+import uuid
+
+from fastapi import APIRouter, Depends, Body, Header
 from sqlalchemy.orm import Session
 
 from src.auth.tenancy import (
@@ -10,22 +12,35 @@ from src.auth.tenancy import (
 )
 from src.database import get_db
 from baha_auth.src.policy.evaluator import e2e_test_self_approval_enabled
-from .contracts import ContentVideoPlanResponse, ContentVideoRunResponse, CreatePlanRequest, CreateRunRequest, ResumeRunRequest, ReconcileShotRequest, RerenderRunRequest, RetryRunRequest, UpdateStoryboardRequest
+from .contracts import ContentVideoPlanJobResponse, ContentVideoPlanResponse, ContentVideoRunResponse, CreatePlanRequest, CreateRunRequest, ResumeRunRequest, ReconcileShotRequest, RerenderRunRequest, RetryRunRequest, UpdateStoryboardRequest
 from .runner import reconcile_shot
-from .service import approve_plan, create_plan, create_run, get_latest_history, get_plan, get_run, rerender_run, resume_run, retry_run, update_plan
+from .service import approve_plan, create_plan, create_run, enqueue_content_video_plan, get_content_video_plan_job, get_latest_history, get_plan, get_run, rerender_run, resume_run, retry_run, update_plan
 
 
 router = APIRouter(prefix="/v1/media/projects/{project_id}/content-video", tags=["Content Video Production"])
 
 
-@router.post("/plans", response_model=ContentVideoPlanResponse, status_code=201)
+@router.post("/plans", response_model=ContentVideoPlanJobResponse, status_code=202)
 def create_content_video_plan(
     project_id: str,
     payload: CreatePlanRequest,
     db: Session = Depends(get_db),
     tenant: TenantContext = Depends(require_action("media.upload")),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
 ):
-    return create_plan(db, project_id, tenant.workspace_id, tenant.user_id, payload)
+    return enqueue_content_video_plan(
+        db, project_id, tenant.workspace_id, tenant.user_id, payload, idempotency_key or str(uuid.uuid4())
+    )
+
+
+@router.get("/plans/jobs/{job_id}", response_model=ContentVideoPlanJobResponse)
+def read_content_video_plan_job(
+    project_id: str,
+    job_id: str,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(require_action("media.read")),
+):
+    return get_content_video_plan_job(db, project_id, job_id, tenant.workspace_id)
 
 
 @router.get("/plans/{plan_id}", response_model=ContentVideoPlanResponse)

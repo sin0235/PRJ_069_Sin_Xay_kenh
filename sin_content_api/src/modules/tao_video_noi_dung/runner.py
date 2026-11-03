@@ -39,7 +39,8 @@ from src.schemas.contracts import TimelineAudioTrack, TimelineCaption, TimelineC
 from session_manager import FlowLoginRequired, FlowSubmissionNotSent, FlowQuotaExceeded
 from .cong_harness import approval_receipt_hash, dispatch_shot, verify_shot_receipt
 from .contracts import ReconcileShotRequest
-from .planner import DIAGRAM_LAYOUTS, Storyboard
+from .sfx import plan_sfx_cues, transition_sfx_cues
+from .planner import DIAGRAM_LAYOUTS, PORTRAIT_DIAGRAM_LAYOUTS, Storyboard
 from .brand import restore_display_words, to_spoken
 from .render_engines import assembly_mode, render_placeholder, render_scene
 from .tts_provider import TTSProviderError, tts_provider_manager
@@ -150,6 +151,16 @@ def _mark_flow_setup_blocked(run: ContentVideoRun, steps: list[dict], error: Exc
     run.finished_at = None
     run.steps_json = json.dumps(steps, ensure_ascii=False, separators=(",", ":"))
     return True
+
+
+def _mark_flow_quota_blocked(run: ContentVideoRun, step: dict, *, submitted: bool) -> None:
+    step["state"] = "NEEDS_RECONCILIATION" if submitted else "READY"
+    run.status = "NEEDS_RECONCILIATION" if submitted else "BLOCKED_FLOW_QUOTA"
+    run.error_code = "FLOW_QUOTA_LIMITED"
+    run.error_message = (
+        "Flow báo hết hạn mức sau khi gửi; hãy đối soát cảnh trước khi đổi tài khoản và gửi lại."
+        if submitted else "Flow đã hết hạn mức. Chọn hồ sơ tài khoản khác để tiếp tục trong project Flow mới."
+    )
 
 
 def _release_lease(db, token: str) -> None:
@@ -745,27 +756,46 @@ def _diagram_word_times(shots: list, steps: list[dict], index: int, per_clip: bo
 
 
 def _use_hyperframes_assembly(storyboard, style: dict) -> bool:
-    """Ghép cả video bằng một dự án HyperFrames: chỉ cho run toàn cảnh giấy dựng bằng mã, khung 16:9 (có Flow thì dùng cách ghép cũ)."""
-    return assembly_mode(style) == "hyperframes" and style.get("aspect_ratio", "9:16") == "16:9" and _is_diagram_run(storyboard)
+    """Ghép project HyperFrames khi mọi shot là video Flow hoặc sơ đồ UI_SIM được hỗ trợ."""
+    aspect_ratio = style.get("aspect_ratio", "9:16")
+    if assembly_mode(style) != "hyperframes" or aspect_ratio not in {"9:16", "16:9"} or not storyboard.shots:
+        return False
+    return all(
+        shot.shot_kind == "FLOW_ORIGAMI"
+        or (shot.shot_kind == "UI_SIM" and shot.ui_scene and shot.ui_scene.layout in DIAGRAM_LAYOUTS
+            and (aspect_ratio == "16:9" or shot.ui_scene.layout in PORTRAIT_DIAGRAM_LAYOUTS))
+        for shot in storyboard.shots
+    )
 
 
-def _render_with_hyperframes(storyboard, steps: list[dict], voice_path: Path, words: list[dict] | None, output_path: Path) -> dict:
-    """Dựng video cuối bằng dự án HyperFrames từ storyboard, giọng đã đệm theo từng clip và mốc từ. Lỗi thì ném RuntimeError để run báo FAILED
-    (các clip từng shot lúc này chỉ là clip giữ chỗ nên không quay về cách ghép cũ được)."""
+def _render_with_hyperframes(
+    storyboard, steps: list[dict], voice_path: Path | None, words: list[dict] | None, output_path: Path,
+    music_path: Path | None = None, sfx_cues: list[dict] | None = None, aspect_ratio: str = "16:9",
+    shot_media: list[dict | None] | None = None,
+) -> dict:
+    """Dựng bằng HyperFrames; shot_media bổ sung các clip Flow cho cảnh đồ họa xen kẽ."""
     import shutil
     from . import hf_project
     from .planner import resolve_diagram_times
 
     shots = []
     for index, shot in enumerate(storyboard.shots):
-        seconds = steps[index]["clip_seconds"]
-        word_times = _diagram_word_times(storyboard.shots, steps, index, per_clip=True)
+        seconds = steps[index].get("clip_seconds") or shot.duration_seconds
+        media = shot_media[index] if shot_media else None
+        if shot.shot_kind == "FLOW_ORIGAMI":
+            if not media:
+                raise RuntimeError("HYPERFRAMES_VIDEO_ASSET_MISSING")
+            shots.append({"shot_id": shot.shot_id, "scene": None, "media_path": media["path"],
+                          "media_start_seconds": media.get("media_start_seconds", 0), "narration": shot.narration,
+                          "seconds": seconds})
+            continue
+        word_times = None if shot_media is not None else _diagram_word_times(storyboard.shots, steps, index, per_clip=True)
         shots.append({"shot_id": shot.shot_id, "scene": shot.ui_scene, "narration": shot.narration, "seconds": seconds,
                       "events": resolve_diagram_times(shot.ui_scene, shot.narration, seconds, word_times), "word_times": word_times})
     work = Path(tempfile.mkdtemp(prefix="hf_run_", dir=output_path.parent))
     try:
         project = work / "du_an"
-        info = hf_project.build_project(project, shots, voice_path, words)
+        info = hf_project.build_project(project, shots, voice_path, words, music_path=music_path, sfx_cues=sfx_cues, aspect_ratio=aspect_ratio)
         if os.environ.get("CONTENT_VIDEO_HF_CHECK") == "1":   # cổng check mất thêm vài phút trên NAS nên mặc định tắt
             lint = hf_project.check_project(project)["data"].get("lint", {})
             if lint.get("errorCount"):
@@ -813,26 +843,27 @@ def _add_brand_end_card(video_path: Path) -> float:
     meta = video_processor.probe_video(video_path)
     duration = float(meta.get("duration_seconds", 0))
     width, height = int(meta.get("width", 0)), int(meta.get("height", 0))
-    logo = Path(__file__).resolve().parent / "brand" / "logo_doc_mau.png"
-    if duration <= 0 or width <= 0 or height <= 0 or not logo.is_file():
+    portrait = height >= width
+    brand_dir = Path(__file__).resolve().parent / "brand"
+    shot_name = "shot_ket_baha_midnight_doc_3s.mp4" if portrait else "shot_ket_baha_midnight_ngang_3s.mp4"
+    shot = brand_dir / shot_name
+    if duration <= 0 or width <= 0 or height <= 0 or not shot.is_file():
         raise RuntimeError("BRAND_END_CARD_INPUT_INVALID")
+    shot_meta = video_processor.probe_video(shot)
+    expected_shot_size = (1080, 1920) if portrait else (1920, 1080)
+    if (shot_meta.get("width"), shot_meta.get("height")) != expected_shot_size or float(shot_meta.get("duration_seconds", 0)) < 2.9:
+        raise RuntimeError("BRAND_END_CARD_ASSET_INVALID")
     start = max(0, duration - 3)
-    card_width = min(280, round(width * 0.26))
-    logo_width = min(240, round(card_width * 0.86))
-    logo_height = round(logo_width * 495 / 684)
-    card_height = logo_height + 36
-    card_x = width - card_width - max(24, round(width * 0.05))
-    card_y = max(24, round(height * 0.08))
-    enabled = f"between(t,{start:.3f},{duration:.3f})"
+    card_seconds = min(3.0, duration)
     filters = (
-        f"[0:v]drawbox=x={card_x}:y={card_y}:w={card_width}:h={card_height}:color=white:t=fill:enable='{enabled}'[card];"
-        f"[1:v]scale={logo_width}:-1[logo];"
-        f"[card][logo]overlay=x={card_x}+({card_width}-w)/2:y={card_y}+({card_height}-h)/2:enable='{enabled}'[v]"
+        f"[1:v]fps=30,scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1,"
+        f"trim=duration={card_seconds:.3f},setpts=PTS-STARTPTS+{start:.3f}/TB[brand];"
+        "[0:v][brand]overlay=x=0:y=0:eof_action=pass:shortest=0,format=yuv420p[v]"
     )
     temporary = video_path.with_name(f".{video_path.stem}.brand.tmp.mp4")
     try:
         result = run_media_command([
-            video_processor.ffmpeg_bin, "-y", "-i", str(video_path), "-i", str(logo),
+            video_processor.ffmpeg_bin, "-y", "-i", str(video_path), "-i", str(shot),
             "-filter_complex", filters, "-map", "[v]", "-map", "0:a?",
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-r", "30",
             "-c:a", "copy", "-movflags", "+faststart", str(temporary),
@@ -883,7 +914,9 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     word_aligned = False
     karaoke_words = None
     style = json.loads(plan.style_snapshot_json)
-    use_hf = bool(voice_input and is_tts_voice and variable_clips and _use_hyperframes_assembly(storyboard, style))
+    hyperframes_eligible = _use_hyperframes_assembly(storyboard, style)
+    hyperframes_has_flow = any(shot.shot_kind == "FLOW_ORIGAMI" for shot in storyboard.shots)
+    use_hf = bool(hyperframes_eligible and (hyperframes_has_flow or (voice_input and is_tts_voice and variable_clips)))
     if voice_input and include_subtitles and is_tts_voice:
         speed = fit_voice_speed(target_seconds * 1000, voice_asset.duration_ms)
         measured = [
@@ -938,6 +971,11 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
             asset_id=voice_asset.id,
             duration_ms=voice_asset.duration_ms if is_tts_voice else target_seconds * 1000,
         ) if voice_asset else None,
+        music_track=TimelineAudioTrack(
+            asset_id=run.music_asset_id,
+            duration_ms=target_seconds * 1000,
+            gain_db=-18.0,
+        ) if getattr(run, "music_asset_id", None) else None,
         captions=caption_cues,
     )
     latest = db.query(TimelineVersion).filter(TimelineVersion.project_id == run.project_id).order_by(TimelineVersion.version.desc()).first()
@@ -975,10 +1013,81 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     db.commit()
     steps_now = json.loads(run.steps_json or "[]")
     render_meta = None
+    clip_durations = [clip.duration_ms / 1000 for clip in clips]
+    sfx_cues = plan_sfx_cues(storyboard.shots, clip_durations)
+    if use_hf and os.getenv("CONTENT_VIDEO_HF_TRANSITIONS", "1") != "0":
+        sfx_cues.extend(transition_sfx_cues(
+            [clips[index].start_ms / 1000 for index in range(1, len(clips), 2)], "xe_giay",
+        ))
+    elif not use_hf and len(clips) > 1:
+        sfx_cues.extend(transition_sfx_cues([clip.start_ms / 1000 for clip in clips[1:]]))
+    music_path = None
+    if getattr(run, "music_asset_id", None):
+        music_asset = db.query(MediaAsset).filter(
+            MediaAsset.id == run.music_asset_id,
+            MediaAsset.workspace_id == run.workspace_id,
+            MediaAsset.project_id == run.project_id,
+        ).first()
+        if not music_asset:
+            raise RuntimeError("MUSIC_ASSET_NOT_FOUND")
+        music_path = _verified_asset_path(music_asset, "MUSIC_ASSET")
     if use_hf:
         try:
-            render_meta = _render_with_hyperframes(storyboard, steps_now, voice_input[1], karaoke_words if include_subtitles else None, output_path)
-        except RuntimeError as exc:
+            if hyperframes_has_flow:
+                shot_media = [
+                    {"path": resolve_asset(asset_ids[index]), "media_start_seconds": clips[index].trim_in_ms / 1000}
+                    if shot.shot_kind == "FLOW_ORIGAMI" else None
+                    for index, shot in enumerate(storyboard.shots)
+                ]
+                with tempfile.TemporaryDirectory(prefix="hf_visual_", dir=output_path.parent) as visual_dir:
+                    visual_path = Path(visual_dir) / "visual.mp4"
+                    _render_with_hyperframes(
+                        storyboard, steps_now, None, None, visual_path,
+                        aspect_ratio=style.get("aspect_ratio", "9:16"), shot_media=shot_media,
+                    )
+                    visual_asset_id = f"hf-visual-{uuid.uuid4().hex}"
+                    audio_timeline = TimelineDocument(
+                        width=width, height=height, fps=30,
+                        clips=[TimelineClip(
+                            clip_id="hyperframes-visual", asset_id=visual_asset_id,
+                            media_type=TimelineMediaType.VIDEO, start_ms=0,
+                            duration_ms=target_seconds * 1000, trim_in_ms=0,
+                            trim_out_ms=target_seconds * 1000,
+                        )],
+                        voice_track=timeline.voice_track, music_track=timeline.music_track, captions=caption_cues,
+                    )
+
+                    def resolve_hf_asset(asset_id: str) -> Path:
+                        return visual_path if asset_id == visual_asset_id else resolve_asset(asset_id)
+
+                    render_meta = video_processor.render_timeline_document(
+                        audio_timeline, resolve_hf_asset, output_path, transition_seconds=0,
+                        caption_style="vietsub_karaoke_v2", preserve_voice_audio=is_tts_voice,
+                        sfx_cues=sfx_cues,
+                    )
+                if not is_tts_voice:
+                    audio_specs = [
+                        (resolve_asset(asset_id), "video", clip.trim_in_ms / 1000, clip.duration_ms / 1000)
+                        for asset_id, clip in zip(asset_ids, clips, strict=True)
+                    ]
+                    with tempfile.TemporaryDirectory(prefix="hf_flow_audio_", dir=output_path.parent) as audio_dir:
+                        flow_audio_present = video_processor._preserve_native_clip_audio(
+                            output_path, audio_specs, Path(audio_dir),
+                            bool(voice_asset or getattr(run, "music_asset_id", None) or sfx_cues), target_seconds,
+                        )
+                    render_meta["flow_native_audio"] = flow_audio_present
+                    if flow_audio_present:
+                        levels = audio_processor.measure_loudness(output_path)
+                        render_meta["audio_loudness_lufs"] = levels.get("measured_i_lufs")
+                        render_meta["audio_true_peak_dbtp"] = levels.get("measured_tp_dbtp")
+                        render_meta["audio_lra_lu"] = levels.get("measured_lra_lu")
+                        render_meta["audio_normalization"] = "EBU_R128"
+            else:
+                render_meta = _render_with_hyperframes(
+                    storyboard, steps_now, voice_input[1], karaoke_words if include_subtitles else None,
+                    output_path, music_path=music_path, sfx_cues=sfx_cues, aspect_ratio=style.get("aspect_ratio", "9:16"),
+                )
+        except Exception as exc:
             if os.getenv("CONTENT_VIDEO_RENDER_FALLBACK", "1") == "0":
                 raise
             # Đường lùi: dựng lại từng cảnh bằng Playwright rồi ghép kiểu cũ, run vẫn ra video.
@@ -987,15 +1096,19 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
             style_now = json.loads(plan.style_snapshot_json)
             ratio = style_now.get("aspect_ratio", "9:16")
             for shot_index, (shot, asset_id) in enumerate(zip(storyboard.shots, asset_ids, strict=True)):
+                if shot.shot_kind != "UI_SIM":
+                    continue
                 path = out_dir / f"hf_fallback_{run.id}_{shot_index}.mp4"
-                word_times = _diagram_word_times(storyboard.shots, steps_now, shot_index, per_clip=True)
-                render_scene(shot.ui_scene, {**style_now, "render_engine": "playwright"}, step_clip_seconds[shot_index], ratio, path, narration=shot.narration, word_times=word_times)
+                duration = step_clip_seconds[shot_index] or shot.duration_seconds
+                word_times = None if hyperframes_has_flow else _diagram_word_times(storyboard.shots, steps_now, shot_index, per_clip=True)
+                render_scene(shot.ui_scene, {**style_now, "render_engine": "playwright"}, duration, ratio, path, narration=shot.narration, word_times=word_times)
                 fallback_paths[asset_id] = path
     if render_meta is None:
         try:
             render_meta = video_processor.render_timeline_document(
                 timeline, resolve_asset, output_path, transition_seconds=0.3,
                 caption_style="vietsub_karaoke_v2", preserve_voice_audio=is_tts_voice,
+                sfx_cues=sfx_cues,
             )
         finally:
             for path in fallback_paths.values():
@@ -1056,6 +1169,13 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         audio_qc = audio_processor.verify_audio_qc(
             output_path, expected_duration_sec=target_seconds,
         )
+    elif render_meta.get("audio_normalization") == "SFX_ONLY_PEAK_LIMITED":
+        peak = meta.get("audio_true_peak_dbtp")
+        audio_qc = {
+            "status": "SFX_ONLY_PEAK_LIMITED",
+            "reason": "SPARSE_SFX_HAS_NO_RELIABLE_INTEGRATED_LUFS",
+            "passed": peak is not None and float(peak) <= -1.5,
+        }
     else:
         audio_qc = {
             "status": "SKIPPED",
@@ -1078,7 +1198,11 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         "voice_asset_id": voice_asset.id if voice_asset else None,
         "voice_source": "TTS" if voice_asset and getattr(voice_asset, "source_product", None) == "CONTENT_VIDEO_TTS" else "UPLOAD" if voice_asset else "FLOW_NATIVE" if meta.get("flow_native_audio") else "NONE",
         "flow_native_audio": bool(meta.get("flow_native_audio")),
-        "brand_end_card": {"logo_asset": "logo_doc_mau.png", "duration_seconds": brand_end_card_seconds},
+        "brand_end_card": {
+            "logo_asset": "logo_ngang_am_ban.png",
+            "shot_asset": "shot_ket_baha_midnight_doc_3s.mp4" if aspect_ratio == "9:16" else "shot_ket_baha_midnight_ngang_3s.mp4",
+            "duration_seconds": brand_end_card_seconds,
+        },
         "voice_asset_sha256": voice_asset.sha256 if voice_asset else None,
         "tts_provider": tts_config.get("provider") if tts_config and voice_asset else None,
         "tts_model": {"GWEN_TTS": "g-group-ai-lab/gwen-tts-0.6B", "VIE_NEU_V3_TURBO": "pnnbao-ump/VieNeu-TTS-v3-Turbo"}.get(tts_config.get("provider")) if tts_config and voice_asset else None,
@@ -1221,7 +1345,9 @@ def process_run(run_id: str, token: str | None = None) -> None:
                     step["started_at"] = _now().isoformat()
                     _save_run(db, run, steps)
                     clip_seconds = step.get("clip_seconds")
-                    hf_assembly = _use_hyperframes_assembly(storyboard, json.loads(plan.style_snapshot_json)) and bool(clip_seconds)
+                    hf_assembly = _use_hyperframes_assembly(storyboard, json.loads(plan.style_snapshot_json)) and (
+                        bool(clip_seconds) or any(item.shot_kind == "FLOW_ORIGAMI" for item in storyboard.shots)
+                    )
                     word_times = None if hf_assembly else (_diagram_word_times(storyboard.shots, steps, shot_index, per_clip=bool(clip_seconds)) if shot.ui_scene.layout in DIAGRAM_LAYOUTS else None)
                     _render_ui_asset(db, run, plan, shot, step, word_times, clip_seconds, placeholder=hf_assembly)
                     run.output_asset_ids_json = json.dumps([item["asset_id"] for item in steps if item.get("asset_id")])
@@ -1310,16 +1436,9 @@ def process_run(run_id: str, token: str | None = None) -> None:
                         profile = resolve_profile(db, run.workspace_id, step["flow_profile_id"])
                         profile.state = "QUOTA_LIMITED"
                         profile.google_flow_state = "QUOTA_LIMITED"
-                    if exc.submitted:
-                        step["state"] = "NEEDS_RECONCILIATION"
-                        run.status = "NEEDS_RECONCILIATION"
-                        run.error_code = "PROVIDER_SUBMISSION_UNCERTAIN"
-                        run.error_message = "Flow báo hết hạn mức sau khi gửi. Cần đối soát trước khi đổi tài khoản và gửi tiếp."
-                    else:
-                        step["state"] = "READY"
-                        run.status = "BLOCKED_FLOW_QUOTA"
-                        run.error_code = "FLOW_QUOTA_LIMITED"
-                        run.error_message = "Chọn hoặc đăng nhập tài khoản Flow khác rồi tiếp tục run."
+                        profile.error_code = "FLOW_QUOTA_LIMITED"
+                        profile.last_checked_at = _now()
+                    _mark_flow_quota_blocked(run, step, submitted=exc.submitted)
                     _save_run(db, run, steps)
                     return
                 except FlowLoginRequired:

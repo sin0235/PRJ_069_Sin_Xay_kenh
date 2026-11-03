@@ -8,6 +8,9 @@ from __future__ import annotations
 
 import json
 import math
+from pathlib import Path
+
+CAMERA_MOTION_JS = Path(__file__).with_name("dieu_khien_may_quay.js").read_text(encoding="utf-8")
 
 # --------------------------------------------------------------------------------------------------------------------------------
 # Khung chung
@@ -15,10 +18,14 @@ import math
 BASE_CSS = r'''
 @font-face{font-family:"Viet";src:url('assets/fonts/be_vietnam_pro_semibold.ttf');font-weight:400 800}
 @font-face{font-family:"BrandSans";src:url('assets/fonts/utm_helvetins.ttf')}
-@@S@@{position:absolute;inset:0;font-family:"Viet",sans-serif;color:#F2EEE6}
+@@S@@{position:absolute;inset:0;font-family:"Viet",sans-serif;color:#F2EEE6;perspective:1900px;perspective-origin:50% 50%}
+@@S@@ .cameraRig{position:absolute;inset:0;transform-style:preserve-3d;transform-origin:50% 50%;will-change:transform}
+@@S@@ .cameraPlane{position:absolute;inset:0;transform-style:preserve-3d;backface-visibility:hidden}
 @@S@@ .cam{position:absolute;inset:0}
 @@S@@ .sheet{position:absolute;left:170px;top:70px;width:1576px;height:860px;border:2px solid rgba(217,178,106,.65);border-radius:24px;background:linear-gradient(145deg,rgba(27,41,64,.98),rgba(16,24,39,.98));
   box-shadow:0 24px 70px rgba(0,0,0,.5)}
+@@S@@ .sheetBackground{position:absolute;left:170px;top:70px;width:1576px;height:860px;border:2px solid rgba(217,178,106,.65);border-radius:24px;background:linear-gradient(145deg,rgba(27,41,64,.98),rgba(16,24,39,.98));box-shadow:0 24px 70px rgba(0,0,0,.5)}
+@@S@@ .sheetContent{background:transparent;border:0;box-shadow:none}
 @@S@@ .fold,@@S@@ .tape,@@S@@ .pencil,@@S@@ .marker{display:none}
 @@S@@ .title{position:absolute;left:80px;top:40px;font-size:46px;font-weight:700;white-space:nowrap}
 @@S@@ .title .m{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:10px;margin-right:.28em}
@@ -36,18 +43,27 @@ BASE_CSS = r'''
 '''
 
 BASE_BODY = r'''
-<div class="cam" id="@@CID@@-cam">
+<div class="cameraRig" id="@@CID@@-rig" data-layout-allow-overflow>
+<div class="cameraPlane back" id="@@CID@@-back"><div class="cam" id="@@CID@@-backCam">
   <div class="tape" style="left:156px;top:61px;background:#3fae9c"></div>
   <div class="tape" style="left:1646px;top:901px;background:#FABC11"></div>
   <div class="pencil" id="@@CID@@-pencil"></div><div class="marker" id="@@CID@@-marker"></div>
-  <div class="sheet" id="@@CID@@-sheet">
+  <div class="sheetBackground"></div>
+</div></div>
+<div class="cameraPlane middle" id="@@CID@@-middle"><div class="cam" id="@@CID@@-cam">
+  <div class="sheet sheetContent" id="@@CID@@-sheet">
     <div class="fold"></div>
     @@TITLE@@
     @@SIM@@
     @@BODY@@
   </div>
+</div></div>
+<div class="cameraPlane front" id="@@CID@@-front">
+<div class="cam" id="@@CID@@-frontCam">
   <svg class="cursor" id="@@CID@@-cursor" viewBox="0 0 34 44"><path d="M2 2 L2 38 L11 30 L18 43 L25 40 L18 27 L31 27 Z" fill="#fff" stroke="#F2EEE6" stroke-width="3" stroke-linejoin="round"/></svg>
   <div class="ring" id="@@CID@@-ring"></div>
+</div>
+</div>
 </div>
 '''
 
@@ -55,6 +71,9 @@ JS_HELPERS = r'''
 const R = document.querySelector('[data-composition-id="@@CID@@"]');
 const q = (s) => R.querySelector(s), qa = (s) => Array.from(R.querySelectorAll(s));
 const L = @@LEAD@@, D = @@DUR@@, EV = @@EV@@;
+const CAMERA_CONFIG = @@CAMERA_CONFIG@@, cameraRig = q('#@@CID@@-rig'), cameraFocus = { x: 960, y: 540, from: D * .35, to: D * .55, points: [] };
+const LAYERED_CAMERA = window.__bahaCamera.isLayered(CAMERA_CONFIG.kind, CAMERA_CONFIG.motion);
+const cameraTargets = LAYERED_CAMERA ? [q('#@@CID@@-cam')] : [q('#@@CID@@-cam'), q('#@@CID@@-backCam'), q('#@@CID@@-frontCam')];
 const T = (k) => EV[k] + L;
 const tl = gsap.timeline({ paused: true });
 const box = (el) => { const r = el.getBoundingClientRect(), b = R.getBoundingClientRect(), k = (b.width / 1920) || 1; return { x: (r.left - b.left) / k, y: (r.top - b.top) / k, w: r.width / k, h: r.height / k }; };
@@ -62,8 +81,8 @@ const geo = new Map();
 const where = (el) => { if (!geo.has(el)) geo.set(el, box(el)); return geo.get(el); };
 /* trang giấy trượt vào, rồi trôi rất nhẹ; trượt ra ở cuối cảnh (thoát ngắn hơn lúc vào) */
 gsap.set(q('#@@CID@@-sheet'), { transformOrigin: '50% 50%' });
-tl.fromTo(q('#@@CID@@-cam'), { x: L > 0 ? 190 : 0, opacity: L > 0 ? 0 : 1 }, { x: 0, opacity: 1, duration: L > 0 ? .6 : .01, ease: 'power4.out' }, 0);
-tl.fromTo(q('#@@CID@@-cam'), { scale: 1 }, { scale: 1.035, duration: D, ease: 'none' }, 0);
+tl.fromTo(cameraTargets, { x: L > 0 ? 190 : 0, opacity: L > 0 ? 0 : 1 }, { x: 0, opacity: 1, duration: L > 0 ? .6 : .01, ease: 'power4.out' }, 0);
+if (!LAYERED_CAMERA) tl.fromTo(cameraTargets, { scale: 1 }, { scale: 1.035, duration: D, ease: 'none' }, 0);
 @@EXIT@@
 /* tiêu đề: từng từ trồi lên từ mặt nạ, vào lệch nhau */
 const words = qa('#@@CID@@-sheet .title .m>span');
@@ -76,6 +95,8 @@ let curX = 1700, curY = 980, curShown = false, curPrev = 0;
 function point(el, at, dx, dy) {
   const start = Math.max(curPrev + .12, at - .8);
   const tx = () => where(el).x + where(el).w * (dx === undefined ? .78 : dx), ty = () => where(el).y + where(el).h * (dy === undefined ? .78 : dy);
+  if (!cameraFocus.points.length && cameraFocus.set) Object.assign(cameraFocus, { x: 960, y: 540 });
+  cameraFocus.points.push({ x: tx(), y: ty(), at: Math.max(0, Math.min(D, at)) });
   if (!curShown) { curShown = true; tl.fromTo(cur, { opacity: 0, x: 1700, y: 980 }, { opacity: 1, duration: .25, ease: 'power2.out' }, start - .1); tl.set(cur, { x: curX, y: curY }, start - .1); }
   tl.to(cur, { x: tx, y: ty, duration: Math.max(.2, at - .08 - start), ease: 'power2.inOut' }, start);
   tl.to(cur, { scale: .86, duration: .07, ease: 'power2.in', transformOrigin: '0 0' }, at - .08);
@@ -88,13 +109,22 @@ function point(el, at, dx, dy) {
 function sweep(el, at, dur) { tl.fromTo(el, { scaleX: 0, transformOrigin: '0% 50%' }, { scaleX: 1, duration: dur || .55, ease: 'power3.out' }, at); }
 function draw(el, at, dur) { const len = el.getTotalLength ? el.getTotalLength() : 600; gsap.set(el, { strokeDasharray: len, strokeDashoffset: len }); tl.to(el, { strokeDashoffset: 0, duration: dur || .6, ease: 'power2.inOut' }, at); }
 function count(el, from, to, at, dur, dec, suffix) { const o = { v: from }; tl.fromTo(o, { v: from }, { v: to, duration: dur || 1.2, ease: 'power2.out', onUpdate: () => { el.textContent = (dec ? o.v.toFixed(dec).replace('.', ',') : Math.round(o.v)) + (suffix || ''); } }, at); }
-function punch(x, y, at, k) { tl.to(q('#@@CID@@-cam'), { scale: k || 1.07, transformOrigin: x + 'px ' + y + 'px', duration: .9, ease: 'power2.inOut' }, at); }
+function punch(x, y, at, k) { if (!cameraFocus.set) Object.assign(cameraFocus, { from: Math.max(0, at - .9), to: Math.min(D, at + .7), set: true }); if (!cameraFocus.points.length) Object.assign(cameraFocus, { x, y }); if (!LAYERED_CAMERA) tl.to(cameraTargets, { scale: k || 1.07, transformOrigin: x + 'px ' + y + 'px', duration: .9, ease: 'power2.inOut' }, at); }
+const cameraClock = { t: 0 };
+tl.to(cameraClock, { t: D, duration: D, ease: 'none', onUpdate: () => {
+  const c = window.__bahaCamera.transform(CAMERA_CONFIG.kind, CAMERA_CONFIG.motion, cameraClock.t, D, cameraFocus, 1920, 1080);
+  const root = cameraRig.parentElement; root.style.perspective = c.perspective + 'px'; root.style.perspectiveOrigin = c.origin;
+  cameraRig.style.transformOrigin = c.origin; cameraRig.style.transform = c.transform;
+  ['back', 'middle', 'front'].forEach((name) => { const layer = q('#@@CID@@-' + name), pose = c.planes[name]; layer.style.transform = 'translateZ(' + pose.z.toFixed(2) + 'px)'; layer.style.filter = pose.blur_px > 0 ? 'blur(' + pose.blur_px.toFixed(2) + 'px)' : 'none'; });
+} }, 0);
 @@SCENE@@
+cameraFocus.points.sort((a, b) => a.at - b.at);
+if (cameraFocus.points.length > 1) Object.assign(cameraFocus, { from: cameraFocus.points[0].at, to: cameraFocus.points[cameraFocus.points.length - 1].at });
 window.__timelines['@@CID@@'] = tl;
 '''
 
 EXIT_JS = r'''
-if (D > 3) tl.to(q('#@@CID@@-cam'), { x: -210, opacity: 0.35, duration: .4, ease: 'power3.in' }, D - .42);
+ if (D > 3 && !LAYERED_CAMERA) tl.to(cameraTargets, { x: -210, opacity: 0.35, duration: .4, ease: 'power3.in' }, D - .42);
 '''
 
 
@@ -112,8 +142,9 @@ def scaffold(cid: str, scene: dict, css: str, body: str, js: str, lead: float, s
     unit = f'<div class="unit">Đơn vị: {esc(scene["unit"])}</div>' if scene.get("unit") else ""
     page = BASE_BODY.replace("@@TITLE@@", (title_html(scene.get("title", "")) if title else "") + unit).replace("@@SIM@@", sim).replace("@@BODY@@", body)
     helpers = JS_HELPERS.replace("@@EXIT@@", EXIT_JS if exit_slide else "").replace("@@SCENE@@", js)
+    helpers = helpers.replace("@@CAMERA_CONFIG@@", json.dumps({"kind": scene.get("kind", ""), "motion": scene.get("camera_motion", "AUTO")}))
     helpers = helpers.replace("@@LEAD@@", repr(round(lead, 3))).replace("@@DUR@@", str(seconds)).replace("@@EV@@", json.dumps({k: round(v, 3) for k, v in events.items()}))
-    text = "<template>\n<style>\n" + BASE_CSS + css + "\n</style>\n<div id=\"root\" data-composition-id=\"@@CID@@\" data-width=\"1920\" data-height=\"1080\">" + page + "</div>\n<script>\n" + helpers + "\n</script>\n</template>\n"
+    text = "<template>\n<style>\n" + BASE_CSS + css + "\n</style>\n<div id=\"root\" data-composition-id=\"@@CID@@\" data-width=\"1920\" data-height=\"1080\">" + page + "</div>\n<script>\n" + CAMERA_MOTION_JS + "\n" + helpers + "\n</script>\n</template>\n"
     return text.replace("@@S@@", '[data-composition-id="' + cid + '"]').replace("@@CID@@", cid)
 
 

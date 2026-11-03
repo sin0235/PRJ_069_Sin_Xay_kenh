@@ -1,0 +1,12 @@
+{
+  "name": "prj069-remotion-canh-giay",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Dựng cảnh giấy bằng Remotion: mỗi khung gọi setT(t) của trang cảnh trong một iframe.",
+  "dependencies": {
+    "@remotion/cli": "4.0.535",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.535"
+  }
+}

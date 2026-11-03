@@ -10,9 +10,11 @@ from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from src.models.entities import AuditEvent, ContentVideoPlan, ContentVideoRun, MediaAsset, ProductionProject
+from src.models.entities import AIGenerationJob, AuditEvent, ContentVideoPlan, ContentVideoRun, MediaAsset, ProductionProject
 from src.modules.llm.client import LLMClient, LLMClientError
+from src.modules.media_queue.service import enqueue_media_job
 from .contracts import (
+    ContentVideoPlanJobResponse,
     ContentVideoPlanResponse,
     ContentVideoRunResponse,
     CreatePlanRequest,
@@ -80,11 +82,97 @@ def _response(plan: ContentVideoPlan) -> ContentVideoPlanResponse:
     )
 
 
-def create_plan(db: Session, project_id: str, workspace_id: str, user_id: str, request: CreatePlanRequest) -> ContentVideoPlanResponse:
+def _content_video_plan_job_response(db: Session, job: AIGenerationJob) -> ContentVideoPlanJobResponse:
+    plan = None
+    if job.state == "SUCCEEDED":
+        saved = db.query(ContentVideoPlan).filter(
+            ContentVideoPlan.id == job.id,
+            ContentVideoPlan.project_id == job.project_id,
+            ContentVideoPlan.workspace_id == job.workspace_id,
+        ).first()
+        if not saved:
+            raise HTTPException(status_code=409, detail={"error_code": "STORYBOARD_RESULT_MISSING", "message": "Tác vụ đã kết thúc nhưng chưa tìm thấy storyboard."})
+        plan = _response(saved)
+    return ContentVideoPlanJobResponse(
+        job_id=job.id,
+        state=job.state,
+        error_code=job.error_code,
+        error_message=job.error_message,
+        plan=plan,
+    )
+
+
+def enqueue_content_video_plan(
+    db: Session,
+    project_id: str,
+    workspace_id: str,
+    user_id: str,
+    request: CreatePlanRequest,
+    idempotency_key: str,
+) -> ContentVideoPlanJobResponse:
+    _project(db, project_id, workspace_id)
+    client = LLMClient.from_db(db)
+    if not client.is_enabled:
+        raise HTTPException(status_code=503, detail={"error_code": "LLM_NOT_CONFIGURED", "message": "LLM chưa được cấu hình hoặc đang tắt; chưa tạo storyboard."})
+    parameters = request.model_dump(mode="json")
+    parameters["project_id"] = project_id
+    job = enqueue_media_job(
+        db,
+        workspace_id=workspace_id,
+        project_id=project_id,
+        user_id=user_id,
+        provider="MEDIA_VIDEO",
+        operation="create_content_video_storyboard",
+        backend_provider="LLM_ROUTER",
+        provider_mode="LLM_ROUTER",
+        model_id=client.model or "configured-llm",
+        prompt_text="Tạo storyboard video",
+        parameters=parameters,
+        idempotency_key=idempotency_key,
+    )
+    return _content_video_plan_job_response(db, job)
+
+
+def get_content_video_plan_job(db: Session, project_id: str, job_id: str, workspace_id: str) -> ContentVideoPlanJobResponse:
+    _project(db, project_id, workspace_id)
+    job = db.query(AIGenerationJob).filter(
+        AIGenerationJob.id == job_id,
+        AIGenerationJob.project_id == project_id,
+        AIGenerationJob.workspace_id == workspace_id,
+        AIGenerationJob.provider == "MEDIA_VIDEO",
+    ).first()
+    if not job:
+        raise HTTPException(status_code=404, detail={"error_code": "STORYBOARD_JOB_NOT_FOUND", "message": "Không tìm thấy tác vụ storyboard."})
+    try:
+        operation = json.loads(job.request_payload_json).get("operation")
+    except (TypeError, ValueError, AttributeError):
+        operation = None
+    if operation != "create_content_video_storyboard":
+        raise HTTPException(status_code=404, detail={"error_code": "STORYBOARD_JOB_NOT_FOUND", "message": "Không tìm thấy tác vụ storyboard."})
+    return _content_video_plan_job_response(db, job)
+
+
+def create_plan(
+    db: Session,
+    project_id: str,
+    workspace_id: str,
+    user_id: str,
+    request: CreatePlanRequest,
+    *,
+    plan_id: str | None = None,
+) -> ContentVideoPlanResponse:
     _project(db, project_id, workspace_id)
     content = request.content.strip()
     if len(content.encode("utf-8")) > 12000:
         raise HTTPException(status_code=422, detail={"error_code": "CONTENT_TOO_LARGE", "message": "Content vượt quá 12 KB."})
+    if plan_id:
+        existing = db.query(ContentVideoPlan).filter(
+            ContentVideoPlan.id == plan_id,
+            ContentVideoPlan.project_id == project_id,
+            ContentVideoPlan.workspace_id == workspace_id,
+        ).first()
+        if existing:
+            return _response(existing)
 
     target_seconds = fixed_shot_target(request.target_duration_seconds)
     client = LLMClient.from_db(db)
@@ -99,6 +187,7 @@ def create_plan(db: Session, project_id: str, workspace_id: str, user_id: str, r
             target_seconds,
             planning_style,
             client,
+            generate_flow_music=request.generate_flow_music,
         )
     except LLMClientError as exc:
         message = {
@@ -108,6 +197,14 @@ def create_plan(db: Session, project_id: str, workspace_id: str, user_id: str, r
         }.get(exc.error_code, f"LLM Gateway lỗi ({exc.error_code}); chưa có storyboard nào được tạo hay kiểm tra.")
         raise HTTPException(status_code=503, detail={"error_code": exc.error_code, "message": message}) from exc
     except ValueError as exc:
+        if str(exc) in {"BRIEF_JSON_INVALID", "STORYBOARD_JSON_INVALID"}:
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "error_code": "LLM_JSON_INVALID",
+                    "message": "AI trả về storyboard sai định dạng sau khi tự thử lại. Hãy thử lại hoặc rút gọn nội dung.",
+                },
+            ) from exc
         raise HTTPException(status_code=422, detail={"error_code": "INVALID_STORYBOARD", "message": str(exc)}) from exc
 
     latest = db.query(ContentVideoPlan.revision).filter(
@@ -115,7 +212,7 @@ def create_plan(db: Session, project_id: str, workspace_id: str, user_id: str, r
         ContentVideoPlan.workspace_id == workspace_id,
     ).order_by(ContentVideoPlan.revision.desc()).first()
     plan = ContentVideoPlan(
-        id=str(uuid.uuid4()),
+        id=plan_id or str(uuid.uuid4()),
         workspace_id=workspace_id,
         project_id=project_id,
         revision=(latest[0] if latest else 0) + 1,
@@ -257,6 +354,7 @@ def _run_response(run: ContentVideoRun) -> ContentVideoRunResponse:
         plan_id=run.plan_id,
         plan_revision=run.plan_revision,
         voice_asset_id=run.voice_asset_id,
+        music_asset_id=getattr(run, "music_asset_id", None),
         voice_source="TTS" if tts_config else "UPLOAD" if run.voice_asset_id else "NONE",
         tts_provider=tts_config.get("provider") if tts_config else None,
         include_subtitles=getattr(run, "include_subtitles", True),
@@ -287,10 +385,11 @@ def _tts_config(request: CreateRunRequest) -> dict | None:
     }
 
 
-def _same_run_request(run, workspace_id: str, project_id: str, plan_id: str, voice_asset_id: str | None, tts_config_json: str | None, include_subtitles: bool) -> bool:
+def _same_run_request(run, workspace_id: str, project_id: str, plan_id: str, voice_asset_id: str | None, music_asset_id: str | None, tts_config_json: str | None, include_subtitles: bool) -> bool:
     return (
         (run.workspace_id, run.project_id, run.plan_id, run.tts_config_json)
         == (workspace_id, project_id, plan_id, tts_config_json)
+        and getattr(run, "music_asset_id", None) == music_asset_id
         and getattr(run, "include_subtitles", True) == include_subtitles
         and (tts_config_json is not None or run.voice_asset_id == voice_asset_id)
     )
@@ -328,7 +427,7 @@ def create_run(
     if existing:
         if request.flow_profile_id and any(step.get("flow_profile_id") != request.flow_profile_id for step in json.loads(existing.steps_json or "[]") if step.get("shot_kind") != "UI_SIM"):
             raise HTTPException(409, detail={"error_code": "IDEMPOTENCY_KEY_REUSED", "message": "Khóa đã dùng với profile Flow khác."})
-        if not _same_run_request(existing, workspace_id, project_id, plan.id, request.voice_asset_id, tts_config_json, request.include_subtitles):
+        if not _same_run_request(existing, workspace_id, project_id, plan.id, request.voice_asset_id, request.music_asset_id, tts_config_json, request.include_subtitles):
             raise HTTPException(status_code=409, detail={"error_code": "IDEMPOTENCY_KEY_REUSED", "message": "Khóa idempotency đã được dùng cho một run khác."})
         return _run_response(existing)
 
@@ -341,6 +440,15 @@ def create_run(
         ).first()
         if not voice_asset or not (voice_asset.mime_detected or "").startswith("audio/"):
             raise HTTPException(status_code=404, detail={"error_code": "VOICE_ASSET_NOT_FOUND", "message": "Hãy chọn tệp giọng đọc âm thanh thuộc dự án này."})
+    music_asset = None
+    if request.music_asset_id:
+        music_asset = db.query(MediaAsset).filter(
+            MediaAsset.id == request.music_asset_id,
+            MediaAsset.workspace_id == workspace_id,
+            MediaAsset.project_id == project_id,
+        ).first()
+        if not music_asset or not (music_asset.mime_detected or "").startswith("audio/"):
+            raise HTTPException(status_code=404, detail={"error_code": "MUSIC_ASSET_NOT_FOUND", "message": "Nhạc nền không thuộc dự án này hoặc không phải tệp âm thanh."})
     if request.tts_reference_asset_id:
         reference_asset = db.query(MediaAsset).filter(
             MediaAsset.id == request.tts_reference_asset_id,
@@ -399,6 +507,7 @@ def create_run(
         project_id=project_id,
         plan_id=plan.id,
         voice_asset_id=voice_asset.id if voice_asset else None,
+        music_asset_id=music_asset.id if music_asset else None,
         tts_config_json=tts_config_json,
         include_subtitles=request.include_subtitles,
         plan_revision=plan.revision,
@@ -417,7 +526,7 @@ def create_run(
     except IntegrityError as exc:
         db.rollback()
         existing = db.query(ContentVideoRun).filter(ContentVideoRun.idempotency_key == request.idempotency_key).first()
-        if existing and _same_run_request(existing, workspace_id, project_id, plan.id, request.voice_asset_id, tts_config_json, request.include_subtitles):
+        if existing and _same_run_request(existing, workspace_id, project_id, plan.id, request.voice_asset_id, request.music_asset_id, tts_config_json, request.include_subtitles):
             return _run_response(existing)
         raise HTTPException(status_code=409, detail={"error_code": "RUN_IDEMPOTENCY_CONFLICT", "message": "Không thể tạo run trùng."}) from exc
     return _run_response(run)
@@ -451,7 +560,7 @@ def retry_run(
     ).with_for_update().first()
     if not source:
         raise HTTPException(status_code=404, detail={"error_code": "RUN_NOT_FOUND", "message": "Không tìm thấy run sản xuất."})
-    if source.status not in {"FAILED", "FAILED_QC", "BLOCKED_FLOW_SETUP", "NEEDS_RECONCILIATION", "COMPLETED"}:
+    if source.status not in {"FAILED", "FAILED_QC", "BLOCKED_FLOW_SETUP", "BLOCKED_FLOW_QUOTA", "NEEDS_RECONCILIATION", "COMPLETED"}:
         raise HTTPException(status_code=409, detail={"error_code": "RUN_NOT_RETRYABLE", "message": "Run đang hoạt động hoặc chưa ở trạng thái có thể tạo lại shot."})
 
     plan = db.query(ContentVideoPlan).filter(
@@ -475,17 +584,48 @@ def retry_run(
         raise HTTPException(status_code=409, detail={"error_code": "FLOW_RESULT_UNCONFIRMED", "message": "Hãy xác nhận không có clip trong Flow cho shot đang chờ đối soát trước khi gửi lại."})
     all_selected = selected == set(shot_ids)
     first_unfinished = next((step.get("shot_id") for step in source_steps if step.get("state") != "SUCCEEDED"), None)
-    if request.new_flow_project and (source.status != "BLOCKED_FLOW_SETUP" or source.error_code != "FLOW_REQUEST_NOT_SUBMITTED"):
+    quota_failure = source.status == "BLOCKED_FLOW_QUOTA" or source.error_code == "FLOW_QUOTA_LIMITED"
+    if (
+        not quota_failure
+        and source.status == "NEEDS_RECONCILIATION"
+        and source.error_code == "PROVIDER_SUBMISSION_UNCERTAIN"
+    ):
+        failed_step = next((step for step in source_steps if step.get("state") != "SUCCEEDED"), None)
+        if failed_step and failed_step.get("flow_profile_id"):
+            from src.modules.flow_sessions.service import resolve_profile
+            try:
+                quota_failure = resolve_profile(db, workspace_id, failed_step["flow_profile_id"]).google_flow_state == "QUOTA_LIMITED"
+            except HTTPException:
+                pass
+    quota_recovery = quota_failure and source.status in {"BLOCKED_FLOW_QUOTA", "NEEDS_RECONCILIATION"}
+    flow_project_unavailable = source.status == "BLOCKED_FLOW_SETUP" and source.error_code == "FLOW_REQUEST_NOT_SUBMITTED"
+    if quota_recovery and not request.new_flow_project:
+        raise HTTPException(status_code=409, detail={"error_code": "FLOW_NEW_PROJECT_REQUIRED", "message": "Hãy đổi sang hồ sơ Flow khác và tiếp tục trong project Flow mới."})
+    if request.new_flow_project and not (flow_project_unavailable or quota_recovery):
         raise HTTPException(status_code=409, detail={"error_code": "FLOW_PROJECT_NOT_UNAVAILABLE", "message": "Chỉ mở project Flow mới khi project hiện tại không truy cập được."})
     if request.new_flow_project and selected_ids != [first_unfinished]:
         raise HTTPException(status_code=409, detail={"error_code": "NEW_FLOW_PROJECT_MUST_START_AT_FAILED_SHOT", "message": "Project Flow mới phải bắt đầu từ shot chưa hoàn tất đầu tiên."})
     if source.status not in {"COMPLETED", "FAILED_QC"} and selected_ids != [first_unfinished]:
         raise HTTPException(status_code=409, detail={"error_code": "RETRY_MUST_START_AT_FAILED_SHOT", "message": "Run chưa hoàn tất; hãy tạo lại đúng shot chưa hoàn tất đầu tiên."})
+    if quota_recovery:
+        failed_step = next((step for step in source_steps if step.get("state") != "SUCCEEDED"), None)
+        if not request.flow_profile_id:
+            raise HTTPException(status_code=409, detail={"error_code": "FLOW_PROFILE_REQUIRED", "message": "Chọn hồ sơ Flow khác trước khi tiếp tục."})
+        if failed_step and request.flow_profile_id == failed_step.get("flow_profile_id"):
+            raise HTTPException(status_code=409, detail={"error_code": "FLOW_PROFILE_MUST_CHANGE", "message": "Hồ sơ Flow này đã hết hạn mức. Hãy chọn hồ sơ khác."})
+
+    selected_profile = None
+    if request.new_flow_project and request.flow_profile_id:
+        from src.modules.flow_sessions.service import resolve_profile
+        selected_profile = resolve_profile(db, workspace_id, request.flow_profile_id)
+        if selected_profile.google_flow_state != "READY":
+            raise HTTPException(status_code=409, detail={"error_code": "FLOW_PROFILE_NOT_READY", "message": "Kiểm tra và chọn một hồ sơ Flow đang sẵn sàng."})
 
     signature = canonical_hash({
         "source_run_id": source.id,
         "shot_ids": selected_ids,
         "new_flow_project": request.new_flow_project,
+        "flow_profile_id": request.flow_profile_id,
         "confirm_no_flow_clip": request.confirm_no_flow_clip,
     })
     existing = db.query(ContentVideoRun).filter(ContentVideoRun.idempotency_key == request.idempotency_key).first()
@@ -513,7 +653,9 @@ def retry_run(
             continuity_anchor=storyboard.continuity_anchor,
             include_narration_audio=not source.voice_asset_id and not tts_config_json,
         )
-        if old_step.get("flow_profile_id"):
+        if request.new_flow_project and old_step.get("state") not in {"SUCCEEDED", "CLEANING"} and request.flow_profile_id:
+            step["flow_profile_id"] = request.flow_profile_id
+        elif old_step.get("flow_profile_id"):
             step["flow_profile_id"] = old_step["flow_profile_id"]
         if old_step.get("tts_audio"):
             step["tts_audio"] = old_step["tts_audio"]

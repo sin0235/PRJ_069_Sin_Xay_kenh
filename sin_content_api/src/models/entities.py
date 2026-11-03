@@ -727,6 +727,7 @@ class ContentVideoRun(Base):
     project_id = Column(String(36), ForeignKey("production_projects.id"), nullable=False, index=True)
     plan_id = Column(String(36), ForeignKey("content_video_plans.id"), nullable=False, index=True)
     voice_asset_id = Column(String(36), ForeignKey("media_assets.id"), nullable=True)
+    music_asset_id = Column(String(36), ForeignKey("media_assets.id"), nullable=True)
     tts_config_json = Column(Text, nullable=True)
     include_subtitles = Column(Boolean, nullable=False, default=True, server_default=text("true"))
     plan_revision = Column(Integer, nullable=False)

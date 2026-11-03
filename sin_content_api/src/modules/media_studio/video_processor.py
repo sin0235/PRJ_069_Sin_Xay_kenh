@@ -6,6 +6,7 @@ Safe Zone, ghép video phân cảnh, track âm thanh và tẩy sạch watermark 
 
 import logging
 import json
+import math
 import os
 import pathlib
 import subprocess
@@ -286,6 +287,7 @@ class VideoProcessor:
         transition_seconds: float = 0.0,
         caption_style: str = "legacy",
         preserve_voice_audio: bool = False,
+        sfx_cues: list[dict] | None = None,
     ) -> Dict[str, Any]:
         """
         Render toàn diện video MP4 từ timeline document (M-P5):
@@ -301,6 +303,12 @@ class VideoProcessor:
         with self._render_lock:
             if caption_style not in {"legacy", "vietsub_v1", "vietsub_karaoke_v2"}:
                 raise ValueError("CAPTION_STYLE_UNSUPPORTED")
+            sfx_cues = list(sfx_cues or [])
+            for cue in sfx_cues:
+                if (not pathlib.Path(cue["path"]).is_file()
+                        or not math.isfinite(float(cue["start_seconds"])) or float(cue["start_seconds"]) < 0
+                        or not math.isfinite(float(cue["volume"])) or not 0 <= float(cue["volume"]) <= 1):
+                    raise ValueError("SFX_CUE_INVALID")
             output_path.parent.mkdir(parents=True, exist_ok=True)
 
             clips = getattr(timeline, "clips", [])
@@ -309,9 +317,9 @@ class VideoProcessor:
             if not clips:
                 raise ValueError("Timeline không có phân cảnh (clips) nào để kết xuất.")
 
-            width = getattr(timeline, "width", 1080) or 1080
-            height = getattr(timeline, "height", 1920) or 1920
-            fps = getattr(timeline, "fps", 30) or 30
+            width = getattr(timeline, "width", None) or (timeline.get("width") if isinstance(timeline, dict) else None) or 1080
+            height = getattr(timeline, "height", None) or (timeline.get("height") if isinstance(timeline, dict) else None) or 1920
+            fps = getattr(timeline, "fps", None) or (timeline.get("fps") if isinstance(timeline, dict) else None) or 30
 
             work_dir = temp_dir or (output_path.parent / f"render_tmp_{uuid.uuid4().hex[:8]}")
             work_dir.mkdir(parents=True, exist_ok=True)
@@ -519,10 +527,20 @@ class VideoProcessor:
                     if caption_style == "vietsub_karaoke_v2":
                         if not VIETSUB_FONT_PATH.is_file():
                             raise RuntimeError("CAPTION_FONT_NOT_FOUND")
-                        shutil.copyfile(VIETSUB_FONT_PATH, work_dir / VIETSUB_FONT_PATH.name)
-                        (work_dir / "captions.ass").write_text(build_karaoke_ass(karaoke_captions, width, height), encoding="utf-8")
-                        drawtext_filters.append("ass=captions.ass:fontsdir=.")
-                        font_file = VIETSUB_FONT_PATH.name
+                        fonts_dir = work_dir / "fonts"
+                        fonts_dir.mkdir(exist_ok=True)
+                        shutil.copyfile(VIETSUB_FONT_PATH, fonts_dir / VIETSUB_FONT_PATH.name)
+                        karaoke_settings = (
+                            timeline.get("karaoke_settings")
+                            if isinstance(timeline, dict)
+                            else getattr(timeline, "karaoke_settings", None)
+                        )
+                        (work_dir / "captions.ass").write_text(
+                            build_karaoke_ass(karaoke_captions, width, height, settings=karaoke_settings),
+                            encoding="utf-8",
+                        )
+                        drawtext_filters.append("ass=captions.ass:fontsdir=fonts")
+                        font_file = f"fonts/{VIETSUB_FONT_PATH.name}"
                         has_font = True
                         font_color = "white"
                         box_color = "0x000000@0.72"
@@ -607,6 +625,9 @@ class VideoProcessor:
 
                 voice_asset_id = getattr(voice_tr, "asset_id", None) or (voice_tr.get("asset_id") if isinstance(voice_tr, dict) else None) if voice_tr else None
                 music_asset_id = getattr(music_tr, "asset_id", None) or (music_tr.get("asset_id") if isinstance(music_tr, dict) else None) if music_tr else None
+                music_gain_db = getattr(music_tr, "gain_db", 0.0) if music_tr else 0.0
+                if isinstance(music_tr, dict):
+                    music_gain_db = music_tr.get("gain_db", 0.0)
 
                 has_voice = bool(voice_asset_id)
                 has_music = bool(music_asset_id)
@@ -618,16 +639,29 @@ class VideoProcessor:
                 voice_duration = 0.0
 
                 if preserve_voice_audio:
-                    if not has_voice or has_music:
-                        raise ValueError("RAW_TTS_REQUIRES_VOICE_WITHOUT_MUSIC")
+                    if not has_voice:
+                        raise ValueError("RAW_TTS_REQUIRES_VOICE")
                     from .audio_processor import audio_processor
-                    final_audio = asset_path_resolver(voice_asset_id)
-                    voice_duration = float(audio_processor.probe_audio(final_audio)["duration_seconds"])
+                    voice_file = asset_path_resolver(voice_asset_id)
+                    voice_duration = float(audio_processor.probe_audio(voice_file)["duration_seconds"])
                     if voice_duration <= 0:
                         raise ValueError("RAW_TTS_DURATION_INVALID")
                     video_playback_speed = fit_voice_speed(total_duration_sec, voice_duration)
                     video_content_duration_sec = total_duration_sec / video_playback_speed
                     final_duration_sec = max(video_content_duration_sec, voice_duration)
+                    if has_music:
+                        music_file = asset_path_resolver(music_asset_id)
+                        run_media_command([
+                            self.ffmpeg_bin, "-y", "-t", f"{final_duration_sec:.3f}",
+                            "-i", str(voice_file), "-i", str(music_file),
+                            "-filter_complex",
+                             f"[1:a]volume={music_gain_db:.2f}dB,apad=whole_dur={final_duration_sec:.3f}[m];"
+                             f"[m][0:a]sidechaincompress=threshold=0.03:ratio=6:attack=15:release=350[d];"
+                            "[d][0:a]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[a]",
+                            "-map", "[a]", "-ar", "44100", "-ac", "2", "-t", f"{final_duration_sec:.3f}", str(final_audio),
+                        ], capture_output=True, check=True)
+                    else:
+                        final_audio = voice_file
 
                 elif has_voice and has_music:
                     voice_file = asset_path_resolver(voice_asset_id)
@@ -638,8 +672,8 @@ class VideoProcessor:
                         "-i", str(voice_file),
                         "-i", str(music_file),
                         "-filter_complex",
-                        "[1:a]volume=0dB[m_in];"
-                        "[0:a]acompressor=threshold=0.1:ratio=4:attack=10:release=150,volume=0dB[v_in];"
+                        f"[1:a]volume={music_gain_db:.2f}dB,apad=whole_dur={total_duration_sec:.3f}[m_in];"
+                        f"[0:a]apad=whole_dur={total_duration_sec:.3f},atrim=duration={total_duration_sec:.3f},acompressor=threshold=0.1:ratio=4:attack=10:release=150,volume=0dB[v_in];"
                         "[m_in][v_in]sidechaincompress=threshold=0.1:ratio=4:attack=150:release=800[m_ducked];"
                         "[m_ducked][v_in]amix=inputs=2:duration=first:dropout_transition=2[mixed];"
                         "[mixed]loudnorm=I=-14:LRA=11:TP=-1.5[out_a]",
@@ -654,7 +688,9 @@ class VideoProcessor:
                             "-i", str(voice_file),
                             "-i", str(music_file),
                             "-filter_complex",
-                            "[0:a][1:a]amix=inputs=2:duration=first[mixed];[mixed]loudnorm=I=-14:LRA=11:TP=-1.5[aout]",
+                            f"[1:a]volume={music_gain_db:.2f}dB,apad=whole_dur={total_duration_sec:.3f}[music];"
+                            f"[0:a]apad=whole_dur={total_duration_sec:.3f},atrim=duration={total_duration_sec:.3f}[voice];"
+                            "[voice][music]amix=inputs=2:duration=first[mixed];[mixed]loudnorm=I=-14:LRA=11:TP=-1.5[aout]",
                             "-map", "[aout]",
                             str(final_audio)
                         ]
@@ -666,7 +702,7 @@ class VideoProcessor:
                         self.ffmpeg_bin, "-y",
                         "-t", f"{total_duration_sec:.3f}",
                         "-i", str(voice_file),
-                        "-af", "acompressor=threshold=0.1:ratio=4:attack=10:release=150,loudnorm=I=-14:LRA=11:TP=-1.5",
+                        "-af", f"apad=whole_dur={total_duration_sec:.3f},atrim=duration={total_duration_sec:.3f},acompressor=threshold=0.1:ratio=4:attack=10:release=150,loudnorm=I=-14:LRA=11:TP=-1.5",
                         str(final_audio)
                     ]
                     run_media_command(cmd_audio, capture_output=True, check=True)
@@ -677,14 +713,29 @@ class VideoProcessor:
                         self.ffmpeg_bin, "-y",
                         "-t", f"{total_duration_sec:.3f}",
                         "-i", str(music_file),
-                        "-af", "loudnorm=I=-14:LRA=11:TP=-1.5",
+                        "-af", f"volume={music_gain_db:.2f}dB,apad=whole_dur={total_duration_sec:.3f},atrim=duration={total_duration_sec:.3f},loudnorm=I=-14:LRA=11:TP=-1.5",
                         str(final_audio)
                     ]
                     run_media_command(cmd_audio, capture_output=True, check=True)
 
                 # 5. Xuất silent MP4 nếu người dùng chưa chọn giọng đọc hoặc nhạc.
+                active_sfx = [cue for cue in sfx_cues if float(cue["start_seconds"]) < final_duration_sec]
+                has_sfx = bool(active_sfx)
+                if has_sfx:
+                    cues = [
+                        {**cue, "start_seconds": float(cue["start_seconds"]) / video_playback_speed if preserve_voice_audio else cue["start_seconds"]}
+                        for cue in active_sfx
+                    ]
+                    final_audio = self._mix_sfx_cues(
+                        final_audio if has_voice or has_music else None,
+                        cues,
+                        final_duration_sec,
+                        work_dir,
+                        preserve_voice_audio,
+                    )
+
                 cmd_final = [self.ffmpeg_bin, "-y", "-i", str(current_video)]
-                if has_voice or has_music:
+                if has_voice or has_music or has_sfx:
                     cmd_final.extend([
                         "-i", str(final_audio), "-c:a", "aac", "-b:a", "192k",
                     ])
@@ -707,12 +758,12 @@ class VideoProcessor:
                     raise RuntimeError(f"Lỗi ghép hoàn chỉnh thành phẩm MP4: {res_final.stderr}")
 
                 flow_audio_present = False if preserve_voice_audio else self._preserve_native_clip_audio(
-                    output_path, native_audio_specs, work_dir, has_voice or has_music, total_duration_sec,
+                    output_path, native_audio_specs, work_dir, has_voice or has_music or has_sfx, total_duration_sec,
                 )
 
                 meta = self.probe_video(output_path)
                 meta["flow_native_audio"] = flow_audio_present
-                if has_voice or has_music:
+                if has_voice or has_music or has_sfx:
                     try:
                         from .audio_processor import audio_processor
                         l_meas = audio_processor.measure_loudness(output_path)
@@ -725,7 +776,10 @@ class VideoProcessor:
                     if measured_lufs is None:
                         raise RuntimeError("Kiểm định âm thanh thất bại: Không nhận được chỉ số measured_i_lufs từ bộ đo.")
 
-                    if not preserve_voice_audio and not (-15.0 <= measured_lufs <= -13.0):
+                    sfx_only = has_sfx and not has_voice and not has_music and not flow_audio_present
+                    if sfx_only and (measured_tp is None or measured_tp > -1.5):
+                        raise RuntimeError("Kiểm định true peak cho video chỉ có SFX không đạt -1,5 dBTP.")
+                    if not preserve_voice_audio and not sfx_only and not (-15.0 <= measured_lufs <= -13.0):
                         raise RuntimeError(
                             f"Kiểm định chất lượng âm lượng EBU R128 không đạt chuẩn phát sóng TikTok (-14.0 ± 1.0 LUFS): "
                             f"Đo được {measured_lufs} LUFS."
@@ -734,7 +788,8 @@ class VideoProcessor:
                     meta["audio_loudness_lufs"] = measured_lufs
                     meta["audio_true_peak_dbtp"] = measured_tp
                     meta["audio_lra_lu"] = measured_lra
-                    meta["audio_normalization"] = "SKIPPED_RAW_TTS" if preserve_voice_audio else "EBU_R128"
+                    # shortcut: sparse SFX-only audio has no reliable integrated LUFS, upgrade when adding a continuous audio bed.
+                    meta["audio_normalization"] = "SKIPPED_RAW_TTS" if preserve_voice_audio else "SFX_ONLY_PEAK_LIMITED" if sfx_only else "EBU_R128"
                     if preserve_voice_audio:
                         meta["video_playback_speed"] = round(video_playback_speed, 4)
                         meta["video_content_duration_seconds"] = round(video_content_duration_sec, 3)
@@ -747,6 +802,39 @@ class VideoProcessor:
             finally:
                 if temp_dir is None and work_dir.exists():
                     shutil.rmtree(work_dir, ignore_errors=True)
+
+    def _mix_sfx_cues(self, base_audio_path, cues, duration_sec, work_dir, preserve_voice_audio):
+        output = work_dir / "sfx_mixed_audio.wav"
+        if base_audio_path:
+            command = [self.ffmpeg_bin, "-y", "-i", str(base_audio_path)]
+            filters = [f"[0:a]aresample=44100,aformat=channel_layouts=stereo,apad=whole_dur={duration_sec:.3f},atrim=duration={duration_sec:.3f},asetpts=PTS-STARTPTS[base]"]
+        else:
+            command = [self.ffmpeg_bin, "-y", "-f", "lavfi", "-t", f"{duration_sec:.3f}", "-i", "anullsrc=r=44100:cl=stereo"]
+            filters = [f"[0:a]atrim=duration={duration_sec:.3f},asetpts=PTS-STARTPTS[base]"]
+
+        labels = ["[base]"]
+        for index, cue in enumerate(cues):
+            command.extend(["-i", str(cue["path"])])
+            input_index = index + 1
+            delay_ms = round(float(cue["start_seconds"]) * 1000)
+            label = f"sfx{index}"
+            filters.append(
+                f"[{input_index}:a]aresample=44100,aformat=channel_layouts=stereo,volume={float(cue['volume']):.4f},"
+                f"adelay={delay_ms}|{delay_ms},apad,atrim=duration={duration_sec:.3f},asetpts=PTS-STARTPTS[{label}]"
+            )
+            labels.append(f"[{label}]")
+
+        filters.append(
+            f"{''.join(labels)}amix=inputs={len(labels)}:duration=first:normalize=0:dropout_transition=0[mixed]"
+        )
+        finish = "alimiter=limit=0.95" if preserve_voice_audio else "loudnorm=I=-14:LRA=11:TP=-1.5"
+        filters.append(f"[mixed]{finish}[out]")
+        command.extend([
+            "-filter_complex", ";".join(filters), "-map", "[out]", "-t", f"{duration_sec:.3f}",
+            "-ar", "44100", "-ac", "2", "-c:a", "pcm_s16le", str(output),
+        ])
+        run_media_command(command, capture_output=True, check=True)
+        return output
 
     def _preserve_native_clip_audio(self, output_path, audio_specs, work_dir, mix_existing, duration_sec):
         from .audio_processor import audio_processor

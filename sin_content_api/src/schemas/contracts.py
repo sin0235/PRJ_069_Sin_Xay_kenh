@@ -2,7 +2,7 @@ from enum import Enum
 # Pydantic v2 Schemas phu hop voi CONTRACTS.md va JSON schemas (P01 -> P07)
 from typing import Optional, List, Dict, Any, Literal
 from datetime import datetime
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 
 class HealthResponse(BaseModel):
     status: str = "ok"
@@ -1071,6 +1071,9 @@ class TimelineClip(BaseModel):
     trim_in_ms: int = Field(0, ge=0, description="Điểm cắt đầu (ms)")
     trim_out_ms: int = Field(0, ge=0, description="Điểm cắt cuối (ms)")
     fit: TimelineFitMode = Field(TimelineFitMode.COVER, description="Chế độ khớp khung: cover | contain")
+    audio_asset_id: Optional[str] = None
+    audio_trim_in_ms: int = Field(0, ge=0)
+    effect: Literal["none", "punch_in"] = "none"
 
 
 class TimelineAudioTrack(BaseModel):
@@ -1095,6 +1098,28 @@ class TimelineCaption(BaseModel):
     font_size: int = Field(26, ge=12, le=72, description="Cỡ chữ (px)")
     safe_zone: bool = Field(True, description="Tuân thủ Safe Zone TikTok")
     words: List[TimelineCaptionWord] = Field(default_factory=list, description="Mốc thời gian từng từ cho phụ đề karaoke")
+    visual_type: Optional[Literal["callout"]] = None
+    position_y_px: Optional[int] = Field(None, ge=150)
+
+
+class TimelineOverlay(BaseModel):
+    asset_id: str = Field(..., min_length=1)
+    x: int = Field(0, ge=0)
+    y: int = Field(0, ge=0)
+    width: int = Field(320, gt=0)
+    height: int = Field(480, gt=0)
+    start_ms: int = Field(0, ge=0)
+    duration_ms: int = Field(..., gt=0)
+
+
+class KaraokeCaptionSettings(BaseModel):
+    preset: Literal["bat_nhip", "to_sac", "hai_dong"] = "bat_nhip"
+    font_size: Literal[42, 56, 70] = 56
+    layout: Literal["center", "left", "two_line"] = "center"
+    accent_color: Literal["champagne", "baha_blue", "coral"] = "champagne"
+    outline: bool = True
+    shadow: bool = True
+    word_pop: bool = True
 
 
 class TimelineDocument(BaseModel):
@@ -1105,6 +1130,19 @@ class TimelineDocument(BaseModel):
     voice_track: Optional[TimelineAudioTrack] = Field(None, description="Track giọng đọc")
     music_track: Optional[TimelineAudioTrack] = Field(None, description="Track nhạc nền")
     captions: List[TimelineCaption] = Field(default_factory=list, description="Danh sách phụ đề")
+    overlays: List[TimelineOverlay] = Field(default_factory=list, description="Lớp phủ hình ảnh/video")
+    caption_style: Literal["legacy", "vietsub_v1", "vietsub_karaoke_v2"] = "legacy"
+    transition_seconds: float = Field(0.0, ge=0)
+    karaoke_settings: KaraokeCaptionSettings = Field(default_factory=KaraokeCaptionSettings)
+
+    @model_validator(mode="after")
+    def validate_overlay_bounds(self):
+        if any(
+            overlay.x + overlay.width > self.width or overlay.y + overlay.height > self.height
+            for overlay in self.overlays
+        ):
+            raise ValueError("Overlay vượt ngoài canvas timeline")
+        return self
 
 
 class TimelineVersionOut(BaseModel):

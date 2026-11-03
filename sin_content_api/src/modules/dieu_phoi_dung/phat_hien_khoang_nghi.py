@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import re
 import struct
-import subprocess
-import tempfile
 import wave
 from pathlib import Path
 
@@ -24,27 +22,25 @@ def phat_hien_khoang_nghi(audio_path: Path) -> list[tuple[int, int]]:
     except (EOFError, OSError, wave.Error) as exc:
         raise ValueError("SILENCE_AUDIO_INVALID") from exc
 
+    result = run_media_command(
+        [video_processor.ffmpeg_bin, "-hide_banner", "-i", str(audio_path), "-af", "silencedetect=noise=-35dB:d=1.2", "-f", "null", "-"],
+        capture_output=True, text=True, encoding="utf-8", errors="replace", check=False,
+    )
+    if result.returncode != 0:
+        raise ValueError("SILENCE_DETECTION_FAILED")
+
     intervals: list[tuple[int, int]] = []
     pending_start: int | None = None
-    with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as log:
-        result = run_media_command(
-            [video_processor.ffmpeg_bin, "-hide_banner", "-i", str(audio_path), "-af", "silencedetect=noise=-35dB:d=1.2", "-f", "null", "-"],
-            stdout=subprocess.DEVNULL, stderr=log, check=False,
-        )
-        log.flush()
-        if result.returncode != 0:
-            raise ValueError("SILENCE_DETECTION_FAILED")
-        log.seek(0)
-        for line in log:
-            start_match = _SILENCE_START.search(line)
-            end_match = _SILENCE_END.search(line)
-            if start_match:
-                pending_start = max(0, round(float(start_match.group(1)) * 1000))
-            if end_match and pending_start is not None:
-                end_ms = min(duration_ms, round(float(end_match.group(1)) * 1000))
-                if end_ms - pending_start >= 1200:
-                    intervals.append((pending_start, end_ms))
-                pending_start = None
+    for line in result.stderr.splitlines():
+        start_match = _SILENCE_START.search(line)
+        end_match = _SILENCE_END.search(line)
+        if start_match:
+            pending_start = max(0, round(float(start_match.group(1)) * 1000))
+        if end_match and pending_start is not None:
+            end_ms = min(duration_ms, round(float(end_match.group(1)) * 1000))
+            if end_ms - pending_start >= 1200:
+                intervals.append((pending_start, end_ms))
+            pending_start = None
     if pending_start is not None and duration_ms - pending_start >= 1200:
         intervals.append((pending_start, duration_ms))
     return intervals

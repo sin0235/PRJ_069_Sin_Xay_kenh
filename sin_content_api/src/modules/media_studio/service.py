@@ -17,7 +17,10 @@ from typing import BinaryIO, List, Optional, Dict, Any
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from src.models.entities import MediaAsset, ProductionProject, ProductionTask
+from src.models.entities import (
+    AIGenerationJob, ContentVideoPlan, ContentVideoRun, MediaAsset, MusicBrief,
+    ProductionProject, ProductionTask, TimelineVersion,
+)
 from src.modules.media_studio.security import (
     validate_audio_or_media_file,
     probe_media_metadata,
@@ -512,5 +515,47 @@ class MediaStudioService:
             ProductionProject.workspace_id == workspace_id,
             ProductionProject.workflow_type == workflow_type,
         ).order_by(ProductionProject.created_at.desc()).all()
+
+    def delete_project(self, db: Session, workspace_id: str, project_id: str) -> None:
+        project = db.query(ProductionProject).filter(
+            ProductionProject.id == project_id,
+            ProductionProject.workspace_id == workspace_id,
+        ).with_for_update().first()
+        if not project:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy dự án.")
+
+        active_run = db.query(ContentVideoRun.id).filter(
+            ContentVideoRun.project_id == project_id,
+            ContentVideoRun.status.in_(("QUEUED", "RUNNING", "WAITING_FOR_FLOW")),
+        ).with_for_update().first()
+        active_job = db.query(AIGenerationJob.id).filter(
+            AIGenerationJob.project_id == project_id,
+            AIGenerationJob.state.in_(("QUEUED", "RUNNING", "WAITING_FOR_FLOW")),
+        ).with_for_update().first()
+        active_task = db.query(ProductionTask.id).filter(
+            ProductionTask.project_id == project_id,
+            ProductionTask.status == "RUNNING",
+        ).with_for_update().first()
+        if active_run or active_job or active_task:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Không thể xóa dự án khi video hoặc tác vụ vẫn đang chạy.",
+            )
+
+        db.query(ContentVideoRun).filter(ContentVideoRun.project_id == project_id).delete(synchronize_session=False)
+        db.query(ContentVideoPlan).filter(ContentVideoPlan.project_id == project_id).delete(synchronize_session=False)
+        db.query(TimelineVersion).filter(TimelineVersion.project_id == project_id).delete(synchronize_session=False)
+        db.query(ProductionTask).filter(ProductionTask.project_id == project_id).delete(synchronize_session=False)
+        db.query(MediaAsset).filter(MediaAsset.project_id == project_id).update(
+            {MediaAsset.project_id: None}, synchronize_session=False
+        )
+        db.query(AIGenerationJob).filter(AIGenerationJob.project_id == project_id).update(
+            {AIGenerationJob.project_id: None}, synchronize_session=False
+        )
+        db.query(MusicBrief).filter(MusicBrief.project_id == project_id).update(
+            {MusicBrief.project_id: None}, synchronize_session=False
+        )
+        db.delete(project)
+        db.commit()
 
 media_service = MediaStudioService()

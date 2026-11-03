@@ -100,6 +100,7 @@ def render_hyperframes(scene: UiScene, duration_seconds: int, out_path: Path, na
         env = {**os.environ, "HYPERFRAMES_NO_TELEMETRY": "1", "DO_NOT_TRACK": "1"}
         chrome = _chrome()
         if chrome:
+            env.setdefault("HYPERFRAMES_BROWSER_PATH", chrome)
             env.setdefault("PUPPETEER_EXECUTABLE_PATH", chrome)
         command = [node, str(cli), "render", "-q", "looks", "-w", _workers(), "-o", str(raw)]
         if transparent_background:
@@ -131,18 +132,19 @@ def _remotion_bundle(root: Path, node: str, cli: Path) -> Path:
     return cache
 
 
-def render_remotion(scene: UiScene, duration_seconds: int, out_path: Path, narration: str = "", word_times: list[float] | None = None) -> dict:
+def render_remotion(scene: UiScene, duration_seconds: int, out_path: Path, narration: str = "", word_times: list[float] | None = None, aspect_ratio: str = "16:9") -> dict:
     root = engines_dir() / "remotion"
     cli = root / "node_modules" / "@remotion" / "cli" / "remotion-cli.js"
     if not cli.is_file():
         raise EngineUnavailable("REMOTION_NOT_INSTALLED")
     node = _node()
-    page_html = _diagram_html(diagram_payload(scene, narration, duration_seconds, word_times))
+    page_html = _diagram_html(diagram_payload(scene, narration, duration_seconds, word_times), aspect_ratio)
     bundle = _remotion_bundle(root, node, cli)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="rm_", dir=out_path.parent, ignore_cleanup_errors=True) as tmp:
         props = Path(tmp) / "props.json"
-        props.write_text(json.dumps({"html": page_html, "durationInFrames": duration_seconds * 30}, ensure_ascii=False), encoding="utf-8")
+        width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
+        props.write_text(json.dumps({"html": page_html, "durationInFrames": duration_seconds * 30, "width": width, "height": height}, ensure_ascii=False), encoding="utf-8")
         raw = Path(tmp) / "raw.mp4"
         command = [node, str(cli), "render", str(bundle), "Scene", str(raw), f"--props={props}", "--codec=h264", "--muted", "--pixel-format=yuv420p",
                    f"--concurrency={_workers()}", "--log=error"]
@@ -160,11 +162,11 @@ def render_scene(scene: UiScene, style_snapshot: dict, duration_seconds: int, as
                  narration: str = "", word_times: list[float] | None = None, transparent_background: bool = False) -> dict:
     """Dựng clip cảnh bằng engine đã chọn; trả về meta của clip kèm `render_engine` là engine đã thật sự dùng."""
     engine = selected_engine(style_snapshot)
-    portrait_diagram = engine == "hyperframes" and aspect_ratio == "9:16" and scene.layout in PORTRAIT_DIAGRAM_LAYOUTS
+    portrait_diagram = engine in ("hyperframes", "remotion") and aspect_ratio == "9:16" and scene.layout in PORTRAIT_DIAGRAM_LAYOUTS
     if engine != "playwright" and scene.layout in DIAGRAM_LAYOUTS and (aspect_ratio == "16:9" or portrait_diagram) and 1 <= duration_seconds <= 20:
         try:
             backend = BACKENDS[engine]
-            meta = backend(scene, duration_seconds, out_path, narration, word_times, aspect_ratio, transparent_background) if engine == "hyperframes" else backend(scene, duration_seconds, out_path, narration, word_times)
+            meta = backend(scene, duration_seconds, out_path, narration, word_times, aspect_ratio, transparent_background) if engine == "hyperframes" else backend(scene, duration_seconds, out_path, narration, word_times, aspect_ratio=aspect_ratio)
             return {**meta, "render_engine": engine}
         except (EngineUnavailable, RuntimeError, subprocess.SubprocessError, OSError) as exc:
             if transparent_background or os.environ.get("CONTENT_VIDEO_RENDER_FALLBACK", "1") == "0":
@@ -177,7 +179,9 @@ def render_scene(scene: UiScene, style_snapshot: dict, duration_seconds: int, as
 def assembly_mode(style_snapshot: dict | None) -> str:
     """Cách ghép cả video: classic (từng cảnh thành MP4 rồi video_processor ghép) hoặc hyperframes (cả video là một dự án HyperFrames:
     cảnh viết bằng GSAP, chuyển cảnh, phụ đề động, giọng). Chọn bằng style_snapshot["assembly"] hoặc CONTENT_VIDEO_ASSEMBLY."""
-    name = str((style_snapshot or {}).get("assembly") or os.environ.get("CONTENT_VIDEO_ASSEMBLY") or "classic").lower()
+    style = style_snapshot or {}
+    default = "hyperframes" if "baha editorial motion" in str(style.get("style_name", "")).casefold() else "classic"
+    name = str(style.get("assembly") or os.environ.get("CONTENT_VIDEO_ASSEMBLY") or default).lower()
     if name not in ("classic", "hyperframes"):
         raise ValueError("ASSEMBLY_MODE_INVALID")
     return name

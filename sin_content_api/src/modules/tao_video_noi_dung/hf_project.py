@@ -7,22 +7,29 @@ from __future__ import annotations
 
 import html
 import json
+import math
 import os
 import re
 import shutil
 import subprocess
+import threading
+import wave
 from pathlib import Path
 
 from . import hf_scenes
 from .brand import display_json
 from .render_engines import ENGINE_TIMEOUT_SECONDS, EngineUnavailable, _chrome, _node, engines_dir
-from .ui_sim import BRAND_DIR, _diagram_html, diagram_payload
+from .ui_sim import _diagram_html, diagram_payload
 from src.modules.media_studio.video_processor import VIETSUB_FONT_PATH
+
+BRAND_DIR = Path(__file__).with_name("brand")
 
 OVERLAP = 0.3   # giây chồng lấn giữa hai cảnh liền nhau: cảnh sau trượt vào khi cảnh trước đang trượt ra
 COLLAGE_SECONDS = 1.2   # chuyển cảnh "mảnh giấy xé lột ra" của kho khối HyperFrames (paper-collage-reveal, Apache-2.0), dùng ở ranh giới cách quãng
 COLLAGE_LEAD = 0.15     # giây mảnh giấy phủ trước khi cảnh mới bắt đầu
 BLOCKS_DIR = Path(__file__).resolve().parents[3] / "engines" / "hyperframes" / "blocks"
+VIDEO_SUFFIXES = {".avi", ".m4v", ".mkv", ".mov", ".mp4", ".webm"}
+_RENDER_LOCK = threading.Lock()
 
 
 def collage_block(cid: str) -> str:
@@ -41,12 +48,13 @@ def hyperframes_cli() -> Path:
     return cli
 
 
-def legacy_scene(cid: str, scene, narration: str, seconds: int, lead: float, word_times: list[float] | None) -> str:
+def legacy_scene(cid: str, scene, narration: str, seconds: int, lead: float, word_times: list[float] | None, aspect_ratio: str = "16:9") -> str:
     """Cảnh chưa có bản viết trực tiếp: nhúng trang cũ trong iframe, một timeline GSAP điều khiển setT."""
-    page = _diagram_html(diagram_payload(scene, narration, seconds, word_times)).replace("performance.now()", "0")
+    width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
+    page = _diagram_html(diagram_payload(scene, narration, seconds, word_times), aspect_ratio).replace("performance.now()", "0")
     total = seconds + lead
-    return (f'<template>\n<style>[data-composition-id="{cid}"]{{position:absolute;inset:0;overflow:hidden}}[data-composition-id="{cid}"] iframe{{position:absolute;left:0;top:0;width:1920px;height:1080px;border:0}}</style>\n'
-            f'<div id="root" data-composition-id="{cid}" data-width="1920" data-height="1080"><iframe id="{cid}-f" srcdoc="{html.escape(page, quote=True)}"></iframe></div>\n'
+    return (f'<template>\n<style>[data-composition-id="{cid}"]{{position:absolute;inset:0;overflow:hidden}}[data-composition-id="{cid}"] iframe{{position:absolute;left:0;top:0;width:{width}px;height:{height}px;border:0}}</style>\n'
+            f'<div id="root" data-composition-id="{cid}" data-width="{width}" data-height="{height}"><iframe id="{cid}-f" srcdoc="{html.escape(page, quote=True)}"></iframe></div>\n'
             f'<script>\nconst tl = gsap.timeline({{ paused: true }}), drv = {{ t: 0 }}, f = document.getElementById("{cid}-f"), L = {lead}, D = {seconds};\n'
             f'tl.to(drv, {{ t: {total}, duration: {total}, ease: "none", onUpdate: () => {{ const w = f.contentWindow; if (w && w.setT) w.setT(Math.max(0, Math.min(D - .02, drv.t - L))); }} }}, 0);\n'
             f'window.__timelines["{cid}"] = tl;\n</script>\n</template>\n')
@@ -65,9 +73,11 @@ def caption_groups(words: list[dict], max_words: int = 5, pause_ms: int = 220) -
     return groups
 
 
-def captions_scene(words: list[dict], total: float) -> str:
-    """Phụ đề động: mỗi nhóm 3 đến 5 từ, từ đang đọc đổi sang vàng đúng mốc, nhóm thoát gọn và bị ẩn hẳn sau khi thoát (theo captions.md)."""
-    groups = caption_groups(words)
+def captions_scene(words: list[dict], total: float, aspect_ratio: str = "16:9") -> str:
+    """Phụ đề đổi màu theo mốc từng từ; khung dọc giới hạn nhóm tối đa ba từ để vừa safe zone."""
+    portrait = aspect_ratio == "9:16"
+    width, height = (1080, 1920) if portrait else (1920, 1080)
+    groups = caption_groups(words, max_words=3 if portrait else 5)
     markup, code = "", ""
     for g, group in enumerate(groups):
         start, end = max(.1, group[0]["start_ms"] / 1000 - .05), group[-1]["end_ms"] / 1000 + .1
@@ -82,16 +92,24 @@ def captions_scene(words: list[dict], total: float) -> str:
         for i, w in enumerate(group):
             code += f'tl.to("#cap-{g}-{i}", {{ color: "#FFD54A", duration: .06, ease: "none" }}, {w["start_ms"] / 1000:.3f});\n'
         code += f'tl.to("#cap-g{g}", {{ opacity: 0, duration: .12, ease: "power2.in" }}, {end - .12:.3f});\ntl.set("#cap-g{g}", {{ opacity: 0, visibility: "hidden" }}, {end:.3f});\n'
+    left, right, bottom, font_size = (120, 120, 340, 44) if portrait else (0, 0, 38, 54)
     return (f'<template>\n<style>@font-face{{font-family:"Viet";src:url(\'assets/fonts/be_vietnam_pro_semibold.ttf\');font-weight:400 800}}\n'
             '[data-composition-id="captions"]{position:absolute;inset:0;font-family:"Viet",sans-serif}\n'
-            '[data-composition-id="captions"] .g{position:absolute;left:0;right:0;bottom:38px;text-align:center;font-size:54px;font-weight:700;color:#fff;white-space:nowrap;opacity:0;visibility:hidden;'
+            f'[data-composition-id="captions"] .g{{position:absolute;left:{left}px;right:{right}px;bottom:{bottom}px;text-align:center;font-size:{font_size}px;font-weight:700;color:#fff;white-space:nowrap;opacity:0;visibility:hidden;'
             '-webkit-text-stroke:9px #06131d;paint-order:stroke fill;overflow:visible}</style>\n'
-            f'<div id="root" data-composition-id="captions" data-width="1920" data-height="1080">\n{markup}</div>\n'
+            f'<div id="root" data-composition-id="captions" data-width="{width}" data-height="{height}">\n{markup}</div>\n'
             f'<script>\nconst tl = gsap.timeline({{ paused: true }});\n{code}window.__timelines["captions"] = tl;\n</script>\n</template>\n')
 
 
-def build_project(out: Path, shots: list[dict], voice_wav: Path | None, words: list[dict] | None, transitions: bool | None = None) -> dict:
-    """shots: [{shot_id, scene (UiScene), narration, seconds, events (giây trong clip), word_times}]. Trả về thông tin dự án."""
+def build_project(
+    out: Path, shots: list[dict], voice_wav: Path | None, words: list[dict] | None,
+    transitions: bool | None = None, music_path: Path | None = None, sfx_cues: list[dict] | None = None,
+    aspect_ratio: str = "16:9", media_layers: list[dict] | None = None, link_media: bool = False,
+) -> dict:
+    """shots có thể là cảnh UiScene hoặc video MP4 đã xác minh; Trả về thông tin project."""
+    if aspect_ratio not in {"9:16", "16:9"}:
+        raise ValueError("HYPERFRAMES_ASPECT_RATIO_INVALID")
+    width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
     out = Path(out)
     if transitions is None:   # mặc định bật; CONTENT_VIDEO_HF_TRANSITIONS=0 để tắt chuyển cảnh mảnh giấy
         transitions = os.getenv("CONTENT_VIDEO_HF_TRANSITIONS", "1") != "0"
@@ -107,47 +125,215 @@ def build_project(out: Path, shots: list[dict], voice_wav: Path | None, words: l
     shutil.copy(engines_dir() / "vendor" / "gsap.min.js", vendor / "gsap.min.js")
     if voice_wav:
         shutil.copy(voice_wav, out / "assets" / "voice.wav")
-    hosts, start, native, collages, main_js = "", 0.0, [], 0, ""
+    audio_tracks = []
+    if voice_wav:
+        audio_tracks.append('<audio id="voice" src="assets/voice.wav" data-start="0" data-duration="__DURATION__" data-volume="1"></audio>')
+    if music_path:
+        music_path = Path(music_path)
+        if not music_path.is_file():
+            raise FileNotFoundError("MUSIC_ASSET_NOT_FOUND")
+        music_name = f"music{music_path.suffix.lower()}"
+        shutil.copy(music_path, out / "assets" / music_name)
+        audio_tracks.append(f'<audio id="music" src="assets/{music_name}" data-start="0" data-duration="__DURATION__" data-volume="0.126"></audio>')
+    hosts, start, native, legacy, videos, collages, main_js = "", 0.0, [], [], [], 0, ""
+    staged_media: dict[str, str] = {}
+
+    def stage_media(source: Path, preferred_name: str) -> str:
+        source = Path(source).resolve()
+        if not source.is_file() or source.suffix.lower() not in VIDEO_SUFFIXES:
+            raise ValueError("HYPERFRAMES_VIDEO_ASSET_INVALID")
+        key = str(source)
+        if key not in staged_media:
+            media_name = f"{Path(preferred_name).stem}{source.suffix.lower()}"
+            destination = out / "assets" / media_name
+            if link_media:
+                try:
+                    os.link(source, destination)
+                except OSError as exc:
+                    raise RuntimeError("HYPERFRAMES_MEDIA_LINK_FAILED") from exc
+            else:
+                shutil.copy(source, destination)
+            staged_media[key] = media_name
+        return staged_media[key]
     for index, shot in enumerate(shots):
         cid = f"s{index + 1:02d}"
-        seconds, lead = shot["seconds"], (OVERLAP if index else 0.0)
-        scene = shot["scene"]
-        dump = scene.diagram.model_dump(exclude={"on"}, exclude_none=True)
-        dump = display_json(scene.diagram.model_dump(exclude={"on"}, exclude_none=True))
-        builder = hf_scenes.NATIVE.get(scene.layout)
-        if builder:
-            native.append(scene.layout)
-            text = builder(cid, dump, lead, seconds + lead, shot["events"])
+        try:
+            seconds = float(shot["seconds"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("HYPERFRAMES_SHOT_DURATION_INVALID") from exc
+        if not math.isfinite(seconds) or seconds <= 0:
+            raise ValueError("HYPERFRAMES_SHOT_DURATION_INVALID")
+        lead = OVERLAP if index else 0.0
+        try:
+            shot_start = float(shot.get("start_seconds", start))
+        except (TypeError, ValueError) as exc:
+            raise ValueError("HYPERFRAMES_SHOT_START_INVALID") from exc
+        if not math.isfinite(shot_start) or shot_start < 0:
+            raise ValueError("HYPERFRAMES_SHOT_START_INVALID")
+        scene = shot.get("scene")
+        media_path = shot.get("media_path")
+        if media_path:
+            source = Path(media_path)
+            media_start = float(shot.get("media_start_seconds", 0))
+            fit = shot.get("fit", "cover")
+            effect = shot.get("effect", "none")
+            fade_in = float(shot.get("fade_in_seconds", 0))
+            if (not math.isfinite(media_start) or media_start < 0 or fit not in {"cover", "contain"}
+                    or not math.isfinite(fade_in) or fade_in < 0 or fade_in > seconds
+                    or effect not in {"none", "punch_in"}):
+                raise ValueError("HYPERFRAMES_VIDEO_ASSET_INVALID")
+            media_name = stage_media(source, f"video_{index + 1:02d}")
+            transform = "transform:scale(1.06);" if effect == "punch_in" else ""
+            hosts += (f'<video id="{cid}-video" class="clip" src="assets/{media_name}" data-start="{shot_start:.3f}" '
+                      f'data-duration="{seconds:.3f}" data-media-start="{media_start:.3f}" data-playback-rate="1" '
+                      f'data-track-index="{index + 1}" muted playsinline style="position:absolute;left:0;top:0;width:100%;height:100%;object-fit:{fit};z-index:{index + 1};{transform}"></video>\n')
+            if fade_in:
+                main_js += f'tl.fromTo("#{cid}-video", {{ opacity: 0 }}, {{ opacity: 1, duration: {fade_in:.3f}, ease: "none" }}, {shot_start:.3f});\n'
+            videos.append(media_name)
         else:
-            text = legacy_scene(cid, scene, shot["narration"], seconds, lead, shot.get("word_times"))
-        (out / "compositions" / f"{cid}.html").write_text(text, encoding="utf-8")
-        host_start = max(0.0, start - lead)
-        hosts += (f'<div id="{cid}" data-composition-id="{cid}" data-composition-src="compositions/{cid}.html" data-start="{host_start:.3f}" data-duration="{seconds + lead:.3f}" '
-                  f'data-track-index="{index + 1}" data-track-kind="graphics" data-width="1920" data-height="1080" style="z-index:{index + 1}"></div>\n')
+            if scene is None:
+                raise ValueError("HYPERFRAMES_SHOT_SCENE_MISSING")
+            dump = display_json(scene.diagram.model_dump(exclude={"on"}, exclude_none=True))
+            dump["kind"] = scene.layout
+            builder = hf_scenes.NATIVE.get(scene.layout) if aspect_ratio == "16:9" else None
+            if builder:
+                native.append(scene.layout)
+                text = builder(cid, dump, lead, seconds + lead, shot["events"])
+            else:
+                legacy.append(scene.layout)
+                text = legacy_scene(cid, scene, shot["narration"], seconds, lead, shot.get("word_times"), aspect_ratio)
+            (out / "compositions" / f"{cid}.html").write_text(text, encoding="utf-8")
+            host_start = max(0.0, shot_start - lead)
+            hosts += (f'<div id="{cid}" data-composition-id="{cid}" data-composition-src="compositions/{cid}.html" data-start="{host_start:.3f}" data-duration="{seconds + lead:.3f}" '
+                      f'data-track-index="{index + 1}" data-track-kind="graphics" data-width="{width}" data-height="{height}" style="z-index:{index + 1}"></div>\n')
         if transitions and index % 2 == 1:   # cách quãng: mảnh giấy xé phủ cuối cảnh trước rồi lột ra để lộ cảnh mới
             tid, collages = f"tr{index:02d}", collages + 1
             (out / "compositions" / f"{tid}.html").write_text(collage_block(tid), encoding="utf-8")
-            tstart = max(0.0, start - COLLAGE_LEAD)
+            tstart = max(0.0, shot_start - COLLAGE_LEAD)
             spread = "outward" if collages % 2 else "scatter"
             hosts += (f'<div id="{tid}" data-composition-id="{tid}" data-composition-src="compositions/{tid}.html" data-start="{tstart:.3f}" data-duration="{COLLAGE_SECONDS}" '
-                      f'data-track-index="{40 + index}" data-track-kind="graphics" data-width="1920" data-height="1080" data-variable-values=\'{{"panels":6,"tone":"mixed","spread":"{spread}"}}\' '
+                      f'data-track-index="{40 + index}" data-track-kind="graphics" data-width="{width}" data-height="{height}" data-variable-values=\'{{"panels":6,"tone":"mixed","spread":"{spread}"}}\' '
                       f'style="z-index:{40 + index};--surface:#fbf3df;--accent-2:#c8a468;opacity:0"></div>\n')
             main_js += f'tl.fromTo("#{tid}", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.12, ease: "none" }}, {tstart:.3f});\n'
-        start += seconds
+        start = max(start, shot_start + seconds)
+
+    for index, layer in enumerate(media_layers or []):
+        try:
+            layer_start = float(layer["start_seconds"])
+            layer_duration = float(layer["duration_seconds"])
+            media_start = float(layer.get("media_start_seconds", 0))
+            x, y = int(layer["x"]), int(layer["y"])
+            layer_width, layer_height = int(layer["width"]), int(layer["height"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError("HYPERFRAMES_MEDIA_LAYER_INVALID") from exc
+        fit = layer.get("fit", "contain")
+        if (not math.isfinite(layer_start) or layer_start < 0 or not math.isfinite(layer_duration)
+                or layer_duration <= 0 or not math.isfinite(media_start) or media_start < 0
+                or fit not in {"cover", "contain"} or x < 0 or y < 0 or layer_width <= 0 or layer_height <= 0
+                or x + layer_width > width or y + layer_height > height):
+            raise ValueError("HYPERFRAMES_MEDIA_LAYER_INVALID")
+        layer_duration = min(layer_duration, max(0.0, start - layer_start))
+        if layer_duration <= 0:
+            continue
+        media_name = stage_media(Path(layer["path"]), f"overlay_{index + 1:03d}")
+        hosts += (f'<video id="overlay-{index + 1:03d}" class="clip" src="assets/{media_name}" data-start="{layer_start:.3f}" '
+                  f'data-duration="{layer_duration:.3f}" data-media-start="{media_start:.3f}" data-playback-rate="1" '
+                  f'data-track-index="{100 + index}" muted playsinline style="position:absolute;left:{x}px;top:{y}px;'
+                  f'width:{layer_width}px;height:{layer_height}px;object-fit:{fit};z-index:{100 + index}"></video>\n')
+        videos.append(media_name)
     total = start
+    for index, cue in enumerate(sfx_cues or []):
+        source = Path(cue["path"])
+        start_s, volume = float(cue["start_seconds"]), float(cue["volume"])
+        if not source.is_file() or not math.isfinite(start_s) or start_s < 0 or not math.isfinite(volume) or not 0 <= volume <= 1:
+            raise ValueError("SFX_CUE_INVALID")
+        try:
+            with wave.open(str(source), "rb") as audio_file:
+                duration_s = audio_file.getnframes() / audio_file.getframerate()
+        except (wave.Error, ZeroDivisionError) as exc:
+            raise ValueError("SFX_ASSET_INVALID") from exc
+        if start_s >= total or duration_s <= 0:
+            continue
+        sound_name = f"sfx_{index + 1:03d}.wav"
+        shutil.copy(source, out / "assets" / sound_name)
+        audio_tracks.append(
+            f'<audio id="sfx-{index + 1:03d}" src="assets/{sound_name}" data-start="{start_s:.3f}" '
+            f'data-duration="{min(duration_s, total - start_s):.3f}" data-volume="{volume:.3f}"></audio>'
+        )
     if words:
-        (out / "compositions" / "captions.html").write_text(captions_scene(words, total), encoding="utf-8")
+        (out / "compositions" / "captions.html").write_text(captions_scene(words, total, aspect_ratio), encoding="utf-8")
         hosts += (f'<div id="captions" data-composition-id="captions" data-composition-src="compositions/captions.html" data-start="0" data-duration="{total:.3f}" '
-                  f'data-track-index="90" data-track-kind="captions" data-width="1920" data-height="1080" style="z-index:100"></div>\n')
-    audio = f'<audio id="voice" src="assets/voice.wav" data-start="0" data-duration="{total:.3f}" data-volume="1"></audio>\n' if voice_wav else ""
+                  f'data-track-index="90" data-track-kind="captions" data-width="{width}" data-height="{height}" style="z-index:100"></div>\n')
+    audio = "\n".join(audio_tracks).replace("__DURATION__", f"{total:.3f}")
     (out / "index.html").write_text(
-        '<!doctype html>\n<html lang="vi">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=1920, height=1080">\n<script src="assets/vendor/gsap.min.js"></script>\n'
-        '<style>html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:#0a1c2b}#bg{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,#12324a 0%,#0a1c2b 62%,#06131d 100%)}</style>\n</head>\n<body>\n'
-        f'<div id="root" data-composition-id="main" data-start="0" data-duration="{total:.3f}" data-width="1920" data-height="1080" data-motion-blur="on">\n<div id="bg"></div>\n{hosts}{audio}</div>\n'
+        f'<!doctype html>\n<html lang="vi">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width={width}, height={height}">\n<script src="assets/vendor/gsap.min.js"></script>\n'
+        f'<style>html,body{{margin:0;width:{width}px;height:{height}px;overflow:hidden;background:#0a1c2b}}#bg{{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,#12324a 0%,#0a1c2b 62%,#06131d 100%)}}</style>\n</head>\n<body>\n'
+        f'<div id="root" data-composition-id="main" data-start="0" data-duration="{total:.3f}" data-width="{width}" data-height="{height}" data-motion-blur="on">\n<div id="bg"></div>\n{hosts}{audio}</div>\n'
         '<script>\nwindow.__timelines = window.__timelines || {};\nconst tl = gsap.timeline({ paused: true });\n' + main_js + 'window.__timelines["main"] = tl;\n</script>\n</body>\n</html>\n', encoding="utf-8")
     (out / "hyperframes.json").write_text(json.dumps({"paths": {"blocks": "compositions", "components": "compositions/components", "assets": "assets"}}), encoding="utf-8")
     (out / "package.json").write_text(json.dumps({"name": "video-baha", "private": True, "type": "module"}), encoding="utf-8")
-    return {"total_seconds": total, "collage_transitions": collages, "native_scenes": native, "legacy_scenes": [s["scene"].layout for s in shots if s["scene"].layout not in hf_scenes.NATIVE]}
+    return {"total_seconds": total, "collage_transitions": collages, "native_scenes": native, "legacy_scenes": legacy, "video_scenes": videos}
+
+
+def build_timeline_project(out: Path, timeline, asset_path_resolver, transition_seconds: float = 0.0) -> dict:
+    def field(item, name, default=None):
+        return item.get(name, default) if isinstance(item, dict) else getattr(item, name, default)
+
+    width, height = int(field(timeline, "width", 1080)), int(field(timeline, "height", 1920))
+    aspect_ratio = {(1080, 1920): "9:16", (1920, 1080): "16:9"}.get((width, height))
+    if aspect_ratio is None:
+        raise ValueError("HYPERFRAMES_TIMELINE_DIMENSIONS_INVALID")
+    clips = field(timeline, "clips", [])
+    if not clips:
+        raise ValueError("HYPERFRAMES_TIMELINE_CLIPS_MISSING")
+    try:
+        transition_seconds = float(transition_seconds)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("HYPERFRAMES_TRANSITION_INVALID") from exc
+    if not math.isfinite(transition_seconds):
+        raise ValueError("HYPERFRAMES_TRANSITION_INVALID")
+    transition_ms = round(min(max(0.0, transition_seconds), 0.5) * 1000)
+    cursor_ms = 0
+    shots = []
+    # FFmpeg ghép clip theo thứ tự; tính lại mốc để giữ độ dài sau xfade.
+    for index, clip in enumerate(clips):
+        media_type = field(clip, "media_type", "video")
+        if getattr(media_type, "value", media_type) != "video":
+            raise ValueError("HYPERFRAMES_TIMELINE_MEDIA_TYPE_UNSUPPORTED")
+        asset_id = field(clip, "asset_id", "")
+        duration_ms = int(field(clip, "duration_ms", 0))
+        start_ms = int(field(clip, "start_ms", 0))
+        trim_in_ms = int(field(clip, "trim_in_ms", 0))
+        if not asset_id or duration_ms <= 0 or start_ms < 0 or trim_in_ms < 0:
+            raise ValueError("HYPERFRAMES_TIMELINE_CLIP_INVALID")
+        fit = field(clip, "fit", "cover")
+        fit = getattr(fit, "value", fit)
+        shots.append({
+            "shot_id": field(clip, "clip_id", f"clip-{index + 1}"), "scene": None,
+            "media_path": asset_path_resolver(asset_id), "media_start_seconds": trim_in_ms / 1000,
+            "start_seconds": cursor_ms / 1000,
+            "seconds": (duration_ms + (transition_ms if index + 1 < len(clips) else 0)) / 1000,
+            "fade_in_seconds": transition_ms / 1000 if index else 0,
+            "fit": fit, "effect": field(clip, "effect", "none"), "narration": "",
+        })
+        cursor_ms += duration_ms
+
+    layers = []
+    for overlay in field(timeline, "overlays", []):
+        asset_id = field(overlay, "asset_id", "")
+        start_ms, duration_ms = int(field(overlay, "start_ms", 0)), int(field(overlay, "duration_ms", 0))
+        if not asset_id or start_ms < 0 or duration_ms <= 0:
+            raise ValueError("HYPERFRAMES_TIMELINE_OVERLAY_INVALID")
+        layers.append({
+            "path": asset_path_resolver(asset_id), "start_seconds": start_ms / 1000,
+            "duration_seconds": duration_ms / 1000,
+            "media_start_seconds": int(field(overlay, "trim_in_ms", 0)) / 1000,
+            "x": int(field(overlay, "x", 0)), "y": int(field(overlay, "y", 0)),
+            "width": int(field(overlay, "width", 320)), "height": int(field(overlay, "height", 480)),
+            "fit": "contain",
+        })
+    return build_project(out, shots, None, None, transitions=False, aspect_ratio=aspect_ratio,
+                         media_layers=layers, link_media=True)
 
 
 def _env() -> dict:
@@ -155,6 +341,7 @@ def _env() -> dict:
     chrome = _chrome()
     if chrome:
         env.setdefault("PUPPETEER_EXECUTABLE_PATH", chrome)
+        env.setdefault("HYPERFRAMES_BROWSER_PATH", chrome)
     return env
 
 
@@ -168,8 +355,9 @@ def check_project(project: Path) -> dict:
     return {"returncode": result.returncode, "data": data, "text": (result.stdout + result.stderr)[-4000:]}
 
 
-def render_project(project: Path, output: Path, workers: str = "2", quality: str = "looks") -> None:
+def render_project(project: Path, output: Path, workers: str = "1", quality: str = "looks") -> None:
     command = [_node(), str(hyperframes_cli()), "render", "-q", quality, "-w", workers, "-o", str(output)]
-    result = subprocess.run(command, cwd=project, env=_env(), capture_output=True, text=True, timeout=ENGINE_TIMEOUT_SECONDS * 4)
+    with _RENDER_LOCK:
+        result = subprocess.run(command, cwd=project, env=_env(), capture_output=True, text=True, timeout=ENGINE_TIMEOUT_SECONDS * 4)
     if result.returncode != 0:
         raise RuntimeError("RENDER_ENGINE_FAILED: " + (result.stderr or result.stdout)[-800:])

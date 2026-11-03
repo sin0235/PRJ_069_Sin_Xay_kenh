@@ -8,10 +8,17 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 def first_json_object(text: str) -> Any:
     """LLM đôi khi thêm chữ hoặc rào markdown quanh JSON (lỗi "Extra data"); lấy object JSON đầu tiên thay vì từ chối cả phản hồi."""
-    start = text.find("{")
-    if start < 0:
-        return json.loads(text)
-    return json.JSONDecoder().raw_decode(text[start:])[0]
+    try:
+        start = text.find("{")
+        if start < 0:
+            return json.loads(text)
+        return json.JSONDecoder().raw_decode(text[start:])[0]
+    except json.JSONDecodeError as exc:
+        raise LLMJsonError("LLM_JSON_INVALID") from exc
+
+
+class LLMJsonError(ValueError):
+    pass
 
 
 class KeyMessage(BaseModel):
@@ -55,7 +62,7 @@ def generate_brief(content: str, client: Any) -> ContentBrief:
     content = content.strip()
     if not content or len(content.encode("utf-8")) > 12000:
         raise ValueError("Content phải có nội dung và không vượt quá 12 KB")
-    result = client.complete([
+    messages = [
         {"role": "system", "content": (
             "Phân tích content thành brief tiếng Việt. Chỉ trả JSON đúng schema. "
             "Bối cảnh kênh: Baha là công ty cung cấp giải pháp cho doanh nghiệp B2B, xây kênh để tăng nhận diện thương hiệu. "
@@ -69,5 +76,15 @@ def generate_brief(content: str, client: Any) -> ContentBrief:
             "needs_ui_demo chỉ true khi hội thoại chatbot, bảng AI hoặc dữ liệu cần được nhìn thấy bằng chữ thật."
         )},
         {"role": "user", "content": json.dumps({"content": content, "schema": ContentBrief.model_json_schema()}, ensure_ascii=False)},
-    ], max_tokens=min(8000, client.max_output_tokens))
-    return ContentBrief.model_validate(first_json_object(result.content))
+    ]
+    for attempt in range(2):
+        result = client.complete(messages, max_tokens=min(8000, client.max_output_tokens))
+        try:
+            return ContentBrief.model_validate(first_json_object(result.content))
+        except LLMJsonError as exc:
+            if attempt:
+                raise ValueError("BRIEF_JSON_INVALID") from exc
+            messages.extend([
+                {"role": "assistant", "content": result.content},
+                {"role": "user", "content": "Phản hồi trước chưa phải JSON hợp lệ. Trả lại toàn bộ brief dưới dạng JSON đúng schema."},
+            ])

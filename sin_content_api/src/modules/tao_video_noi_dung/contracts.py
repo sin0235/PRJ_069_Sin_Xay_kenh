@@ -23,6 +23,7 @@ class CreatePlanRequest(BaseModel):
     content: str = Field(min_length=40, max_length=12000)
     target_duration_seconds: int = Field(ge=20, le=180)
     aspect_ratio: Literal["9:16", "16:9"] = "9:16"
+    generate_flow_music: bool = False
 
 
 class UpdateStoryboardRequest(BaseModel):
@@ -50,12 +51,21 @@ class ContentVideoPlanResponse(BaseModel):
     created_at: datetime
 
 
+class ContentVideoPlanJobResponse(BaseModel):
+    job_id: str
+    state: str
+    error_code: str | None = None
+    error_message: str | None = None
+    plan: ContentVideoPlanResponse | None = None
+
+
 class CreateRunRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     plan_id: str = Field(min_length=1, max_length=36)
     flow_profile_id: str | None = Field(default=None, min_length=1, max_length=64)
     voice_asset_id: str | None = Field(default=None, min_length=1, max_length=36)
+    music_asset_id: str | None = Field(default=None, min_length=1, max_length=36)
     voice_source: Literal["NONE", "UPLOAD", "TTS"] | None = None
     tts_provider: Literal["GWEN_TTS", "VIE_NEU_V3_TURBO"] | None = None
     tts_voice_id: str | None = Field(default=None, min_length=1, max_length=120)
@@ -68,6 +78,8 @@ class CreateRunRequest(BaseModel):
     @model_validator(mode="after")
     def validate_voice_choice(self):
         tts = self.tts_provider is not None
+        if self.voice_asset_id and self.voice_asset_id == self.music_asset_id:
+            raise ValueError("Giọng đọc và nhạc nền phải là hai tệp khác nhau.")
         if self.voice_asset_id and tts:
             raise ValueError("Chỉ được chọn tải voiceover hoặc TTS.")
         if self.voice_source == "UPLOAD" and (not self.voice_asset_id or tts):
@@ -123,6 +135,7 @@ class RetryRunRequest(BaseModel):
 
     shot_ids: list[str] = Field(min_length=1, max_length=30)
     new_flow_project: bool = False
+    flow_profile_id: str | None = Field(default=None, min_length=1, max_length=36)
     confirm_no_flow_clip: bool = False
     idempotency_key: str = Field(min_length=8, max_length=128)
 
@@ -140,6 +153,7 @@ class ContentVideoRunResponse(BaseModel):
     plan_id: str
     plan_revision: int
     voice_asset_id: str | None = None
+    music_asset_id: str | None = None
     voice_source: Literal["NONE", "UPLOAD", "TTS"] = "NONE"
     tts_provider: Literal["GWEN_TTS", "VIE_NEU_V3_TURBO"] | None = None
     include_subtitles: bool = True

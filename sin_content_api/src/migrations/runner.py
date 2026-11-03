@@ -107,6 +107,10 @@ def migrate_content_video_up():
             if "voice_asset_id" not in {column["name"] for column in inspect(engine).get_columns("content_video_runs")}:
                 raise
         inspector = inspect(engine)
+    if "music_asset_id" not in {column["name"] for column in inspector.get_columns("content_video_runs")}:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE content_video_runs ADD COLUMN music_asset_id VARCHAR(36) REFERENCES media_assets(id)"))
+        inspector = inspect(engine)
     if "tts_config_json" not in {column["name"] for column in inspector.get_columns("content_video_runs")}:
         with engine.begin() as connection:
             connection.execute(text("ALTER TABLE content_video_runs ADD COLUMN tts_config_json TEXT"))
@@ -117,7 +121,7 @@ def migrate_content_video_up():
         inspector = inspect(engine)
     return all(name in inspector.get_table_names() for name in (
         "content_video_plans", "content_video_runs", "content_video_worker_leases"
-    )) and {"voice_asset_id", "tts_config_json", "include_subtitles"} <= {column["name"] for column in inspector.get_columns("content_video_runs")}
+    )) and {"voice_asset_id", "music_asset_id", "tts_config_json", "include_subtitles"} <= {column["name"] for column in inspector.get_columns("content_video_runs")}
 
 
 def migrate_content_video_down():

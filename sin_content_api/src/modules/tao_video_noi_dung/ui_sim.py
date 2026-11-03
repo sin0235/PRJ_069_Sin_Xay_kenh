@@ -14,6 +14,7 @@ from src.modules.media_studio.video_processor import VIETSUB_FONT_PATH, video_pr
 from .planner import DIAGRAM_LAYOUTS, PORTRAIT_DIAGRAM_LAYOUTS, UiScene, resolve_diagram_times
 
 DIAGRAM_TEMPLATE = Path(__file__).with_name("diagram_scene.html")
+CAMERA_MOTION_JS = Path(__file__).with_name("dieu_khien_may_quay.js").read_text(encoding="utf-8")
 
 
 def _scene_html(scene: UiScene, style_snapshot: dict) -> str:
@@ -50,8 +51,18 @@ def diagram_payload(scene: UiScene, narration: str, duration_seconds: int, word_
     """Dữ liệu đưa vào mẫu cảnh giấy: dữ liệu đã kiểm cộng thời điểm từng sự kiện, suy từ vị trí cụm từ neo trong lời đọc."""
     spec = scene.diagram
     payload = spec.model_dump(exclude={"on"}, exclude_none=True)
-    payload.update(kind=scene.layout, dur=duration_seconds, t=resolve_diagram_times(scene, narration, duration_seconds, word_times))
+    payload.update(kind=scene.layout, camera_motion=scene.diagram.camera_motion or "AUTO", dur=duration_seconds,
+                   t=resolve_diagram_times(scene, narration, duration_seconds, word_times))
     return payload
+
+
+def _diagram_stage_markup(width: int, height: int) -> str:
+    planes = "".join(
+        f'<svg id="{name}" class="plane {plane}" viewBox="0 0 {width} {height}" width="{width}" height="{height}"></svg>'
+        for name, plane in (("back", "back"), ("sv", "middle"), ("front", "front"))
+    )
+    return (f'<div id="stage"><div id="rig" data-layout-allow-overflow>{planes}</div>'
+            f'<svg id="caption" viewBox="0 0 {width} {height}" width="{width}" height="{height}"><g id="cap"></g></svg></div>')
 
 
 def _diagram_html(payload: dict, aspect_ratio: str = "16:9", transparent_background: bool = False) -> str:
@@ -61,14 +72,13 @@ def _diagram_html(payload: dict, aspect_ratio: str = "16:9", transparent_backgro
     template = DIAGRAM_TEMPLATE.read_text(encoding="utf-8")
     if aspect_ratio == "9:16":
         template = template.replace("#stage { width: 1920px; height: 1080px;", "#stage { width: 1080px; height: 1920px;")
-        template = template.replace('<div id="stage"><svg id="sv" viewBox="0 0 1920 1080" width="1920" height="1080"></svg></div>',
-                                   f'<div id="stage"><svg id="sv" viewBox="0 0 {width} {height}" width="{width}" height="{height}"></svg></div>')
+        template = template.replace(_diagram_stage_markup(1920, 1080), _diagram_stage_markup(width, height))
         template = template.replace("var W = 1920, H = 1080,", f"var W = {width}, H = {height},")
-        template = template.replace("'<rect width=\"1920\" height=\"1080\" fill=\"'", "'<rect width=\"' + W + '\" height=\"' + H + '\" fill=\"'")
         template = template.replace("var fitS = function () { var s = Math.min(innerWidth / 1920, (innerHeight - (document.body.classList.contains(\"sach\") ? 0 : 50)) / 1080);",
                                    "var fitS = function () { var s = Math.min(innerWidth / W, (innerHeight - (document.body.classList.contains(\"sach\") ? 0 : 50)) / H);")
     return (template
             .replace("/*FONT_FACE*/", f"@font-face {{font-family:Viet;font-weight:400 800;src:url(data:font/ttf;base64,{font})}}")
+            .replace("/*CAMERA_MOTION*/", CAMERA_MOTION_JS)
             .replace("/*SCENE_JSON*/", f"window.PORTRAIT={json.dumps(aspect_ratio == '9:16')};window.TRANSPARENT_BG={json.dumps(transparent_background)};window.SCENE={scene_json};"))
 
 
@@ -81,11 +91,11 @@ def hyperframes_composition_html(scene: UiScene, narration: str, duration_second
     width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
     html = _diagram_html(diagram_payload(scene, narration, duration_seconds, word_times), aspect_ratio, transparent_background)
     html = html.replace("performance.now()", "0")
-    wrapped = (f'<div id="root" data-composition-id="main" data-start="0" data-duration="{duration_seconds}" data-width="{width}" data-height="{height}">'
-               f'<div id="stage"><svg id="sv" viewBox="0 0 {width} {height}" width="{width}" height="{height}"></svg></div></div>')
-    stage = f'<div id="stage"><svg id="sv" viewBox="0 0 {width} {height}" width="{width}" height="{height}"></svg></div>'
+    stage = _diagram_stage_markup(width, height)
     if stage not in html or "<head>" not in html or "</body>" not in html:
         raise ValueError("HYPERFRAMES_TEMPLATE_CHANGED")
+    wrapped = (f'<div id="root" data-composition-id="main" data-start="0" data-duration="{duration_seconds}" data-width="{width}" data-height="{height}">'
+               f'{stage}</div>')
     driver = ('<script>(function () { var drv = { t: 0 }, tl = gsap.timeline({ paused: true });'
               ' tl.to(drv, { t: %d, duration: %d, ease: "none", onUpdate: function () { window.setT(drv.t); } }, 0);'
               ' window.__timelines = window.__timelines || {}; window.__timelines["main"] = tl; tl.seek(0); })();</script>\n</body>') % (duration_seconds, duration_seconds)

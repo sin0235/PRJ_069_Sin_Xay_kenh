@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from src.database import SessionLocal
 from src.models.entities import AIGenerationJob, ContentVideoWorkerLease, MediaAsset, WorkspaceBudget
+from src.modules.media_queue.contracts import DeferredMediaJob
 from src.modules.media_queue.service import FLOW_BACKEND_PROVIDERS, MEDIA_QUEUE_PROVIDERS, TEST_PROVIDERS, authorized_worker_tenant, is_production
 
 logger = logging.getLogger(__name__)
@@ -161,6 +162,60 @@ def _claim_next_job(db: Session, token: str) -> AIGenerationJob | None:
     return db.get(AIGenerationJob, job_id)
 
 
+def _resume_waiting_auto_edit_jobs(db: Session, token: str) -> int:
+    if not _owns_worker_lease(db, token):
+        return 0
+    terminal_states = {"SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED", "BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_QUOTA"}
+    resumed = 0
+    parents = db.query(AIGenerationJob).filter(
+        AIGenerationJob.provider == "MEDIA_VIDEO",
+        AIGenerationJob.state == "WAITING_FOR_FLOW",
+    ).all()
+    for parent in parents:
+        try:
+            request = json.loads(parent.request_payload_json or "{}")
+            parameters = request.get("parameters") or {}
+            child_ids = parameters.get("flow_job_ids")
+        except (TypeError, ValueError, AttributeError):
+            continue
+        if (
+            request.get("operation") != "auto_edit_video"
+            or parameters.get("phase") not in {"waiting_for_flow", "render"}
+            or not isinstance(child_ids, list)
+            or not child_ids
+            or len(child_ids) > 3
+            or any(not isinstance(child_id, str) or not child_id for child_id in child_ids)
+            or len(child_ids) != len(set(child_ids))
+        ):
+            continue
+        children = db.query(AIGenerationJob.id, AIGenerationJob.state).filter(
+            AIGenerationJob.id.in_(child_ids),
+            AIGenerationJob.workspace_id == parent.workspace_id,
+            AIGenerationJob.project_id == parent.project_id,
+        ).all()
+        if len(children) != len(child_ids) or any(state not in terminal_states for _, state in children):
+            continue
+        parameters["phase"] = "render"
+        request["parameters"] = parameters
+        result = db.execute(update(AIGenerationJob).where(
+            AIGenerationJob.id == parent.id,
+            AIGenerationJob.provider == "MEDIA_VIDEO",
+            AIGenerationJob.state == "WAITING_FOR_FLOW",
+            _worker_lease_exists(token),
+        ).values(
+            state="QUEUED",
+            request_payload_json=json.dumps(request, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+            error_code=None,
+            error_message=None,
+            finished_at=None,
+            lease_token=None,
+            lease_expires_at=None,
+        ))
+        resumed += int(result.rowcount == 1)
+    db.commit()
+    return resumed
+
+
 def _mark_submitting(db: Session, job_id: str, token: str) -> bool:
     result = db.execute(update(AIGenerationJob).where(
         AIGenerationJob.id == job_id,
@@ -172,7 +227,7 @@ def _mark_submitting(db: Session, job_id: str, token: str) -> bool:
     return result.rowcount == 1
 
 
-def _execute_job(db: Session, job: AIGenerationJob, request: dict) -> MediaAsset:
+def _execute_job(db: Session, job: AIGenerationJob, request: dict) -> MediaAsset | list[MediaAsset] | DeferredMediaJob | None:
     operation = request.get("operation")
     backend_provider = str(request.get("backend_provider", ""))
     if is_production() and backend_provider.upper() in TEST_PROVIDERS:
@@ -236,6 +291,38 @@ def _execute_job(db: Session, job: AIGenerationJob, request: dict) -> MediaAsset
         from src.modules.dieu_phoi_dung.dung_video_dai import render_auto_edit_diagram
 
         return render_auto_edit_diagram(db, job, request)
+    if operation == "auto_edit_video":
+        from src.modules.dieu_phoi_dung.dung_video_dai import dung_video_dai
+
+        return dung_video_dai(
+            db,
+            source_asset_id=parameters["source_asset_id"],
+            workspace_id=job.workspace_id,
+            user_id=job.created_by,
+            project_id=job.project_id,
+            job_id=job.id,
+            phase=parameters.get("phase", "plan"),
+            flow_job_ids=parameters.get("flow_job_ids"),
+            plan_storage_key=parameters.get("plan_storage_key"),
+        )
+    if operation == "create_content_video_storyboard":
+        from src.modules.tao_video_noi_dung.contracts import CreatePlanRequest
+        from src.modules.tao_video_noi_dung.service import create_plan
+
+        create_plan(
+            db,
+            job.project_id,
+            job.workspace_id,
+            job.created_by,
+            CreatePlanRequest(
+                content=parameters.get("content"),
+                target_duration_seconds=parameters.get("target_duration_seconds"),
+                aspect_ratio=parameters.get("aspect_ratio", "9:16"),
+                generate_flow_music=parameters.get("generate_flow_music", False),
+            ),
+            plan_id=job.id,
+        )
+        return None
     raise ValueError("INVALID_JOB_OPERATION: Unsupported media queue operation.")
 
 
@@ -339,7 +426,7 @@ def _record_typed_provider_error(
         logger.exception("Could not update Flow profile state for media job %s", job.id)
 
 
-def _finish_job(db: Session, job: AIGenerationJob, token: str, *, state: str, error_code: str | None = None, error_message: str | None = None, asset: MediaAsset | None = None) -> bool:
+def _finish_job(db: Session, job: AIGenerationJob, token: str, *, state: str, error_code: str | None = None, error_message: str | None = None, asset: MediaAsset | list[MediaAsset] | None = None) -> bool:
     now = _now()
     values = {
         "state": state,
@@ -350,7 +437,8 @@ def _finish_job(db: Session, job: AIGenerationJob, token: str, *, state: str, er
         "lease_expires_at": None,
     }
     if asset is not None:
-        values["output_asset_ids_json"] = json.dumps([asset.id])
+        assets = asset if isinstance(asset, list) else [asset]
+        values["output_asset_ids_json"] = json.dumps([item.id for item in assets])
         values["actual_cost"] = job.estimated_cost if job.credits_source == "API_BILLING" else 0.0
     result = db.execute(update(AIGenerationJob).where(
         AIGenerationJob.id == job.id,
@@ -370,6 +458,46 @@ def _finish_job(db: Session, job: AIGenerationJob, token: str, *, state: str, er
     return True
 
 
+def _defer_job(db: Session, job: AIGenerationJob, token: str, deferred: DeferredMediaJob) -> bool:
+    result = db.execute(update(AIGenerationJob).where(
+        AIGenerationJob.id == job.id,
+        AIGenerationJob.provider.in_(MEDIA_QUEUE_PROVIDERS),
+        AIGenerationJob.lease_token == token,
+        AIGenerationJob.state.in_(_IN_FLIGHT),
+        _worker_lease_exists(token),
+    ).values(
+        state="WAITING_FOR_FLOW",
+        request_payload_json=deferred.request_payload_json,
+        error_code=None,
+        error_message=None,
+        finished_at=None,
+        lease_token=None,
+        lease_expires_at=None,
+    ))
+    if result.rowcount != 1:
+        db.rollback()
+        return False
+    db.commit()
+    return True
+
+
+def _cleanup_auto_edit_plan(job: AIGenerationJob, request: dict) -> None:
+    parameters = request.get("parameters") or {}
+    if request.get("operation") != "auto_edit_video" or parameters.get("phase") != "render":
+        return
+    try:
+        from src.modules.media_studio.security import MEDIA_ROOT_DIR
+
+        expected_key = Path(".cache") / "auto_edit" / f"{job.id}.json"
+        if not isinstance(parameters.get("plan_storage_key"), str) or Path(parameters["plan_storage_key"]) != expected_key:
+            return
+        plan = MEDIA_ROOT_DIR / expected_key
+        if not plan.is_symlink() and plan.resolve().is_relative_to(MEDIA_ROOT_DIR.resolve()):
+            plan.unlink(missing_ok=True)
+    except OSError:
+        logger.warning("Could not remove auto-edit plan for media job %s", job.id, exc_info=True)
+
+
 def process_next_media_job(db: Session, token: str) -> bool:
     heartbeat = None
     should_release_lease = True
@@ -378,9 +506,10 @@ def process_next_media_job(db: Session, token: str) -> bool:
         if not should_release_lease:
             return False
         recovered = _recover_expired_jobs(db, token)
+        resumed = _resume_waiting_auto_edit_jobs(db, token)
         job = _claim_next_job(db, token)
         if job is None:
-            return recovered > 0
+            return recovered > 0 or resumed > 0
 
         heartbeat = _MediaJobHeartbeat(token, job.id)
         heartbeat.start()
@@ -394,7 +523,7 @@ def process_next_media_job(db: Session, token: str) -> bool:
             message = detail.get("message") if isinstance(detail, dict) else detail
             if not code:
                 code = "WORKER_PERMISSION_REVOKED" if getattr(exc, "status_code", None) in (401, 403) else "WORKER_AUTH_CHECK_FAILED"
-            _finish_job(
+            finished = _finish_job(
                 db,
                 job,
                 token,
@@ -402,13 +531,24 @@ def process_next_media_job(db: Session, token: str) -> bool:
                 error_code=str(code),
                 error_message=str(message or "Worker could not recheck current workspace permission."),
             )
+            if finished:
+                _cleanup_auto_edit_plan(job, request)
             return True
         if not _mark_submitting(db, job.id, token):
             return True
         asset = _execute_with_profile_context(db, job, request)
-        if not asset or not asset.id:
+        if isinstance(asset, DeferredMediaJob):
+            _defer_job(db, job, token, asset)
+            return True
+        if asset is None and request.get("operation") == "create_content_video_storyboard":
+            pass
+        elif isinstance(asset, list):
+            if not asset or any(not getattr(item, "id", None) for item in asset):
+                raise ValueError("INVALID_PROVIDER_RESULT: Provider returned no media asset.")
+        elif not asset or not getattr(asset, "id", None):
             raise ValueError("INVALID_PROVIDER_RESULT: Provider returned no media asset.")
-        _finish_job(db, job, token, state="SUCCEEDED", asset=asset)
+        if _finish_job(db, job, token, state="SUCCEEDED", asset=asset):
+            _cleanup_auto_edit_plan(job, request)
     except Exception as exc:
         state, code, message = _error_state(exc)
         _record_typed_provider_error(
@@ -419,7 +559,8 @@ def process_next_media_job(db: Session, token: str) -> bool:
             state,
             code,
         )
-        _finish_job(db, job, token, state=state, error_code=code, error_message=message)
+        if _finish_job(db, job, token, state=state, error_code=code, error_message=message):
+            _cleanup_auto_edit_plan(job, request if "request" in locals() else {})
     finally:
         try:
             if heartbeat is not None:

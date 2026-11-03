@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Shot kết BAHA Group — Midnight Champagne</title>
+  <style>
+    @font-face { font-family: BrandSans; src: url("utm_helvetins.ttf"); }
+    :root { color-scheme: dark; font-family: BrandSans, Arial, sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 32px; color: #F2EEE6; background: #10141d; }
+    h1 { margin: 0 0 8px; font-size: 24px; }
+    p { max-width: 760px; margin: 0 0 28px; color: #b9c0cb; line-height: 1.5; }
+    article { width: min(270px, 70vw); }
+    h2 { margin: 0 0 10px; font-size: 15px; font-weight: 600; }
+    .khung { position: relative; width: 100%; aspect-ratio: 9 / 16; overflow: hidden; isolation: isolate; }
+    .toi { color: #F2EEE6; background: #0B0F17; }
+    .toi::before { position: absolute; z-index: -1; inset: -70% -100%; content: ""; background: linear-gradient(112deg, transparent 42%, rgba(217,178,106,.15) 49%, rgba(217,178,106,.4) 50%, rgba(217,178,106,.12) 51%, transparent 58%); transform: translateX(-60%); animation: quet 3s ease-in-out infinite; }
+    .toi::after { position: absolute; z-index: -1; inset: 23% 7%; border: 1px solid rgba(217,178,106,.34); content: ""; clip-path: inset(0 100% 0 0); animation: vien 3s ease-out infinite; }
+    .logo { position: absolute; top: 41%; left: 19%; width: 62%; height: auto; }
+    .thong-diep { position: absolute; right: 12%; bottom: 19%; left: 12%; padding: 11px 8px; border: 1px solid currentColor; border-radius: 999px; text-align: center; font-size: clamp(9px, 3.2vw, 12px); font-weight: 700; letter-spacing: .11em; clip-path: inset(0 50% 0 50% round 999px); animation: cta 3s ease-out infinite; }
+    .toi .thong-diep { color: #F6E2B0; border-color: #D9B26A; }
+    .nhan { margin-top: 9px; color: #929cab; font-size: 12px; }
+    @keyframes quet { 0%, 12% { transform: translateX(-60%); } 58%, 100% { transform: translateX(60%); } }
+    @keyframes vien { 0%, 12% { clip-path: inset(0 100% 0 0); } 52%, 100% { clip-path: inset(0 0 0 0); } }
+    @keyframes cta { 0%, 48% { clip-path: inset(0 50% 0 50% round 999px); } 72%, 100% { clip-path: inset(0 0 0 0 round 999px); } }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; }
+      .thong-diep, .toi::after { clip-path: none; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Shot kết BAHA Group — Midnight Champagne</h1>
+  <p>Shot dọc 9:16, thời lượng 3 giây. Logo dùng PNG chính thức nền trong suốt; logo giữ nguyên, còn nền tối, viền champagne và CTA chuyển động. Mở tệp bằng trình duyệt để xem chuyển động lặp.</p>
+  <main>
+    <article>
+      <h2>Midnight Champagne</h2>
+      <div class="khung toi">
+        <img class="logo" src="logo_ngang_am_ban.png" alt="BAHA Group, logo ngang âm bản">
+        <div class="thong-diep">THEO DÕI ĐỂ XEM THÊM</div>
+      </div>
+      <div class="nhan">Logo ngang âm bản, nền midnight, viền champagne quét mở</div>
+    </article>
+  </main>
+</body>
+</html>
