@@ -719,6 +719,30 @@ function sceneGauge(t, p) {
 
 /* CHECKLIST: tờ danh sách việc, mỗi mục được đánh dấu đúng lúc được nói, dấu son khi xong (K_STAMP, WW_STAMP) */
 function sceneChecklist(t, p) {
+  if (PORTRAIT && TRANSPARENT_BG) {
+    var active = -1;
+    for (var stepIndex = 0; stepIndex < p.steps.length; stepIndex++) {
+      if (t >= p.t['c' + stepIndex]) active = stepIndex;
+    }
+    if (active < 0) return '';
+    var progress = eo(seg(t, p.t['c' + active], p.t['c' + active] + .35));
+    var lines = [''], fontSize = 128;
+    p.steps[active].split(/\s+/).forEach(function (word) {
+      var last = lines.length - 1, next = lines[last] ? lines[last] + ' ' + word : word;
+      if (tw(next, fontSize, 700) > 700 && lines[last]) lines.push(word);
+      else lines[last] = next;
+    });
+    var cardHeight = 128 + lines.length * 140;
+    var card = paperCard(72, 180, 936, cardHeight, '#fffdf7', '#cdbf9c');
+    card += '<rect x="112" y="224" width="84" height="84" rx="18" fill="#dff1ec" stroke="' + COL.teal + '" stroke-width="5"/>';
+    card += '<path d="M128 260 L148 282 L182 238" fill="none" stroke="' + COL.teal + '" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="90" stroke-dashoffset="' + (90 * (1 - progress)) + '"/>';
+    lines.forEach(function (line, index) {
+      card += '<text data-role="item-label" x="240" y="' + (310 + index * 140) + '" font-size="128" font-weight="700" fill="#163344">' + esc(line) + '</text>';
+    });
+    card += '<rect x="240" y="' + (330 + (lines.length - 1) * 140) + '" width="' + (700 * progress) + '" height="10" rx="5" fill="' + COL.gold + '"/>';
+    card += '<text x="950" y="' + (180 + cardHeight - 20) + '" font-size="40" text-anchor="end" fill="#163344">' + (active + 1) + '/' + p.steps.length + '</text>';
+    return '<g opacity="' + progress + '" transform="translate(0 ' + ((1 - progress) * 32) + ')">' + card + '</g>';
+  }
   var a = p.t, n = p.steps.length, readableOverlay = PORTRAIT && TRANSPARENT_BG;
   var rowH = readableOverlay ? 176 : Math.min(PORTRAIT ? 136 : 124, (PORTRAIT ? 740 : 560) / n), out = "";
   var x0 = PORTRAIT ? 112 : 540, cardY = PORTRAIT ? 418 : 220, cardW = PORTRAIT ? 856 : 840;

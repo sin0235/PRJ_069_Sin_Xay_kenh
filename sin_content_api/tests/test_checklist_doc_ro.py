@@ -20,7 +20,8 @@ console.log(JSON.stringify(sceneChecklist(5, {steps:['giá bán','phân bổ và
     result = subprocess.run(['node', '-e', script], capture_output=True, text=True, encoding='utf-8', check=True)
     svg = json.loads(result.stdout)
     import re
-    font_sizes = [float(value) for value in re.findall(r'<text[^>]*font-size="([0-9.]+)"', svg)]
-    assert font_sizes and min(font_sizes) * 405 / 1080 >= 22
+    font_sizes = [float(value) for value in re.findall(r'<text[^>]*data-role="item-label"[^>]*font-size="([0-9.]+)"', svg)]
+    assert font_sizes and min(font_sizes) * 405 / 1080 >= 48
     displayed_text = ' '.join(re.findall(r'<text[^>]*>(.*?)</text>', svg))
     assert 'phân bổ và đóng gói' in displayed_text
+    assert 'giá bán' not in displayed_text
