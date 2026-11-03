@@ -142,3 +142,31 @@ def test_khung_doc_phong_to_canh_chu_nho():
     assert "transform:scale(1.5)" in hf_blocks.scene_composition("MARK_PHRASE", "s01", data, 5)[2]
     assert "transform:scale" not in hf_blocks.scene_composition("MARK_PHRASE", "s01", VALID["MARK_PHRASE"], 5)[2]
     assert "transform:scale" not in hf_blocks.scene_composition("STAT_RING", "s01", {**VALID["STAT_RING"], "portrait": True}, 5)[2]
+
+
+def _storyboard_nhieu_canh_ui(layouts):
+    """Storyboard từ mẫu 17 shot: đổi các shot đầu thành cảnh UI theo danh sách layout (cảnh khối không cần neo)."""
+    import copy
+    import json
+    from pathlib import Path
+    data = json.loads((Path(__file__).parent / "fixtures/storyboard_llm_17shots_valid.json").read_text(encoding="utf-8"))
+    for index, layout in enumerate(layouts):
+        shot = data["shots"][index]
+        shot["shot_kind"], shot["action_beats"], shot["continues_previous"] = "UI_SIM", [], False
+        if layout in BLOCK_LAYOUTS:
+            shot["ui_scene"] = {"layout": layout, "messages": [], "highlight": None, "diagram": {**VALID[layout], "on": {}}}
+        else:
+            words = shot["narration"].split()
+            shot["ui_scene"] = {"layout": "PROCESS_RAIL", "messages": [], "highlight": None, "diagram": {
+                "title": "Luồng xử lý", "steps": ["Nhận", "Duyệt", "Giao"], "block_step": 1, "on": {"stations": words[0], "block": words[1], "release": words[2]}}}
+    data["shots"][len(layouts)]["continues_previous"] = False   # Flow không nối tiếp cảnh UI
+    return planner.Storyboard.model_validate(copy.deepcopy(data))
+
+
+def test_canh_bao_mem_khi_video_khong_dung_canh_khoi():
+    thieu = _storyboard_nhieu_canh_ui(["PROCESS_RAIL"] * 5)
+    assert any(p.startswith("DIAGRAM_BLOCK_LAYOUT_MISSING") for p in planner._soft_problems(thieu))
+    du = _storyboard_nhieu_canh_ui(["PROCESS_RAIL", "KINETIC_TITLE", "PROCESS_RAIL", "MARK_PHRASE", "PILE_UP"])
+    assert not any(p.startswith("DIAGRAM_BLOCK_LAYOUT_MISSING") for p in planner._soft_problems(du))
+    it_shot_ui = _storyboard_nhieu_canh_ui(["PROCESS_RAIL"] * 4)
+    assert not any(p.startswith("DIAGRAM_BLOCK_LAYOUT_MISSING") for p in planner._soft_problems(it_shot_ui))

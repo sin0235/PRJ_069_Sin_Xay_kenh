@@ -951,6 +951,10 @@ def _soft_problems(storyboard: Storyboard, aspect_ratio: str | None = None, diag
         problems.extend(f"DIAGRAM_ONLY_VIOLATION: {shot.shot_id} đang dùng {shot.ui_scene.layout if shot.ui_scene else shot.shot_kind}; bắt buộc UI_SIM với ui_scene.layout là một loại cảnh giấy "
                         f"({', '.join(DIAGRAM_LAYOUTS)}) và có ui_scene.diagram, không dùng CHAT, AI_PANEL, DASHBOARD"
                         for shot in storyboard.shots if not (shot.shot_kind == "UI_SIM" and shot.ui_scene and shot.ui_scene.layout in DIAGRAM_LAYOUTS))
+    ui_layouts = [shot.ui_scene.layout for shot in storyboard.shots if shot.shot_kind == "UI_SIM" and shot.ui_scene]
+    if len(ui_layouts) >= 5 and sum(layout in BLOCK_LAYOUTS for layout in ui_layouts) < 3:
+        problems.append(f"DIAGRAM_BLOCK_LAYOUT_MISSING: video có {len(ui_layouts)} shot UI_SIM nhưng chỉ {sum(layout in BLOCK_LAYOUTS for layout in ui_layouts)} shot dùng loại chuyển động dựng sẵn; "
+                        f"đổi ít nhất 3 shot sang {', '.join(BLOCK_LAYOUTS)} (nỗi đau: PILE_UP/WORD_SWAP, chuyển ý: KINETIC_TITLE, insight: MARK_PHRASE, kết quả: STAT_RING/CHART_STORY)")
     if storyboard.brief and storyboard.brief.needs_ui_demo and not any(shot.shot_kind == "UI_SIM" for shot in storyboard.shots):
         problems.append("UI_DEMO_REQUIRED")
     words = sorted({word for shot in storyboard.shots for word in unresolved_pronunciations(shot.narration)})
@@ -1409,6 +1413,9 @@ def generate_storyboard(
             "STAT_RING (vòng tròn đầy tới một phần trăm: to_value lớn hơn 0 và tối đa 100, caption là nhãn tối đa 30 ký tự), "
             "CHART_STORY (biểu đồ cột hoặc đường tự kể: series đúng 1 chuỗi {name,values}, labels 3 đến 6 mục tối đa 10 ký tự, values cùng số lượng và không phẳng, unit tùy chọn). "
             "Các loại này hợp với khung 9:16 và không tốn thời gian dựng như clip Flow; dùng chúng cho các shot nhấn ý ngắn. "
+            "BẮT BUỘC: video có từ 5 shot UI_SIM trở lên phải dùng ít nhất 3 shot thuộc sáu loại này, mỗi loại tối đa 2 shot: PILE_UP hoặc WORD_SWAP cho nỗi đau, "
+            "KINETIC_TITLE để mở chương hoặc chuyển ý, MARK_PHRASE cho câu insight then chốt, STAT_RING hoặc CHART_STORY cho kết quả hoặc bằng chứng; "
+            "đặt chúng xen giữa các sơ đồ thông tin, không đặt hai shot liền nhau cùng loại. "
             "Kịch bản mẫu để chọn nhịp: (1) vấn đề - nguyên nhân - cơ chế - kết quả: mở OPEN_*, bằng chứng CHART_TARGET hoặc COMPARE_DOCS hoặc GAUGE, nguyên nhân DOC_LAYERS hoặc FUNNEL hoặc DONUT_SHARE, "
             "cơ chế PROCESS_RAIL hoặc CHECKLIST hoặc TIMELINE, kết quả BEFORE_AFTER hoặc CHART_GROWTH, kết END_CARD; "
             "(2) tiền và chi phí: mở OPEN_DRAIN hoặc OPEN_NUMBER, CASH_FLOW, DONUT_SHARE, COST_SLICE, BEFORE_AFTER, END_CARD; "
