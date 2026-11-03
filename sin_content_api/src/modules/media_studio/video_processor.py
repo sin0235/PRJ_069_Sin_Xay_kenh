@@ -510,11 +510,15 @@ class VideoProcessor:
                         width_px, height_px = int(overlay.get("width", 320)), int(overlay.get("height", 480))
                         start_s = int(overlay["start_ms"]) / 1000
                         end_s = start_s + int(overlay["duration_ms"]) / 1000
+                        trim_s = int(overlay.get("trim_in_ms", 0)) / 1000
                         next_label = f"ov{index}"
                         filters.append(
-                            f"[{index + 1}:v]scale={width_px}:{height_px}:force_original_aspect_ratio=decrease[scaled{index}];"
+                            f"[{index + 1}:v]trim=start={trim_s:.3f}:duration={end_s - start_s:.3f},"
+                            f"setpts=PTS-STARTPTS+{start_s:.3f}/TB,"
+                            f"scale={width_px}:{height_px}:force_original_aspect_ratio=decrease[scaled{index}];"
                             f"[{previous}][scaled{index}]overlay=x={int(overlay.get('x', width - width_px - 120))}:"
-                            f"y={int(overlay.get('y', 260))}:enable='between(t,{start_s:.3f},{end_s:.3f})'[${next_label}]".replace("[$", "[")
+                            f"y={int(overlay.get('y', 260))}:eof_action=pass:repeatlast=0:"
+                            f"enable='gte(t,{start_s:.3f})*lt(t,{end_s:.3f})'[${next_label}]".replace("[$", "[")
                         )
                         previous = next_label
                     overlay_video = work_dir / "overlay_video.mp4"

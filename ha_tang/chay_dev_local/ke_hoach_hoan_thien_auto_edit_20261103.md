@@ -153,3 +153,9 @@
 | M5 | Chưa đạt | Chưa test trọn file 8 GB |
 
 Mỗi cập nhật thêm: commit, lệnh đã chạy, kết quả, đường dẫn artifact, lỗi còn lại và bước tiếp theo. Không sửa trạng thái mốc thành đạt chỉ vì có thêm code.
+
+### Cập nhật thực thi 03/11/2026
+
+- M0: đã tạo `doi_chieu_mau_auto_edit.md`, 2 montage tổng thể và 4 chuỗi khung theo timecode. Đã quan sát cách dùng khung lớn và thứ tự xuất hiện trong mẫu; chưa nghe/xem toàn bộ, chưa chốt storyboard nên M0 còn mở.
+- Quyết định thực thi: trong lúc đối chiếu M0, sửa lỗi timestamp đã tái hiện độc lập ở M1 vì đây là lỗi kỹ thuật làm mọi layout muộn mất animation, không phải thay đổi ý đồ thiết kế. Không đánh dấu vượt cổng M0/M1.
+- M1: test `python -m pytest sin_content_api/tests/test_overlay_dung_moc.py -q --disable-warnings` đạt 2/2; test cũ đã thất bại với pixel xanh thay vì đỏ ở đầu cue. Renderer đã sửa trim/PTS/EOF. Độ rõ checklist, alpha/PIP/nhiều overlay và đoạn proof trên runner còn chưa đạt.
