@@ -22,3 +22,8 @@ jobs:
       - run: python -m pip install -r sin_content_api/requirements.txt python-multipart soundfile numpy
       - name: Kiểm tra transfer, fencing, upload và worker
         run: python -m pytest sin_content_api/tests/test_tac_vu_tu_xa.py sin_content_api/tests/test_media_studio_upload_stream.py sin_content_api/tests/test_worker_dien_hoa_hyperframes.py -q
+      - name: Kiểm tra overlay động và chữ checklist
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+          python -m pytest sin_content_api/tests/test_overlay_dung_moc.py sin_content_api/tests/test_checklist_doc_ro.py -q
