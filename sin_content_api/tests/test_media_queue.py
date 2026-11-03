@@ -1014,9 +1014,8 @@ def test_worker_dispatches_auto_edit_hyperframes_scene_to_existing_renderer(medi
     assert calls == [(db, job, request)]
 
 
-@pytest.mark.parametrize("use_profile_context", [False, True])
-
-def test_auto_edit_waits_for_flow_children_then_resumes_once(media_db):
+@pytest.mark.parametrize("child_count", [2, 4, 20, 21])
+def test_auto_edit_waits_for_flow_children_then_resumes_once(media_db, child_count):
     from src.modules.media_queue import worker
 
     db, workspace_id, _ = media_db
@@ -1041,8 +1040,19 @@ def test_auto_edit_waits_for_flow_children_then_resumes_once(media_db):
         prompt_text="Cảnh origami thứ hai.", parameters={},
         idempotency_key="auto-edit-child-two-01", project_id="project-01",
     )
+    child_ids = [first.id, second.id]
+    for index in range(2, child_count):
+        child = enqueue_media_job(
+            db, workspace_id=workspace_id, user_id="user-queue", provider="MEDIA_VIDEO",
+            operation="generate_video_scene", backend_provider="GOOGLE_FLOW",
+            provider_mode="FLOW_BROWSER_PILOT", model_id="google-flow",
+            prompt_text="Cảnh giấy bổ sung.", parameters={},
+            idempotency_key=f"auto-edit-child-extra-{index}", project_id="project-01",
+        )
+        child.state = "SUCCEEDED"
+        child_ids.append(child.id)
     request = json.loads(parent.request_payload_json)
-    request["parameters"].update(phase="waiting_for_flow", flow_job_ids=[first.id, second.id])
+    request["parameters"].update(phase="waiting_for_flow", flow_job_ids=child_ids)
     parent.request_payload_json = json.dumps(request)
     parent.state = "WAITING_FOR_FLOW"
     second.state = "SUCCEEDED"
@@ -1057,11 +1067,15 @@ def test_auto_edit_waits_for_flow_children_then_resumes_once(media_db):
 
     first.state = "FAILED"
     db.commit()
+    if child_count > 20:
+        assert worker._resume_waiting_auto_edit_jobs(db, token) == 0
+        assert db.get(AIGenerationJob, parent.id).state == "WAITING_FOR_FLOW"
+        return
     assert worker._resume_waiting_auto_edit_jobs(db, token) == 1
     assert db.get(AIGenerationJob, parent.id).state == "QUEUED"
     resumed = json.loads(db.get(AIGenerationJob, parent.id).request_payload_json)
     assert resumed["parameters"]["phase"] == "render"
-    assert resumed["parameters"]["flow_job_ids"] == [first.id, second.id]
+    assert resumed["parameters"]["flow_job_ids"] == child_ids
     assert worker._resume_waiting_auto_edit_jobs(db, token) == 0
 
 

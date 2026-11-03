@@ -1684,7 +1684,7 @@ def dung_video_dai(
     if phase == "render" and (
         not isinstance(flow_job_ids, list)
         or not flow_job_ids
-        or len(flow_job_ids) > 3
+        or len(flow_job_ids) > 20
         or any(not isinstance(child_id, str) or not child_id for child_id in flow_job_ids)
         or len(flow_job_ids) != len(set(flow_job_ids))
         or not isinstance(plan_storage_key, str)

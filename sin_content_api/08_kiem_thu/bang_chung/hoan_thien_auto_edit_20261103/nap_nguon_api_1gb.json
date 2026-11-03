@@ -1,0 +1,16 @@
+{
+  "project_id": "786676f6-e3c7-457d-9ccd-a22158507fdf",
+  "upload_session": {
+    "session_id": "2a94b644034d48f0aee98a27f46d8dbd",
+    "workspace_id": "9fd7c928-7ac4-4d95-8b71-60b8653fe5f3",
+    "user_id": "13c9c64c-43e6-44ef-9a91-e95e63c09a12",
+    "project_id": "786676f6-e3c7-457d-9ccd-a22158507fdf",
+    "filename": "nguon_sep_120s.mp4",
+    "byte_size": 1054104321,
+    "next_offset": 0,
+    "expires_at": 1793779194.5632029,
+    "chunk_size": 67108864
+  },
+  "asset_id": "f85636f3-f8a0-489b-8ea2-9070d59b13dd",
+  "job_id": "d9104d44-9d77-445e-90b5-b58cc0e202db"
+}

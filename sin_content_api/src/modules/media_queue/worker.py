@@ -184,7 +184,7 @@ def _resume_waiting_auto_edit_jobs(db: Session, token: str) -> int:
             or parameters.get("phase") not in {"waiting_for_flow", "render"}
             or not isinstance(child_ids, list)
             or not child_ids
-            or len(child_ids) > 3
+            or len(child_ids) > 20
             or any(not isinstance(child_id, str) or not child_id for child_id in child_ids)
             or len(child_ids) != len(set(child_ids))
         ):
