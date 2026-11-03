@@ -6,6 +6,36 @@ from types import SimpleNamespace
 from src.modules.dieu_phoi_dung.dung_video_dai import ClipTuDong, tao_y_tuong_dien_hoa_flow
 
 
+@pytest.mark.parametrize('repair', [True, False])
+def test_llm_sua_overlay_chu_qua_nho_truoc_render(repair):
+    from src.modules.dieu_phoi_dung.dung_video_dai import chon_dien_hoa
+    clip=ClipTuDong(clip_id='doc',start_ms=0,end_ms=5000,title='Câu hỏi',reason='Đủ ý')
+    words=[{'id':'w1','text':'giá phải trả','start_ms':0,'end_ms':3000}]
+    asset={'asset_id':'question','target_clip_id':'doc','target_start_word_id':'w1','target_end_word_id':'w1',
+        'scene':'Câu hỏi giấy','narration':'giá phải trả','duration_seconds':3,'visual_kind':'diagram',
+        'renderer':'HYPERFRAMES','aspect_ratio':'16:9','width':1920,'height':1080,'has_alpha':True,
+        'overlay_presentation':{'kind':'paper_card','min_font_size_px':84}}
+    class Client:
+        max_input_bytes=200000
+        max_output_tokens=4000
+        calls=0
+        def complete(self,messages,**kwargs):
+            self.calls+=1
+            if self.calls==2:
+                assert 'VISUAL_TEXT_TOO_SMALL' in messages[-1]['content']
+            return SimpleNamespace(content=json.dumps({'actions':[{
+                'clip_id':'doc','asset_id':'question','mode':'CUTAWAY' if repair and self.calls==2 else 'OVERLAY',
+                'start_word_id':'w1','end_word_id':'w1','reason':'Giữ chữ đọc rõ',
+                'layout_position':'upper_left','layout_size':'medium'}]}))
+    client=Client()
+    result=chon_dien_hoa([clip],words,[asset],client)
+    assert client.calls==2
+    if repair:
+        assert len(result)==1 and result[0]['mode']=='CUTAWAY'
+    else:
+        assert result==[] and clip.needs_review
+
+
 def test_storyboard_nhan_ca_loi_thoai_cuoi_clip():
     clip = ClipTuDong(clip_id='cuoi', start_ms=0, end_ms=29000, title='Đủ nội dung', reason='Đủ ý')
     words = [{'id':f'w{i}', 'text':'nội dung giải thích', 'start_ms':i*80, 'end_ms':i*80+70}

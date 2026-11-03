@@ -595,6 +595,12 @@ def render_auto_edit_diagram(db: Session, job: AIGenerationJob, request: dict) -
         raise
 
 
+_DIAGRAM_OVERLAY_SIZES = {
+    "9:16": {"small": (270, 480), "medium": (360, 640), "large": (405, 720)},
+    "16:9": {"small": (480, 270), "medium": (660, 371), "large": (840, 472)},
+}
+
+
 def chon_dien_hoa(clips: list[ClipTuDong], words: list[dict], candidates: list[dict], client) -> list[dict]:
     if not candidates:
         return []
@@ -653,6 +659,7 @@ def chon_dien_hoa(clips: list[ClipTuDong], words: list[dict], candidates: list[d
         batch_clip_ids = {item["clip_id"] for item in batch}
         required_assets = [asset for asset in candidates if asset.get("target_clip_id") in batch_clip_ids]
         planned = []
+        readability_feedback = []
         for attempt in range(2):
             if attempt:
                 if not required_assets:
@@ -668,6 +675,8 @@ def chon_dien_hoa(clips: list[ClipTuDong], words: list[dict], candidates: list[d
                     f"cho các asset này nếu chúng khớp lời thoại: {', '.join(missing)}. "
                     "Chỉ bỏ qua nếu không thể dùng an toàn hoặc không khớp nội dung."
                 )
+            if readability_feedback:
+                batch_request["yeu_cau"].extend(readability_feedback)
             result = client.complete([
                 {"role": "system", "content": system},
                 {"role": "user", "content": json.dumps(batch_request, ensure_ascii=False, separators=(",", ":"))},
@@ -677,6 +686,21 @@ def chon_dien_hoa(clips: list[ClipTuDong], words: list[dict], candidates: list[d
                 if raw.startswith("```"):
                     raw = raw.strip("`").removeprefix("json").strip()
                 returned = KeHoachDienHoa.model_validate_json(raw).actions
+                readable = []
+                readability_feedback = []
+                for action in returned:
+                    asset = next((item for item in candidates if item["asset_id"] == action.asset_id), {})
+                    font = (asset.get("overlay_presentation") or {}).get("min_font_size_px")
+                    if action.mode == "OVERLAY" and asset.get("visual_kind") == "diagram" and font and asset.get("width"):
+                        overlay_width = _DIAGRAM_OVERLAY_SIZES.get(asset.get("aspect_ratio"), _DIAGRAM_OVERLAY_SIZES["16:9"])[action.layout_size][0]
+                        actual_font = font * overlay_width / asset["width"]
+                        if actual_font < 48:
+                            readability_feedback.append(
+                                f"VISUAL_TEXT_TOO_SMALL: {action.asset_id} chỉ còn {actual_font:.1f}px sau scale, cần ít nhất48px. Chọn cỡ hoặc mode đọc rõ (CUTAWAY/SPEAKER_PIP), không giữ overlay này."
+                            )
+                            continue
+                    readable.append(action)
+                returned = readable
                 planned = (list({(action.clip_id, action.asset_id): action
                                  for action in [*planned, *returned]}.values()) if attempt else returned)
             except (ValidationError, ValueError, TypeError, json.JSONDecodeError) as exc:
@@ -1435,8 +1459,7 @@ def _tao_timeline(
         if position not in positions or size not in sizes:
             raise ValueError("VISUAL_LAYOUT_INVALID")
         width, height = (
-            ({"small": (270, 480), "medium": (360, 640), "large": (405, 720)}[size]
-             if action.get("aspect_ratio") == "9:16" else {"small": (480, 270), "medium": (660, 371), "large": (840, 472)}[size])
+            _DIAGRAM_OVERLAY_SIZES.get(action.get("aspect_ratio"), _DIAGRAM_OVERLAY_SIZES["16:9"])[size]
             if action.get("visual_kind") == "diagram" else sizes[size]
         )
         if speaker_pip:
@@ -1668,7 +1691,10 @@ def _visual_candidates_for_jobs(
                                if renderer == "HYPERFRAMES" and info["has_alpha"]
                                and parameters.get("diagram_revision") == 2
                                and isinstance(parameters.get("ui_scene"), dict)
-                               and parameters.get("ui_scene", {}).get("layout") == "CHECKLIST" else None
+                               and parameters.get("ui_scene", {}).get("layout") == "CHECKLIST"
+                               else {"kind": "paper_card", "min_font_size_px": 84}
+                               if renderer == "HYPERFRAMES" and isinstance(parameters.get("ui_scene"), dict)
+                               and parameters["ui_scene"].get("layout") == "OPEN_QUESTION" else None
                            ),
                            "visual_kind": "diagram" if renderer == "HYPERFRAMES" else "flow_scene"})
     return candidates, failed
