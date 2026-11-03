@@ -13,3 +13,9 @@ Quan sát ba khung360x640 từ MP4 thật:
 -37 giây: checklist hiển thị chữ lớn, đang ở mục2/5, nhưng toàn khung có nhiều nền đen trống do bố cục CUTAWAY cho asset alpha; chưa đạt bố cục chuyên nghiệp. Cần sửa cách chọn bố cục và/hoặc composite alpha, giữ quyết định nội dung cho LLM.
 
 Một cảnh Flow khác chưa được tạo do chờ xác nhận tài khoản sau khi Founder nghi ngờ sai hồ sơ. Kế hoạch còn khoảng dài thiếu minh họa. Đây là bản kiểm tra pipeline, không phải video đã đạt95% hoặc bằng chứng goal hoàn tất. Nguồn8GB chỉ chứng minh upload/hash, chưa xử lý toàn bộ.
+
+## Sửa ghép alpha sau khi xem bản xuất
+
+Renderer render_timeline_document bỏ qua pad_color trong timeline và luôn pad đen. Chuyển MOV alpha sang H.264 cũng không có bước ghép nền cho vùng trong suốt bên trong canvas. Test FFmpeg thật160x284, clip alpha đỏ50%, nền yêu cầu xanh: trước sửa pixel viền đen thay vì xanh. Sau sửa renderer xác thực màu hex6 ký tự, pad đúng màu và ghép alpha lên nền đục trước mã hóa; pixel viền xanh và tâm tím đúng kết quả trộn. Sáu test trong test_overlay_dung_moc.py đạt trong6,84 giây, gồm màu sai bị từ chối, alpha, overlay muộn/trim và PIP. Không chạy render fullHD local.
+
+Bản sửa chỉ xử lý màu/composite, chưa cải thiện khoảng trống bố cục CUTAWAY hoặc quyết định nội dung. MP4 v4 ở link trên chưa được dựng lại, vẫn còn nền đen quan sát được. Cần runner có bản sửa cho lượt kế tiếp và kiểm lại video thật.

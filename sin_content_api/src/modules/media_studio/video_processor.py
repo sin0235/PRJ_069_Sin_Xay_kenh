@@ -10,6 +10,7 @@ import json
 import math
 import os
 import pathlib
+import re
 import subprocess
 from src.media_process import run_media_command
 import sys
@@ -393,13 +394,22 @@ class VideoProcessor:
                     audio_file = asset_path_resolver(audio_asset_id)
                     audio_trim_ms = clip.get("audio_trim_in_ms", trim_in_ms) if isinstance(clip, dict) else trim_in_ms
 
+                    pad_color = clip.get("pad_color") if isinstance(clip, dict) else getattr(clip, "pad_color", None)
+                    if pad_color is not None and not re.fullmatch(r"[0-9a-fA-F]{6}", str(pad_color)):
+                        raise ValueError("VIDEO_PAD_COLOR_INVALID")
+                    background = f"0x{pad_color}" if pad_color else "black"
                     if fit == "contain":
-                        vf_scale = f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps={fps}"
+                        vf_scale = f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color={background},setsar=1,fps={fps}"
                     else:
                         vf_scale = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1,fps={fps}"
                     if effect == "punch_in":
                         zoom_width, zoom_height = round(width * 1.06), round(height * 1.06)
                         vf_scale += f",scale={zoom_width}:{zoom_height},crop={width}:{height}"
+                    if pad_color:
+                        vf_scale += (
+                            f",format=rgba,split[fg][bg];[bg]drawbox=color={background}:t=fill:replace=1[base];"
+                            "[base][fg]overlay=shortest=1:format=auto"
+                        )
 
                     if media_type == "image":
                         dur_s = max(0.1, duration_ms / 1000.0)

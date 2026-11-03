@@ -5,6 +5,28 @@ import pytest
 from src.modules.media_studio.video_processor import video_processor
 
 
+@pytest.mark.parametrize('background',['0000FF','blue;invalid'])
+def test_canh_alpha_toan_khung_ghep_len_mau_nen_da_chon(tmp_path,background):
+    source=tmp_path/'giay.mov';output=tmp_path/'ket_qua.mp4'
+    def ffmpeg(*args):
+        return subprocess.run([video_processor.ffmpeg_bin,'-v','error',*map(str,args)],check=True,capture_output=True).stdout
+    ffmpeg('-y','-f','lavfi','-i','color=red@0.5:s=40x40:r=10:d=1,format=argb','-c:v','qtrle',source)
+    timeline={'width':160,'height':284,'fps':10,'clips':[{
+        'clip_id':'giay','asset_id':'giay','media_type':'video','start_ms':0,'duration_ms':1000,
+        'trim_in_ms':0,'trim_out_ms':1000,'fit':'contain','pad_color':background}]}
+    if background!='0000FF':
+        with pytest.raises(ValueError,match='VIDEO_PAD_COLOR_INVALID'):
+            video_processor.render_timeline_document(timeline,lambda _:source,output)
+        return
+    video_processor.render_timeline_document(timeline,lambda _:source,output)
+    def pixel(x,y):
+        return ffmpeg('-ss','0.5','-i',output,'-vf',f'crop=2:2:{x}:{y},scale=1:1',
+            '-frames:v','1','-f','rawvideo','-pix_fmt','rgb24','pipe:1')[:3]
+    border=pixel(10,10);center=pixel(80,140)
+    assert border[2]>220 and border[0]<30,border
+    assert 90<center[0]<170 and 90<center[2]<170,center
+
+
 @pytest.mark.parametrize('trim_ms', [0, 500])
 @pytest.mark.parametrize('alpha', [False, True])
 def test_overlay_muon_chay_dung_animation_va_bien_mat(tmp_path, trim_ms, alpha):
