@@ -864,10 +864,11 @@ def test_tao_y_tuong_flow_giu_style_giay_ghep_va_clip_duoc_chon():
     assert visuals[0]["target_clip_id"] == clip.clip_id
     assert visuals[0]["duration_seconds"] == 10
     assert visuals[0]["has_alpha"] is False
-    assert _PILOT_STYLE_SNAPSHOT.style_name in visuals[0]["prompt"]
+    assert visuals[0]["style_snapshot"]["style_name"] in visuals[0]["prompt"]
     assert all(color in visuals[0]["prompt"] for color in _PILOT_STYLE_SNAPSHOT.palette)
     assert _PILOT_STYLE_SNAPSHOT.style_name == _CONTENT_VIDEO_STYLE_SNAPSHOT.style_name
-    assert "origami" not in visuals[0]["prompt"].casefold()
+    assert "origami" in visuals[0]["prompt"].casefold()
+    assert visuals[0]["style_snapshot"]["style_name"] != _CONTENT_VIDEO_STYLE_SNAPSHOT.style_name
     assert "trọn 10 giây" in visuals[0]["prompt"].casefold()
     assert "2 đến 4 lớp chuyển động" in visuals[0]["prompt"].casefold()
     system_prompt = client.messages[0][0]["content"].casefold()
@@ -951,6 +952,9 @@ def test_visual_prompts_leave_bottom_tiktok_caption_safe_zone():
     request = json.loads(client.messages[0][1]["content"])
     assert any("320 px" in item and "phụ đề karaoke" in item for item in request["yeu_cau"])
     assert "320 px" in visuals[0]["prompt"]
+    assert "giấy gấp" in request["style"]["visual_rules"]
+    assert "giấy gấp" in visuals[0]["prompt"]
+    assert "bảng kính" not in visuals[0]["style_snapshot"]["visual_rules"]
 
 
 def test_planner_danh_dau_ra_soat_neu_llm_khong_sua_khoang_trong_storyboard():
