@@ -45,6 +45,7 @@ def test_clip_hai_phut_bo_sung_duoc_sau_canh_thu_ba():
             assert request['schema']['properties']['visuals']['maxItems'] == 3
             if self.calls > 1:
                 assert request['visuals_hop_le_can_giu']
+                assert 'Bổ sung tối đa ba visual mới' in request['validator_feedback']
             return SimpleNamespace(content=json.dumps({'visuals':next(self.replies)},ensure_ascii=False))
 
     client = Client()
@@ -110,3 +111,22 @@ def test_render_nhan_nhieu_clip_nhung_van_chan_danh_sach_vuot_gioi_han(count,err
     with pytest.raises(ValueError,match=error):
         dung_video_dai(db,source_asset_id='nguon',workspace_id='workspace',user_id='user',project_id=None,
                       phase='render',flow_job_ids=[f'child{i}' for i in range(count)],plan_storage_key='plan.json')
+
+
+def test_giu_tron_kich_ban_hai_phut_khi_llm_chon_cung_mot_noi_dung():
+    from src.modules.dieu_phoi_dung.dung_video_dai import tao_ke_hoach_dung_video
+    words = [{'id':f'w{i}','text':'nội dung','start_ms':i*1000,'end_ms':(i+1)*1000} for i in range(125)]
+
+    class Client:
+        max_input_bytes = 200000
+        max_output_tokens = 4000
+
+        def complete(self,messages,**kwargs):
+            return SimpleNamespace(content=json.dumps({'clips':[{
+                'start_word_id':'w0','end_word_id':'w124','title':'Một kịch bản trọn vẹn',
+                'reason':'Dẫn nhập, giải thích và kết luận cùng một nội dung',
+            }]},ensure_ascii=False))
+
+    plan = tao_ke_hoach_dung_video(words,Client(),125000)
+    assert len(plan.clips) == 1
+    assert (plan.clips[0].start_ms,plan.clips[0].end_ms) == (0,125000)

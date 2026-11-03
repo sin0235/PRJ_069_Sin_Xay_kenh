@@ -1,0 +1,13 @@
+{
+  "asset_id": "c15a3ad0-811a-4f96-861b-630549dab417",
+  "project_id": "685d269c-def5-4e35-9038-a75d2119dd80",
+  "byte_size": 8428283732,
+  "sha256": "8b520dc243dfa602d09fee1f24c3d1f9ff89f56833b234eb6d317fc272a542df",
+  "source_hash_matches": true,
+  "source_product": "UPLOAD",
+  "processing_job_created": false,
+  "processing_job_count": 0,
+  "http_status": 206,
+  "content_range": "bytes 0-1023/8428283732",
+  "range_bytes": 1024
+}
