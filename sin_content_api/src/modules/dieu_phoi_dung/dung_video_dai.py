@@ -1221,7 +1221,8 @@ def _mapped_time(source_ms: int, clip: ClipTuDong, cuts: list[tuple[int, int]]) 
 
 
 def _caption_track(clip: ClipTuDong, words: list[dict], cuts: list[tuple[int, int]]) -> list[dict]:
-    captions = [{"text": clip.title, "start_ms": 0, "duration_ms": 2200, "font_size": 56, "position_y_px": 280}]
+    captions = [{"text": clip.title, "start_ms": 0, "duration_ms": 2200, "font_size": 72,
+                 "position_y_px": 170, "animated_label": True}]
     words_by_id = {word["id"]: word for word in words}
     callout_words = [words_by_id[word_id] for word_id in clip.callout_word_ids]
     if callout_words:
@@ -1234,9 +1235,10 @@ def _caption_track(clip: ClipTuDong, words: list[dict], cuts: list[tuple[int, in
                 "text": " ".join(word["text"].strip() for word in callout_words),
                 "start_ms": start,
                 "duration_ms": duration,
-                "font_size": 50,
+                "font_size": 70,
                 "position_y_px": 1050 if start < 2200 else 280,
                 "visual_type": "callout",
+                "animated_label": True,
             })
     caption_words: list[dict] = []
     for word in words:

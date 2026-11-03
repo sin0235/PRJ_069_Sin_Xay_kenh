@@ -1099,6 +1099,7 @@ class TimelineCaption(BaseModel):
     safe_zone: bool = Field(True, description="Tuân thủ Safe Zone TikTok")
     words: List[TimelineCaptionWord] = Field(default_factory=list, description="Mốc thời gian từng từ cho phụ đề karaoke")
     visual_type: Optional[Literal["callout"]] = None
+    animated_label: bool = False
     position_y_px: Optional[int] = Field(None, ge=150)
 
 

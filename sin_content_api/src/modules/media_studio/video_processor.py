@@ -494,7 +494,8 @@ class VideoProcessor:
                 karaoke_captions, static_captions = [], []
                 for caption in captions:
                     words = caption.get("words") if isinstance(caption, dict) else getattr(caption, "words", None)
-                    (karaoke_captions if words else static_captions).append(caption)
+                    animated_label = caption.get("animated_label", False) if isinstance(caption, dict) else getattr(caption, "animated_label", False)
+                    (karaoke_captions if words or animated_label else static_captions).append(caption)
 
                 current_video = concat_video
                 overlays = getattr(timeline, "overlays", [])

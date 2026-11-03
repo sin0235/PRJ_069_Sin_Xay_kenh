@@ -205,6 +205,7 @@ export interface TimelineCaption {
   safe_zone?: boolean;
   words?: { text: string; start_ms: number; end_ms: number }[];
   visual_type?: "callout";
+  animated_label?: boolean;
   position_y_px?: number;
 }
 

@@ -60,6 +60,21 @@ def build_karaoke_ass(
         start, end = int(get("start_ms", 0)), int(get("start_ms", 0)) + int(get("duration_ms", 0))
         words = [{"text": w["text"], "start_ms": w["start_ms"], "end_ms": w["end_ms"]} if isinstance(w, dict)
                  else {"text": w.text, "start_ms": w.start_ms, "end_ms": w.end_ms} for w in (get("words") or [])]
+        if get("animated_label", False) and not words:
+            label_size = max(1, round(height * int(get("font_size", 72)) / 1920))
+            label_lines = textwrap.wrap(_escape(get("text", "")).upper(),
+                                       width=max(8, int(width * 0.78 / (label_size * 0.58))),
+                                       break_long_words=False, break_on_hyphens=False)
+            if label_lines and end > start:
+                last = label_lines[-1].rsplit(" ", 1)
+                label_lines[-1] = (last[0] + " " if len(last) > 1 else "") + r"{\1c&H006AB2D9&}" + last[-1]
+                x = round(width / 2)
+                y = round(height * max(150, min(1600, int(get("position_y_px", 170) or 170))) / 1920)
+                rise = round(height * 24 / 1920)
+                motion = (f"{{\\an8\\move({x},{y+rise},{x},{y},0,180)\\fs{label_size}"
+                          r"\1c&H00FFFFFF&\fscx92\fscy92\t(0,180,\fscx100\fscy100)\fad(120,120)}")
+                lines.append(f"Dialogue: 1,{_ts(start)},{_ts(end)},Karaoke,,0,0,0,,{motion}" + r"\N".join(label_lines))
+            continue
         if not words:
             plain_words = _escape(get("text", "")).split()
             if settings.layout == "two_line":

@@ -254,7 +254,8 @@ def test_llm_that_lap_ke_hoach_nhieu_clip_va_chi_cat_tu_dem_thua():
     assert isinstance(plan, TaoKeHoachDungVideo)
     assert plan.clips[0].cut_word_ids == ["w1"]
     callouts = [item for item in _caption_track(plan.clips[0], words, []) if item.get("visual_type") == "callout"]
-    assert callouts == [{"text": "cách", "start_ms": 500, "duration_ms": 1300, "font_size": 50, "position_y_px": 1050, "visual_type": "callout"}]
+    assert callouts == [{"text": "cách", "start_ms": 500, "duration_ms": 1300, "font_size": 70,
+                         "position_y_px": 1050, "visual_type": "callout", "animated_label": True}]
     assert "Chỉ chọn các đoạn" in client.messages[0][0]["content"]
     assert "start_word_id và end_word_id" in client.messages[0][1]["content"]
     assert "chỉ dùng punch_in một lần cho ý nhấn mạnh" in client.messages[0][1]["content"]

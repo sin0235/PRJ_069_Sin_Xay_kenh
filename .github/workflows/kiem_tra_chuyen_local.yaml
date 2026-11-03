@@ -26,4 +26,4 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends ffmpeg
-          python -m pytest sin_content_api/tests/test_overlay_dung_moc.py sin_content_api/tests/test_checklist_doc_ro.py sin_content_api/tests/test_storyboard_nhieu_nhip.py -q
+            python -m pytest sin_content_api/tests/test_overlay_dung_moc.py sin_content_api/tests/test_checklist_doc_ro.py sin_content_api/tests/test_storyboard_nhieu_nhip.py sin_content_api/tests/test_nhan_dong_auto_edit.py -q
