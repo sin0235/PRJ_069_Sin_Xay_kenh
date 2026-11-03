@@ -511,6 +511,21 @@ class GoogleFlowClient:
 
     @staticmethod
     def _ensure_video_mode(page, aspect_ratio: str = "16:9") -> None:
+        agent_settings = page.locator(
+            "button[aria-label='Settings']:visible, button[aria-label='Cài đặt']:visible"
+        ).last
+        try:
+            agent_settings.wait_for(state="visible", timeout=20000)
+        except PlaywrightTimeoutError:
+            pass
+        if agent_settings.count() and agent_settings.is_visible():
+            agent_settings.click(timeout=5000)
+            video_section = page.locator("div.settings-section").filter(
+                has=page.locator("button.video-model-picker-button")
+            ).first
+            video_section.locator("[role='radio']").filter(has_text=aspect_ratio).first.click(timeout=5000)
+            page.locator("button.settings-save-button").click(timeout=5000)
+            return
         agent_toggle = page.locator("button.agent-mode-chip")
         if agent_toggle.count():
             agent_toggle.wait_for(state="visible", timeout=_FLOW_PROJECT_TIMEOUT_MS)
@@ -521,7 +536,7 @@ class GoogleFlowClient:
             "button.settings-trigger-button, button[aria-label*='settings']"
         ).first
         try:
-            generation_settings.wait_for(state="visible", timeout=_FLOW_PROJECT_TIMEOUT_MS)
+            generation_settings.wait_for(state="visible", timeout=5000)
         except PlaywrightTimeoutError:
             pass
         if not generation_settings.count():
@@ -576,6 +591,11 @@ class GoogleFlowClient:
             ).first
             if aspect_ratio == "16:9" and agent_settings.count() and agent_settings.is_visible():
                 return
+            buttons = page.locator("button").evaluate_all(
+                "buttons => buttons.filter(b => b.getClientRects().length).map(b => ({"
+                "label:b.getAttribute('aria-label'), title:b.title, text:b.innerText.slice(0,80), class:b.className})).slice(-20)"
+            )
+            print("[FLOW MODE BUTTONS] " + json.dumps(buttons, ensure_ascii=False), flush=True)
             raise RuntimeError(
                 "FLOW_VIDEO_MODE_SELECTOR_NOT_FOUND: "
                 f"agent={agent_toggle.count()} "

@@ -27,7 +27,10 @@ if sys.platform == "win32":
 # Thư mục gốc dự án và công cụ
 CURRENT_DIR = pathlib.Path(__file__).resolve().parent
 # shortcut: binary truncates clips at 8s; keep segments at 7s until the remover is replaced.
-DEFAULT_EXECUTABLE_PATH = CURRENT_DIR / "GeminiWatermarkTool-Video.exe"
+DEFAULT_EXECUTABLE_PATH = pathlib.Path(os.environ.get(
+    "PRJ069_VEO_REMOVER_PATH",
+    str(CURRENT_DIR / ("GeminiWatermarkTool-Video.exe" if sys.platform == "win32" else "GeminiWatermarkTool-Video")),
+))
 MAX_REMOVER_SEGMENT_SECONDS = 7.0
 
 

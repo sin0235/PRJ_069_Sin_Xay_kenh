@@ -49,6 +49,15 @@ jobs:
           python -m playwright install --with-deps chromium
           npm ci --prefix sin_content_api/engines/hyperframes
           npm ci --prefix sin_content_api/engines/remotion
+      - name: Cài công cụ gỡ logo Flow đã xác minh
+        run: |
+          curl -fsSL https://github.com/allenk/VeoWatermarkRemover/releases/download/v0.6.5-demo/GeminiWatermarkTool-Linux-x64-Video.zip -o "$RUNNER_TEMP/veo.zip"
+          echo "958a8f429208848af55d461754a841d5c5703301a61ac66d045831c5a9622654  $RUNNER_TEMP/veo.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/veo.zip" -d "$RUNNER_TEMP/veo"
+          VEO_TOOL=$(find "$RUNNER_TEMP/veo" -type f -name GeminiWatermarkTool-Video -print -quit)
+          test -n "$VEO_TOOL"
+          chmod +x "$VEO_TOOL"
+          echo "PRJ069_VEO_REMOVER_PATH=$VEO_TOOL" >> "$GITHUB_ENV"
       - name: Nhận và thực hiện tác vụ kiểm thử
         env:
           INPUT_ORIGIN: ${{ inputs.origin }}
