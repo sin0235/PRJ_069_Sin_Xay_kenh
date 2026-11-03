@@ -1,0 +1,44 @@
+{
+  "metadata": {
+    "aspect_ratio": "9:16",
+    "bitrate_bps": 2614091,
+    "codec_name": "h264",
+    "duration_seconds": 8.5,
+    "flow_native_audio": true,
+    "frame_rate": 30.0,
+    "has_alpha": false,
+    "height": 1920,
+    "is_vertical_9_16": true,
+    "pixel_format": "yuv420p",
+    "safe_zone_tiktok": {
+      "bottom_margin_px": 320,
+      "is_compliant": true,
+      "right_margin_px": 120,
+      "top_margin_px": 150
+    },
+    "video_stream_duration_seconds": 8.5,
+    "width": 1080
+  },
+  "qc": {
+    "decode_ok": true
+  },
+  "actions": [
+    {
+      "clip_id": "part1_01",
+      "asset_id": "the",
+      "mode": "OVERLAY",
+      "layout_position": "upper_left",
+      "layout_size": "large",
+      "start_word_id": "w000195",
+      "end_word_id": "w000211",
+      "reason": "Thẻ giấy trong suốt lần lượt nêu từng khoản chi phí; overlay giữ người nói bên dưới và chữ lớn dễ đọc.",
+      "start_ms": 67540,
+      "end_ms": 72880,
+      "asset_duration_ms": 6000,
+      "visual_kind": "diagram",
+      "aspect_ratio": "9:16",
+      "renderer": "HYPERFRAMES",
+      "style_snapshot_hash": "e543969d6d5908934b681f2fbe16786ab55405424e19cb294e337c4bfd4dd6df"
+    }
+  ]
+}

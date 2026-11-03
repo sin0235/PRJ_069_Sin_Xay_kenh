@@ -1,0 +1,14 @@
+{
+  "outside_alpha_max": 0,
+  "within_same_cue_times": [
+    2.06,
+    2.3,
+    2.8
+  ],
+  "frame_hashes": [
+    "205192be4bfec712a20237c152aa477ea71574cfaec96e2bc1f409a2c3f8744a",
+    "6d93b64be9c392e77509c8432f6c6da06175ce50c1244c493c29cee519f6d59f",
+    "739684906500e03748d8805a6a3aada012a09a6838075cc0626f223703abf746"
+  ],
+  "moving_within_cue": true
+}
