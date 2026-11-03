@@ -29,7 +29,7 @@ async def claim(request: Request, session_id: str):
             session = db.execute('SELECT * FROM runner_session WHERE id=1').fetchone()
             if not session or session['session_id'] != session_id or (session['run_id'] and session['run_id'] != str(claims['run_id'])):
                 raise RemoteTaskError('REMOTE_SESSION_REJECTED')
-            db.execute('UPDATE runner_session SET updated=?,run_id=? WHERE id=1', (time.time(), str(claims['run_id'])))
+            db.execute('UPDATE runner_session SET updated=?,run_id=?,ready=1 WHERE id=1', (time.time(), str(claims['run_id'])))
         claimed = store.claim(str(claims['run_id']))
         if claimed is None:
             return JSONResponse({'task': None})

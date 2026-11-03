@@ -22,6 +22,7 @@ os.environ['OPENBLAS_NUM_THREADS'] = '2'
 os.environ['MKL_NUM_THREADS'] = '2'
 
 from src.modules.tac_vu_tu_xa.service import file_hash
+from src.modules.tac_vu_tu_xa.transfer import download_input
 
 
 def stage_child(payload_path):
@@ -138,17 +139,7 @@ def process(client, base, spec, token):
             inputs = []
             for index, item in enumerate(spec['inputs']):
                 path = root / f'input_{index}{Path(item["name"]).suffix}'
-                digest = hashlib.sha256()
-                with client.stream('GET', task_url + f'/inputs/{index}', headers=headers) as response:
-                    response.raise_for_status()
-                    with path.open('wb') as output:
-                        for chunk in response.iter_bytes(1024 * 1024):
-                            if output.tell() + len(chunk) > item['size']:
-                                raise RuntimeError('REMOTE_INPUT_TOO_LARGE')
-                            output.write(chunk)
-                            digest.update(chunk)
-                if path.stat().st_size != item['size'] or digest.hexdigest() != item['sha256']:
-                    raise RuntimeError('REMOTE_INPUT_HASH_MISMATCH')
+                download_input(client, task_url + f'/inputs/{index}', headers, path, item['size'], item['sha256'])
                 inputs.append(path)
             suffix = spec['parameters'].get('output_suffix') or '.mp4'
             if suffix not in {'.wav', '.m4a', '.mp3', '.mp4', '.mov', '.png', '.jpg', '.webm'}:

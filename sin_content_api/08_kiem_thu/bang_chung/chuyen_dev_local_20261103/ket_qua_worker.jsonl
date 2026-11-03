@@ -1,0 +1,2 @@
+﻿{"task": "c3c4072d-644d-4786-83b5-5272a66e06fa", "stage": "QC", "state": "SUCCEEDED", "output_bytes": 0, "peak_rss_bytes": 252674048, "peak_scratch_bytes": 105489427, "elapsed_seconds": 20.18}
+{"task": "c88a8fc6-dc48-492d-85aa-08fe487b919f", "stage": "RENDER_VISUAL", "state": "SUCCEEDED", "output_bytes": 63575376, "peak_rss_bytes": 1875054592, "peak_scratch_bytes": 61845978, "elapsed_seconds": 109.15}

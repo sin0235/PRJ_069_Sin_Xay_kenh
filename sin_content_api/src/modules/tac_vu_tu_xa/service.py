@@ -38,6 +38,10 @@ class TaskStore:
                 state TEXT NOT NULL, token_hash TEXT, lease_until REAL, runner TEXT,
                 created REAL NOT NULL, result TEXT, output_manifest TEXT, error TEXT)''')
             db.execute('CREATE TABLE IF NOT EXISTS runner_session (id INTEGER PRIMARY KEY CHECK(id=1), updated REAL NOT NULL, session_id TEXT NOT NULL, run_id TEXT)')
+            columns = {row['name'] for row in db.execute('PRAGMA table_info(runner_session)')}
+            if 'ready' not in columns:
+                db.execute('ALTER TABLE runner_session ADD COLUMN ready INTEGER NOT NULL DEFAULT 0')
+                db.execute("UPDATE runner_session SET ready=1 WHERE run_id IN (SELECT runner FROM tasks WHERE runner IS NOT NULL)")
 
     @contextmanager
     def connect(self):
@@ -111,7 +115,7 @@ class TaskStore:
         with self.connect() as db:
             row = self._authorize(db, task, token)
             db.execute('UPDATE tasks SET lease_until=? WHERE id=?', (time.time() + 300, task))
-            db.execute('UPDATE runner_session SET updated=? WHERE run_id=?', (time.time(), row['runner']))
+            db.execute('UPDATE runner_session SET updated=?,ready=1 WHERE run_id=?', (time.time(), row['runner']))
 
     def validate_access(self, task, token, *, finished=False):
         with self.connect() as db:

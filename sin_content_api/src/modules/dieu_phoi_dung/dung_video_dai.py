@@ -568,10 +568,8 @@ def render_auto_edit_diagram(db: Session, job: AIGenerationJob, request: dict) -
         if ((info.get("width"), info.get("height")) != expected_dimensions or info.get("frame_rate") != 30
                 or info.get("duration_seconds", 0) < duration or info.get("has_alpha") is not transparent_background):
             raise ValueError("HYPERFRAMES_OUTPUT_INVALID")
-        decoded = run_media_command([
-            video_processor.ffmpeg_bin, "-v", "error", "-xerror", "-i", str(path), "-f", "null", "-",
-        ], capture_output=True, text=True, check=False, timeout=120)
-        if decoded.returncode != 0:
+        from src.modules.tac_vu_tu_xa.stages import verify_decode
+        if not verify_decode(path)['decode_ok']:
             raise ValueError("HYPERFRAMES_FULL_DECODE_FAILED")
         digest, _ = hash_file(path)
         asset = MediaAsset(

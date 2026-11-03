@@ -4,6 +4,7 @@ from functools import wraps
 import inspect
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import time
@@ -11,6 +12,7 @@ import uuid
 from .service import get_store, RemoteTaskError
 
 scope = ContextVar('remote_scope', default=None)
+_runner_probe = (None, 0.0, None)
 
 
 def enabled():
@@ -18,18 +20,38 @@ def enabled():
 
 
 def ensure_runner(store):
+    global _runner_probe
     now = time.time()
-    with store.connect() as db:
-        row = db.execute('SELECT * FROM runner_session WHERE id=1').fetchone()
-        if row and row['updated'] > now - 240:
-            return
-        session_id = str(uuid.uuid4())
-        db.execute('INSERT OR REPLACE INTO runner_session(id,updated,session_id) VALUES(1,?,?)', (now, session_id))
     repo = os.environ['REMOTE_GITHUB_REPOSITORY']
     ref = os.environ['REMOTE_GITHUB_REF']
     origin = os.environ['REMOTE_PUBLIC_ORIGIN'].rstrip('/')
     if not origin.startswith('https://'):
         raise RemoteTaskError('REMOTE_HTTPS_REQUIRED')
+    if os.getenv('REMOTE_GITHUB_DISPATCH') != 'gh':
+        raise RemoteTaskError('REMOTE_DISPATCH_NOT_CONFIGURED')
+    with store.connect() as db:
+        session = db.execute('SELECT * FROM runner_session WHERE id=1').fetchone()
+    if session and session['run_id']:
+        run_id = session['run_id']
+        if _runner_probe[0] != run_id or now - _runner_probe[1] >= 30:
+            try:
+                status = subprocess.run(['gh', 'run', 'view', run_id, '--repo', repo, '--json', 'status,conclusion'],
+                                        capture_output=True, text=True, timeout=20)
+                terminal = status.returncode == 0 and json.loads(status.stdout).get('status') == 'completed'
+                _runner_probe = (run_id, now, terminal)
+            except (OSError, ValueError, subprocess.TimeoutExpired):
+                _runner_probe = (run_id, now, None)
+        if _runner_probe[2]:
+            with store.connect() as db:
+                db.execute('DELETE FROM runner_session WHERE session_id=?', (session['session_id'],))
+            if not session['ready']:
+                raise RemoteTaskError('REMOTE_RUNNER_START_FAILED')
+    with store.connect() as db:
+        row = db.execute('SELECT * FROM runner_session WHERE id=1').fetchone()
+        if row and row['updated'] > now - (240 if row['ready'] else 1800):
+            return
+        session_id = str(uuid.uuid4())
+        db.execute('INSERT OR REPLACE INTO runner_session(id,updated,session_id) VALUES(1,?,?)', (now, session_id))
     # Chế độ dev chỉ bật tường minh; gh giữ phiên đăng nhập, BE không đọc hay lưu token của CLI.
     if os.getenv('REMOTE_GITHUB_DISPATCH') != 'gh':
         raise RemoteTaskError('REMOTE_DISPATCH_NOT_CONFIGURED')
@@ -40,6 +62,10 @@ def ensure_runner(store):
         with store.connect() as db:
             db.execute('DELETE FROM runner_session WHERE session_id=?', (session_id,))
         raise RemoteTaskError('REMOTE_DISPATCH_FAILED')
+    match = re.search(r'/actions/runs/(\d+)', result.stdout)
+    if match:
+        with store.connect() as db:
+            db.execute('UPDATE runner_session SET run_id=? WHERE session_id=?', (match[1], session_id))
 
 
 def execute(stage, operation, arguments, inputs, output=None):

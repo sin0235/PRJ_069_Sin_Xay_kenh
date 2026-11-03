@@ -23,13 +23,26 @@ if __name__ == '__main__':
     elif component == 'worker':
         if os.getenv('REMOTE_COMPUTE_MODE') != 'github':
             raise SystemExit('REMOTE_COMPUTE_MODE_REQUIRED')
+        if not os.getenv('LOCAL_DEV_JOB_CUTOFF_UTC'):
+            raise SystemExit('LOCAL_DEV_JOB_CUTOFF_REQUIRED')
+        import threading
+        from src.runtime_status import write_worker_heartbeat
         from src.migrations.runner import migration_up
         from src.modules.tao_video_noi_dung.runner import content_video_worker
         migration_up()
         content_video_worker.start()
+        stopped = threading.Event()
+        def heartbeat():
+            while not stopped.is_set():
+                if not content_video_worker._thread or not content_video_worker._thread.is_alive():
+                    return
+                write_worker_heartbeat()
+                stopped.wait(5)
+        threading.Thread(target=heartbeat, daemon=True).start()
         try:
             uvicorn.run('src.modules.flow_sessions.worker:app', host='127.0.0.1', port=8090, workers=1)
         finally:
+            stopped.set()
             content_video_worker.stop()
     else:
         raise SystemExit('COMPONENT_INVALID')

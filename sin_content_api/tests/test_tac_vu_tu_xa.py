@@ -4,6 +4,20 @@ import pytest
 from src.modules.tac_vu_tu_xa.service import TaskStore, RemoteTaskError
 
 
+@pytest.mark.parametrize('supports_range', [True, False])
+def test_download_resumes_partial_file_or_restarts_when_range_ignored(tmp_path, supports_range):
+    import httpx
+    from src.modules.tac_vu_tu_xa.transfer import download_input
+    path = tmp_path / 'input.mp4'
+    path.write_bytes(b'abc')
+    def handle(request):
+        assert request.headers['range'] == 'bytes=3-'
+        return httpx.Response(206, headers={'Content-Range': 'bytes 3-5/6'}, content=b'def') if supports_range else httpx.Response(200, content=b'abcdef')
+    with httpx.Client(transport=httpx.MockTransport(handle)) as client:
+        download_input(client, 'https://test.example/input', {}, path, 6, hashlib.sha256(b'abcdef').hexdigest())
+    assert path.read_bytes() == b'abcdef'
+
+
 def test_worker_only_reads_declared_input_and_stale_attempt_cannot_finish(tmp_path):
     store = TaskStore(tmp_path / 'jobs.sqlite3', tmp_path / 'scratch')
     source = tmp_path / 'source.mp4'
@@ -181,3 +195,16 @@ def test_dev_queue_does_not_claim_or_update_imported_jobs(monkeypatch):
         session.commit()
     with engine.connect() as conn:
         assert dict(conn.execute(text(f'SELECT id,state FROM {table}')).all()) == {'old': 'QUEUED', 'new': 'RUNNING'}
+
+
+def test_runner_setup_does_not_dispatch_duplicate_after_four_minutes(monkeypatch, tmp_path):
+    import time
+    from src.modules.tac_vu_tu_xa import client
+    store = TaskStore(tmp_path / 'jobs.sqlite3', tmp_path / 'scratch')
+    with store.connect() as db:
+        db.execute('INSERT INTO runner_session(id,updated,session_id,ready) VALUES(1,?,?,0)', (time.time() - 600, 'starting'))
+    for key, value in {'REMOTE_GITHUB_REPOSITORY': 'owner/repo', 'REMOTE_GITHUB_REF': 'dev',
+                       'REMOTE_PUBLIC_ORIGIN': 'https://test.example', 'REMOTE_GITHUB_DISPATCH': 'gh'}.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.setattr(client.subprocess, 'run', lambda *a, **k: pytest.fail('Đã dispatch lại khi runner còn cài dependency'))
+    client.ensure_runner(store)
