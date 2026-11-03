@@ -4,6 +4,7 @@ Hỗ trợ mở rộng video 16:9 sang 9:16 (Blurred Canvas Extension), kiểm t
 Safe Zone, ghép video phân cảnh, track âm thanh và tẩy sạch watermark Google Veo / Gemini AI.
 """
 
+from src.modules.tac_vu_tu_xa.client import offload, pipeline
 import logging
 import json
 import math
@@ -118,6 +119,7 @@ class VideoProcessor:
             }
         }
 
+    @offload("remove_watermark", "PREPARE_FLOW_ASSET", output="output_video_path")
     def remove_veo_watermark(
         self,
         input_video_path: pathlib.Path,
@@ -153,6 +155,7 @@ class VideoProcessor:
         else:
             raise RuntimeError("Công cụ VeoWatermarkRemover chưa sẵn sàng trên hệ thống.")
 
+    @offload("expand_canvas", "PREPARE_FLOW_ASSET", output="output_video_path")
     def expand_16_9_to_9_16(
         self,
         input_video_path: pathlib.Path,
@@ -278,6 +281,7 @@ class VideoProcessor:
 
         return self.probe_video(output_path)
 
+    @offload("render_timeline", "RENDER_FINAL", output="output_path")
     def render_timeline_document(
         self,
         timeline: Any,

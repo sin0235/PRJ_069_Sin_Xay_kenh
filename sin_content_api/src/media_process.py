@@ -4,6 +4,9 @@ from pathlib import Path
 
 
 def run_media_command(*args, **kwargs):
+    from src.modules.tac_vu_tu_xa.client import enabled
+    if enabled() and args and args[0] and Path(args[0][0]).name.lower() in {"ffmpeg", "ffmpeg.exe"}:
+        raise RuntimeError("REMOTE_UNWRAPPED_MEDIA_COMMAND: Tác vụ encode/decode phải chạy trên worker từ xa.")
     kwargs.setdefault("timeout", 600)
     if args and isinstance(args[0], (list, tuple)) and args[0] and Path(args[0][0]).name.lower() in {"ffmpeg", "ffmpeg.exe"}:
         command = list(args[0])

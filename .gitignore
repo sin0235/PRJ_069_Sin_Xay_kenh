@@ -35,6 +35,8 @@ cong_cu_tu_dong/flow_repos/
 
 # Tệp nhị phân lớn hoặc có thể tái tạo
 *.mp4
+!sin_content_api/src/modules/tao_video_noi_dung/brand/shot_ket_baha_midnight_doc_3s.mp4
+!sin_content_api/src/modules/tao_video_noi_dung/brand/shot_ket_baha_midnight_ngang_3s.mp4
 *.mov
 *.mkv
 *.mp3
@@ -57,3 +59,7 @@ flow_diagnostic.png
 /ha_tang/chay_noi_bo_prj069/data/
 /ha_tang/chay_noi_bo_prj069/seed/
 /ha_tang/chay_noi_bo_prj069/rollback_source/
+/ha_tang/chay_dev_local/runtime/
+/ha_tang/chay_dev_local/data/
+/ha_tang/chay_dev_local/*.log
+/ha_tang/chay_dev_local/*.pid

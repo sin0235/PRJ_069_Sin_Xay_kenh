@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.modules.tac_vu_tu_xa.client import offload, pipeline
 
 import json
 import hashlib
@@ -84,6 +85,7 @@ def evaluate_shot_qc(meta: dict, used_duration_seconds: int, decode_ok: bool = T
     return issues
 
 
+@offload("probe_qc", "QC")
 def _probe_shot_with_qc(path: Path, used_duration_seconds: int, aspect_ratio: str = "9:16") -> tuple[dict, list[str]]:
     meta = video_processor.probe_video(path)
     decode = run_media_command(
@@ -117,11 +119,13 @@ def _verified_asset_path(asset: MediaAsset, error_code: str) -> Path:
 def _extract_final_reference_frame(path: Path, workspace_id: str) -> tempfile.TemporaryDirectory:
     temp_dir = tempfile.TemporaryDirectory(prefix=f"flow_reference_{workspace_id}_")
     frame_path = Path(temp_dir.name) / "khung_hinh_cuoi.png"
-    result = run_media_command(
-        [video_processor.ffmpeg_bin, "-y", "-sseof", "-0.15", "-i", str(path), "-frames:v", "1", str(frame_path)],
-        capture_output=True, text=True, timeout=60, check=False,
-    )
-    if result.returncode != 0 or not frame_path.is_file() or frame_path.stat().st_size == 0:
+    from src.modules.tac_vu_tu_xa.stages import extract_frame
+    try:
+        extract_frame(path, frame_path)
+    except Exception:
+        temp_dir.cleanup()
+        raise
+    if not frame_path.is_file() or frame_path.stat().st_size == 0:
         temp_dir.cleanup()
         raise RuntimeError("CONTINUITY_FRAME_EXTRACTION_FAILED")
     # Flow tìm ảnh trong thư viện theo tên file; tên cố định làm shot sau dùng nhầm ảnh cũ cùng tên, nên gắn mã băm nội dung vào tên.
@@ -768,6 +772,7 @@ def _use_hyperframes_assembly(storyboard, style: dict) -> bool:
     )
 
 
+@offload("render_project", "RENDER_FINAL", output="output_path")
 def _render_with_hyperframes(
     storyboard, steps: list[dict], voice_path: Path | None, words: list[dict] | None, output_path: Path,
     music_path: Path | None = None, sfx_cues: list[dict] | None = None, aspect_ratio: str = "16:9",
@@ -839,6 +844,7 @@ def _render_ui_asset(db, run: ContentVideoRun, plan: ContentVideoPlan, shot, ste
         raise
 
 
+@offload("brand_end", "RENDER_FINAL", output="video_path")
 def _add_brand_end_card(video_path: Path) -> float:
     meta = video_processor.probe_video(video_path)
     duration = float(meta.get("duration_seconds", 0))
@@ -1138,17 +1144,12 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     ):
         if key in render_meta:
             meta[key] = render_meta[key]
-    decode = run_media_command(
-        [video_processor.ffmpeg_bin, "-v", "error", "-i", str(output_path), "-f", "null", "-"],
-        capture_output=True,
-        text=True,
-        timeout=600,
-        check=False,
-    )
+    from src.modules.tac_vu_tu_xa.stages import verify_decode
+    decode_ok = verify_decode(output_path)["decode_ok"]
     issues = evaluate_video_qc(
         meta,
         render_meta.get("duration_seconds", target_seconds) if is_tts_voice else target_seconds,
-        decode.returncode == 0 and not decode.stderr.strip(),
+        decode_ok,
         aspect_ratio=aspect_ratio,
     )
     if is_tts_voice and max(meta.get("silent_tail_seconds", 0), meta.get("frozen_tail_seconds", 0)) > 1.0:
@@ -1277,6 +1278,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     db.commit()
 
 
+@pipeline("AI_VIDEO")
 def process_run(run_id: str, token: str | None = None) -> None:
     token = token or str(uuid.uuid4())
     with SessionLocal() as db:
@@ -1552,6 +1554,8 @@ class ContentVideoWorker:
             token = str(uuid.uuid4())
             try:
                 with SessionLocal() as db:
+                    from src.modules.tac_vu_tu_xa.queue_scope import restrict_dev_queue
+                    restrict_dev_queue(db)
                     if _acquire_lease(db, token):
                         run = _claim_next_run(db, token)
                         if run:

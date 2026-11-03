@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.modules.tac_vu_tu_xa.client import offload, pipeline
 
 import json
 import logging
@@ -326,6 +327,7 @@ def _execute_job(db: Session, job: AIGenerationJob, request: dict) -> MediaAsset
     raise ValueError("INVALID_JOB_OPERATION: Unsupported media queue operation.")
 
 
+@pipeline("MEDIA_JOB")
 def _execute_with_profile_context(db: Session, job: AIGenerationJob, request: dict) -> MediaAsset:
     if str(request.get("backend_provider", "")).upper() not in FLOW_BACKEND_PROVIDERS:
         return _execute_job(db, job, request)

@@ -32,6 +32,8 @@ from src.modules.tao_video_noi_dung.router import router as content_video_router
 from src.modules.voice_studio.router import router as voice_studio_router
 from src.modules.flow_sessions.router import router as flow_sessions_router
 from src.modules.tao_video_noi_dung.runner import content_video_worker
+from src.modules.tac_vu_tu_xa.router import router as remote_tasks_router
+from src.modules.tac_vu_tu_xa.service import RemoteTaskError
 
 # Exception handler chuẩn hóa theo ErrorPayload
 def _auto_start_9router_if_needed():
@@ -177,3 +179,9 @@ app.include_router(dieu_phoi_router)
 app.include_router(content_video_router)
 app.include_router(voice_studio_router)
 app.include_router(flow_sessions_router)
+app.include_router(remote_tasks_router)
+
+
+@app.exception_handler(RemoteTaskError)
+async def remote_task_error(request: Request, exc: RemoteTaskError):
+    return JSONResponse(status_code=403, content={"error_code": str(exc)})

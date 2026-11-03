@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.modules.tac_vu_tu_xa.client import offload, pipeline
 
 import json
 import hashlib
@@ -1340,11 +1341,13 @@ def _retranscribe_candidates(audio_path: Path, clips: list[ClipTuDong], words: l
     for clip in clips:
         audio_segment = audio_path.parent / f"stt_{clip.clip_id}.mp3"
         duration_seconds = (clip.end_ms - clip.start_ms) / 1000
-        extracted = run_media_command([
-            video_processor.ffmpeg_bin, "-y", "-ss", f"{clip.start_ms / 1000:.3f}", "-t", f"{duration_seconds:.3f}",
-            "-i", str(audio_path), "-vn", "-ac", "1", "-ar", "16000", "-b:a", "48k", str(audio_segment),
-        ], capture_output=True, text=True, check=False)
-        if extracted.returncode != 0 or not audio_segment.is_file():
+        from src.modules.tac_vu_tu_xa.stages import extract_audio
+        try:
+            extract_audio(audio_path, audio_segment, clip.start_ms, round(duration_seconds * 1000))
+            extracted_ok = True
+        except (RuntimeError, ValueError):
+            extracted_ok = False
+        if not extracted_ok or not audio_segment.is_file():
             clip.selection_reason += " Không tạo được audio STT; giữ lời Whisper và cần rà soát."
             clip.needs_review = True
             continue
@@ -1505,6 +1508,7 @@ _BLACK_SEGMENT_PATTERN = re.compile(
 )
 
 
+@offload("black_frames", "QC")
 def _kiem_tra_khung_den(path: Path) -> list[dict]:
     with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as log:
         result = run_media_command([
@@ -1644,6 +1648,7 @@ def _visual_candidates_for_jobs(
     return candidates, failed
 
 
+@pipeline("AUTO_EDIT")
 def dung_video_dai(
     db: Session, *, source_asset_id: str, workspace_id: str, user_id: str, project_id: str | None,
     job_id: str | None = None, phase: str = "plan", flow_job_ids: list[str] | None = None,
@@ -1718,11 +1723,8 @@ def dung_video_dai(
                     clip.needs_review = True
                     clip.selection_reason += " Diễn họa theo kế hoạch chưa tạo được; cần rà soát."
         else:
-            extracted = run_media_command([
-                video_processor.ffmpeg_bin, "-y", "-i", str(source_path), "-vn", "-ac", "1", "-ar", "16000", str(audio_path)
-            ], capture_output=True, text=True, check=False)
-            if extracted.returncode != 0 or not audio_path.is_file():
-                raise ValueError("VIDEO_AUDIO_EXTRACTION_FAILED")
+            from src.modules.tac_vu_tu_xa.stages import extract_audio
+            extract_audio(source_path, audio_path)
 
             cache_key = source.sha256
             words_cache = MEDIA_ROOT_DIR / ".cache" / "auto_edit" / f"{cache_key}.json"

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from src.modules.tac_vu_tu_xa.client import offload, pipeline
 
 import gc
 import os
@@ -18,6 +19,7 @@ class TTSProviderManager:
         self._provider = None
         self._model = None
 
+    @offload("tts", "TTS")
     def synthesize(self, config: dict, text: str, reference_path: str | None = None):
         provider = config["provider"]
         if os.getenv("APP_ENV", "").lower() == "production" and os.getenv("TTS_INFERENCE_CHILD") != "1":

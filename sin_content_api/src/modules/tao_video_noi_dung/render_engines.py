@@ -6,6 +6,7 @@ Engine Node (hyperframes, remotion) lỗi hoặc thiếu thì quay về playwrig
 Cảnh chữ cũ (CHAT, AI_PANEL, DASHBOARD) và khung 9:16 luôn dùng playwright.
 """
 from __future__ import annotations
+from src.modules.tac_vu_tu_xa.client import offload, pipeline
 
 import hashlib
 import json
@@ -158,6 +159,7 @@ def render_remotion(scene: UiScene, duration_seconds: int, out_path: Path, narra
 BACKENDS = {"hyperframes": render_hyperframes, "remotion": render_remotion}
 
 
+@offload("render_scene", "RENDER_VISUAL", output="out_path")
 def render_scene(scene: UiScene, style_snapshot: dict, duration_seconds: int, aspect_ratio: str, out_path: Path,
                  narration: str = "", word_times: list[float] | None = None, transparent_background: bool = False) -> dict:
     """Dựng clip cảnh bằng engine đã chọn; trả về meta của clip kèm `render_engine` là engine đã thật sự dùng."""
