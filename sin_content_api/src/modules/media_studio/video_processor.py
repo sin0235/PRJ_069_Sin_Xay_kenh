@@ -119,6 +119,25 @@ class VideoProcessor:
             }
         }
 
+    @offload("mask_corner_watermark", "PREPARE_FLOW_ASSET", output="output_video_path")
+    def mask_corner_watermark(self, input_video_path: pathlib.Path, output_video_path: pathlib.Path) -> Dict[str, Any]:
+        """Đường lùi khi công cụ khử logo lỗi: xóa biểu tượng ở góc dưới phải bằng bộ lọc delogo của ffmpeg (nội suy từ vùng xung quanh)."""
+        info = self.probe_video(input_video_path)
+        width, height = int(info["width"]), int(info["height"])
+        box_x, box_y = int(width * 0.79), int(height * 0.88)
+        box_w, box_h = min(int(width * 0.10), width - box_x - 2), min(int(height * 0.07), height - box_y - 2)
+        output_video_path.parent.mkdir(parents=True, exist_ok=True)
+        result = run_media_command([
+            self.ffmpeg_bin, "-y", "-v", "error", "-i", str(input_video_path),
+            "-vf", f"delogo=x={box_x}:y={box_y}:w={box_w}:h={box_h}",
+            "-map", "0:v:0", "-map", "0:a?", "-c:v", "libx264", "-preset", "veryfast", "-crf", "17", "-pix_fmt", "yuv420p",
+            "-c:a", "copy", str(output_video_path),
+        ], capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError("VIDEO_DELOGO_FAILED: " + " ".join((result.stderr or "").split())[-100:])
+        meta = self.probe_video(output_video_path)
+        return {**meta, "status": "SUCCEEDED", "watermark_removed": True, "technique": "DELOGO_CORNER"}
+
     @offload("remove_watermark", "PREPARE_FLOW_ASSET", output="output_video_path")
     def remove_veo_watermark(
         self,
@@ -134,15 +153,24 @@ class VideoProcessor:
         Khử sạch logo / watermark Google Veo & Gemini AI khỏi video bằng công cụ chuyên dụng.
         """
         if veo_remover and veo_remover.is_available():
-            result = veo_remover.remove_watermark(
-                input_video_path=input_video_path,
-                output_video_path=output_video_path,
-                use_cpu=use_cpu,
-                watermark_type=watermark_type,
-                denoise_method=denoise_method,
-                region=region,
-                veo_alpha=veo_alpha
-            )
+            try:
+                result = veo_remover.remove_watermark(
+                    input_video_path=input_video_path,
+                    output_video_path=output_video_path,
+                    use_cpu=use_cpu,
+                    watermark_type=watermark_type,
+                    denoise_method=denoise_method,
+                    region=region,
+                    veo_alpha=veo_alpha
+                )
+            except Exception as exc:
+                print(f"[VIDEO PROCESSOR] Công cụ khử logo lỗi ({type(exc).__name__}); dùng delogo che góc.", flush=True)
+                result = {}
+            if result.get("status") != "SUCCEEDED" or not result.get("watermark_removed"):
+                # Công cụ khử logo lỗi hoặc không xác nhận (vd. crash trên clip dọc 720x1280): che góc bằng delogo thay vì làm hỏng cả run.
+                print(f"[VIDEO PROCESSOR] Khử logo không xác nhận ({str(result.get('message') or result.get('status'))[:120]}); dùng delogo che góc.", flush=True)
+                output_video_path.unlink(missing_ok=True)
+                return self.mask_corner_watermark(input_video_path, output_video_path)
             if result.get("status") == "SUCCEEDED" and result.get("watermark_removed"):
                 input_duration = self.probe_video(input_video_path)["duration_seconds"]
                 output_duration = self.probe_video(output_video_path)["duration_seconds"]
