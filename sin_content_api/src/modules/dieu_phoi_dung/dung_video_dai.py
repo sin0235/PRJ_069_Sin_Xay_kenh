@@ -737,11 +737,7 @@ def chon_dien_hoa(clips: list[ClipTuDong], words: list[dict], candidates: list[d
             clip.needs_review = True
         previous_end[clip.clip_id] = end_ms
         asset_uses[asset["asset_id"]] = asset_uses.get(asset["asset_id"], 0) + 1
-        layout_position, layout_size = action.layout_position, action.layout_size
-        if action.mode == "OVERLAY" and asset.get("has_alpha") and asset.get("visual_kind") == "diagram":
-            layout_position = "upper_left"
         validated.append({**action.model_dump(), "start_word_id": start_word_id, "end_word_id": end_word_id,
-                          "layout_position": layout_position, "layout_size": layout_size,
                           "start_ms": start_ms, "end_ms": end_ms, "asset_duration_ms": asset_duration_ms,
                           "visual_kind": asset.get("visual_kind", "flow_scene"),
                           "aspect_ratio": asset.get("aspect_ratio"),

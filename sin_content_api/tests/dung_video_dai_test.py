@@ -587,10 +587,10 @@ def test_checklist_alpha_overlay_khong_tu_thu_nho_large():
     }], client)
 
     assert actions[0]["mode"] == "OVERLAY"
-    assert (actions[0]["layout_position"], actions[0]["layout_size"]) == ("upper_left", "large")
+    assert (actions[0]["layout_position"], actions[0]["layout_size"]) == ("upper_right", "large")
     assert _tao_timeline("speaker", clip, words, visual_actions=actions)["overlays"] == [{
         "asset_id": "checklist-alpha", "start_ms": 500, "duration_ms": 1700,
-        "x": 120, "y": 280, "width": 405, "height": 720,
+        "x": 555, "y": 280, "width": 405, "height": 720,
     }]
 
 
