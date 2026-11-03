@@ -19,3 +19,7 @@ Một cảnh Flow khác chưa được tạo do chờ xác nhận tài khoản s
 Renderer render_timeline_document bỏ qua pad_color trong timeline và luôn pad đen. Chuyển MOV alpha sang H.264 cũng không có bước ghép nền cho vùng trong suốt bên trong canvas. Test FFmpeg thật160x284, clip alpha đỏ50%, nền yêu cầu xanh: trước sửa pixel viền đen thay vì xanh. Sau sửa renderer xác thực màu hex6 ký tự, pad đúng màu và ghép alpha lên nền đục trước mã hóa; pixel viền xanh và tâm tím đúng kết quả trộn. Sáu test trong test_overlay_dung_moc.py đạt trong6,84 giây, gồm màu sai bị từ chối, alpha, overlay muộn/trim và PIP. Không chạy render fullHD local.
 
 Bản sửa chỉ xử lý màu/composite, chưa cải thiện khoảng trống bố cục CUTAWAY hoặc quyết định nội dung. MP4 v4 ở link trên chưa được dựng lại, vẫn còn nền đen quan sát được. Cần runner có bản sửa cho lượt kế tiếp và kiểm lại video thật.
+
+## Giữ dữ liệu nhẹ để phục vụ dựng lại
+
+Cache kế hoạch bị dọn sau khi job hoàn tất. Manifest trước đây chỉ có timeline, lý do và lựa chọn diễn họa, chưa giữ transcript gốc theo word ID và toàn kế hoạch/brief. Bổ sung words, plan và visual_briefs vào manifest đã được kiểm soát workspace. Không giữ thêm bản sao video gốc hoặc audio. Kiểm thử tích hợp xuất clip hiện hữu xác nhận word ID, clip ID, hash nguồn, danh sách brief được lưu và hash nguồn không đổi:1/1 đạt trong30,98 giây,106 ca không chạy. Đây là metadata cho các lượt xuất mới, chưa bổ sung endpoint dựng lại và không khôi phục cache đã dọn của v4. Không dùng MP4 đã edit làm đầu vào thay thế.

@@ -1978,6 +1978,9 @@ def dung_video_dai(
         manifest.write_text(json.dumps({
             "source_asset_id": source.id,
             "source_sha256": source.sha256,
+            "words": words,
+            "plan": plan.model_dump(mode="json"),
+            "visual_briefs": visual_briefs,
             "model": client.model,
             "clips": [_build_clip_manifest(
                 output_asset_id, clip, clip_visuals, timeline,

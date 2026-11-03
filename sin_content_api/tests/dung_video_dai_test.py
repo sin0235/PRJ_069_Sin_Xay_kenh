@@ -2270,6 +2270,11 @@ def test_dung_video_dai_render_luu_nhieu_clip_va_giu_nguyen_nguon(monkeypatch, t
         subtitle_starts = [line.split(" --> ", 1)[0] for line in subtitle_text.splitlines() if " --> " in line]
         assert subtitle_starts == sorted(subtitle_starts)
         manifest = json.loads((media_root / manifests[0].storage_key).read_text(encoding="utf-8"))
+        assert manifest["source_asset_id"] == source.id
+        assert manifest["source_sha256"] == original_hash
+        assert any(word["id"] == "stt_part1_01_0001" for word in manifest["words"])
+        assert manifest["plan"]["clips"][0]["clip_id"] == "part1_01"
+        assert isinstance(manifest["visual_briefs"], list)
         assert manifest["clips"][0]["removed_filler_word_ids"] == ["stt_part1_01_0001"]
         assert manifest["clips"][0]["callout_word_ids"] == ["stt_part1_01_0002"]
         assert manifest["clips"][0]["effect"] == "punch_in"
