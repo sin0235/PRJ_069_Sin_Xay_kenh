@@ -1,0 +1,18 @@
+[
+  {
+    "file": "canh_cau_hoi_cuoi_v4.png",
+    "alpha_range": [
+      0,
+      255
+    ],
+    "corner_alpha": 0
+  },
+  {
+    "file": "canh_checklist_v4.png",
+    "alpha_range": [
+      0,
+      255
+    ],
+    "corner_alpha": 0
+  }
+]
