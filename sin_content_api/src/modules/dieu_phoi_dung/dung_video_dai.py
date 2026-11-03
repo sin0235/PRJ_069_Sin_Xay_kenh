@@ -24,7 +24,7 @@ from src.modules.media_studio.security import MEDIA_ROOT_DIR, get_workspace_stor
 from src.modules.media_studio.video_processor import video_processor
 from src.modules.dieu_phoi_dung.phat_hien_khoang_nghi import hop_nhat_khoang_nghi, phan_tich_am_thanh_nguon
 from src.modules.tao_video_noi_dung.planner import (
-    DIAGRAM_LAYOUTS, PORTRAIT_DIAGRAM_LAYOUTS, UiScene, _locate_phrase, _tokens, diagram_feedback, diagram_required_events,
+    BLOCK_LAYOUTS, DIAGRAM_LAYOUTS, PORTRAIT_DIAGRAM_LAYOUTS, UiScene, _locate_phrase, _tokens, diagram_feedback, diagram_required_events,
     resolve_diagram_times,
 )
 from src.modules.tao_video_noi_dung.vietsub import align_script_words, karaoke_cues, to_srt, transcribe_words_cached
@@ -853,7 +853,10 @@ def tao_y_tuong_dien_hoa_flow(
                         _locate_phrase(anchor, phrase_tokens, 0) is not None for anchor in anchor_tokens
                     ):
                         raise ValueError("DIAGRAM_VERSUS_LIST_CONTENT")
-        first, last = min(event_word_indexes), max(event_word_indexes)
+        if scene.layout in BLOCK_LAYOUTS:
+            first, last = 0, len(clip_words) - 1
+        else:
+            first, last = min(event_word_indexes), max(event_word_indexes)
         window = clip_words[first:last + 1]
         span_ms = window[-1]["end_ms"] - window[0]["start_ms"]
         duration_seconds = max(3, math.ceil(span_ms / 1000))
@@ -925,6 +928,7 @@ def tao_y_tuong_dien_hoa_flow(
             "FLOW: theo chất liệu và màu trong style snapshot; hoàn tất hành động có nguyên nhân-kết quả trong 3 đến 6 giây đầu của asset nguồn 10 giây, phối hợp 2 đến 4 lớp chuyển động có chủ đích; không sinh chữ, logo hoặc watermark.",
             "D\u00e0nh v\u00f9ng d\u01b0\u1edbi c\u00f9ng cao 320 px c\u1ee7a khung 1080x1920 cho ph\u1ee5 \u0111\u1ec1 karaoke; kh\u00f4ng \u0111\u1eb7t th\u1ebb gi\u1ea5y, ch\u1eef, s\u1ed1, checklist ho\u1eb7c ch\u1ee7 th\u1ec3 quan tr\u1ecdng \u1edf v\u00f9ng n\u00e0y.",
             "HYPERFRAMES: không chỉ dành cho biểu đồ; chọn layout UiScene phù hợp cho so sánh, quy trình, checklist, giao việc, trình tự, câu hỏi-kết quả hoặc CTA có căn cứ. Dùng chuyển động mở lớp, trượt, đường nối và dấu kết luận để dẫn mắt; không dựng như slide tĩnh.",
+            "Các cảnh khối HyperFrames có diagram.on={}: KINETIC_TITLE nhấn câu chốt; MARK_PHRASE khoanh/gạch cụm tag trong title; WORD_SWAP đổi 3-4 từ trong steps; PILE_UP thể hiện việc dồn dập; STAT_RING thể hiện tỷ lệ có căn cứ; CHART_STORY kể số liệu có trong lời. Vẫn chọn start_word_id/end_word_id cho đoạn lời cần nhấn, dài tối đa 6 giây. Không bịa số liệu hoặc ép dùng cảnh không phù hợp.",
             "Neo mỗi hoạt cảnh FLOW vào đoạn lời thoại liên tục 3 đến 6 giây. Mốc sơ đồ HyperFrames phải có căn cứ, tối đa 6 giây; nếu cách xa thì tách visual hoặc bỏ sơ đồ.",
             "Nếu validator_feedback báo VISUAL_GAP_ABOVE_TARGET, máy chủ đã giữ mọi visual hợp lệ được liệt kê. Chỉ trả visual mới vào đúng khoảng thiếu, không trả lại cảnh cũ; neo bằng word ID nằm trong khoảng đó.",
             "Chọn renderer phù hợp nội dung và clip_id trong danh sách.",

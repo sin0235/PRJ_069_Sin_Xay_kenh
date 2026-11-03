@@ -1136,12 +1136,13 @@ def test_planner_giu_visual_hop_le_khi_visual_khac_sai_schema():
     words = [tu(1, "Trước", 1_000, 1_200), tu(2, "100", 1_200, 1_400), tu(3, "sau", 1_400, 1_600),
              tu(4, "60", 1_600, 1_800), tu(5, "giảm", 1_800, 2_000), tu(6, "40", 2_000, 2_200),
              tu(7, "số", 5_000, 5_200), tu(8, "đơn", 5_200, 5_400), tu(9, "giảm", 5_400, 5_600)]
-    client = LLMGia([response, response, response])
+    client = LLMGia([response] * 4)
 
     visuals = tao_y_tuong_dien_hoa_flow([clip], words, [], client, flow_available=False)
 
     assert len(visuals) == 1 and visuals[0]["ui_scene"]["layout"] == "BEFORE_AFTER"
     assert clip.needs_review is True
+    assert len(client.messages) == 4
 
 
 def test_tao_y_tuong_tu_choi_so_do_keo_dai_qua_khoang_ke_va_yeu_cau_tach_visual():
