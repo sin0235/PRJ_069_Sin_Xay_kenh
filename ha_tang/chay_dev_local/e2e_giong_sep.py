@@ -91,9 +91,12 @@ try:
    if not result.get('watermark_removed'):
     print('REMOVE_FLOW_WATERMARK',index,flush=True)
     clean_path=work/f'flow_v3_{index}_sach.mp4'
-    clean=video_processor.remove_veo_watermark(Path(result['storage_path']),clean_path,use_cpu=True)
+    native_path=Path(result['storage_path'])
+    raw_path=native_path.with_name(native_path.name.replace('flow_native_9_16_','flow_source_9_16_'))
+    if not raw_path.is_file():raise RuntimeError('FLOW_ORIGINAL_ASSET_MISSING')
+    clean=video_processor.remove_veo_watermark(raw_path,clean_path,use_cpu=True,denoise_method='off')
     if clean.get('status')!='SUCCEEDED' or not clean.get('watermark_removed'):raise RuntimeError('WATERMARK_REMOVAL_FAILED')
-    result={**result,'storage_path':str(clean_path),'watermark_removed':True}
+    result={**result,'storage_path':str(clean_path),'watermark_removed':True,'sha256':clean['sha256'],'byte_size':clean['byte_size']}
     result_file.write_text(json.dumps(result,ensure_ascii=False),encoding='utf-8')
    asset=f'flow_{index}';assets[asset]=Path(result['storage_path'])
    visual_candidates.append({**brief,'asset_id':asset,'has_alpha':False,'aspect_ratio':'9:16','visual_kind':'flow_scene'})

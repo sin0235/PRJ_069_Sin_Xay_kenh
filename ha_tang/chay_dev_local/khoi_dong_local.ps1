@@ -36,6 +36,11 @@ if ($ThanhPhan -in @('all','api')) {
 if ($ThanhPhan -in @('all','web')) {
     $server = Join-Path $thuMuc 'runtime/web/server.js'
     if (-not (Test-Path -LiteralPath $server)) { throw 'Chưa có bản FE do GitHub Actions build.' }
+    $cauHinhWeb = & python (Join-Path $thuMuc 'chay_thanh_phan.py') cau_hinh_web | ConvertFrom-Json
+    if ($LASTEXITCODE -ne 0) { throw 'Không đọc được cấu hình FE local.' }
+    $env:AUTH_ALLOWED_ORIGINS = $cauHinhWeb.AUTH_ALLOWED_ORIGINS
+    $env:AUTH_COOKIE_SECURE = $cauHinhWeb.AUTH_COOKIE_SECURE
+    $env:API_INTERNAL_URL = $cauHinhWeb.API_INTERNAL_URL
     $env:NODE_ENV = 'production'
     $env:NODE_OPTIONS = '--max-old-space-size=384'
     $env:HOSTNAME = '127.0.0.1'

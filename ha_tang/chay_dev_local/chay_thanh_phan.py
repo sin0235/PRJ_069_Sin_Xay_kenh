@@ -17,7 +17,14 @@ os.environ['OPENBLAS_NUM_THREADS'] = '1'
 if __name__ == '__main__':
     import uvicorn
     component = sys.argv[1]
-    if component == 'api':
+    if component == 'cau_hinh_web':
+        import json
+        print(json.dumps({
+            'AUTH_ALLOWED_ORIGINS': os.environ['AUTH_ALLOWED_ORIGINS'],
+            'AUTH_COOKIE_SECURE': os.getenv('AUTH_COOKIE_SECURE', 'true'),
+            'API_INTERNAL_URL': 'http://127.0.0.1:8001',
+        }))
+    elif component == 'api':
         uvicorn.run('src.main:app', host='127.0.0.1', port=8001, workers=1,
                     proxy_headers=True, forwarded_allow_ips='127.0.0.1')
     elif component == 'worker':
