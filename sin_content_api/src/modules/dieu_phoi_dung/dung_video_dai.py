@@ -125,7 +125,7 @@ class YTuongDienHoaFlow(BaseModel):
 class KeHoachDienHoaFlow(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    visuals: list[YTuongDienHoaFlow] = Field(default_factory=list, max_length=3)
+    visuals: list[YTuongDienHoaFlow] = Field(default_factory=list, max_length=20)
 
 
 _TU_DEM = {"ừ", "ừm", "ờ", "ờm", "uh", "um", "hmm", "hm"}
@@ -916,16 +916,18 @@ def tao_y_tuong_dien_hoa_flow(
             "D\u00e0nh v\u00f9ng d\u01b0\u1edbi c\u00f9ng cao 320 px c\u1ee7a khung 1080x1920 cho ph\u1ee5 \u0111\u1ec1 karaoke; kh\u00f4ng \u0111\u1eb7t th\u1ebb gi\u1ea5y, ch\u1eef, s\u1ed1, checklist ho\u1eb7c ch\u1ee7 th\u1ec3 quan tr\u1ecdng \u1edf v\u00f9ng n\u00e0y.",
             "HYPERFRAMES: không chỉ dành cho biểu đồ; chọn layout UiScene phù hợp cho so sánh, quy trình, checklist, giao việc, trình tự, câu hỏi-kết quả hoặc CTA có căn cứ. Dùng chuyển động mở lớp, trượt, đường nối và dấu kết luận để dẫn mắt; không dựng như slide tĩnh.",
             "Neo mỗi hoạt cảnh FLOW vào đoạn lời thoại liên tục 3 đến 6 giây. Mốc sơ đồ HyperFrames phải có căn cứ, tối đa 6 giây; nếu cách xa thì tách visual hoặc bỏ sơ đồ.",
-            "Nếu validator_feedback báo VISUAL_GAP_ABOVE_TARGET, giữ nguyên mọi visual hợp lệ được liệt kê và chỉ bổ sung visual mới vào đúng khoảng thiếu, neo bằng word ID nằm trong khoảng đó.",
+            "Nếu validator_feedback báo VISUAL_GAP_ABOVE_TARGET, máy chủ đã giữ mọi visual hợp lệ được liệt kê. Chỉ trả visual mới vào đúng khoảng thiếu, không trả lại cảnh cũ; neo bằng word ID nằm trong khoảng đó.",
             "Chọn renderer phù hợp nội dung và clip_id trong danh sách.",
         ],
         "schema": KeHoachDienHoaFlow.model_json_schema(),
     }
     feedback = None
+    request["schema"]["properties"]["visuals"]["maxItems"] = 3
     fallback_visuals = None
     fallback_validated = []
     clips_by_id = {clip.clip_id: clip for clip in clips}
     for attempt in range(4):
+        raw_visuals = None
         diagram_windows = {}
         visual_words = {}
         payload = request if feedback is None else {**request, "validator_feedback": feedback}
@@ -944,6 +946,8 @@ def tao_y_tuong_dien_hoa_flow(
             if raw.startswith("```"):
                 raw = raw.strip("`").removeprefix("json").strip()
             data = json.loads(raw)
+            if isinstance(data, dict) and isinstance(data.get("visuals"), list) and len(data["visuals"]) > 3:
+                raise ValueError("VISUAL_BATCH_TOO_LARGE: Mỗi phản hồi chỉ được đề xuất tối đa ba cảnh mới.")
             try:
                 plan = KeHoachDienHoaFlow.model_validate(data)
             except ValidationError as schema_error:
@@ -1025,7 +1029,7 @@ def tao_y_tuong_dien_hoa_flow(
                     if not overlaps:
                         merged.append(candidate)
                         seen.add(key)
-                    if len(merged) == 3:
+                    if len(merged) >= 20:
                         break
                 validated = sorted(merged, key=lambda item: (item[0].clip_id, item[1][0]["start_ms"]))
             if validated:
