@@ -1,0 +1,14 @@
+{
+  "parent_job_id": "3f3b2ff4-3aa2-4fc4-b669-52f339a7670a",
+  "parent_state": "SUBMITTING",
+  "parent_lease_expires_at": "2026-11-03 09:44:25.840831",
+  "old_worker_pid": 8112,
+  "new_worker_pid": 12876,
+  "remote_task_id": "582633eb-74ca-4af7-9ec7-9e51cd6ad376",
+  "remote_state": "SUCCEEDED",
+  "audio_output_bytes": 3840078,
+  "audio_output_sha256": "4c207719674704161a039fa1664b84c8ce3bee70c73476dfca2e5acadb5b5219",
+  "audio_output_integrity_verified": true,
+  "child_jobs": 0,
+  "result_not_consumed": true
+}
