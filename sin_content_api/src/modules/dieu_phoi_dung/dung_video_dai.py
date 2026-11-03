@@ -620,20 +620,13 @@ def chon_dien_hoa(clips: list[ClipTuDong], words: list[dict], candidates: list[d
             "assets_dien_hoa_giay_cung_du_an": asset_context,
             "rang_buoc_asset_target": "Asset có target_clip_id chỉ được gắn vào đúng clip đó.",
             "yeu_cau": [
-                "Chỉ chèn cảnh khi hình giấy khớp trực tiếp ý đang nói; nếu không khớp thì không thêm.",
-                "CUTAWAY thay hình người nói trong một đoạn ngắn, tiếng vẫn lấy nguyên từ người nói.",
-                "Khi cần minh họa song song với người nói, dùng OVERLAY; asset alpha sẽ hòa trong suốt, asset đục hiện thành khung chữ nhật chỉ khi nền có chủ ý. Chọn layout_position upper_left, upper_right, center_left hoặc center_right và layout_size small, medium hoặc large; tránh che mặt, tiêu đề và phụ đề.",
-                "Diễn họa HyperFrames có nền trong suốt; khi chi tiết phụ trợ, ưu tiên OVERLAY để giữ hình người nói bên dưới. Nền giấy và từng thẻ bên trong vẫn đục để chữ rõ. Chỉ tăng kích thước đủ đọc.",
-                "Tag một ý ngắn có thể dùng HYPERFRAMES alpha OVERLAY small/medium để giữ người nói. Checklist nhiều mục phải đủ lớn để đọc ở màn hình 360x640; nếu phải thu chữ quá nhỏ hoặc che mặt, dùng CUTAWAY hoặc bố cục khác phù hợp. Dùng asset đúng target, khớp lời.",
-                "Kiểm tra ở màn hình 360x640: chữ nội dung tối thiểu 16 px trên màn hình, tương đương 48 px trên output 1080. Checklist font 64 px trên canvas 1080 khi chèn rộng 405 chỉ còn 24 px trên output và 8 px trên điện thoại, không đạt. Checklist nhiều dòng phải dùng CUTAWAY toàn khung nếu overlay không đủ kích thước đọc hoặc chạm mặt; không coi large tự động là dễ đọc. Nếu không thể vừa khung và đọc rõ, đánh dấu cần rà soát thay vì nhận bố cục đó đã đạt.",
-                "Nếu asset có overlay_presentation.kind=single_item_card, đây là một thẻ giấy thay mục theo lời, không phải bảng nhiều dòng. Dùng min_font_size_px và width để tính chữ sau scale; ưu tiên OVERLAY khi đọc rõ và không che mặt/phụ đề. Không mặc định chuyển thẻ alpha gọn sang CUTAWAY.",
-                "Với visual_kind=diagram, chọn CUTAWAY khi sơ đồ là bằng chứng chính và asset có nền đục; chọn OVERLAY khi sơ đồ là panel bổ trợ và người nói cần giữ toàn khung; chọn SPEAKER_PIP khi asset đục và cả sơ đồ lẫn người nói cần xuất hiện. Dựa vào aspect_ratio để giữ đúng tỉ lệ, tránh crop và tự chọn vị trí/kích thước small, medium hoặc large theo nội dung, không ép mặc định một cỡ.",
-                "Với asset 9:16 có chữ hoặc số liệu và nền alpha, chọn OVERLAY large khi đủ chỗ đọc mà không che mặt/phụ đề; nếu không vừa, đánh dấu cần rà soát, không chuyển sơ đồ alpha thành PIP.",
-                "Khi asset có nền đục và cần giữ biểu cảm người nói, chọn SPEAKER_PIP. Chọn layout_position và layout_size để đặt người nói gọn trên nền giấy, không che phụ đề.",
-                "Với sơ đồ HyperFrames có target_start_word_id và target_end_word_id, giữ nguyên đúng hai mốc này để toàn bộ diễn biến khớp lời nói.",
-                "Khi có nhiều lựa chọn, tránh lặp lại cùng một asset quá hai clip; hệ thống sẽ bỏ lựa chọn vượt giới hạn và đánh dấu clip cần rà soát.",
-                "Chọn mốc bằng ID từ đầu đến cuối, chỉ dùng từ nằm trong clip đã chọn.",
-                "Không dùng asset hoàn chỉnh hoặc asset ngoài danh sách. Trả JSON theo schema.",
+                "Chỉ chọn asset khớp lời; không khớp thì bỏ. Không tạo dữ liệu, dùng asset ngoài danh sách hay video đã hoàn chỉnh.",
+                "CUTAWAY thay hình, giữ tiếng người nói. OVERLAY là panel động: asset alpha trong suốt ngoài thẻ giấy, asset đục chỉ khi nền có chủ ý. SPEAKER_PIP giữ người nói nhỏ trên asset đục; không đổi alpha thành PIP.",
+                "Chọn layout_position upper_left/upper_right/center_left/center_right và layout_size small/medium/large; giữ tỉ lệ, không crop, tránh mặt/tiêu đề/phụ đề; không ép mặc định một cỡ.",
+                "Chữ đạt 16px ở màn hình rộng 360, tức 48px ở output1080. Font sau scale = font gốc * chiều rộng chèn / width asset. Font64 canvas1080 chèn405 chỉ còn24px: không đạt. Checklist dày dùng CUTAWAY nếu overlay không đủ đọc; nếu không an toàn thì bỏ và rà soát.",
+                "overlay_presentation.kind=single_item_card là checklist thay mục theo lời: dùng min_font_size_px tính chữ, ưu tiên OVERLAY nếu rõ và tránh mặt. Tag ngắn dùng small/medium; asset 9:16 có chữ hoặc số liệu dùng large nếu vừa. Sơ đồ chính nền đục dùng CUTAWAY; chọn OVERLAY khi sơ đồ là panel bổ trợ; giữ biểu cảm với nền đục dùng SPEAKER_PIP.",
+                "start_word_id/end_word_id phải thuộc clip. Asset target_clip_id chỉ dùng đúng target. HyperFrames có target_start_word_id/target_end_word_id phải giữ cả hai để khớp mọi animation với lời.",
+                "Khi có lựa chọn khác, tránh lặp lại cùng một asset quá hai clip; hệ thống sẽ bỏ lựa chọn vượt giới hạn và đánh dấu rà soát. Trả JSON theo schema.",
             ],
             "schema": KeHoachDienHoa.model_json_schema(),
         }
@@ -987,7 +980,10 @@ def tao_y_tuong_dien_hoa_flow(
             ranges_by_clip = {}
             validated = []
             invalid_visuals = []
-            for visual in plan.visuals:
+            word_starts = {word["id"]: word["start_ms"] for word in words}
+            for visual in sorted(plan.visuals, key=lambda item: (
+                item.clip_id, word_starts.get(item.start_word_id, float("inf"))
+            )):
                 clip = clips_by_id.get(visual.clip_id)
                 clip_words = clip_words_by_id.get(visual.clip_id, [])
                 if not clip or visual.clip_id not in clip_words_by_id:

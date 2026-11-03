@@ -1,0 +1,299 @@
+{
+  "clip": {
+    "title": "Doanh thu đẹp chưa chắc còn tiền lời",
+    "reason": "Giữ trọn mạch về các khoản phí, cách tính tiền thực nhận và lý do cần biết tiền còn lại sau mỗi đơn.",
+    "cut_word_ids": [],
+    "callout_word_ids": [],
+    "effect": "none",
+    "transition": "cut",
+    "clip_id": "part1_01",
+    "start_ms": 30000,
+    "end_ms": 96460,
+    "selected_take_id": "part1_01",
+    "take_options": [
+      {
+        "take_id": "part1_01",
+        "start_ms": 30000,
+        "end_ms": 96460,
+        "title": "Doanh thu đẹp chưa chắc còn tiền lời",
+        "reason": "Giữ trọn mạch về các khoản phí, cách tính tiền thực nhận và lý do cần biết tiền còn lại sau mỗi đơn."
+      }
+    ],
+    "selection_reason": "Giữ trọn mạch về các khoản phí, cách tính tiền thực nhận và lý do cần biết tiền còn lại sau mỗi đơn.",
+    "needs_review": false,
+    "transcription_provider": "faster_whisper"
+  },
+  "visuals": [
+    {
+      "clip_id": "part1_01",
+      "start_word_id": "w000112",
+      "end_word_id": "w000132",
+      "scene": "Giấy gấp mô tả tiền thực còn lại sau khi vốn, quảng cáo và đóng gói rút dần khỏi dòng tiền; không có chữ hay số.",
+      "action": "Ba lớp giấy chuyển động nối tiếp: đồng tiền giấy đi vào, lớp xanh BAHA tượng trưng vốn trượt ra, rồi các lớp đỏ quảng cáo và đóng gói tách khỏi phần tiền còn lại. Camera lướt qua các lớp, bóng đổ mềm.",
+      "renderer": "FLOW",
+      "ui_scene": null,
+      "target_clip_id": "part1_01",
+      "narration": "Còn cái tiền thực sự dữ lại sau giao vốn ạ. Quảng cáo, đông gói, mới là cái chuyện thứ 3.",
+      "word_times": null,
+      "duration_seconds": 10,
+      "has_alpha": false,
+      "style_snapshot": {
+        "style_name": "BAHA Origami Editorial Motion v1",
+        "visual_rules": "Hoạt họa giấy gấp origami 2D/3D: nhân vật, đạo cụ và bối cảnh bằng giấy có thớ, nếp gấp, cạnh giấy và bóng đổ mềm. Kể chuyện bằng hành động nguyên nhân-kết quả, chuyển động nhiều lớp, parallax và camera mượt; không dựng như slide. Giữ bảng màu BAHA Midnight Champagne của hệ thống: xanh BAHA cho hành động, đỏ cho vấn đề, vàng cho điểm nhấn. Checklist và sơ đồ HyperFrames dùng thẻ giấy xếp lớp, chữ rõ, neo theo lời nói; không dùng kính hoặc kim loại làm chất liệu chính. Không có người thật, bàn tay gấp giấy, chữ, số hay logo trong cảnh Flow; chữ và phụ đề ghép riêng bằng renderer của hệ thống. Dành vùng an toàn cho phụ đề karaoke và mặt người nói khi chèn lớp minh họa.",
+        "palette": [
+          "midnight #0B0F17",
+          "champagne #D9B26A",
+          "chữ sáng #F2EEE6",
+          "xanh BAHA #0562AF",
+          "xanh sáng #5FA8FF",
+          "đỏ BAHA #ED1B24",
+          "vàng CTA #FABC11"
+        ],
+        "aspect_ratio": "9:16"
+      },
+      "style_snapshot_hash": "887887c42dbdb90d3fe342aa63fdae407859614252592698767bf9fe5246b296",
+      "target_start_word_id": "w000112",
+      "target_end_word_id": "w000132",
+      "prompt": "BAHA Origami Editorial Motion v1. Hoạt họa giấy gấp origami 2D/3D: nhân vật, đạo cụ và bối cảnh bằng giấy có thớ, nếp gấp, cạnh giấy và bóng đổ mềm. Kể chuyện bằng hành động nguyên nhân-kết quả, chuyển động nhiều lớp, parallax và camera mượt; không dựng như slide. Giữ bảng màu BAHA Midnight Champagne của hệ thống: xanh BAHA cho hành động, đỏ cho vấn đề, vàng cho điểm nhấn. Checklist và sơ đồ HyperFrames dùng thẻ giấy xếp lớp, chữ rõ, neo theo lời nói; không dùng kính hoặc kim loại làm chất liệu chính. Không có người thật, bàn tay gấp giấy, chữ, số hay logo trong cảnh Flow; chữ và phụ đề ghép riêng bằng renderer của hệ thống. Dành vùng an toàn cho phụ đề karaoke và mặt người nói khi chèn lớp minh họa. Bảng màu: midnight #0B0F17, champagne #D9B26A, chữ sáng #F2EEE6, xanh BAHA #0562AF, xanh sáng #5FA8FF, đỏ BAHA #ED1B24, vàng CTA #FABC11. Cảnh: Giấy gấp mô tả tiền thực còn lại sau khi vốn, quảng cáo và đóng gói rút dần khỏi dòng tiền; không có chữ hay số.. Diễn tiến: Ba lớp giấy chuyển động nối tiếp: đồng tiền giấy đi vào, lớp xanh BAHA tượng trưng vốn trượt ra, rồi các lớp đỏ quảng cáo và đóng gói tách khỏi phần tiền còn lại. Camera lướt qua các lớp, bóng đổ mềm.. Video dọc 9:16; phát triển hoạt cảnh xuyên suốt trọn 10 giây của asset Flow, không dừng sớm hoặc để cuối clip đứng hình. Tạo 2 đến 4 lớp chuyển động có chủ đích: chủ thể và đạo cụ tương tác, motif đường chỉ BAHA nối hành động, chiều sâu tiền-trung-hậu cảnh và camera mượt; thể hiện mở cảnh, nguyên nhân, phản ứng và kết quả bằng hình ảnh. Chất liệu theo câu chuyện và style snapshot. Dùng xanh dương BAHA #0562AF làm màu chính, đỏ #ED1B24 và vàng #FABC11 làm điểm nhấn tiết chế. Không dựng như slide hoặc bài thuyết trình; không rung, nhấp nháy hay thêm chuyển động trang trí. Không chèn chữ, phụ đề, logo, watermark, người thật, bàn tay hoặc thao tác gấp giấy.Dành vùng dưới cùng cao 320 px của khung 1080x1920 cho phụ đề karaoke; không đặt thẻ giấy, chữ, số hoặc chủ thể quan trọng ở vùng này."
+    },
+    {
+      "clip_id": "part1_01",
+      "start_word_id": "w000133",
+      "end_word_id": "w000153",
+      "scene": "Các kiện hàng giấy origami khác nhau xếp thành hàng; những mảnh giấy đỏ tượng trưng cho phí rơi không đều lên từng kiện. Nền xanh BAHA, vàng champagne nhấn điểm, không chữ.",
+      "action": "Trong 3–6 giây đầu, kiện hàng lần lượt lướt qua; mảnh phí đỏ rơi nhiều lên vài kiện, ít lên kiện khác. Camera trượt ngang, lớp giấy chuyển động lệch nhịp.",
+      "renderer": "FLOW",
+      "ui_scene": null,
+      "target_clip_id": "part1_01",
+      "narration": "Mà nói công bằng ạ, không phải đơn nào ngành nào cũng chịu mức phí giống cái câu chuyện nêu trên.",
+      "word_times": null,
+      "duration_seconds": 10,
+      "has_alpha": false,
+      "style_snapshot": {
+        "style_name": "BAHA Origami Editorial Motion v1",
+        "visual_rules": "Hoạt họa giấy gấp origami 2D/3D: nhân vật, đạo cụ và bối cảnh bằng giấy có thớ, nếp gấp, cạnh giấy và bóng đổ mềm. Kể chuyện bằng hành động nguyên nhân-kết quả, chuyển động nhiều lớp, parallax và camera mượt; không dựng như slide. Giữ bảng màu BAHA Midnight Champagne của hệ thống: xanh BAHA cho hành động, đỏ cho vấn đề, vàng cho điểm nhấn. Checklist và sơ đồ HyperFrames dùng thẻ giấy xếp lớp, chữ rõ, neo theo lời nói; không dùng kính hoặc kim loại làm chất liệu chính. Không có người thật, bàn tay gấp giấy, chữ, số hay logo trong cảnh Flow; chữ và phụ đề ghép riêng bằng renderer của hệ thống. Dành vùng an toàn cho phụ đề karaoke và mặt người nói khi chèn lớp minh họa.",
+        "palette": [
+          "midnight #0B0F17",
+          "champagne #D9B26A",
+          "chữ sáng #F2EEE6",
+          "xanh BAHA #0562AF",
+          "xanh sáng #5FA8FF",
+          "đỏ BAHA #ED1B24",
+          "vàng CTA #FABC11"
+        ],
+        "aspect_ratio": "9:16"
+      },
+      "style_snapshot_hash": "887887c42dbdb90d3fe342aa63fdae407859614252592698767bf9fe5246b296",
+      "target_start_word_id": "w000133",
+      "target_end_word_id": "w000153",
+      "prompt": "BAHA Origami Editorial Motion v1. Hoạt họa giấy gấp origami 2D/3D: nhân vật, đạo cụ và bối cảnh bằng giấy có thớ, nếp gấp, cạnh giấy và bóng đổ mềm. Kể chuyện bằng hành động nguyên nhân-kết quả, chuyển động nhiều lớp, parallax và camera mượt; không dựng như slide. Giữ bảng màu BAHA Midnight Champagne của hệ thống: xanh BAHA cho hành động, đỏ cho vấn đề, vàng cho điểm nhấn. Checklist và sơ đồ HyperFrames dùng thẻ giấy xếp lớp, chữ rõ, neo theo lời nói; không dùng kính hoặc kim loại làm chất liệu chính. Không có người thật, bàn tay gấp giấy, chữ, số hay logo trong cảnh Flow; chữ và phụ đề ghép riêng bằng renderer của hệ thống. Dành vùng an toàn cho phụ đề karaoke và mặt người nói khi chèn lớp minh họa. Bảng màu: midnight #0B0F17, champagne #D9B26A, chữ sáng #F2EEE6, xanh BAHA #0562AF, xanh sáng #5FA8FF, đỏ BAHA #ED1B24, vàng CTA #FABC11. Cảnh: Các kiện hàng giấy origami khác nhau xếp thành hàng; những mảnh giấy đỏ tượng trưng cho phí rơi không đều lên từng kiện. Nền xanh BAHA, vàng champagne nhấn điểm, không chữ.. Diễn tiến: Trong 3–6 giây đầu, kiện hàng lần lượt lướt qua; mảnh phí đỏ rơi nhiều lên vài kiện, ít lên kiện khác. Camera trượt ngang, lớp giấy chuyển động lệch nhịp.. Video dọc 9:16; phát triển hoạt cảnh xuyên suốt trọn 10 giây của asset Flow, không dừng sớm hoặc để cuối clip đứng hình. Tạo 2 đến 4 lớp chuyển động có chủ đích: chủ thể và đạo cụ tương tác, motif đường chỉ BAHA nối hành động, chiều sâu tiền-trung-hậu cảnh và camera mượt; thể hiện mở cảnh, nguyên nhân, phản ứng và kết quả bằng hình ảnh. Chất liệu theo câu chuyện và style snapshot. Dùng xanh dương BAHA #0562AF làm màu chính, đỏ #ED1B24 và vàng #FABC11 làm điểm nhấn tiết chế. Không dựng như slide hoặc bài thuyết trình; không rung, nhấp nháy hay thêm chuyển động trang trí. Không chèn chữ, phụ đề, logo, watermark, người thật, bàn tay hoặc thao tác gấp giấy.Dành vùng dưới cùng cao 320 px của khung 1080x1920 cho phụ đề karaoke; không đặt thẻ giấy, chữ, số hoặc chủ thể quan trọng ở vùng này."
+    },
+    {
+      "clip_id": "part1_01",
+      "start_word_id": "w000195",
+      "end_word_id": "w000211",
+      "scene": "Bảng kiểm giấy xếp lớp ghi nhận từng khoản cần tính cho đơn hàng.",
+      "action": "Các thẻ giấy lần lượt mở ra theo nhịp lời nói; mỗi thẻ nhận một dấu kiểm xanh BAHA. Camera dolly nhẹ qua bảng, giữ nội dung tránh vùng phụ đề.",
+      "renderer": "HYPERFRAMES",
+      "ui_scene": {
+        "layout": "CHECKLIST",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "Tính tiền thực nhận",
+          "unit": "",
+          "simulated": false,
+          "labels": [],
+          "series": [],
+          "target": null,
+          "tag": null,
+          "docs": [],
+          "diff_label": null,
+          "stamp": null,
+          "steps": [
+            "Giá bán",
+            "Tiền thực nhận",
+            "Giá vốn",
+            "Chi phí quảng cáo phân bổ",
+            "Đóng gói"
+          ],
+          "block_step": null,
+          "total": null,
+          "total_label": null,
+          "slices": [],
+          "final_label": null,
+          "sources": [],
+          "uses": [],
+          "hub_label": null,
+          "drill_use": null,
+          "drill_rows": [],
+          "items": [],
+          "layers": [],
+          "values": [],
+          "cta": null,
+          "from_value": null,
+          "to_value": null,
+          "caption": null,
+          "variant": null,
+          "value": null,
+          "points": [],
+          "axis_x": null,
+          "axis_y": null,
+          "pick": null,
+          "cards": [],
+          "on": {
+            "c0": "ghi gia bán",
+            "c1": "tiền thực nhận",
+            "c2": "giá vốn",
+            "c3": "chi phí quảng cáo phân bổ",
+            "c4": "đông gói"
+          }
+        }
+      },
+      "target_clip_id": "part1_01",
+      "narration": "ghi gia bán, tiền thực nhận, giá vốn, chi phí quảng cáo, phân bổ và đông gói.",
+      "word_times": [
+        0.0,
+        0.8,
+        1.0,
+        2.02,
+        2.16,
+        2.32,
+        3.02,
+        3.14,
+        3.64,
+        3.72,
+        3.9,
+        4.1,
+        4.48,
+        4.54,
+        4.76,
+        4.9,
+        5.02
+      ],
+      "duration_seconds": 6,
+      "has_alpha": false,
+      "style_snapshot": {
+        "style_name": "BAHA Origami Editorial Motion v1",
+        "visual_rules": "Hoạt họa giấy gấp origami 2D/3D: nhân vật, đạo cụ và bối cảnh bằng giấy có thớ, nếp gấp, cạnh giấy và bóng đổ mềm. Kể chuyện bằng hành động nguyên nhân-kết quả, chuyển động nhiều lớp, parallax và camera mượt; không dựng như slide. Giữ bảng màu BAHA Midnight Champagne của hệ thống: xanh BAHA cho hành động, đỏ cho vấn đề, vàng cho điểm nhấn. Checklist và sơ đồ HyperFrames dùng thẻ giấy xếp lớp, chữ rõ, neo theo lời nói; không dùng kính hoặc kim loại làm chất liệu chính. Không có người thật, bàn tay gấp giấy, chữ, số hay logo trong cảnh Flow; chữ và phụ đề ghép riêng bằng renderer của hệ thống. Dành vùng an toàn cho phụ đề karaoke và mặt người nói khi chèn lớp minh họa.",
+        "palette": [
+          "midnight #0B0F17",
+          "champagne #D9B26A",
+          "chữ sáng #F2EEE6",
+          "xanh BAHA #0562AF",
+          "xanh sáng #5FA8FF",
+          "đỏ BAHA #ED1B24",
+          "vàng CTA #FABC11"
+        ],
+        "aspect_ratio": "9:16"
+      },
+      "style_snapshot_hash": "887887c42dbdb90d3fe342aa63fdae407859614252592698767bf9fe5246b296",
+      "target_start_word_id": "w000195",
+      "target_end_word_id": "w000211"
+    },
+    {
+      "clip_id": "part1_01",
+      "start_word_id": "w000248",
+      "end_word_id": "w000265",
+      "scene": "Câu hỏi giấy gấp đối chiếu việc bán thêm với khả năng tăng tiền và phần việc phát sinh.",
+      "action": "Một thẻ câu hỏi mở ra; hai mảnh giấy xuất hiện lần lượt, mảnh “thêm tiền” cân bằng với mảnh “thêm việc”. Mảnh kết luận được nhấn bằng vàng CTA; chuyển động gọn, không thêm dữ kiện.",
+      "renderer": "HYPERFRAMES",
+      "ui_scene": {
+        "layout": "OPEN_QUESTION",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "bán thêm 1 đơn thì có thêm tiền hay",
+          "unit": "",
+          "simulated": false,
+          "labels": [],
+          "series": [],
+          "target": null,
+          "tag": null,
+          "docs": [],
+          "diff_label": null,
+          "stamp": null,
+          "steps": [],
+          "block_step": null,
+          "total": null,
+          "total_label": null,
+          "slices": [],
+          "final_label": null,
+          "sources": [],
+          "uses": [],
+          "hub_label": null,
+          "drill_use": null,
+          "drill_rows": [],
+          "items": [],
+          "layers": [],
+          "values": [],
+          "cta": null,
+          "from_value": null,
+          "to_value": null,
+          "caption": "bán thêm 1 đơn thì có thêm tiền hay",
+          "variant": null,
+          "value": null,
+          "points": [],
+          "axis_x": null,
+          "axis_y": null,
+          "pick": null,
+          "cards": [],
+          "on": {
+            "ask": "bán thêm 1 đơn thì có thêm tiền",
+            "key": "chỉ thêm việc"
+          }
+        }
+      },
+      "target_clip_id": "part1_01",
+      "narration": "bán thêm 1 đơn thì có thêm tiền hay là chỉ thêm việc",
+      "word_times": [
+        0.0,
+        0.28,
+        0.5,
+        0.7,
+        0.94,
+        1.12,
+        1.3,
+        1.48,
+        1.88,
+        2.2,
+        2.36,
+        2.56,
+        2.76
+      ],
+      "duration_seconds": 3,
+      "has_alpha": false,
+      "style_snapshot": {
+        "style_name": "BAHA Origami Editorial Motion v1",
+        "visual_rules": "Hoạt họa giấy gấp origami 2D/3D: nhân vật, đạo cụ và bối cảnh bằng giấy có thớ, nếp gấp, cạnh giấy và bóng đổ mềm. Kể chuyện bằng hành động nguyên nhân-kết quả, chuyển động nhiều lớp, parallax và camera mượt; không dựng như slide. Giữ bảng màu BAHA Midnight Champagne của hệ thống: xanh BAHA cho hành động, đỏ cho vấn đề, vàng cho điểm nhấn. Checklist và sơ đồ HyperFrames dùng thẻ giấy xếp lớp, chữ rõ, neo theo lời nói; không dùng kính hoặc kim loại làm chất liệu chính. Không có người thật, bàn tay gấp giấy, chữ, số hay logo trong cảnh Flow; chữ và phụ đề ghép riêng bằng renderer của hệ thống. Dành vùng an toàn cho phụ đề karaoke và mặt người nói khi chèn lớp minh họa.",
+        "palette": [
+          "midnight #0B0F17",
+          "champagne #D9B26A",
+          "chữ sáng #F2EEE6",
+          "xanh BAHA #0562AF",
+          "xanh sáng #5FA8FF",
+          "đỏ BAHA #ED1B24",
+          "vàng CTA #FABC11"
+        ],
+        "aspect_ratio": "9:16"
+      },
+      "style_snapshot_hash": "887887c42dbdb90d3fe342aa63fdae407859614252592698767bf9fe5246b296",
+      "target_start_word_id": "w000251",
+      "target_end_word_id": "w000263"
+    }
+  ],
+  "requests": [
+    {
+      "request_bytes": 20580,
+      "limit_bytes": 200000,
+      "feedback": null,
+      "response": "{\"visuals\":[{\"clip_id\":\"part1_01\",\"start_word_id\":\"w000112\",\"end_word_id\":\"w000132\",\"scene\":\"Giấy gấp mô tả tiền thực còn lại sau khi vốn, quảng cáo và đóng gói rút dần khỏi dòng tiền; không có chữ hay số.\",\"action\":\"Ba lớp giấy chuyển động nối tiếp: đồng tiền giấy đi vào, lớp xanh BAHA tượng trưng vốn trượt ra, rồi các lớp đỏ quảng cáo và đóng gói tách khỏi phần tiền còn lại. Camera lướt qua các lớp, bóng đổ mềm.\",\"renderer\":\"FLOW\"},{\"clip_id\":\"part1_01\",\"start_word_id\":\"w000195\",\"end_word_id\":\"w000211\",\"scene\":\"Bảng kiểm giấy xếp lớp ghi nhận từng khoản cần tính cho đơn hàng.\",\"action\":\"Các thẻ giấy lần lượt mở ra theo nhịp lời nói; mỗi thẻ nhận một dấu kiểm xanh BAHA. Camera dolly nhẹ qua bảng, giữ nội dung tránh vùng phụ đề.\",\"renderer\":\"HYPERFRAMES\",\"ui_scene\":{\"layout\":\"CHECKLIST\",\"diagram\":{\"title\":\"Tính tiền thực nhận\",\"simulated\":false,\"steps\":[\"Giá bán\",\"Tiền thực nhận\",\"Giá vốn\",\"Chi phí quảng cáo phân bổ\",\"Đóng gói\"],\"on\":{\"c0\":\"ghi gia bán\",\"c1\":\"tiền thực nhận\",\"c2\":\"giá vốn\",\"c3\":\"chi phí quảng cáo phân bổ\",\"c4\":\"đông gói\"}}}},{\"clip_id\":\"part1_01\",\"start_word_id\":\"w000248\",\"end_word_id\":\"w000265\",\"scene\":\"Câu hỏi giấy gấp đối chiếu việc bán thêm với khả năng tăng tiền và phần việc phát sinh.\",\"action\":\"Một thẻ câu hỏi mở ra; hai mảnh giấy xuất hiện lần lượt, mảnh “thêm tiền” cân bằng với mảnh “thêm việc”. Mảnh kết luận được nhấn bằng vàng CTA; chuyển động gọn, không thêm dữ kiện.\",\"renderer\":\"HYPERFRAMES\",\"ui_scene\":{\"layout\":\"OPEN_QUESTION\",\"diagram\":{\"title\":\"bán thêm 1 đơn thì có thêm tiền hay\",\"caption\":\"bán thêm 1 đơn thì có thêm tiền hay\",\"simulated\":false,\"on\":{\"ask\":\"bán thêm 1 đơn thì có thêm tiền\",\"key\":\"chỉ thêm việc\"}}}}]}"
+    },
+    {
+      "request_bytes": 23517,
+      "limit_bytes": 200000,
+      "feedback": "VISUAL_GAP_ABOVE_TARGET: part1_01 còn khoảng trống 15.6-37.5s; từ neo trong khoảng: w000133=Mà [46900-47340ms], w000134=nói [47340-47480ms], w000135=công [47480-47640ms], w000136=bằng [47640-47860ms], w000137=ạ, [47860-48180ms], w000138=không [48620-48780ms], w000139=phải [48780-49020ms], w000140=đơn [49020-49180ms], w000141=nào [49180-49460ms], w000142=ngành [49460-49660ms], w000143=nào [49660-49900ms], w000144=cũng [49900-50080ms], w000145=chịu [50080-50320ms], w000146=mức [50320-50460ms], w000147=phí [50460-50680ms], w000148=giống [50680-50940ms], w000149=cái [50940-51100ms], w000150=câu [51100-51280ms], w000151=chuyện [51280-51500ms], w000152=nêu [51500-51780ms], w000153=trên. [51780-52000ms], w000154=Sàn [53560-54000ms], w000155=vẫn [54000-54180ms], w000156=đem [54180-54360ms], w000157=đến [54360-54520ms], w000158=khách [54520-54680ms], w000159=hàng [54680-54960ms], w000160=và [54960-55160ms], w000161=cái [55160-55300ms], w000162=sự [55300-55420ms], w000163=tiện [55420-55580ms], w000164=lợi [55580-55820ms], w000165=nhất [55820-55940ms], w000166=định. [55940-56160ms], w000167=Vấn [57120-57380ms], w000168=đề [57380-57580ms], w000169=là [57580-57720ms], w000170=mình [57720-57860ms], w000171=có [57860-58000ms], w000172=biết [58000-58140ms], w000173=cái [58140-58320ms], w000174=giá [58320-58540ms], w000175=phải [58540-58700ms], w000176=trả [58700-59020ms], w000177=cho [59020-59180ms], w000178=từng [59180-59440ms], w000179=đơn [59440-59580ms], w000180=hay [59580-59700ms], w000181=không? [59700-59880ms], w000182=Lấy [62360-62760ms], w000183=20 [62760-63160ms], w000184=đơn [63160-63420ms], w000185=đã [63420-63560ms], w000186=được [63560-63720ms], w000187=cuối [63720-63900ms], w000188=tỏa, [63900-64160ms], w000189=mở [64380-65980ms], w000190=một [65980-66140ms], w000191=bảng [66140-66400ms], w000192=trên [66400-66580ms], w000193=máy [66580-66780ms], w000194=tính, [66780-66900ms]. Bổ sung tối đa một visual mới cho mỗi lần sửa, giữ mọi visual hợp lệ đã có, bám đúng lời và word ID trong khoảng thiếu; không lặp ý hoặc kéo dài cảnh cũ.",
+      "response": "{\"visuals\":[{\"clip_id\":\"part1_01\",\"start_word_id\":\"w000133\",\"end_word_id\":\"w000153\",\"scene\":\"Các kiện hàng giấy origami khác nhau xếp thành hàng; những mảnh giấy đỏ tượng trưng cho phí rơi không đều lên từng kiện. Nền xanh BAHA, vàng champagne nhấn điểm, không chữ.\",\"action\":\"Trong 3–6 giây đầu, kiện hàng lần lượt lướt qua; mảnh phí đỏ rơi nhiều lên vài kiện, ít lên kiện khác. Camera trượt ngang, lớp giấy chuyển động lệch nhịp.\",\"renderer\":\"FLOW\",\"ui_scene\":null}]}"
+    }
+  ]
+}

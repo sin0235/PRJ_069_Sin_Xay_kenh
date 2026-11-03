@@ -51,3 +51,23 @@ def test_clip_hai_phut_bo_sung_duoc_sau_canh_thu_ba():
     assert [item['start_word_id'] for item in result] == [f'w{i}' for i in range(6)]
     assert client.calls == 4
     assert not clip.needs_review
+
+
+def test_canh_khong_chong_lan_duoc_sap_theo_moc_loi():
+    clip = ClipTuDong(clip_id='thu_tu', start_ms=0, end_ms=20000, title='Hai ý', reason='Đủ ý')
+    words = [{'id':'dau','text':'ý đầu','start_ms':1000,'end_ms':5000},
+             {'id':'cuoi','text':'ý cuối','start_ms':12000,'end_ms':16000}]
+
+    class Client:
+        max_output_tokens = 4000
+
+        def complete(self, messages, **kwargs):
+            return SimpleNamespace(content=json.dumps({'visuals':[
+                {'clip_id':clip.clip_id,'renderer':'FLOW','start_word_id':i,'end_word_id':i,
+                 'scene':'Vật thể giấy minh họa','action':'Giấy mở và gấp để làm rõ ý'}
+                for i in ['cuoi','dau']
+            ]},ensure_ascii=False))
+
+    result = tao_y_tuong_dien_hoa_flow([clip],words,[],Client())
+    assert [item['start_word_id'] for item in result] == ['dau','cuoi']
+    assert not clip.needs_review
