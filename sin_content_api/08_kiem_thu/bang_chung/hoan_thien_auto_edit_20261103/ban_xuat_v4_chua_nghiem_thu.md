@@ -37,3 +37,13 @@ Kiểm thử: media_queue70/70 đạt trước bước siết danh sách child;5
 Parser frontend trước đây giới hạn3 Flow, không khớp backend2000. Đã sửa cùng mức2000; test4 cảnh đọc được và2001 cảnh bị từ chối. Hai test parser/render đạt;10 test media-studio-api đạt, gồm request dựng lại. tsc --noEmit --incremental false đạt, detector Impeccable trả[]; chưa xác minh nút bằng trình duyệt sau build. Chỉ giữ boolean/source ID phục vụ nút, không đưa toàn transcript vào state React.
 
 Build FE trên Actions41646958791 đã completed/success cho commit915804f. Khi rà parser tiếp, phát hiện mode SPEAKER_PIP hợp lệ ở backend bị frontend từ chối và nhãn OVERLAY ghi cố định góc phải. Đã thêm mode đúng và nhãn Người nói trong khung nhỏ/Lớp phủ hoạt ảnh; test PIP trước sửa thất bại, sau sửa hai test parser/render đạt, TypeScript đạt. Cần build mới chứa phần sửa PIP trước khi cài runtime; chưa triển khai artifact cũ.
+
+## Kiểm tra web thật và sửa phát/seek
+
+Đã cài artifact41647325593 thành công vào runtime/web, giữ bản cũ. Qua Playwright CLI đăng nhập bằng JWT của tài khoản owner hiện hữu, không đổi mật khẩu/quyền; file state tạm chứa token đã xóa sau nạp. Trang /auto-edit hiện đúng dự án, chỉ video thành phẩm, biên bản v4 có cảnh cần rà soát; nút dựng lại không hiện vì biên bản cũ thiếu metadata.
+
+Test phát thật trước sửa thất bại: video readyState4,1080x1920 nhưng currentTime0 dù paused=false; console báo blob URL ERR_FILE_NOT_FOUND lặp lại. Root cause: effect dọn URL phụ thuộc cả previewUrl và previewCaptionUrl, thu hồi URL video khi SRT tải xong. Tách hai effect theo từng URL. Đồng thời bỏ default của track captions vì MP4 đã burn karaoke, tránh bật hai lớp sub chồng nhau; track truy cập vẫn có thể bật thủ công. Không sửa MP4 để chữa lỗi trình phát.
+
+Hai test parser/render và TypeScript sau sửa đạt. Artifact mới41653852043 (a97ef3a) completed/success, đã cài vào runtime/web; web PID16220 nghe cổng3000. API/worker không restart. Script khởi động báo cổng web chưa nghe quá sớm; kiểm lại cổng và trình duyệt đã sẵn sàng. Cảnh báo profile Flow đang bị giữ vẫn còn, không suy ra cần đăng nhập lại hoặc xóa lock.
+
+Kiểm tra Playwright sau cài: phát currentTime0,014595; duration63,666667;1080x1920; readyState4; error=null. Seek37,008487 giây, readyState4, error=null. Track vi disabled, không bật phụ đề ngoài. Không có console error mới trong lượt kiểm tra. Screenshot desktop và viewport390x844 được lưu; document clientWidth=scrollWidth=390. Một số nút thao tác ở viewport hẹp còn sát/cắt ở mép vùng chứa, cần rà responsive; không nhận toàn bộ UI đạt. Chưa nghe audio toàn clip hoặc xem đủ mọi cue, chưa nghiệm thu95%.

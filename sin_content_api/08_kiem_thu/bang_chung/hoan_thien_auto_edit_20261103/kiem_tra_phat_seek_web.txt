@@ -1,0 +1,29 @@
+﻿### Result
+{"play":{"time":0.014595,"duration":63.666667,"width":1080,"height":1920,"ready":4,"error":null},"seek":{"time":37.008487,"ready":4,"error":null},"tracks":[{"mode":"disabled","language":"vi"}],"failures":[]}
+### Ran Playwright code
+```js
+await (async page => {
+ const failures=[];page.on('console',m=>{if(m.type()==='error')failures.push(m.text());});
+ await page.reload();
+ const video=page.locator('video');
+ await video.waitFor();
+ await page.locator('video track').waitFor({state:'attached'});
+ await video.evaluate(async v=>{v.muted=true;await v.play();});
+ await page.waitForFunction(()=>document.querySelector('video')?.currentTime>0,{},{timeout:15000});
+ const first=await video.evaluate(v=>({time:v.currentTime,duration:v.duration,width:v.videoWidth,height:v.videoHeight,ready:v.readyState,error:v.error?.code??null}));
+ if(!(first.time>0&&first.width===1080&&first.height===1920&&!first.error))throw Error('VIDEO_PLAY_FAILED');
+ await video.evaluate(v=>{v.currentTime=37;});
+ await page.waitForFunction(()=>{const v=document.querySelector('video');return v&&v.currentTime>=37&&v.readyState>=2;});
+ await video.evaluate(v=>v.pause());
+ await video.scrollIntoViewIfNeeded();
+ await video.screenshot({path:'output/playwright/auto_edit_v4_seek37.png'});
+ const tracks=await video.evaluate(v=>Array.from(v.textTracks,t=>({mode:t.mode,language:t.language})));
+ if(tracks.some(t=>t.mode==='showing'))throw Error('DUPLICATE_SUBTITLE_TRACK');
+ return {play:first,seek:await video.evaluate(v=>({time:v.currentTime,ready:v.readyState,error:v.error?.code??null})),tracks,failures};
+})(page);
+```
+### Page
+- Page URL: https://nhap-xaykenh-prj069.bahagroup.vn/auto-edit?project_id=786676f6-e3c7-457d-9ccd-a22158507fdf&asset_id=169a64e3-baba-45f2-a2d7-dbdb8199be36
+- Page Title: BAHA Creator Studio — BAHA Group
+### Events
+- New console entries: .playwright-cli\console-2026-11-03T14-24-32-242Z.log#L24-L31
