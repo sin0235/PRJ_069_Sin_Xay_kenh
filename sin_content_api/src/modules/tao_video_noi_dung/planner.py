@@ -989,18 +989,35 @@ def _repair_diagram_data(scene, narration: str | None = None) -> None:
         except (AttributeError, TypeError):
             return
         words = _tokens(narration)
-        last_index, last_phrase = -1, None
-        for key in events:
+        narration_words = narration.split()
+        word_start, cursor = [], 0   # chỉ số từ (token) đầu tiên của từng từ trong lời
+        for word in narration_words:
+            word_start.append(cursor)
+            cursor += len(_tokens(word))
+        last_index, last_phrase, last_word = -1, None, -1
+        for position, key in enumerate(events):
             phrase = on.get(key)
             if not isinstance(phrase, str) or not phrase.strip():
                 continue
             index = _locate_phrase(words, _tokens(phrase), max(last_index, 0))
             if index is None:
-                if last_phrase is None or _locate_phrase(words, _tokens(phrase), 0) is None:
+                if _locate_phrase(words, _tokens(phrase), 0) is not None and last_phrase is not None:
+                    on[key], index = last_phrase, last_index
+                elif len(narration_words) >= 3:
+                    # Cụm neo không có trong lời đọc: chọn hai chữ nguyên văn của lời ở vị trí tương ứng thứ tự sự kiện, thay vì bỏ cả sơ đồ.
+                    target = max(last_word + 1, round(0.6 * (position + 1) * len(narration_words) / (len(events) + 1)))   # trong 60% đầu của lời, tránh mốc quá sát cuối
+                    target = min(target, len(narration_words) - 2)
+                    if target <= last_word:
+                        continue
+                    on[key] = " ".join(narration_words[target:target + 2])
+                    index = word_start[target]
+                    last_word = target
+                    last_phrase = on[key]
+                else:
                     continue
-                on[key], index = last_phrase, last_index
             else:
                 last_phrase = phrase
+                last_word = max(last_word, max((w for w, s in enumerate(word_start) if s <= index), default=-1))
             last_index = index
 
 

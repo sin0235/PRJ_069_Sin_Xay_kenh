@@ -198,9 +198,29 @@ def test_failed_shot_is_found_in_both_error_location_formats():
         assert data["shots"][9]["shot_kind"] == "FLOW_ORIGAMI" and data["shots"][9]["ui_scene"] is None
 
 
-def test_phrase_not_in_narration_on_every_attempt_still_returns_a_storyboard():
+def test_phrase_not_in_narration_on_every_attempt_keeps_the_diagram_with_repaired_anchors():
     bad = _process_rail(9)
     bad["diagram"]["on"]["block"] = "cụm không có trong lời đọc"
-    (storyboard, _), client = _run(*[_with_scene(9, bad) for _ in range(3)])
-    assert storyboard.shots[9].shot_kind == "FLOW_ORIGAMI"
+    (storyboard, _), _ = _run(*[_with_scene(9, bad) for _ in range(3)])
+    assert storyboard.shots[9].shot_kind == "UI_SIM"     # neo được chép lại nguyên văn nên không phải bỏ sơ đồ
     assert sum(s.duration_seconds for s in storyboard.shots) == 100
+
+
+def test_anchor_missing_from_narration_is_replaced_by_a_verbatim_phrase_instead_of_dropping_the_diagram():
+    bad = _process_rail(9)
+    bad["diagram"]["on"]["block"] = "cụm không có trong lời đọc"
+    (storyboard, _), _ = _run(_with_scene(9, bad))
+    shot = storyboard.shots[9]
+    assert shot.shot_kind == "UI_SIM" and shot.ui_scene.layout == "PROCESS_RAIL"      # sơ đồ được giữ
+    times = planner.resolve_diagram_times(shot.ui_scene, shot.narration, shot.duration_seconds, None)
+    assert times["stations"] <= times["block"] <= times["release"]
+
+
+def test_anchors_that_all_miss_the_narration_are_spread_in_event_order():
+    bad = _process_rail(9)
+    bad["diagram"]["on"] = {"stations": "xxx yyy", "block": "zzz www", "release": "qqq rrr"}
+    (storyboard, _), _ = _run(_with_scene(9, bad))
+    shot = storyboard.shots[9]
+    assert shot.shot_kind == "UI_SIM"
+    times = planner.resolve_diagram_times(shot.ui_scene, shot.narration, shot.duration_seconds, None)
+    assert times["stations"] < times["block"] < times["release"]
