@@ -142,7 +142,11 @@ def process(client, base, spec, token):
         with tempfile.TemporaryDirectory(prefix='prj069_remote_') as temporary:
             root = Path(temporary)
             total = sum(item['size'] for item in spec['inputs'])
-            if shutil.disk_usage(root).free < total + 3 * 1024 ** 3:
+            free_bytes = shutil.disk_usage(root).free
+            if free_bytes < total + 3 * 1024 ** 3:
+                print(json.dumps({'task': spec['id'], 'error': 'REMOTE_DISK_BUDGET_EXCEEDED',
+                                  'free_bytes': free_bytes, 'input_bytes': total,
+                                  'required_bytes': total + 3 * 1024 ** 3}), flush=True)
                 raise RuntimeError('REMOTE_DISK_BUDGET_EXCEEDED')
             inputs = []
             for index, item in enumerate(spec['inputs']):
