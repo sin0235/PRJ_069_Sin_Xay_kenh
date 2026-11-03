@@ -107,6 +107,14 @@ def _has_duplicate_shot_media(hashes: list[str]) -> bool:
     return len(hashes) != len(set(hashes))
 
 
+def _hashes_for_duplicate_check(steps: list[dict], assets: list) -> list[str]:
+    """Hash media của từng shot để phát hiện hai shot dùng cùng một clip. Clip giữ chỗ của cảnh dựng ở bước ghép HyperFrames
+    (render_engine hyperframes_assembly) giống hệt nhau từng byte khi cùng độ dài nên không tính vào kiểm tra này."""
+    sha_by_id = {asset.id: asset.sha256 for asset in assets}
+    return [sha_by_id[step["asset_id"]] for step in steps
+            if step.get("render_engine") != "hyperframes_assembly" and step.get("asset_id") in sha_by_id]
+
+
 def _verified_asset_path(asset: MediaAsset, error_code: str) -> Path:
     path = (MEDIA_ROOT_DIR / asset.storage_key).resolve()
     if not path.is_relative_to(MEDIA_ROOT_DIR.resolve()) or not path.is_file():
@@ -1513,7 +1521,7 @@ def process_run(run_id: str, token: str | None = None) -> None:
             ).all()
             if len(shot_assets) != len(asset_ids):
                 raise RuntimeError("SHOT_ASSET_MISSING")
-            if _has_duplicate_shot_media([asset.sha256 for asset in shot_assets]):
+            if _has_duplicate_shot_media(_hashes_for_duplicate_check(steps, shot_assets)):
                 raise RuntimeError("DUPLICATE_SHOT_MEDIA")
             _render_and_qc(db, run, plan, storyboard, asset_ids)
         except WorkerLeaseLost:
