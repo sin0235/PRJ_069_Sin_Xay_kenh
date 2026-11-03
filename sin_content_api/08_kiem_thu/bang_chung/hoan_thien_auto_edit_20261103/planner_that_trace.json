@@ -1,0 +1,74 @@
+[
+  {
+    "feedback": null,
+    "kept": null,
+    "response": "{\"visuals\":[{\"clip_id\":\"part1_01\",\"start_word_id\":\"stt_part1_01_0012\",\"end_word_id\":\"stt_part1_01_0047\",\"scene\":\"Giấy origami: hai dòng tiền tách thành hai lối; khoản khách trả trượt qua một cổng quyết toán sàn, khoản thực giữ lại mắc vào các lớp chi phí.\",\"action\":\"Tờ giấy màu xanh mở thành lối tiền khách trả; lối thứ hai rẽ qua các nếp giấy ghi bằng hình tượng chi phí, kết lại ở một mảnh nhỏ còn lại. Không chữ hay số trong cảnh.\",\"renderer\":\"FLOW\",\"ui_scene\":null},{\"clip_id\":\"part1_01\",\"start_word_id\":\"stt_part1_01_0095\",\"end_word_id\":\"stt_part1_01_0127\",\"scene\":\"Bảng tính giấy xếp lớp hiện ra như công cụ kiểm tra một đơn hàng, không có số liệu giả.\",\"action\":\"Một dải giấy cuộn mở thành bảng trống; các thẻ giấy lần lượt đặt vào ô giá bán, tiền thực nhận, giá vốn, quảng cáo phân bổ và đóng gói. Dừng ở bảng đủ khoản để đối chiếu, không hiện chữ hay số.\",\"renderer\":\"HYPERFRAMES\",\"ui_scene\":{\"layout\":\"CHECKLIST\",\"diagram\":{\"title\":\"Đối chiếu từng đơn\",\"simulated\":false,\"steps\":[\"Giá bán\",\"Tiền thực nhận\",\"Giá vốn\",\"Quảng cáo phân bổ\",\"Đóng gói\"],\"on\":{\"c0\":\"ghi giá bán\",\"c1\":\"tiền thực nhận\",\"c2\":\"giá vốn\",\"c3\":\"chi phí quảng cáo phân bổ\",\"c4\":\"đóng gói\"}}}},{\"clip_id\":\"part1_01\",\"start_word_id\":\"stt_part1_01_0164\",\"end_word_id\":\"stt_part1_01_0181\",\"scene\":\"Câu hỏi về hiệu quả đơn hàng biến thành phép thử giấy: một đơn giấy đi vào, tiền và việc làm tách thành hai nhánh chưa được định lượng.\",\"action\":\"Một đơn giấy xanh đặt cạnh hai nhánh trống: mảnh tiền và dải công việc. Hai nhánh bung ra cùng lúc, giữ cân bằng; không gán số hay khẳng định kết quả.\",\"renderer\":\"HYPERFRAMES\",\"ui_scene\":{\"layout\":\"OPEN_QUESTION\",\"diagram\":{\"title\":\"Thêm đơn: thêm tiền hay việc?\",\"caption\":\"thêm tiền\",\"simulated\":false,\"on\":{\"ask\":\"bán thêm một đơn\",\"key\":\"có thêm tiền hay là chỉ thêm việc\"}}}}]}"
+  },
+  {
+    "feedback": "FLOW_VISUAL_SPAN_INVALID: Chọn đoạn lời thoại liên tục từ 3 đến 6 giây; asset Flow nguồn vẫn cố định 10 giây.",
+    "kept": [
+      {
+        "clip_id": "part1_01",
+        "start_word_id": "stt_part1_01_0095",
+        "end_word_id": "stt_part1_01_0127",
+        "scene": "Bảng tính giấy xếp lớp hiện ra như công cụ kiểm tra một đơn hàng, không có số liệu giả.",
+        "renderer": "HYPERFRAMES"
+      },
+      {
+        "clip_id": "part1_01",
+        "start_word_id": "stt_part1_01_0164",
+        "end_word_id": "stt_part1_01_0181",
+        "scene": "Câu hỏi về hiệu quả đơn hàng biến thành phép thử giấy: một đơn giấy đi vào, tiền và việc làm tách thành hai nhánh chưa được định lượng.",
+        "renderer": "HYPERFRAMES"
+      }
+    ],
+    "response": "{\"visuals\":[]}"
+  },
+  {
+    "feedback": "VISUAL_GAP_ABOVE_TARGET: part1_01 còn khoảng trống 0.0-29.9s; từ neo trong khoảng: stt_part1_01_0000=Đấy, [30000-30300ms], stt_part1_01_0001=có [30440-30540ms], stt_part1_01_0002=một [30540-30640ms], stt_part1_01_0003=cái [30640-30760ms], stt_part1_01_0004=chỗ [30760-30940ms], stt_part1_01_0005=rất [30940-31140ms], stt_part1_01_0006=dễ [31140-31460ms], stt_part1_01_0007=nhầm [31460-31680ms], stt_part1_01_0008=lẫn [31680-31880ms], stt_part1_01_0009=ở [31880-32000ms], stt_part1_01_0010=đây [32000-32180ms], stt_part1_01_0011=ạ. [32180-32840ms], stt_part1_01_0012=Tiền [33400-33840ms], stt_part1_01_0013=khách [33840-34060ms], stt_part1_01_0014=trả [34060-34360ms], stt_part1_01_0015=là [34360-34500ms], stt_part1_01_0016=một [34500-34660ms], stt_part1_01_0017=chuyện, [34660-34920ms], stt_part1_01_0018=tiền [35460-35820ms], stt_part1_01_0019=sàn [35820-36140ms], stt_part1_01_0020=quyết [36140-36360ms], stt_part1_01_0021=toán [36360-36660ms], stt_part1_01_0022=lại [36660-37000ms], stt_part1_01_0023=là [37000-37160ms], stt_part1_01_0024=cái [37160-37280ms], stt_part1_01_0025=chuyện [37280-37520ms], stt_part1_01_0026=thứ [37520-37640ms], stt_part1_01_0027=hai. [37640-39880ms], stt_part1_01_0028=Còn [39880-40300ms], stt_part1_01_0029=cái [40300-40460ms], stt_part1_01_0030=tiền [40460-40640ms], stt_part1_01_0031=thực [40640-40820ms], stt_part1_01_0032=sự [40820-41100ms], stt_part1_01_0033=giữ [41100-41320ms], stt_part1_01_0034=lại [41320-41540ms], stt_part1_01_0035=sau [41540-41800ms], stt_part1_01_0036=giá [41800-41960ms], stt_part1_01_0037=vốn, [41960-42240ms], stt_part1_01_0038=quảng [42920-43160ms], stt_part1_01_0039=cáo, [43160-43560ms], stt_part1_01_0040=đóng [43840-44000ms], stt_part1_01_0041=gói [44000-44300ms], stt_part1_01_0042=mới [44540-44780ms], stt_part1_01_0043=là [44780-44920ms], stt_part1_01_0044=cái [44920-45040ms], stt_part1_01_0045=chuyện [45040-45240ms], stt_part1_01_0046=thứ [45240-45380ms], stt_part1_01_0047=ba. [45380-46900ms], stt_part1_01_0048=Mà [46900-47340ms], stt_part1_01_0049=nói [47340-47480ms], stt_part1_01_0050=công [47480-47640ms], stt_part1_01_0051=bằng, [47640-47860ms], stt_part1_01_0052=không [48620-48780ms], stt_part1_01_0053=phải [48780-49020ms], stt_part1_01_0054=đơn [49020-49180ms], stt_part1_01_0055=nào, [49180-49460ms], stt_part1_01_0056=ngành [49460-49660ms], stt_part1_01_0057=nào [49660-49900ms], stt_part1_01_0058=cũng [49900-50080ms], stt_part1_01_0059=chịu [50080-50340ms], stt_part1_01_0060=mức [50340-50460ms], stt_part1_01_0061=phí [50460-50680ms], stt_part1_01_0062=giống [50680-50940ms], stt_part1_01_0063=cái [50940-51120ms], stt_part1_01_0064=câu [51120-51280ms], stt_part1_01_0065=chuyện [51280-51500ms], stt_part1_01_0066=nêu [51500-51780ms], stt_part1_01_0067=trên. [51780-52000ms], stt_part1_01_0068=Sàn [53560-54000ms], stt_part1_01_0069=vẫn [54000-54180ms], stt_part1_01_0070=đem [54180-54360ms], stt_part1_01_0071=đến [54360-54520ms], stt_part1_01_0072=khách [54520-54680ms], stt_part1_01_0073=hàng [54680-54940ms], stt_part1_01_0074=và [54940-55160ms], stt_part1_01_0075=sự [55300-55420ms], stt_part1_01_0076=tiện [55420-55580ms], stt_part1_01_0077=lợi [55580-55820ms], stt_part1_01_0078=nhất [55820-55940ms], stt_part1_01_0079=định. [55940-56160ms], stt_part1_01_0080=Vấn [57120-57380ms], stt_part1_01_0081=đề [57380-57580ms], stt_part1_01_0082=là [57580-57720ms], stt_part1_01_0083=mình [57720-57860ms], stt_part1_01_0084=có [57860-58000ms], stt_part1_01_0085=biết [58000-58160ms], stt_part1_01_0086=cái [58160-58300ms], stt_part1_01_0087=giá [58300-58540ms], stt_part1_01_0088=phải [58540-58700ms], stt_part1_01_0089=trả [58700-59000ms], stt_part1_01_0090=cho [59000-59180ms], stt_part1_01_0091=từng [59180-59440ms], stt_part1_01_0092=đơn [59440-59580ms], stt_part1_01_0093=hay [59580-59700ms], stt_part1_01_0094=không? [59700-59880ms]. Bổ sung tối đa ba visual mới cho mỗi lần sửa, phân bố vào các khoảng thiếu, giữ mọi visual hợp lệ đã có, bám đúng lời và word ID; không lặp ý hoặc kéo dài cảnh cũ.",
+    "kept": [
+      {
+        "clip_id": "part1_01",
+        "start_word_id": "stt_part1_01_0095",
+        "end_word_id": "stt_part1_01_0127",
+        "scene": "Bảng tính giấy xếp lớp hiện ra như công cụ kiểm tra một đơn hàng, không có số liệu giả.",
+        "renderer": "HYPERFRAMES"
+      },
+      {
+        "clip_id": "part1_01",
+        "start_word_id": "stt_part1_01_0164",
+        "end_word_id": "stt_part1_01_0181",
+        "scene": "Câu hỏi về hiệu quả đơn hàng biến thành phép thử giấy: một đơn giấy đi vào, tiền và việc làm tách thành hai nhánh chưa được định lượng.",
+        "renderer": "HYPERFRAMES"
+      }
+    ],
+    "response": "{\"visuals\":[{\"clip_id\":\"part1_01\",\"start_word_id\":\"stt_part1_01_0000\",\"end_word_id\":\"stt_part1_01_0017\",\"scene\":\"Hai dải giấy gấp chạy song song trên nền xanh navy và trắng ngà; một dải tượng trưng cho tiền khách trả, dải kia bắt đầu tách ra như khoản quyết toán.\",\"action\":\"Dải đầu trượt vào khung; dải thứ hai gấp lệch sang bên, tạo khoảng cách rõ giữa hai dòng tiền. Teal đánh dấu chuyển động, vàng làm điểm nhấn; giữ phần dưới trống cho phụ đề.\",\"renderer\":\"FLOW\"}]}"
+  },
+  {
+    "feedback": "VISUAL_GAP_ABOVE_TARGET: part1_01 còn khoảng trống 4.9-29.9s; từ neo trong khoảng: stt_part1_01_0018=tiền [35460-35820ms], stt_part1_01_0019=sàn [35820-36140ms], stt_part1_01_0020=quyết [36140-36360ms], stt_part1_01_0021=toán [36360-36660ms], stt_part1_01_0022=lại [36660-37000ms], stt_part1_01_0023=là [37000-37160ms], stt_part1_01_0024=cái [37160-37280ms], stt_part1_01_0025=chuyện [37280-37520ms], stt_part1_01_0026=thứ [37520-37640ms], stt_part1_01_0027=hai. [37640-39880ms], stt_part1_01_0028=Còn [39880-40300ms], stt_part1_01_0029=cái [40300-40460ms], stt_part1_01_0030=tiền [40460-40640ms], stt_part1_01_0031=thực [40640-40820ms], stt_part1_01_0032=sự [40820-41100ms], stt_part1_01_0033=giữ [41100-41320ms], stt_part1_01_0034=lại [41320-41540ms], stt_part1_01_0035=sau [41540-41800ms], stt_part1_01_0036=giá [41800-41960ms], stt_part1_01_0037=vốn, [41960-42240ms], stt_part1_01_0038=quảng [42920-43160ms], stt_part1_01_0039=cáo, [43160-43560ms], stt_part1_01_0040=đóng [43840-44000ms], stt_part1_01_0041=gói [44000-44300ms], stt_part1_01_0042=mới [44540-44780ms], stt_part1_01_0043=là [44780-44920ms], stt_part1_01_0044=cái [44920-45040ms], stt_part1_01_0045=chuyện [45040-45240ms], stt_part1_01_0046=thứ [45240-45380ms], stt_part1_01_0047=ba. [45380-46900ms], stt_part1_01_0048=Mà [46900-47340ms], stt_part1_01_0049=nói [47340-47480ms], stt_part1_01_0050=công [47480-47640ms], stt_part1_01_0051=bằng, [47640-47860ms], stt_part1_01_0052=không [48620-48780ms], stt_part1_01_0053=phải [48780-49020ms], stt_part1_01_0054=đơn [49020-49180ms], stt_part1_01_0055=nào, [49180-49460ms], stt_part1_01_0056=ngành [49460-49660ms], stt_part1_01_0057=nào [49660-49900ms], stt_part1_01_0058=cũng [49900-50080ms], stt_part1_01_0059=chịu [50080-50340ms], stt_part1_01_0060=mức [50340-50460ms], stt_part1_01_0061=phí [50460-50680ms], stt_part1_01_0062=giống [50680-50940ms], stt_part1_01_0063=cái [50940-51120ms], stt_part1_01_0064=câu [51120-51280ms], stt_part1_01_0065=chuyện [51280-51500ms], stt_part1_01_0066=nêu [51500-51780ms], stt_part1_01_0067=trên. [51780-52000ms], stt_part1_01_0068=Sàn [53560-54000ms], stt_part1_01_0069=vẫn [54000-54180ms], stt_part1_01_0070=đem [54180-54360ms], stt_part1_01_0071=đến [54360-54520ms], stt_part1_01_0072=khách [54520-54680ms], stt_part1_01_0073=hàng [54680-54940ms], stt_part1_01_0074=và [54940-55160ms], stt_part1_01_0075=sự [55300-55420ms], stt_part1_01_0076=tiện [55420-55580ms], stt_part1_01_0077=lợi [55580-55820ms], stt_part1_01_0078=nhất [55820-55940ms], stt_part1_01_0079=định. [55940-56160ms], stt_part1_01_0080=Vấn [57120-57380ms], stt_part1_01_0081=đề [57380-57580ms], stt_part1_01_0082=là [57580-57720ms], stt_part1_01_0083=mình [57720-57860ms], stt_part1_01_0084=có [57860-58000ms], stt_part1_01_0085=biết [58000-58160ms], stt_part1_01_0086=cái [58160-58300ms], stt_part1_01_0087=giá [58300-58540ms], stt_part1_01_0088=phải [58540-58700ms], stt_part1_01_0089=trả [58700-59000ms], stt_part1_01_0090=cho [59000-59180ms], stt_part1_01_0091=từng [59180-59440ms], stt_part1_01_0092=đơn [59440-59580ms], stt_part1_01_0093=hay [59580-59700ms], stt_part1_01_0094=không? [59700-59880ms]. Bổ sung tối đa ba visual mới cho mỗi lần sửa, phân bố vào các khoảng thiếu, giữ mọi visual hợp lệ đã có, bám đúng lời và word ID; không lặp ý hoặc kéo dài cảnh cũ.",
+    "kept": [
+      {
+        "clip_id": "part1_01",
+        "start_word_id": "stt_part1_01_0000",
+        "end_word_id": "stt_part1_01_0017",
+        "scene": "Hai dải giấy gấp chạy song song trên nền xanh navy và trắng ngà; một dải tượng trưng cho tiền khách trả, dải kia bắt đầu tách ra như khoản quyết toán.",
+        "renderer": "FLOW"
+      },
+      {
+        "clip_id": "part1_01",
+        "start_word_id": "stt_part1_01_0095",
+        "end_word_id": "stt_part1_01_0127",
+        "scene": "Bảng tính giấy xếp lớp hiện ra như công cụ kiểm tra một đơn hàng, không có số liệu giả.",
+        "renderer": "HYPERFRAMES"
+      },
+      {
+        "clip_id": "part1_01",
+        "start_word_id": "stt_part1_01_0164",
+        "end_word_id": "stt_part1_01_0181",
+        "scene": "Câu hỏi về hiệu quả đơn hàng biến thành phép thử giấy: một đơn giấy đi vào, tiền và việc làm tách thành hai nhánh chưa được định lượng.",
+        "renderer": "HYPERFRAMES"
+      }
+    ],
+    "response": "{\"visuals\":[{\"clip_id\":\"part1_01\",\"start_word_id\":\"stt_part1_01_0028\",\"end_word_id\":\"stt_part1_01_0037\",\"scene\":\"Một dải giấy tượng trưng tiền khách trả tách khỏi lớp giấy nhỏ hơn còn lại sau khi trừ giá vốn; không hiện số hay chữ.\",\"action\":\"Dải tiền giấy trượt vào khung, lớp giá vốn bóc ra; phần giấy còn lại dừng trên nền ngà, cạnh giấy và bóng mềm.\",\"renderer\":\"FLOW\"},{\"clip_id\":\"part1_01\",\"start_word_id\":\"stt_part1_01_0048\",\"end_word_id\":\"stt_part1_01_0067\",\"scene\":\"Các mảnh giấy ngành hàng khác nhau nằm trên những lớp phí có độ dày khác nhau; không gán mức phí hay số liệu.\",\"action\":\"Mảnh giấy ngành hàng lần lượt trượt qua các lớp phí không đồng đều; camera lướt ngang, kết ở các lớp khác biệt.\",\"renderer\":\"FLOW\"},{\"clip_id\":\"part1_01\",\"start_word_id\":\"stt_part1_01_0083\",\"end_word_id\":\"stt_part1_01_0094\",\"scene\":\"Câu hỏi về việc biết chi phí phải trả cho từng đơn hiện thành hai thẻ giấy hỏi và đáp; không tự điền đáp án.\",\"action\":\"Thẻ câu hỏi mở ra, thẻ đáp án để trống trượt vào cạnh; đường nối giấy dừng giữa hai thẻ.\",\"renderer\":\"HYPERFRAMES\",\"ui_scene\":{\"layout\":\"OPEN_QUESTION\",\"diagram\":{\"title\":\"Biết giá phải trả mỗi đơn?\",\"caption\":\"giá phải trả\",\"simulated\":false,\"on\":{\"ask\":\"giá phải trả cho từng đơn\",\"key\":\"hay không?\"}}}}]}"
+  }
+]

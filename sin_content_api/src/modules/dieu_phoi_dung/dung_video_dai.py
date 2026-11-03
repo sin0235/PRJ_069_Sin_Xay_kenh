@@ -878,9 +878,11 @@ def tao_y_tuong_dien_hoa_flow(
         "Với HYPERFRAMES, start_word_id đến end_word_id phải bao trùm mọi cụm trong ui_scene.diagram.on theo thứ tự lời nói; không thu hẹp đoạn neo hơn các sự kiện. "
         "Chọn FLOW cho cảnh tự sự, nhân vật, vật thể hoặc tương tác cần chuyển động tự do; chọn HYPERFRAMES cho nội dung có cấu trúc, so sánh, quy trình hoặc dữ kiện nói rõ trong transcript. "
         "Không tự bịa số liệu. Với HYPERFRAMES, chỉ dùng ui_scene.layout thuộc nhóm diagram và neo sự kiện vào cụm lời nói nguyên văn. "
-        'CHECKLIST: diagram.on keys c0, c1... theo \u0111\u00fang th\u1ee9 t\u1ef1 steps, value l\u00e0 c\u1ee5m l\u1eddi nguy\u00ean v\u0103n. OPEN_QUESTION: caption ph\u1ea3i kh\u1edbp nguy\u00ean v\u0103n title; on keys ask, key. VERSUS_LIST: docs \u0111\u00fang 2, diff_label b\u1eaft bu\u1ed9c; layers v\u00e0 values 2-4 chu\u1ed7i; on keys left, right, verdict. '
+        'CHECKLIST: diagram.on keys c0, c1... theo đúng thứ tự steps, value là cụm lời nguyên văn. OPEN_QUESTION: caption là cụm ngắn trong title; on keys ask, key. VERSUS_LIST: docs đúng 2, diff_label bắt buộc; layers và values 2-4 chuỗi; on keys left, right, verdict. '
         "PROCESS_RAIL: steps 3-5 nh\xe3n ng\u1eafn; block_step l\xe0 ch\u1ec9 s\u1ed1 t\u1eeb 1 \u0111\u1ebfn len(steps)-2. diagram.on keys stations, block, release v\xe0 ch\u1ee9a c\u1ee5m l\u1eddi n\xf3i nguy\xean v\u0103n theo th\u1ee9 t\u1ef1. "
         "Trả duy nhất JSON đúng schema."
+        " CHECKLIST: steps có 3 đến 5 nhãn, mỗi nhãn tối đa 30 ký tự. Tách các khoản khác nhau thành mục riêng; nếu cụm lời dài thì rút ngắn nhãn, giữ đầy đủ cụm nguyên văn trong diagram.on. "
+        "OPEN_QUESTION: caption tối đa 40 ký tự, là cụm ngắn nằm nguyên văn trong title; không cần lặp toàn bộ title. "
     )
     request = {
         "clips": clip_context,
