@@ -1049,6 +1049,46 @@ def test_worker_luu_project_flow_truoc_gui_va_chan_worker_mat_lease(media_db,mon
         assert worker._execute_job(db,job,request) is expected
 
 
+@pytest.mark.parametrize('invalid', [None, 'workspace', 'project', 'hash', 'active', 'duration', 'old', 'path'])
+def test_doi_soat_flow_da_tai_khong_tao_lai(media_db,monkeypatch,tmp_path,invalid):
+    from src.modules.media_queue import service
+    from src.modules.media_studio import security
+    from src.modules.media_studio.video_processor import video_processor
+    db,ws,_=media_db
+    job=enqueue_media_job(db,workspace_id=ws,user_id='user-queue',provider='MEDIA_VIDEO',
+        operation='generate_video_scene',backend_provider='GOOGLE_FLOW',provider_mode='FLOW_BROWSER_PILOT',
+        model_id='google-flow',prompt_text='Cảnh giấy',parameters={'aspect_ratio':'9:16'},
+        idempotency_key='reconcile-downloaded-flow',project_id='project-01')
+    job.state='SUBMITTING' if invalid=='active' else 'NEEDS_RECONCILIATION'
+    path=tmp_path/'canh.mp4';path.write_bytes(b'flow-recovered')
+    digest,size=security.hash_file(path)
+    asset=MediaAsset(id='raw-recovered',workspace_id='other' if invalid=='workspace' else ws,
+        project_id='other' if invalid=='project' else job.project_id,
+        storage_key='../canh.mp4' if invalid=='path' else path.name,sha256='bad' if invalid=='hash' else digest,
+        byte_size=size,mime_detected='video/mp4',source_product='UPLOAD',created_by='user-queue',
+        created_at=datetime.now(timezone.utc)-timedelta(days=1) if invalid=='old' else datetime.now(timezone.utc))
+    db.add(asset);db.commit()
+    monkeypatch.setattr(security,'MEDIA_ROOT_DIR',tmp_path)
+    monkeypatch.setattr(video_processor,'probe_video',lambda p:{'width':1080,'height':1920,
+        'duration_seconds':4 if invalid=='duration' else 10,'frame_rate':30})
+    args=dict(job_id=job.id,asset_id=asset.id,workspace_id=ws,user_id='user-queue',
+        project_url='https://flow.google.com/project/doi-soat',reason='Đã đối chiếu cảnh tải từ Flow và kiểm tra gỡ logo.')
+    if invalid:
+        with pytest.raises(HTTPException):service.reconcile_flow_job(db,**args)
+        db.refresh(job);assert job.state!='SUCCEEDED'
+    else:
+        service.reconcile_flow_job(db,**args)
+        db.refresh(job);assert job.state=='SUCCEEDED'
+        output=json.loads(job.output_asset_ids_json)
+        assert len(output)==1
+        recovered=db.get(MediaAsset,output[0]);assert recovered.source_product=='GOOGLE_FLOW'
+        assert recovered.parent_asset_id==asset.id
+        assert recovered.storage_key!=asset.storage_key
+        assert security.hash_file(tmp_path/recovered.storage_key)==(digest,size)
+        service.reconcile_flow_job(db,**args)
+        assert json.loads(job.output_asset_ids_json)==output
+
+
 @pytest.mark.parametrize("child_count", [2, 4, 20, 21])
 def test_auto_edit_waits_for_flow_children_then_resumes_once(media_db, child_count):
     from src.modules.media_queue import worker

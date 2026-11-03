@@ -409,6 +409,24 @@ def submit_ai_job(
     return response_payload
 
 
+class FlowJobReconciliation(BaseModel):
+    asset_id: str = Field(min_length=1, max_length=128)
+    project_url: str = Field(min_length=1, max_length=2048)
+    reason: str = Field(min_length=10, max_length=2000)
+
+
+@jobs_router.post("/{job_id}/reconcile", response_model=None)
+def reconcile_ai_flow_job(
+    job_id: str, payload: FlowJobReconciliation,
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(require_action("ai_job.create")),
+):
+    from src.modules.media_queue.service import reconcile_flow_job
+    job = reconcile_flow_job(db, job_id=job_id, workspace_id=tenant.workspace_id,
+        user_id=tenant.user_id, **payload.model_dump())
+    return _ai_job_response_payload(job)
+
+
 @jobs_router.post("/{job_id}/resume", response_model=None, status_code=status.HTTP_202_ACCEPTED)
 def resume_ai_job(
     job_id: str,

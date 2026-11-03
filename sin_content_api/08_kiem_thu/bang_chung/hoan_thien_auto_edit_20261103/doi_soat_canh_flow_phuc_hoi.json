@@ -1,0 +1,8 @@
+{
+  "asset_id": "c3a90b45-3567-4631-9bbe-136b90da9eb4",
+  "job_id": "e8696e28-7c0b-45db-8453-2e8f831731bb",
+  "state": "SUCCEEDED",
+  "output_asset_ids": [
+    "bc71a9f7-a243-4598-941e-4a175a142fe6"
+  ]
+}

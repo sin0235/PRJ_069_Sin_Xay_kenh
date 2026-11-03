@@ -219,3 +219,84 @@ def process_next_media_job(db: Session, token: str) -> bool:
     return process(db, token)
 
 
+def reconcile_flow_job(db: Session, *, job_id: str, asset_id: str, workspace_id: str,
+                       user_id: str, project_url: str, reason: str) -> AIGenerationJob:
+    """Gắn cảnh đã đối soát thủ công; không gửi lại yêu cầu cho Flow."""
+    from pathlib import Path
+    from sqlalchemy import update
+    from src.models.entities import MediaAsset
+    from src.modules.flow_sessions.context import validate_flow_project_url
+    from src.modules.media_studio import security
+    from src.modules.media_studio.video_processor import video_processor
+
+    def reject(code):
+        raise HTTPException(409, detail={"error_code": code, "message": "Không thể đối soát cảnh Flow; kiểm tra tác vụ và video đã tải."})
+
+    job = db.query(AIGenerationJob).filter_by(id=job_id, workspace_id=workspace_id).first()
+    if not job:
+        reject("JOB_NOT_FOUND")
+    request = json.loads(job.request_payload_json or "{}")
+    receipt = request.get("reconciliation") or {}
+    if job.state == "SUCCEEDED" and receipt.get("source_asset_id") == asset_id:
+        return job
+    try:
+        project_url = validate_flow_project_url(project_url)
+    except ValueError:
+        reject("FLOW_PROJECT_URL_INVALID")
+    if (not project_url or len(reason.strip()) < 10 or job.provider != "MEDIA_VIDEO"
+            or request.get("operation") != "generate_video_scene"
+            or request.get("backend_provider") not in FLOW_BACKEND_PROVIDERS
+            or job.state != "NEEDS_RECONCILIATION" or job.lease_token):
+        reject("JOB_NOT_RECONCILABLE")
+    asset = db.query(MediaAsset).filter_by(id=asset_id, workspace_id=workspace_id,
+                                         project_id=job.project_id).first()
+    if not asset or asset.mime_detected != "video/mp4" or asset.source_product not in {"UPLOAD", "GOOGLE_FLOW"}:
+        reject("RECONCILE_ASSET_NOT_FOUND")
+    def utc(value):
+        return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
+    if utc(asset.created_at) < utc(job.created_at):
+        reject("RECONCILE_ASSET_TOO_OLD")
+    root = Path(security.MEDIA_ROOT_DIR).resolve()
+    path = (root / asset.storage_key).resolve()
+    if not path.is_relative_to(root) or not path.is_file() or security.hash_file(path) != (asset.sha256, asset.byte_size):
+        reject("RECONCILE_ASSET_HASH_INVALID")
+    meta = video_processor.probe_video(path)
+    dimensions = (1080, 1920) if request.get("parameters", {}).get("aspect_ratio", "9:16") == "9:16" else (1920, 1080)
+    if ((meta.get("width"), meta.get("height")) != dimensions
+            or abs(meta.get("duration_seconds", 0) - 10) > .02
+            or abs(meta.get("frame_rate", 0) - 30) > .01):
+        reject("RECONCILE_ASSET_INVALID")
+    recovered = MediaAsset(id=str(uuid.uuid4()), workspace_id=workspace_id, project_id=job.project_id,
+        storage_key=asset.storage_key, sha256=asset.sha256, byte_size=asset.byte_size,
+        mime_detected="video/mp4", duration_ms=10000, source_product="GOOGLE_FLOW",
+        original_filename=asset.original_filename, parent_asset_id=asset.id,
+        created_by=user_id, approval_state="UNREVIEWED")
+    request["reconciliation"] = {"source_asset_id": asset.id, "source_sha256": asset.sha256,
+        "project_url": project_url, "reason": reason.strip(), "user_id": user_id,
+        "at": datetime.now(timezone.utc).isoformat()}
+    import shutil
+    recovered_path = path.with_name(f"flow_phuc_hoi_{recovered.id}.mp4")
+    shutil.copyfile(path, recovered_path)
+    recovered.storage_key = recovered_path.relative_to(root).as_posix()
+    changed = db.execute(update(AIGenerationJob).where(
+        AIGenerationJob.id == job.id, AIGenerationJob.workspace_id == workspace_id,
+        AIGenerationJob.state == "NEEDS_RECONCILIATION", AIGenerationJob.lease_token.is_(None),
+        AIGenerationJob.request_payload_json == job.request_payload_json,
+    ).values(state="SUCCEEDED", request_payload_json=json.dumps(request, ensure_ascii=False),
+        output_asset_ids_json=json.dumps([recovered.id]), error_code=None, error_message=None,
+        finished_at=datetime.now(timezone.utc), actual_cost=0).execution_options(synchronize_session=False))
+    if changed.rowcount != 1:
+        db.rollback()
+        recovered_path.unlink(missing_ok=True)
+        reject("JOB_STATE_CHANGED")
+    db.add(recovered)
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        recovered_path.unlink(missing_ok=True)
+        raise
+    db.refresh(job)
+    return job
+
+
