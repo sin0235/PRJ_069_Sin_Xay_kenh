@@ -95,3 +95,32 @@ def test_expand_landscape_to_portrait_with_real_ffmpeg(tmp_path):
     info = render_engines.video_processor.probe_video(dst)
     assert (info["width"], info["height"]) == (1080, 1920)
     assert abs(float(info["duration_seconds"]) - 1.0) < 0.15
+
+
+def test_expand_falls_back_to_blur_when_reflection_filter_fails(monkeypatch, tmp_path):
+    calls = []
+
+    def reflection_boom(src, dst):
+        calls.append("reflection")
+        dst.write_bytes(b"partial")
+        raise RuntimeError("VIDEO_EXPAND_PORTRAIT_FAILED: gradients")
+
+    def blur(input_video_path, output_video_path, remove_watermark=True, **_kwargs):
+        calls.append(("blur", remove_watermark))
+        output_video_path.write_bytes(b"ok")
+
+    monkeypatch.setattr(render_engines, "expand_landscape_to_portrait", reflection_boom)
+    monkeypatch.setattr(render_engines.video_processor, "expand_16_9_to_9_16", blur)
+    src, dst = tmp_path / "a.mp4", tmp_path / "b.mp4"
+    src.write_bytes(b"x")
+    assert render_engines._expand_with_fallback(src, dst) == "blur"
+    assert calls == ["reflection", ("blur", False)] and dst.read_bytes() == b"ok"
+
+
+def test_unexpected_landscape_errors_get_a_short_readable_code(monkeypatch, tmp_path):
+    def inner_boom(*_a, **_k):
+        raise KeyError("thiếu trường x")
+
+    monkeypatch.setattr(render_engines, "render_scene", inner_boom)
+    with pytest.raises(RuntimeError, match=r"^VIDEO_LANDSCAPE_IN_PORTRAIT_FAILED: KeyError"):
+        render_engines._landscape_scene_in_portrait(PROCESS_SCENE, STYLE, 5, tmp_path / "d.mp4", "nhận đơn", None)

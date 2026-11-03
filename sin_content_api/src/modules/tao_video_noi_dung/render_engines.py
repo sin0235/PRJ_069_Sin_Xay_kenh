@@ -170,7 +170,7 @@ def expand_landscape_to_portrait(src: Path, dst: Path) -> None:
     level = f"0x{round(255 * _REFLECTION_ALPHA):02x}{round(255 * _REFLECTION_ALPHA):02x}{round(255 * _REFLECTION_ALPHA):02x}"
 
     def fade(first: str, second: str) -> str:   # mặt nạ độ mờ dựng sẵn một lần, nhanh hơn tính từng điểm ảnh
-        return f"gradients=s={width}x{inner}:r=30:d={seconds:.3f}:c0={first}:c1={second}:x0=0:y0=0:x1=0:y1={inner}:speed=0:n=2,format=gray"
+        return f"gradients=s={width}x{inner}:r=30:d={seconds:.3f}:c0={first}:c1={second}:x0=0:y0=0:x1=0:y1={inner}:speed=0.00001:n=2,format=gray"
 
     mirror = f"scale={width // 2}:{inner // 2},vflip,gblur=sigma=2.5,scale={width}:{inner},format=rgba"   # nhòe ở nửa độ phân giải cho nhanh
     graph = (
@@ -182,24 +182,45 @@ def expand_landscape_to_portrait(src: Path, dst: Path) -> None:
         f"[bg][above]overlay=0:{top - inner}[t1];[t1][below]overlay=0:{top + inner}[t2];[t2][fg]overlay=0:{top},format=yuv420p[out]"
     )
     dst.parent.mkdir(parents=True, exist_ok=True)
-    run_media_command([
-        video_processor.ffmpeg_bin, "-y", "-v", "error", "-i", str(src),
-        "-f", "lavfi", "-i", fade(level, "0x000000"),   # dưới clip: đậm sát mép rồi mờ dần
-        "-f", "lavfi", "-i", fade("0x000000", level),   # trên clip: mờ dần rồi đậm sát mép
-        "-filter_complex", graph, "-map", "[out]",
-        "-an", "-r", "30", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p",
-        "-movflags", "+faststart", "-t", f"{seconds:.3f}", str(dst),
-    ], check=True, capture_output=True, timeout=600)
+    try:
+        run_media_command([
+            video_processor.ffmpeg_bin, "-y", "-v", "error", "-i", str(src),
+            "-f", "lavfi", "-i", fade(level, "0x000000"),   # dưới clip: đậm sát mép rồi mờ dần
+            "-f", "lavfi", "-i", fade("0x000000", level),   # trên clip: mờ dần rồi đậm sát mép
+            "-filter_complex", graph, "-map", "[out]",
+            "-an", "-r", "30", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p",
+            "-movflags", "+faststart", "-t", f"{seconds:.3f}", str(dst),
+        ], check=True, capture_output=True, text=True, timeout=600)
+    except subprocess.CalledProcessError as exc:
+        tail = " ".join((exc.stderr or "").split())[-100:]
+        raise RuntimeError(f"VIDEO_EXPAND_PORTRAIT_FAILED: {tail}") from exc
+
+
+def _expand_with_fallback(src: Path, dst: Path) -> str:
+    """Bản có phản chiếu; nếu ffmpeg trên máy không chạy được bộ lọc đó thì dùng hàm mở rộng nền nhòe đã có sẵn và đã chạy trên runner."""
+    try:
+        expand_landscape_to_portrait(src, dst)
+        return "reflection"
+    except Exception as exc:
+        logger.warning("EXPAND_REFLECTION_FALLBACK: %s", str(exc)[:200])
+        dst.unlink(missing_ok=True)
+        video_processor.expand_16_9_to_9_16(input_video_path=src, output_video_path=dst, remove_watermark=False)
+        return "blur"
 
 
 def _landscape_scene_in_portrait(scene, style_snapshot, duration_seconds, out_path, narration, word_times) -> dict:
     """Sơ đồ chỉ có bản 16:9: dựng khung ngang rồi mở rộng thành khung dọc, để video 9:16 dùng được mọi loại sơ đồ."""
     with tempfile.TemporaryDirectory(prefix="ngang_", dir=out_path.parent, ignore_cleanup_errors=True) as tmp:
         landscape = Path(tmp) / "ngang.mp4"
-        meta = render_scene(scene, {**style_snapshot, "aspect_ratio": "16:9"}, duration_seconds, "16:9", landscape,
-                            narration=narration, word_times=word_times)
-        expand_landscape_to_portrait(landscape, out_path)
-    return {**video_processor.probe_video(out_path), "render_engine": meta.get("render_engine"), "expanded_from": "16:9"}
+        try:
+            meta = render_scene(scene, {**style_snapshot, "aspect_ratio": "16:9"}, duration_seconds, "16:9", landscape,
+                                narration=narration, word_times=word_times)
+            mode = _expand_with_fallback(landscape, out_path)
+        except Exception as exc:
+            if str(exc).startswith(("VIDEO_", "REMOTE_", "FLOW_")):
+                raise
+            raise RuntimeError(f"VIDEO_LANDSCAPE_IN_PORTRAIT_FAILED: {type(exc).__name__}: {' '.join(str(exc).split())[:80]}") from exc
+    return {**video_processor.probe_video(out_path), "render_engine": meta.get("render_engine"), "expanded_from": "16:9", "expand_mode": mode}
 
 
 BACKENDS = {"hyperframes": render_hyperframes, "remotion": render_remotion}
