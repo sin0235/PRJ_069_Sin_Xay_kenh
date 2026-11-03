@@ -1,5 +1,14 @@
 import { AuthApi } from "@/lib/api/auth-api";
 
+// FastAPI trả detail là mảng lỗi validation (422) hoặc chuỗi; ép về chuỗi đọc được.
+function detailMessage(detail: unknown): string | undefined {
+  if (Array.isArray(detail)) {
+    return detail.map((item) => (item?.loc ? `${item.loc.slice(1).join(".")}: ${item.msg}` : String(item?.msg ?? item))).join("; ");
+  }
+  if (detail && typeof detail === "object") return JSON.stringify(detail);
+  return detail ? String(detail) : undefined;
+}
+
 export interface PlatformLLMConfig {
   is_configured: boolean;
   is_enabled: boolean;
@@ -91,7 +100,7 @@ export class PlatformConfigService {
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({ detail: res.statusText }));
-      const message = errData.detail || `Lỗi cập nhật cấu hình (${res.status})`;
+      const message = detailMessage(errData.detail) || `Lỗi cập nhật cấu hình (${res.status})`;
       throw new Error(message);
     }
 
@@ -116,7 +125,7 @@ export class PlatformConfigService {
         ok: false,
         latency_ms: 0,
         status_code: res.status,
-        message: errData.detail || `Lỗi kiểm tra kết nối (${res.status})`,
+        message: detailMessage(errData.detail) || `Lỗi kiểm tra kết nối (${res.status})`,
         models_discovered: [],
       };
     }

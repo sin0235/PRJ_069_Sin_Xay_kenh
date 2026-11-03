@@ -3,6 +3,10 @@ import { getApiBaseUrl } from "@/lib/api/base-url";
 
 const API_BASE_URL = getApiBaseUrl();
 
+export function estimateFlowShotCount(durationSeconds: number): number {
+  return Math.ceil(durationSeconds / 6);
+}
+
 export class ContentVideoApiError extends Error {
   constructor(
     message: string,
@@ -59,7 +63,7 @@ export interface ContentVideoPlan {
   source_content: string;
   target_duration_seconds: number;
   style_snapshot: { style_name: string; visual_rules: string; palette: string[]; aspect_ratio: "9:16" | "16:9" };
-  storyboard: { title: string; narration: string; continuity_anchor: string; shots: StoryboardShot[]; brief?: ContentBrief | null };
+  storyboard: { title: string; narration: string; continuity_anchor: string; shots: StoryboardShot[]; brief?: ContentBrief | null; music_prompt?: string | null };
   llm_model: string;
 }
 
@@ -74,6 +78,7 @@ interface ContentVideoPlanJob {
 export interface ContentVideoRun {
   id: string;
   voice_asset_id?: string | null;
+  music_asset_id?: string | null;
   voice_source?: "NONE" | "UPLOAD" | "TTS";
   tts_provider?: "GWEN_TTS" | "VIE_NEU_V3_TURBO" | null;
   include_subtitles?: boolean;
@@ -116,14 +121,14 @@ async function request<T>(projectId: string, path: string, init?: RequestInit): 
 
 export const contentVideoApi = {
   getLatestHistory: (projectId: string) => request<ContentVideoHistory>(projectId, "/history"),
-  createPlan: async (projectId: string, content: string, duration: number, aspectRatio: "9:16" | "16:9", idempotencyKey: string) => {
+  createPlan: async (projectId: string, content: string, duration: number, aspectRatio: "9:16" | "16:9", idempotencyKey: string, generateFlowMusic = false) => {
     let job: ContentVideoPlanJob;
     for (let attempt = 0; ; attempt += 1) {
       try {
         job = await request<ContentVideoPlanJob>(projectId, "/plans", {
           method: "POST",
           headers: { "Idempotency-Key": idempotencyKey },
-          body: JSON.stringify({ content, target_duration_seconds: duration, aspect_ratio: aspectRatio }),
+          body: JSON.stringify({ content, target_duration_seconds: duration, aspect_ratio: aspectRatio, generate_flow_music: generateFlowMusic }),
         });
         break;
       } catch (error) {
@@ -157,13 +162,13 @@ export const contentVideoApi = {
     body: JSON.stringify({ storyboard }),
   }),
   approvePlan: (projectId: string, planId: string) => request<ContentVideoPlan>(projectId, `/plans/${encodeURIComponent(planId)}/approve`, { method: "POST" }),
-  createRun: (projectId: string, planId: string, voice: { source: "NONE" | "UPLOAD" | "TTS"; assetId?: string | null; provider?: "GWEN_TTS" | "VIE_NEU_V3_TURBO"; voiceId?: string; referenceAssetId?: string; referenceText?: string; consent?: boolean; includeSubtitles?: boolean }, idempotencyKey: string, flowProfileId?: string | null) => request<ContentVideoRun>(projectId, "/runs", {
+  createRun: (projectId: string, planId: string, voice: { source: "NONE" | "UPLOAD" | "TTS"; assetId?: string | null; musicAssetId?: string | null; provider?: "GWEN_TTS" | "VIE_NEU_V3_TURBO"; voiceId?: string; referenceAssetId?: string; referenceText?: string; consent?: boolean; includeSubtitles?: boolean }, idempotencyKey: string, flowProfileId?: string | null) => request<ContentVideoRun>(projectId, "/runs", {
     method: "POST",
-    body: JSON.stringify({ plan_id: planId, flow_profile_id: flowProfileId || null, voice_source: voice.source, voice_asset_id: voice.source === "UPLOAD" ? voice.assetId : null, tts_provider: voice.source === "TTS" ? voice.provider : null, tts_voice_id: voice.source === "TTS" ? voice.voiceId : null, tts_reference_asset_id: voice.source === "TTS" ? voice.referenceAssetId : null, tts_reference_text: voice.source === "TTS" ? voice.referenceText : null, voice_clone_consent: voice.source === "TTS" && !!voice.consent, include_subtitles: voice.includeSubtitles ?? true, idempotency_key: idempotencyKey }),
+    body: JSON.stringify({ plan_id: planId, flow_profile_id: flowProfileId || null, voice_source: voice.source, voice_asset_id: voice.source === "UPLOAD" ? voice.assetId : null, music_asset_id: voice.musicAssetId || null, tts_provider: voice.source === "TTS" ? voice.provider : null, tts_voice_id: voice.source === "TTS" ? voice.voiceId : null, tts_reference_asset_id: voice.source === "TTS" ? voice.referenceAssetId : null, tts_reference_text: voice.source === "TTS" ? voice.referenceText : null, voice_clone_consent: voice.source === "TTS" && !!voice.consent, include_subtitles: voice.includeSubtitles ?? true, idempotency_key: idempotencyKey }),
   }),
-  retryRun: (projectId: string, runId: string, options: { shotIds: string[]; newFlowProject?: boolean; confirmNoFlowClip?: boolean; idempotencyKey: string }) => request<ContentVideoRun>(projectId, `/runs/${encodeURIComponent(runId)}/retry`, {
+  retryRun: (projectId: string, runId: string, options: { shotIds: string[]; newFlowProject?: boolean; flowProfileId?: string | null; confirmNoFlowClip?: boolean; idempotencyKey: string }) => request<ContentVideoRun>(projectId, `/runs/${encodeURIComponent(runId)}/retry`, {
     method: "POST",
-    body: JSON.stringify({ shot_ids: options.shotIds, new_flow_project: !!options.newFlowProject, confirm_no_flow_clip: !!options.confirmNoFlowClip, idempotency_key: options.idempotencyKey }),
+    body: JSON.stringify({ shot_ids: options.shotIds, new_flow_project: !!options.newFlowProject, flow_profile_id: options.flowProfileId || null, confirm_no_flow_clip: !!options.confirmNoFlowClip, idempotency_key: options.idempotencyKey }),
   }),
   getRun: (projectId: string, runId: string) => request<ContentVideoRun>(projectId, `/runs/${encodeURIComponent(runId)}`),
   resumeRun: (projectId: string, runId: string, flowProfileId?: string | null) => request<ContentVideoRun>(projectId, `/runs/${encodeURIComponent(runId)}/resume`, { method: "POST", body: JSON.stringify({ flow_profile_id: flowProfileId || null }) }),

@@ -12,11 +12,11 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { mediaStudioApi, MediaAssetResponse } from "@/lib/api/media-studio-api";
-import { contentVideoApi, ContentVideoApiError, ContentVideoPlan, ContentVideoRun } from "@/lib/api/content-video-api";
+import { contentVideoApi, ContentVideoApiError, ContentVideoPlan, ContentVideoRun, estimateFlowShotCount } from "@/lib/api/content-video-api";
 import { randomUuid } from "@/lib/utils";
 import { ShotActionDetails, ShotKindBadges, StoryboardBrief } from "./storyboard_details";
 
-const ACTIVE_RUNS = new Set(["QUEUED", "RUNNING", "BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_SETUP", "BLOCKED_FLOW_QUOTA"]);
+const ACTIVE_RUNS = new Set(["QUEUED", "RUNNING"]);
 
 export default function ContentVideoProduction({ projectId, planId, runId, startNew }: { projectId: string; planId?: string; runId?: string; startNew?: boolean }) {
   const router = useRouter();
@@ -34,6 +34,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
   }, []);
   const [content, setContent] = React.useState("");
   const [duration, setDuration] = React.useState(60);
+  const [generateFlowMusic, setGenerateFlowMusic] = React.useState(false);
   const [aspectRatio, setAspectRatio] = React.useState<"9:16" | "16:9">("9:16");
   const [plan, setPlan] = React.useState<ContentVideoPlan | null>(null);
   const [storyboardDraft, setStoryboardDraft] = React.useState<ContentVideoPlan["storyboard"] | null>(null);
@@ -62,6 +63,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
   const idempotencyKey = React.useRef<string | null>(null);
   const retryIdempotency = React.useRef<{ signature: string; key: string } | null>(null);
   const [busy, setBusy] = React.useState(false);
+  const [startingLabel, setStartingLabel] = React.useState("");
   const [error, setError] = React.useState<string | null>(null);
   const [errorCode, setErrorCode] = React.useState<string | null>(null);
   const [expandedShotIds, setExpandedShotIds] = React.useState<string[]>([]);
@@ -70,11 +72,14 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
   const editableStoryboard = storyboardDraft || plan?.storyboard || null;
   const hasUiScenes = !!editableStoryboard?.shots.some((shot) => shot.shot_kind === "UI_SIM");
   const storyboardDirty = !!plan && !!storyboardDraft && JSON.stringify(storyboardDraft) !== JSON.stringify(plan.storyboard);
-  const sourceUnchanged = !!plan && content.trim() === plan.source_content && duration === plan.target_duration_seconds && aspectRatio === plan.style_snapshot.aspect_ratio;
+  const sourceUnchanged = !!plan && content.trim() === plan.source_content && duration === plan.target_duration_seconds && aspectRatio === plan.style_snapshot.aspect_ratio && generateFlowMusic === !!plan.storyboard.music_prompt;
   const firstUnfinishedShot = run?.steps.find((step) => step.state !== "SUCCEEDED");
   const canEditPreviousStep = !run || !["QUEUED", "RUNNING"].includes(run.status);
   const canRetryRun = !!run && ["COMPLETED", "FAILED", "FAILED_QC", "BLOCKED_FLOW_SETUP", "NEEDS_RECONCILIATION"].includes(run.status);
   const flowProjectUnavailable = run?.status === "BLOCKED_FLOW_SETUP" && run.error_code === "FLOW_REQUEST_NOT_SUBMITTED";
+  const flowQuotaDetected = run?.status === "BLOCKED_FLOW_QUOTA" || run?.error_code === "FLOW_QUOTA_LIMITED" || (run?.error_message?.toLocaleLowerCase("vi").includes("hết hạn mức") || run?.error_message?.toLowerCase().includes("quota"));
+  const quotaRecovery = flowQuotaDetected && ["BLOCKED_FLOW_QUOTA", "NEEDS_RECONCILIATION"].includes(run?.status || "");
+  const selectedDifferentFlowProfile = !!flowProfileId && flowProfileId !== firstUnfinishedShot?.flow_profile_id;
   const runStatusLabel: Record<string, string> = { QUEUED: "Đang chờ", RUNNING: "Đang tạo", COMPLETED: "Hoàn tất", FAILED: "Thất bại", FAILED_QC: "QC chưa đạt", BLOCKED_FLOW_LOGIN: "Cần đăng nhập Flow", BLOCKED_FLOW_SETUP: "Flow cần xử lý", BLOCKED_FLOW_QUOTA: "Flow đã hết hạn mức", NEEDS_RECONCILIATION: "Cần đối soát" };
   const shotStatusLabel: Record<string, string> = { READY: "Chưa tạo", QUEUED: "Đang chờ", RUNNING: "Đang tạo", SUBMITTING: "Đang gửi Flow", SUCCEEDED: "Đã tạo", FAILED: "Thất bại", NEEDS_RECONCILIATION: "Cần đối soát" };
   const expandedStoryboardShotIds = plan?.status === "DRAFT" || editingStoryboard ? editableStoryboard?.shots.map((shot) => shot.shot_id) || [] : expandedShotIds;
@@ -86,7 +91,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
 
   const reloadPlan = React.useCallback(async () => {
     if (!planId) return;
-    try { const next = await contentVideoApi.getPlan(projectId, planId); setPlan(next); setStoryboardDraft(null); }
+    try { const next = await contentVideoApi.getPlan(projectId, planId); setPlan(next); setGenerateFlowMusic(!!next.storyboard.music_prompt); setStoryboardDraft(null); }
     catch (err) { showError(err, "Không tải được storyboard."); }
   }, [planId, projectId]);
 
@@ -150,8 +155,9 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
   const createPlan = async (event: React.FormEvent) => {
     event.preventDefault(); setBusy(true); setError(null); setErrorCode(null);
     try {
-      const next = await contentVideoApi.createPlan(projectId, content, duration, aspectRatio, randomUuid());
+      const next = await contentVideoApi.createPlan(projectId, content, duration, aspectRatio, randomUuid(), generateFlowMusic);
       setPlan(next);
+      setGenerateFlowMusic(!!next.storyboard.music_prompt);
       setStoryboardDraft(null);
       setEditingContent(false);
       setEditingStoryboard(false);
@@ -192,10 +198,28 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
     if (!plan) return;
     setBusy(true); setError(null); setErrorCode(null);
     try {
+      let musicAssetId: string | null = null;
+      if (plan.storyboard.music_prompt) {
+        setStartingLabel("Đang tạo nhạc qua Flow Music...");
+        const music = await mediaStudioApi.generateMusic({
+          prompt: plan.storyboard.music_prompt,
+          genre: "Ambient",
+          mood: "Focused",
+          provider: "FLOW_BROWSER_PILOT",
+          mode: "PILOT_ASSISTED",
+          duration_sec: plan.target_duration_seconds,
+          project_id: projectId,
+          idempotency_key: `content-video-${plan.id}-flow-music`,
+          flow_profile_id: flowProfileId || undefined,
+        });
+        musicAssetId = music.id;
+      }
+      setStartingLabel("Đang khởi chạy video...");
       idempotencyKey.current ||= `content-video-${plan.id}-${randomUuid()}`;
       const created = await contentVideoApi.createRun(projectId, plan.id, {
         source: voiceSource,
         assetId: voiceAssetId || null,
+        musicAssetId,
         provider: ttsProvider,
         voiceId: ttsVoiceId.trim() || undefined,
         referenceAssetId: ttsReferenceAssetId || undefined,
@@ -210,13 +234,13 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
       router.replace(`/video-studio/${projectId}/production?plan=${encodeURIComponent(plan.id)}&run=${encodeURIComponent(created.id)}`);
     }
     catch (err) { showError(err, "Không khởi chạy được video."); }
-    finally { setBusy(false); }
+    finally { setBusy(false); setStartingLabel(""); }
   };
 
   const retryShots = async (shotIds: string[], inNewFlowProject = false) => {
     if (!plan || !run || (run.status === "NEEDS_RECONCILIATION" && !confirmedNoFlowClip)) return;
     setBusy(true); setError(null); setErrorCode(null);
-    const signature = JSON.stringify([run.id, shotIds, inNewFlowProject, confirmedNoFlowClip]);
+    const signature = JSON.stringify([run.id, shotIds, inNewFlowProject, inNewFlowProject ? flowProfileId : null, confirmedNoFlowClip]);
     if (retryIdempotency.current?.signature !== signature) {
       retryIdempotency.current = { signature, key: `content-video-retry-${randomUuid()}` };
     }
@@ -224,6 +248,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
       const created = await contentVideoApi.retryRun(projectId, run.id, {
         shotIds,
         newFlowProject: inNewFlowProject,
+        flowProfileId: inNewFlowProject ? flowProfileId : null,
         confirmNoFlowClip: confirmedNoFlowClip,
         idempotencyKey: retryIdempotency.current.key,
       });
@@ -253,6 +278,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
       setContent(plan.source_content);
       setDuration(plan.target_duration_seconds);
       setAspectRatio(plan.style_snapshot.aspect_ratio);
+      setGenerateFlowMusic(!!plan.storyboard.music_prompt);
     }
     setEditingContent(false);
   };
@@ -359,6 +385,15 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
         <div className="flex items-center justify-between gap-3"><label className="text-sm font-medium" htmlFor="content-source">Nội dung nguồn (40–12.000 ký tự; tối đa 12 KB UTF-8)</label><span className="text-xs text-muted-foreground">{contentBytes.toLocaleString("vi-VN")} / 12.000 byte</span></div>
         <textarea id="content-source" required minLength={40} maxLength={12000} value={content} onChange={(event) => setContent(event.target.value)} className="min-h-48 rounded-md border bg-background p-3 text-sm" placeholder="Dán bài viết, đề cương hoặc nội dung cần chuyển thành video..." />
         <label className="flex items-center gap-3 text-sm">Thời lượng mục tiêu <Input type="number" min={20} max={180} step={10} value={duration} onChange={(event) => setDuration(Number(event.target.value))} className="w-28" /> giây</label>
+        <fieldset className="grid gap-2 rounded-md border p-3">
+          <legend className="px-1 text-sm font-medium">Âm thanh khi dựng</legend>
+          <label htmlFor="production-flow-music" className="flex items-start gap-3 text-sm">
+            <input id="production-flow-music" type="checkbox" checked={generateFlowMusic} onChange={(event) => setGenerateFlowMusic(event.target.checked)} className="mt-1 size-4 accent-primary" />
+            <span><span className="font-medium">Tạo nhạc nền bằng Flow Music</span><span className="mt-1 block text-muted-foreground">AI chuẩn bị prompt; Flow Music tạo nhạc sau khi storyboard được duyệt.</span></span>
+          </label>
+          <p className="text-xs text-muted-foreground">SFX hoạt họa được đặt theo động tác như xé giấy, nhấp chuột và lật trang.</p>
+        </fieldset>
+        {Number.isInteger(duration) && duration >= 20 && duration <= 180 && <p role="note" aria-live="polite" className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">Ước tính tối đa {estimateFlowShotCount(duration)} lượt tạo cảnh Flow trước khi lập storyboard. Cảnh giao diện có thể không dùng Flow nên số lượt thực tế có thể thấp hơn; hạn mức còn lại tùy tài khoản.</p>}
         <label className="flex items-center gap-3 text-sm" htmlFor="aspect-ratio">Tỷ lệ video
           <select id="aspect-ratio" value={aspectRatio} onChange={(event) => setAspectRatio(event.target.value as "9:16" | "16:9")} className="h-10 rounded-md border bg-background px-3 text-sm">
             <option value="9:16">Dọc 9:16</option><option value="16:9">Ngang 16:9</option>
@@ -391,14 +426,16 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
             {(plan.status === "APPROVED" || directCreation) && !run && !editingStoryboard && <Button onClick={() => startRun()} disabled={busy || storyboardDirty || (voiceSource === "TTS" && !ttsReady) || (voiceSource === "UPLOAD" && !voiceAssetId) || (voiceSource === "TTS" && ttsProvider === "GWEN_TTS" && (!ttsReferenceAssetId || !ttsReferenceText.trim() || !voiceCloneConsent)) || (voiceSource === "TTS" && !!ttsReferenceAssetId && !voiceCloneConsent)}><Play className="mr-2 size-4" />Tạo video</Button>}
           </div>
         </Card>
+        {startingLabel && <p role="status" aria-live="polite" className="text-sm text-muted-foreground">{startingLabel}</p>}
+        {plan.storyboard.music_prompt && <Card className="grid gap-2 p-4"><h2 className="text-sm font-semibold">Prompt nhạc nền Flow Music</h2><p className="text-sm text-muted-foreground">{plan.storyboard.music_prompt}</p><p className="text-xs text-muted-foreground">Prompt sẽ được gửi khi bắt đầu sản xuất. SFX theo hành động được trộn riêng.</p></Card>}
         {run && !editingStoryboard && <Card className="grid gap-4 p-4 sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div><h2 className="text-lg font-semibold">Video đã ghép</h2><p className="mt-1 text-sm text-muted-foreground">Run {run.id.slice(0, 8)} · {run.current_step ? `Đang xử lý ${run.current_step}` : runStatusLabel[run.status] || run.status}</p>{flowProjectUrl && <a href={flowProjectUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm font-medium underline underline-offset-4">Mở project Flow của video này</a>}</div>
+            <div><h2 className="text-lg font-semibold">Video đã ghép</h2><p className="mt-1 text-sm text-muted-foreground">Run {run.id.slice(0, 8)} · {run.current_step ? `Đang xử lý ${run.current_step}` : runStatusLabel[run.status] || run.status}</p>{flowProjectUrl && (!flowQuotaDetected || run.status === "NEEDS_RECONCILIATION") && <a href={flowProjectUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-sm font-medium underline underline-offset-4">Mở project Flow của video này</a>}</div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={run.status === "COMPLETED" ? "secondary" : run.status === "FAILED" || run.status === "FAILED_QC" ? "destructive" : "outline"}>{runStatusLabel[run.status] || run.status}</Badge>
               {run.status === "FAILED" && run.error_code?.startsWith("TTS_") && <Button onClick={resumeRun} disabled={busy || !ttsReady}><RefreshCw data-icon="inline-start" />Tiếp tục sau khi xử lý TTS</Button>}
               {run.status === "BLOCKED_FLOW_LOGIN" && <Button onClick={resumeRun} disabled={busy}><RefreshCw data-icon="inline-start" />Tiếp tục sau khi đăng nhập Flow</Button>}
-              {["BLOCKED_FLOW_SETUP", "BLOCKED_FLOW_QUOTA"].includes(run.status) && <Button onClick={resumeRun} disabled={busy}><RefreshCw data-icon="inline-start" />Tiếp tục sau khi sửa Flow</Button>}
+              {run.status === "BLOCKED_FLOW_SETUP" && <Button onClick={resumeRun} disabled={busy}><RefreshCw data-icon="inline-start" />Tiếp tục sau khi sửa Flow</Button>}
               {ACTIVE_RUNS.has(run.status) && <LoaderCircle className="size-5 animate-spin" aria-label="Đang chạy" />}
             </div>
           </div>
@@ -425,6 +462,10 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
             <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={newFlowProject} onChange={(event) => setNewFlowProject(event.target.checked)} className="mt-1" />Tôi không truy cập được project Flow hiện tại.</label>
             {newFlowProject && <Button type="button" onClick={() => retryShots([firstUnfinishedShot.shot_id], true)} disabled={busy} className="w-fit">Tiếp tục từ cảnh này trong project Flow mới</Button>}
           </section>}
+          {quotaRecovery && run?.status === "BLOCKED_FLOW_QUOTA" && firstUnfinishedShot && <section role="status" className="grid gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+            <div><h3 className="font-medium">Tài khoản Flow đã hết hạn mức</h3><p className="mt-1 text-sm text-muted-foreground">Chọn một hồ sơ Flow khác đang sẵn sàng ở phần trên. Cảnh tiếp theo sẽ chạy trong project Flow mới; project cũ sẽ không được gắn vào run mới.</p></div>
+            {directCreation ? <><Button type="button" onClick={() => retryShots([firstUnfinishedShot.shot_id], true)} disabled={busy || !selectedDifferentFlowProfile} className="w-fit">Đổi tài khoản và tạo project Flow mới</Button>{flowProfileId && !selectedDifferentFlowProfile && <p className="text-sm text-muted-foreground">Hãy chọn tài khoản Flow khác với tài khoản đã hết hạn.</p>}</> : <p className="text-sm text-muted-foreground">Liên hệ chủ workspace để đổi sang hồ sơ Flow khác.</p>}
+          </section>}
           {uncertainShot && <section className="grid gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-4">
             <div><h3 className="font-medium">Đối soát kết quả Flow · {uncertainShot.shot_id}</h3><p className="mt-1 text-sm text-muted-foreground">Flow có thể đã tạo clip nhưng worker chưa nhận được. Mở clip trong Flow, xác nhận đúng nội dung và nhân vật của cảnh này, rồi chọn hoặc tải clip đã tải về. Hệ thống sẽ kiểm tra tệp và tiếp tục từ cảnh sau, không gửi lại lệnh Flow.</p></div>
             {uncertainStoryboardShot && <div className="grid gap-2 rounded-md border bg-background p-3 text-sm"><p><span className="font-medium">Cảnh:</span> {uncertainStoryboardShot.scene}</p><p><span className="font-medium">Lời đọc:</span> {uncertainStoryboardShot.narration}</p><p className="text-muted-foreground"><span className="font-medium text-foreground">Prompt gửi Flow:</span> {uncertainStoryboardShot.prompt}</p></div>}
@@ -436,7 +477,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
             <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={confirmedClipMatch} onChange={(event) => setConfirmedClipMatch(event.target.checked)} className="mt-1" />Tôi đã xem clip trong Flow và xác nhận clip này đúng cảnh đang chờ.</label>
             <Button onClick={reconcileRunShot} disabled={busy || !reconcileAssetId || !confirmedClipMatch || reconcileReason.trim().length < 12} className="w-fit">Xác nhận clip và tiếp tục run</Button>
             <label className="flex items-start gap-2 border-t pt-3 text-sm"><input type="checkbox" checked={confirmedNoFlowClip} onChange={(event) => setConfirmedNoFlowClip(event.target.checked)} className="mt-1" />Tôi đã kiểm tra Flow và xác nhận không có clip cho cảnh này.</label>
-            <Button onClick={() => retryShots([uncertainShot.shot_id])} disabled={busy || !confirmedNoFlowClip} className="w-fit">Tạo lại từ cảnh này trong project Flow hiện tại</Button>
+            {quotaRecovery ? <><p className="border-t pt-3 text-sm text-muted-foreground">Vì Flow có thể đã tạo clip trước khi báo hết hạn mức, chỉ gửi lại sau khi đã xác nhận không có clip. Run mới sẽ dùng tài khoản khác và project Flow mới; liên kết cũ chỉ để đối soát kết quả đang chờ.</p>{directCreation ? <><Button onClick={() => retryShots([uncertainShot.shot_id], true)} disabled={busy || !confirmedNoFlowClip || !selectedDifferentFlowProfile} className="w-fit">Tạo lại bằng tài khoản khác trong project Flow mới</Button>{flowProfileId && !selectedDifferentFlowProfile && <p className="text-sm text-muted-foreground">Hãy chọn tài khoản Flow khác với tài khoản đã hết hạn.</p>}</> : <p className="text-sm text-muted-foreground">Liên hệ chủ workspace để đổi sang hồ sơ Flow khác.</p>}</> : <Button onClick={() => retryShots([uncertainShot.shot_id])} disabled={busy || !confirmedNoFlowClip} className="w-fit">Tạo lại từ cảnh này trong project Flow hiện tại</Button>}
           </section>}
         </Card>}
         <section className="grid gap-3" aria-label="Storyboard">

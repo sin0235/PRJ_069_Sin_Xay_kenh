@@ -59,13 +59,13 @@ export interface ContentItem {
   isAiGenerated: boolean;
   badges: ContentBadge[];
   metrics?: {
-    views: number | null;
-    likes: number | null;
-    comments: number | null;
-    shares: number | null;
-    engagementRate: number | null;
-    watchTimeSec: number | null;
-    completionRate: number | null;
+    views: number;
+    likes: number;
+    comments: number;
+    shares: number;
+    engagementRate: number;
+    watchTimeSec: number;
+    completionRate: number;
   };
   evidence: EvidenceSource[];
   detectedTopic: string;

@@ -9,6 +9,7 @@ import { Loader2, ShieldAlert } from "lucide-react";
 import { AuthApi } from "@/lib/api/auth-api";
 
 export function AuthGuard({ children, devAuthBypass = false }: { children: React.ReactNode; devAuthBypass?: boolean }) {
+  const router = useRouter();
   const pathname = usePathname();
   const [check, setCheck] = React.useState<{ pathname: string; authorized: boolean } | null>(null);
 
@@ -64,7 +65,7 @@ export function AuthGuard({ children, devAuthBypass = false }: { children: React
           </div>
           <h2 className="text-base font-bold text-foreground">Yêu Cầu Xác Thực Danh Tính</h2>
           <p className="text-xs text-muted-foreground">
-            {error || "Tài khoản chưa được cấp quyền truy cập SIN Creator OS. Hãy kiểm tra chính sách Cloudflare Access và quyền workspace."}
+            Bạn chưa đăng nhập vào hệ thống SIN Creator OS. Đang chuyển hướng bạn đến màn hình đăng nhập...
           </p>
         </div>
       </div>

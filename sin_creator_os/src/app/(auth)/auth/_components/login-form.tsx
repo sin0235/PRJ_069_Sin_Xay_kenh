@@ -9,9 +9,16 @@ import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { AuthApi } from "@/lib/api/auth-api";
 
-const localPasswordMode = true;
+const formSchema = z.object({
+  email: z.string().min(1, { message: "Vui lòng nhập email" }),
+  password: z.string().min(1, { message: "Vui lòng nhập mật khẩu" }),
+  remember: z.boolean().optional(),
+});
 
 export function LoginForm() {
   const [targetUrl, setTargetUrl] = React.useState("/dashboard");
@@ -46,10 +53,17 @@ export function LoginForm() {
     };
   }, []);
 
-  async function handleLogin(e?: React.FormEvent | React.MouseEvent) {
-    if (e?.preventDefault) e.preventDefault();
-    setSubmitting(true);
-    setError("");
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+      remember: true,
+    },
+  });
+
+  async function onSubmit(data: z.infer<typeof formSchema>) {
+    setLoading(true);
     try {
       const res = await AuthApi.login(data.email, data.password);
       if (res.success) {
@@ -69,9 +83,11 @@ export function LoginForm() {
         });
         setLoading(false);
       }
-      setError(reason instanceof Error ? reason.message : "Không đăng nhập được.");
-    } finally {
-      setSubmitting(false);
+    } catch (e: any) {
+      toast.error("Lỗi kết nối", {
+        description: e?.message || "Không thể kết nối đến máy chủ xác thực.",
+      });
+      setLoading(false);
     }
   }
 

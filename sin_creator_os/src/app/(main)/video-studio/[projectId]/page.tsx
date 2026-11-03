@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Play,
@@ -43,6 +43,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -62,16 +64,41 @@ import {
   TimelineAudioTrack,
   TimelineCaption,
   TimelineDocument,
+  TimelineOverlay,
   TimelineVersionResponse,
 } from "@/lib/api/media-studio-api";
 import { BangDieuPhoiDung } from "@/components/video_studio/bang_dieu_phoi_dung";
-import { taoPhuDeDeLuu } from "./phu_de_timeline";
+import {
+  KARAOKE_CAPTION_COLORS,
+  KARAOKE_CAPTION_DEFAULTS,
+  taoNoiDungPhuDeXemTruoc,
+  taoPhuDeDeLuu,
+  taoThongSoPhuDeXemTruoc,
+} from "./phu_de_timeline";
+import { docManifestDungTuDong } from "@/lib/video_studio/phan_tich_manifest_dung_tu_dong";
 import { randomUuid } from "@/lib/utils";
+import {
+  chonVideoDeMoStudio,
+  nenNapVideoTuLienKet,
+  taoClipTimelineTuAsset,
+  taoKhoaLienKetVideoStudio,
+  themClipLienKetVaoTimeline,
+  themTimelineLienKetVaoTimeline,
+} from "@/lib/video_studio/lien_ket_studio";
+import { capNhatHinhHocOverlay } from "@/lib/video_studio/timeline_overlay";
+
+const KARAOKE_PRESETS = [
+  { value: "bat_nhip", label: "Nảy theo từ", accent_color: "champagne", word_pop: true, layout: "center" },
+  { value: "to_sac", label: "Tô sắc", accent_color: "baha_blue", word_pop: false, layout: "center" },
+  { value: "hai_dong", label: "Hai dòng", accent_color: "coral", word_pop: false, layout: "two_line" },
+] as const;
 
 export default function VideoStudioPage() {
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const projectId = (params?.projectId as string) || "";
+  const autoEditLinkKey = taoKhoaLienKetVideoStudio(projectId, searchParams.get("asset_id"), searchParams.get("manifest_id"));
   const [projectTitle, setProjectTitle] = React.useState("");
   const [projectLoadStatus, setProjectLoadStatus] = React.useState<"loading" | "ready" | "missing" | "error">("loading");
   const [projectError, setProjectError] = React.useState<string | null>(null);
@@ -110,9 +137,11 @@ export default function VideoStudioPage() {
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
   const [isUploading, setIsUploading] = React.useState(false);
   const [uploadMessage, setUploadMessage] = React.useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = React.useState<number | null>(null);
 
   // State Phân Cảnh & Tư Liệu Đang Chọn
   const [selectedAssetId, setSelectedAssetId] = React.useState<string | null>(null);
+  const autoEditAssetLinkKey = React.useRef<string | null>(null);
   const [selectedClipId, setSelectedClipId] = React.useState<string | null>(null);
   const [previewSource, setPreviewSource] = React.useState<{ url: string; type: "image" | "video" } | null>(null);
   const [previewMediaUrl, setPreviewMediaUrl] = React.useState<string | null>(null);
@@ -123,9 +152,44 @@ export default function VideoStudioPage() {
   // State Timeline Đa Track (M-P3 / M-P4)
   const [timelineVersion, setTimelineVersion] = React.useState<number>(0);
   const [timelineClips, setTimelineClips] = React.useState<TimelineClip[]>([]);
+  const [timelineOverlays, setTimelineOverlays] = React.useState<TimelineOverlay[]>([]);
+  const [selectedOverlayIndex, setSelectedOverlayIndex] = React.useState<number | null>(null);
+  const selectedOverlay = selectedOverlayIndex === null ? null : timelineOverlays[selectedOverlayIndex] ?? null;
+  const selectedOverlayAsset = selectedOverlay
+    ? assets.find((asset) => asset.id === selectedOverlay.asset_id)
+    : undefined;
+  const overlayPreviewUrl = selectedOverlayAsset?.url ?? null;
+  const previewCanvasRef = React.useRef<HTMLDivElement | null>(null);
+  const overlayVideoRef = React.useRef<HTMLVideoElement | null>(null);
+  const overlayDragRef = React.useRef<{ index: number; clientX: number; clientY: number; x: number; y: number } | null>(null);
+  const [timelineLoaded, setTimelineLoaded] = React.useState(false);
+  const autoEditTimelineLinkKey = React.useRef<string | null>(null);
   const [timelineVoice, setTimelineVoice] = React.useState<TimelineAudioTrack | null>(null);
   const [timelineMusic, setTimelineMusic] = React.useState<TimelineAudioTrack | null>(null);
   const [timelineCaptions, setTimelineCaptions] = React.useState<TimelineCaption[]>([]);
+  const [captionStyle, setCaptionStyle] = React.useState<TimelineDocument["caption_style"]>("legacy");
+  const [karaokeSettings, setKaraokeSettings] = React.useState(KARAOKE_CAPTION_DEFAULTS);
+  const [transitionSeconds, setTransitionSeconds] = React.useState(0);
+  const timelineStateRef = React.useRef({
+    clips: timelineClips,
+    overlays: timelineOverlays,
+    captions: timelineCaptions,
+    voice: timelineVoice,
+    music: timelineMusic,
+    captionStyle,
+    karaokeSettings,
+    transitionSeconds,
+  });
+  timelineStateRef.current = {
+    clips: timelineClips,
+    overlays: timelineOverlays,
+    captions: timelineCaptions,
+    voice: timelineVoice,
+    music: timelineMusic,
+    captionStyle,
+    karaokeSettings,
+    transitionSeconds,
+  };
   const [captionText, setCaptionText] = React.useState("");
   const [captionFontSize, setCaptionFontSize] = React.useState(26);
   const [musicAttenuationDb, setMusicAttenuationDb] = React.useState(-18.0);
@@ -167,36 +231,13 @@ export default function VideoStudioPage() {
       return;
     }
 
-    let cancelled = false;
-    let objectUrl: string | null = null;
     videoRef.current?.pause();
     setIsPlaying(false);
     setCurrentTime(0);
-    setIsLoadingPreview(true);
+    setIsLoadingPreview(false);
     setPreviewError(null);
-    setPreviewMediaUrl(null);
-
-    void mediaStudioApi.createAssetObjectUrl(previewSource.url)
-      .then((url) => {
-        if (cancelled) {
-          URL.revokeObjectURL(url);
-          return;
-        }
-        objectUrl = url;
-        setPreviewMediaType(previewSource.type);
-        setPreviewMediaUrl(url);
-      })
-      .catch((error) => {
-        if (!cancelled) setPreviewError(error instanceof Error ? error.message : "Không tải được bản xem trước.");
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingPreview(false);
-      });
-
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
+    setPreviewMediaType(previewSource.type);
+    setPreviewMediaUrl(previewSource.url);
   }, [previewSource]);
 
   // Tải danh sách tư liệu từ Backend
@@ -205,11 +246,12 @@ export default function VideoStudioPage() {
     try {
       const data = await mediaStudioApi.listAssets({ project_id: projectId });
       setAssets(data);
-      if (data.length > 0 && !selectedAssetId && !previewSource) {
-        const firstVid = data.find((a) => a.mime_detected?.startsWith("video/"));
-        if (firstVid && firstVid.url) {
-          setSelectedAssetId(firstVid.id);
-          setPreviewSource({ url: firstVid.url, type: "video" });
+      if (nenNapVideoTuLienKet(autoEditAssetLinkKey.current, autoEditLinkKey)) {
+        const initialVideo = chonVideoDeMoStudio(window.location.search, data);
+        if (initialVideo?.url) {
+          autoEditAssetLinkKey.current = autoEditLinkKey;
+          setSelectedAssetId(initialVideo.id);
+          setPreviewSource({ url: initialVideo.url, type: "video" });
         }
       }
     } catch (err: any) {
@@ -217,10 +259,11 @@ export default function VideoStudioPage() {
     } finally {
       setIsLoadingAssets(false);
     }
-  }, [projectId, selectedAssetId, previewSource]);
+  }, [projectId, autoEditLinkKey]);
 
   // Tải Timeline từ Backend (M-P3)
   const loadTimeline = React.useCallback(async () => {
+    setTimelineLoaded(false);
     setTimelineLoadError(null);
     try {
       const res = await mediaStudioApi.getTimeline(projectId);
@@ -229,20 +272,102 @@ export default function VideoStudioPage() {
       const captions = document?.captions ?? [];
       setTimelineVersion(res.version);
       setTimelineClips(clips);
+      setTimelineOverlays(document?.overlays ?? []);
+      setSelectedOverlayIndex(document?.overlays?.length ? 0 : null);
       setTimelineVoice(document?.voice_track ?? null);
       setTimelineMusic(document?.music_track ?? null);
       setTimelineCaptions(captions);
+      setCaptionStyle(document?.caption_style ?? "legacy");
+      setKaraokeSettings(document?.karaoke_settings ?? KARAOKE_CAPTION_DEFAULTS);
+      setTransitionSeconds(document?.transition_seconds ?? 0);
       setCaptionText(captions[0]?.text ?? "");
       setCaptionFontSize(captions[0]?.font_size ?? 26);
       if (document?.music_track?.ducking_attenuation_db !== undefined) {
         setMusicAttenuationDb(document.music_track.ducking_attenuation_db);
       }
       setTotalDuration(clips.reduce((total, clip) => total + clip.duration_ms, 0) / 1000.0);
+      setTimelineLoaded(true);
     } catch (err: any) {
       setTimelineLoadError(err instanceof Error ? err.message : "Không tải được timeline.");
       console.warn("Không thể tải timeline từ API:", err?.message);
     }
   }, [projectId]);
+
+  React.useEffect(() => {
+    if (!timelineLoaded || autoEditTimelineLinkKey.current === autoEditLinkKey) return;
+    const requestedAssetId = searchParams.get("asset_id");
+    if (!requestedAssetId) return;
+    const requestedAsset = assets.find((item) => item.id === requestedAssetId);
+    if (!requestedAsset) return;
+    autoEditTimelineLinkKey.current = autoEditLinkKey;
+
+    const asset = chonVideoDeMoStudio(window.location.search, [requestedAsset]);
+    if (!asset) return;
+    let active = true;
+    const addRenderedClip = (message?: string) => {
+      const clipId = `clip_${Date.now().toString(36)}_1`;
+      const clip = taoClipTimelineTuAsset(asset, clipId);
+      if (!active) return;
+      autoEditTimelineLinkKey.current = autoEditLinkKey;
+      if (message) setTimelineSaveMessage(message);
+      if (!clip) return;
+      const nextTimeline = themClipLienKetVaoTimeline(timelineStateRef.current.clips, clip);
+      setTimelineClips(nextTimeline.clips);
+      setSelectedClipId(nextTimeline.selectedClipId);
+    };
+    const manifestId = searchParams.get("manifest_id");
+    const manifestAsset = assets.find((item) => item.id === manifestId && item.mime_detected === "application/json");
+    if (!manifestAsset?.url) {
+      addRenderedClip(manifestId ? "Không tìm thấy biên bản dựng chi tiết; đang mở video đã kết xuất." : undefined);
+    } else {
+      void mediaStudioApi.getAssetText(manifestAsset.url).then((text) => {
+        if (!active) return;
+        const clipManifest = docManifestDungTuDong(text).clips.find((clip) => clip.output_asset_id === asset.id);
+        if (!clipManifest?.timeline) {
+          addRenderedClip("Biên bản cũ không có timeline chi tiết; đang mở video đã kết xuất.");
+          return;
+        }
+        const current = timelineStateRef.current;
+        const currentTimeline: TimelineDocument = {
+          width: 1080,
+          height: 1920,
+          fps: 30,
+          clips: current.clips,
+          overlays: current.overlays,
+          voice_track: current.voice,
+          music_track: current.music,
+          captions: current.captions,
+          caption_style: current.captionStyle,
+          karaoke_settings: current.karaokeSettings,
+          transition_seconds: current.transitionSeconds,
+        };
+        const next = themTimelineLienKetVaoTimeline(currentTimeline, clipManifest.timeline, asset.id.slice(0, 8));
+        setTimelineClips(next.timeline.clips);
+        setTimelineOverlays(next.timeline.overlays ?? []);
+        setSelectedOverlayIndex(next.timeline.overlays?.length ? 0 : null);
+        setTimelineCaptions(next.timeline.captions ?? []);
+        setTimelineVoice(next.timeline.voice_track ?? null);
+        setTimelineMusic(next.timeline.music_track ?? null);
+        setCaptionStyle(next.timeline.caption_style ?? "vietsub_v1");
+        setKaraokeSettings(next.timeline.karaoke_settings ?? KARAOKE_CAPTION_DEFAULTS);
+        setTransitionSeconds(next.timeline.transition_seconds ?? 0.16);
+        if (!current.clips.length) {
+          setCaptionText(next.timeline.captions?.[0]?.text ?? "");
+          setCaptionFontSize(next.timeline.captions?.[0]?.font_size ?? 26);
+        }
+        setSelectedClipId(next.selectedClipId);
+        const firstClip = next.timeline.clips.find((clip) => clip.clip_id === next.selectedClipId);
+        const firstClipAsset = assets.find((item) => item.id === firstClip?.asset_id);
+        if (firstClipAsset?.url) {
+          setPreviewSource({ url: firstClipAsset.url, type: firstClip?.media_type === "image" ? "image" : "video" });
+        }
+        autoEditTimelineLinkKey.current = autoEditLinkKey;
+      }).catch(() => {
+        addRenderedClip("Không khôi phục được timeline chi tiết; đang mở video đã kết xuất.");
+      });
+    }
+    return () => { active = false; };
+  }, [assets, autoEditLinkKey, searchParams, timelineLoaded]);
 
   React.useEffect(() => {
     if (projectLoadStatus !== "ready") return;
@@ -269,12 +394,20 @@ export default function VideoStudioPage() {
 
     setIsUploading(true);
     setUploadMessage(`Đang tải lên tệp: ${file.name} (${expectedCategory})...`);
+    setUploadProgress(0);
 
     try {
       const uploaded = await mediaStudioApi.uploadAsset({
         file,
         project_id: projectId,
         expected_category: expectedCategory,
+        onProgress: (loadedBytes, totalBytes) => {
+          const percent = Math.min(100, Math.floor((loadedBytes / totalBytes) * 100));
+          setUploadProgress(percent);
+          setUploadMessage(percent === 100
+            ? "Đã gửi dữ liệu, đang chờ máy chủ xác nhận..."
+            : `Đang tải lên tệp: ${file.name} (${percent}%)...`);
+        },
       });
 
       setUploadMessage(`Đã nạp thành công: ${uploaded.original_filename || uploaded.id}`);
@@ -289,6 +422,7 @@ export default function VideoStudioPage() {
       setUploadMessage(`Lỗi tải lên: ${err?.message || "Không xác định"}`);
     } finally {
       setIsUploading(false);
+      setUploadProgress(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
@@ -370,6 +504,39 @@ export default function VideoStudioPage() {
     );
   };
 
+  const handleUpdateSelectedOverlay = (updates: Partial<TimelineOverlay>) => {
+    if (selectedOverlayIndex === null) return;
+    setTimelineOverlays((current) => current.map((overlay, index) => index === selectedOverlayIndex
+      ? capNhatHinhHocOverlay(overlay, updates, Math.round(totalDuration * 1000))
+      : overlay));
+  };
+
+  const handleOverlayPointerDown = (index: number, event: React.PointerEvent<HTMLDivElement>) => {
+    const overlay = timelineOverlays[index];
+    if (!overlay) return;
+    setSelectedOverlayIndex(index);
+    overlayDragRef.current = {
+      index,
+      clientX: event.clientX,
+      clientY: event.clientY,
+      x: overlay.x,
+      y: overlay.y,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleOverlayPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = overlayDragRef.current;
+    const rect = previewCanvasRef.current?.getBoundingClientRect();
+    const overlay = drag && timelineOverlays[drag.index];
+    if (!drag || !rect?.width || !rect.height || !overlay) return;
+    const x = drag.x + (event.clientX - drag.clientX) * 1080 / rect.width;
+    const y = drag.y + (event.clientY - drag.clientY) * 1920 / rect.height;
+    setTimelineOverlays((current) => current.map((item, index) => index === drag.index
+      ? capNhatHinhHocOverlay(item, { x, y }, Math.round(totalDuration * 1000))
+      : item));
+  };
+
   // Lưu phiên bản Timeline (M-P3)
   const handleSaveTimeline = async (): Promise<{ success: boolean; versionId?: string; version?: number }> => {
     setIsSavingTimeline(true);
@@ -381,11 +548,15 @@ export default function VideoStudioPage() {
       height: 1920,
       fps: 30,
       clips: timelineClips,
+      overlays: timelineOverlays,
       voice_track: timelineVoice,
       music_track: timelineMusic
         ? { ...timelineMusic, ducking_attenuation_db: musicAttenuationDb }
         : null,
       captions: taoPhuDeDeLuu(timelineCaptions, captionText, captionFontSize, Math.round(totalDuration * 1000)),
+      caption_style: captionStyle,
+      karaoke_settings: karaokeSettings,
+      transition_seconds: transitionSeconds,
     };
 
     try {
@@ -490,6 +661,8 @@ export default function VideoStudioPage() {
         }],
         voice_track: null,
         music_track: { asset_id: music.id, start_ms: 0, duration_ms: durationMs, gain_db: 0 },
+        caption_style: captionStyle,
+        karaoke_settings: karaokeSettings,
         captions: captionText.trim() ? [{
           caption_id: `caption_${randomUuid()}`,
           text: captionText.trim(),
@@ -579,9 +752,47 @@ export default function VideoStudioPage() {
 
   // Tìm clip đang chọn
   const activeSelectedClip = timelineClips.find((c) => c.clip_id === selectedClipId);
+  const previewTimelineTimeMs = activeSelectedClip
+    ? activeSelectedClip.start_ms + Math.max(0, currentTime * 1000 - (activeSelectedClip.trim_in_ms ?? 0))
+    : currentTime * 1000;
+  const previewCaptionCue = timelineCaptions.find((cue) => previewTimelineTimeMs >= cue.start_ms && previewTimelineTimeMs < cue.start_ms + cue.duration_ms);
   const previewCaption = timelineCaptions.length
-    ? timelineCaptions.find((cue) => currentTime * 1000 >= cue.start_ms && currentTime * 1000 < cue.start_ms + cue.duration_ms)?.text ?? ""
+    ? previewCaptionCue?.text ?? ""
     : captionText;
+  const previewCanvasHeight = aspectRatio === "9:16" ? 360 : 270;
+  const previewCaptionCueForDisplay = previewCaptionCue ?? (previewCaption
+    ? { text: previewCaption, start_ms: 0, duration_ms: 0 }
+    : undefined);
+  const previewCaptionStyle = taoThongSoPhuDeXemTruoc(
+    previewCaptionCueForDisplay,
+    captionStyle,
+    previewCanvasHeight,
+    captionFontSize,
+    karaokeSettings,
+  );
+  const karaokePreview = taoNoiDungPhuDeXemTruoc(
+    previewCaptionCueForDisplay,
+    previewTimelineTimeMs,
+    karaokeSettings,
+  );
+  const isSelectedOverlayActive = selectedOverlay !== null && previewTimelineTimeMs >= selectedOverlay.start_ms
+    && previewTimelineTimeMs < selectedOverlay.start_ms + selectedOverlay.duration_ms;
+
+  React.useEffect(() => {
+    const player = overlayVideoRef.current;
+    if (!player || !selectedOverlay) return;
+    if (!isSelectedOverlayActive || !isPlaying) {
+      player.pause();
+      return;
+    }
+    const elapsed = (previewTimelineTimeMs - selectedOverlay.start_ms) / 1000;
+    const assetDuration = Number.isFinite(player.duration)
+      ? player.duration
+      : (selectedOverlayAsset?.duration_ms ?? 0) / 1000;
+    const offset = assetDuration > 0 ? elapsed % assetDuration : elapsed;
+    if (Math.abs(player.currentTime - offset) > 0.35) player.currentTime = offset;
+    if (player.paused) void player.play().catch(() => {});
+  }, [isPlaying, isSelectedOverlayActive, overlayPreviewUrl, previewTimelineTimeMs, selectedOverlay, selectedOverlayAsset?.duration_ms]);
   const captionsForSave = taoPhuDeDeLuu(timelineCaptions, captionText, captionFontSize, Math.round(totalDuration * 1000));
 
   if (projectLoadStatus !== "ready") {
@@ -779,6 +990,17 @@ export default function VideoStudioPage() {
                   {uploadMessage}
                 </p>
               )}
+              {isUploading && uploadProgress !== null && (
+                <div className="flex items-center gap-2 px-1.5">
+                  <progress
+                    aria-label="Tiến độ tải tệp lên"
+                    className="h-2 w-full accent-teal-400"
+                    max={100}
+                    value={uploadProgress}
+                  />
+                  <span className="min-w-9 text-right text-[10px] text-zinc-300">{uploadProgress}%</span>
+                </div>
+              )}
 
               {/* Bộ lọc loại tư liệu */}
               <div className="flex items-center gap-1 bg-zinc-800 p-0.5 rounded text-[10px]">
@@ -858,7 +1080,7 @@ export default function VideoStudioPage() {
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={(e) => {
+                          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                             e.stopPropagation();
                             handleAddAssetToTimeline(asset);
                           }}
@@ -937,7 +1159,7 @@ export default function VideoStudioPage() {
               {/* Tạo video, nhạc và bản dựng trong một lượt */}
               <div className="border-t border-zinc-800 pt-2 space-y-1.5">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 block">
-                  Tự động dựng video TikTok
+                  Tạo video AI từ mô tả
                 </span>
                 <textarea
                   value={quickPrompt}
@@ -975,7 +1197,7 @@ export default function VideoStudioPage() {
                   min={-30}
                   max={-6}
                   step={1}
-                  onValueChange={(val) => setMusicAttenuationDb(val[0])}
+                  onValueChange={(val: number[]) => setMusicAttenuationDb(val[0])}
                 />
                 <p className="text-[10px] text-zinc-500">
                   Tự động dìm nhạc khi có giọng đọc thuyết minh để giữ trọn sự rõ ràng của lời nói.
@@ -1002,6 +1224,150 @@ export default function VideoStudioPage() {
               </span>
 
               <div className="space-y-1.5">
+                <span className="text-[10px] text-zinc-400 block">Kiểu phụ đề</span>
+                <ToggleGroup
+                  type="single"
+                  value={captionStyle ?? "legacy"}
+                  aria-label="Kiểu phụ đề"
+                  variant="outline"
+                  size="sm"
+                  className="grid w-full grid-cols-3"
+                  onValueChange={(value) => {
+                    if (value === "legacy" || value === "vietsub_v1" || value === "vietsub_karaoke_v2") {
+                      setCaptionStyle(value);
+                    }
+                  }}
+                >
+                  <ToggleGroupItem value="legacy" className="px-1 text-[10px]">Cơ bản</ToggleGroupItem>
+                  <ToggleGroupItem value="vietsub_v1" className="px-1 text-[10px]">Vietsub</ToggleGroupItem>
+                  <ToggleGroupItem value="vietsub_karaoke_v2" className="px-1 text-[10px]">Karaoke</ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+
+              {captionStyle === "vietsub_karaoke_v2" && (
+                <div className="space-y-2.5 rounded-lg border border-zinc-700 bg-zinc-900/70 p-2.5">
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-zinc-400 block">Phong cách</span>
+                    <ToggleGroup
+                      type="single"
+                      value={karaokeSettings.preset}
+                      aria-label="Phong cách karaoke"
+                      variant="outline"
+                      size="sm"
+                      className="grid w-full grid-cols-3"
+                      onValueChange={(value) => {
+                        const preset = KARAOKE_PRESETS.find((item) => item.value === value);
+                        if (preset) {
+                          setKaraokeSettings((current) => ({
+                            ...current,
+                            preset: preset.value,
+                            accent_color: preset.accent_color,
+                            word_pop: preset.word_pop,
+                            layout: preset.layout,
+                          }));
+                        }
+                      }}
+                    >
+                      {KARAOKE_PRESETS.map((preset) => (
+                        <ToggleGroupItem key={preset.value} value={preset.value} className="px-1 text-[10px]">
+                          {preset.label}
+                        </ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-zinc-400 block">Cỡ chữ</span>
+                    <ToggleGroup
+                      type="single"
+                      value={String(karaokeSettings.font_size)}
+                      aria-label="Cỡ chữ karaoke"
+                      variant="outline"
+                      size="sm"
+                      className="grid w-full grid-cols-3"
+                      onValueChange={(value) => {
+                        const size = Number(value);
+                        if (size === 42 || size === 56 || size === 70) {
+                          setKaraokeSettings((current) => ({ ...current, font_size: size }));
+                        }
+                      }}
+                    >
+                      {[42, 56, 70].map((size) => (
+                        <ToggleGroupItem key={size} value={String(size)} className="text-[10px]">{size}px</ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-zinc-400 block">Bố cục</span>
+                    <ToggleGroup
+                      type="single"
+                      value={karaokeSettings.layout}
+                      aria-label="Bố cục phụ đề karaoke"
+                      variant="outline"
+                      size="sm"
+                      className="grid w-full grid-cols-3"
+                      onValueChange={(value) => {
+                        if (value === "center" || value === "left" || value === "two_line") {
+                          setKaraokeSettings((current) => ({ ...current, layout: value }));
+                        }
+                      }}
+                    >
+                      <ToggleGroupItem value="center" className="px-1 text-[10px]">Giữa</ToggleGroupItem>
+                      <ToggleGroupItem value="left" className="px-1 text-[10px]">Trái</ToggleGroupItem>
+                      <ToggleGroupItem value="two_line" className="px-1 text-[10px]">Hai dòng</ToggleGroupItem>
+                    </ToggleGroup>
+                  </div>
+
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-zinc-400 block">Màu nhấn</span>
+                    <ToggleGroup
+                      type="single"
+                      value={karaokeSettings.accent_color}
+                      aria-label="Màu nhấn karaoke"
+                      variant="outline"
+                      size="sm"
+                      className="grid w-full grid-cols-3"
+                      onValueChange={(value) => {
+                        if (value === "champagne" || value === "baha_blue" || value === "coral") {
+                          setKaraokeSettings((current) => ({ ...current, accent_color: value }));
+                        }
+                      }}
+                    >
+                      {([
+                        ["champagne", "Vàng champagne"],
+                        ["baha_blue", "Xanh BAHA"],
+                        ["coral", "Đỏ san hô"],
+                      ] as const).map(([value, label]) => (
+                        <ToggleGroupItem key={value} value={value} className="gap-1 px-1 text-[9px]">
+                          <span className="size-2.5 rounded-full border border-white/30" style={{ backgroundColor: KARAOKE_CAPTION_COLORS[value] }} />
+                          {label}
+                        </ToggleGroupItem>
+                      ))}
+                    </ToggleGroup>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-1 border-t border-zinc-700 pt-2">
+                    {([
+                      ["outline", "Viền chữ"],
+                      ["shadow", "Bóng chữ"],
+                      ["word_pop", "Nảy từ"],
+                    ] as const).map(([key, label]) => (
+                      <label key={key} className="flex items-center gap-1.5 text-[10px] text-zinc-300">
+                        <Switch
+                          checked={karaokeSettings[key]}
+                          aria-label={label}
+                          onCheckedChange={(checked) => setKaraokeSettings((current) => ({ ...current, [key]: checked }))}
+                          size="sm"
+                        />
+                        {label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1.5">
                 <label className="text-[10px] text-zinc-400">
                   {timelineCaptions[0] ? `Câu 1 · ${(timelineCaptions[0].start_ms / 1000).toFixed(1)}–${((timelineCaptions[0].start_ms + timelineCaptions[0].duration_ms) / 1000).toFixed(1)} giây` : "Tạo phụ đề đầu tiên"}
                 </label>
@@ -1011,7 +1377,7 @@ export default function VideoStudioPage() {
                   onChange={(e) => {
                     const text = e.target.value;
                     setCaptionText(text);
-                    setTimelineCaptions((current) => current.map((cue, index) => index === 0 ? { ...cue, text } : cue));
+                    setTimelineCaptions((current) => current.map((cue, index) => index === 0 ? { ...cue, text, words: [] } : cue));
                   }}
                   className="h-8 text-xs bg-zinc-800 border-zinc-700 text-white font-bold"
                 />
@@ -1023,13 +1389,13 @@ export default function VideoStudioPage() {
                   <Input
                     aria-label={`Sửa câu phụ đề ${index + 2}`}
                     value={cue.text}
-                    onChange={(event) => setTimelineCaptions((current) => current.map((item) => item.caption_id === cue.caption_id ? { ...item, text: event.target.value } : item))}
+                    onChange={(event) => setTimelineCaptions((current) => current.map((item) => item.caption_id === cue.caption_id ? { ...item, text: event.target.value, words: [] } : item))}
                     className="h-8 text-xs bg-zinc-800 border-zinc-700 text-white"
                   />
                 </div>
               ))}
 
-              <div className="space-y-1.5">
+              {captionStyle !== "vietsub_karaoke_v2" && <div className="space-y-1.5">
                 <div className="flex justify-between text-[10px] text-zinc-400">
                   <span>Cỡ chữ:</span>
                   <span className="font-mono text-zinc-200">{captionFontSize}px</span>
@@ -1039,9 +1405,12 @@ export default function VideoStudioPage() {
                   min={16}
                   max={64}
                   step={2}
-                  onValueChange={(val) => setCaptionFontSize(val[0])}
+                  onValueChange={(val: number[]) => {
+                    setCaptionFontSize(val[0]);
+                    setTimelineCaptions((current) => current.map((cue) => ({ ...cue, font_size: val[0] })));
+                  }}
                 />
-              </div>
+              </div>}
 
               <div className="p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs text-center text-amber-300 font-bold uppercase tracking-wide">
                 {previewCaption || "Chưa có phụ đề"}
@@ -1070,6 +1439,7 @@ export default function VideoStudioPage() {
         {/* Cột 2: Khung Canvas Xem Trước (6 cols) */}
         <div className="col-span-6 flex flex-col items-center justify-center p-4 bg-zinc-950 relative overflow-hidden">
           <div
+            ref={previewCanvasRef}
             className={`relative rounded-xl overflow-hidden border-2 border-zinc-800 bg-black shadow-2xl flex items-center justify-center transition-all ${
               aspectRatio === "9:16" ? "h-[360px] aspect-[9/16]" : "w-[480px] aspect-[16/9]"
             }`}
@@ -1081,14 +1451,27 @@ export default function VideoStudioPage() {
                   src={previewMediaUrl}
                   alt="Canvas Preview"
                   className={`size-full ${activeSelectedClip?.fit === "contain" ? "object-contain" : "object-cover"}`}
+                  onError={() => {
+                    setPreviewMediaUrl(null);
+                    setPreviewError("Không thể tải tư liệu xem trước từ máy chủ.");
+                  }}
                 />
               ) : (
                 <video
                   ref={videoRef}
                   src={previewMediaUrl}
                   className={`size-full ${activeSelectedClip?.fit === "contain" ? "object-contain" : "object-cover"}`}
+                  preload="metadata"
                   playsInline
                   loop
+                  onError={() => {
+                    setPreviewMediaUrl(null);
+                    setPreviewError("Không thể phát tư liệu xem trước từ máy chủ.");
+                  }}
+                  onLoadedMetadata={() => {
+                    const trimInMs = activeSelectedClip?.trim_in_ms ?? 0;
+                    if (trimInMs && videoRef.current) videoRef.current.currentTime = trimInMs / 1000;
+                  }}
                   onTimeUpdate={() => {
                     if (videoRef.current) {
                       setCurrentTime(videoRef.current.currentTime);
@@ -1100,6 +1483,57 @@ export default function VideoStudioPage() {
               <div className="flex flex-col items-center justify-center text-zinc-600 space-y-2">
                 <Film className="size-8" />
                 <span className="max-w-56 text-center text-xs">{isLoadingPreview ? "Đang tải bản xem trước" : previewError || "Tải video hoặc chọn một phân cảnh để xem trước"}</span>
+              </div>
+            )}
+
+            {selectedOverlay && overlayPreviewUrl && (
+              <div
+                role="button"
+                tabIndex={0}
+                aria-pressed={selectedOverlayIndex !== null}
+                aria-label="Kéo để đổi vị trí lớp diễn họa; dùng phím mũi tên để tinh chỉnh"
+                className={`absolute z-10 touch-none cursor-move ${selectedOverlayIndex !== null ? "ring-1 ring-teal-300" : ""}`}
+                style={{
+                  left: `${selectedOverlay.x / 1080 * 100}%`,
+                  top: `${selectedOverlay.y / 1920 * 100}%`,
+                  width: `${selectedOverlay.width / 1080 * 100}%`,
+                  height: `${selectedOverlay.height / 1920 * 100}%`,
+                }}
+                onPointerDown={(event) => {
+                  if (selectedOverlayIndex !== null) handleOverlayPointerDown(selectedOverlayIndex, event);
+                }}
+                onPointerMove={handleOverlayPointerMove}
+                onPointerUp={() => { overlayDragRef.current = null; }}
+                onPointerCancel={() => { overlayDragRef.current = null; }}
+                onKeyDown={(event) => {
+                  const nudge = event.shiftKey ? 10 : 1;
+                  if (event.key === "ArrowLeft") handleUpdateSelectedOverlay({ x: selectedOverlay.x - nudge });
+                  else if (event.key === "ArrowRight") handleUpdateSelectedOverlay({ x: selectedOverlay.x + nudge });
+                  else if (event.key === "ArrowUp") handleUpdateSelectedOverlay({ y: selectedOverlay.y - nudge });
+                  else if (event.key === "ArrowDown") handleUpdateSelectedOverlay({ y: selectedOverlay.y + nudge });
+                  else return;
+                  event.preventDefault();
+                }}
+              >
+                {selectedOverlayAsset?.mime_detected.startsWith("image/") ? (
+                  <img src={overlayPreviewUrl} alt="Diễn họa giấy gấp" className="size-full object-contain pointer-events-none" />
+                ) : (
+                  <video
+                    ref={overlayVideoRef}
+                    src={overlayPreviewUrl}
+                    muted
+                    loop
+                    playsInline
+                    preload="metadata"
+                    className="size-full object-contain pointer-events-none"
+                    onLoadedMetadata={(event) => {
+                      const offset = Math.max(0, previewTimelineTimeMs - selectedOverlay.start_ms) / 1000;
+                      event.currentTarget.currentTime = event.currentTarget.duration > 0
+                        ? offset % event.currentTarget.duration
+                        : offset;
+                    }}
+                  />
+                )}
               </div>
             )}
 
@@ -1120,12 +1554,46 @@ export default function VideoStudioPage() {
 
             {/* Lớp Phụ Đề Chữ Nổi Bật Nằm Trong Vùng An Toàn */}
             {previewCaption && (
-              <div className="absolute inset-x-4 bottom-20 text-center pointer-events-none">
+              <div
+                className={`absolute z-20 pointer-events-none flex ${captionStyle === "legacy" ? "inset-x-4 bottom-20" : captionStyle === "vietsub_karaoke_v2" ? "inset-x-10" : "inset-x-4"} ${previewCaptionStyle.textAlign === "left" ? "justify-start text-left" : "justify-center text-center"}`}
+                style={captionStyle === "vietsub_v1"
+                  ? { top: `${previewCaptionStyle.topPercent}%` }
+                  : captionStyle === "vietsub_karaoke_v2"
+                    ? { top: `${previewCaptionStyle.topPercent}%`, transform: "translateY(-50%)" }
+                    : undefined}
+              >
                 <span
-                  style={{ fontSize: `${captionFontSize}px` }}
-                  className="font-extrabold text-amber-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] px-2 py-1 bg-black/60 rounded"
+                  style={captionStyle === "vietsub_karaoke_v2" ? {
+                    fontSize: `${previewCaptionStyle.fontSizePx}px`,
+                    color: "white",
+                    WebkitTextStroke: karaokeSettings.outline
+                      ? `${Math.max(0.6, previewCaptionStyle.fontSizePx * 0.035)}px rgba(0,0,0,0.96)`
+                      : "transparent",
+                    textShadow: karaokeSettings.shadow ? "0 3px 7px rgba(0,0,0,0.9)" : "none",
+                    lineHeight: 1.12,
+                  } : { fontSize: `${previewCaptionStyle.fontSizePx}px` }}
+                  className={captionStyle === "vietsub_v1"
+                    ? `font-extrabold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] px-1 py-0.5 rounded-none ${previewCaptionCueForDisplay?.visual_type === "callout" ? "bg-teal-700/95" : "bg-black/70"}`
+                    : captionStyle === "vietsub_karaoke_v2"
+                      ? "inline-block max-w-full px-2 py-1 font-black motion-reduce:transition-none motion-reduce:transform-none"
+                      : "font-extrabold text-amber-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.95)] px-2 py-1 bg-black/60 rounded"}
                 >
-                  {previewCaption}
+                  {captionStyle === "vietsub_karaoke_v2"
+                    ? karaokePreview.words.map((word, index) => (
+                      <React.Fragment key={`${index}-${word.text}`}>
+                        {karaokePreview.breakAfter === index && <br />}
+                        <span
+                          className={`inline-block transition-transform duration-100 motion-reduce:transition-none motion-reduce:scale-100 ${word.active && karaokeSettings.word_pop ? "scale-105" : ""}`}
+                          style={{
+                            color: word.active ? KARAOKE_CAPTION_COLORS[karaokeSettings.accent_color] : "white",
+                          }}
+                        >
+                          {word.text}
+                        </span>
+                        {index < karaokePreview.words.length - 1 ? " " : ""}
+                      </React.Fragment>
+                    ))
+                    : previewCaption}
                 </span>
               </div>
             )}
@@ -1195,7 +1663,7 @@ export default function VideoStudioPage() {
                             min={0}
                             max={Math.max(0, (activeSelectedClip.trim_out_ms || activeSelectedClip.duration_ms || sourceMaxDurationMs) - 500)}
                             step={100}
-                            onValueChange={(val) => {
+                            onValueChange={(val: number[]) => {
                               const newTrimIn = val[0];
                               const currentTrimOut = activeSelectedClip.trim_out_ms || (activeSelectedClip.duration_ms || sourceMaxDurationMs);
                               const newTrimOut = Math.max(currentTrimOut, newTrimIn + 500);
@@ -1221,7 +1689,7 @@ export default function VideoStudioPage() {
                             min={(activeSelectedClip.trim_in_ms || 0) + 500}
                             max={sourceMaxDurationMs}
                             step={100}
-                            onValueChange={(val) => {
+                            onValueChange={(val: number[]) => {
                               const newTrimOut = Math.min(val[0], sourceMaxDurationMs);
                               const currentTrimIn = activeSelectedClip.trim_in_ms || 0;
                               handleUpdateSelectedClip({
@@ -1255,7 +1723,7 @@ export default function VideoStudioPage() {
                     min={500}
                     max={15000}
                     step={500}
-                    onValueChange={(val) => handleUpdateSelectedClip({ duration_ms: val[0] })}
+                    onValueChange={(val: number[]) => handleUpdateSelectedClip({ duration_ms: val[0] })}
                   />
                 </div>
               )}
@@ -1293,10 +1761,87 @@ export default function VideoStudioPage() {
                 <Trash2 className="size-3 mr-1" /> Xóa phân cảnh này
               </Button>
             </div>
-          ) : (
+          ) : selectedOverlay ? null : (
             <p className="text-[10px] text-zinc-500 italic text-center p-2 border border-dashed border-zinc-800 rounded">
               Bấm vào một phân cảnh ở Timeline dưới đáy để chỉnh sửa thuộc tính
             </p>
+          )}
+
+          {selectedOverlay && selectedOverlayIndex !== null && (
+            <div className="p-2.5 rounded-lg border border-purple-500/40 bg-purple-950/20 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-purple-300 flex items-center gap-1">
+                  <Layers className="size-3.5" /> Lớp diễn họa {selectedOverlayIndex + 1}
+                </span>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  aria-label="Xóa lớp diễn họa"
+                  onClick={() => {
+                    setTimelineOverlays((current) => current.filter((_, index) => index !== selectedOverlayIndex));
+                    setSelectedOverlayIndex(selectedOverlayIndex > 0 ? selectedOverlayIndex - 1 : null);
+                  }}
+                  className="size-6 p-0"
+                >
+                  <Trash2 className="size-3" />
+                </Button>
+              </div>
+              <p className="text-[10px] text-zinc-400">Kéo lớp trên khung xem trước hoặc nhập giá trị để căn chỉnh chính xác.</p>
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  ["X", "x", 0, 1080 - selectedOverlay.width],
+                  ["Y", "y", 0, 1920 - selectedOverlay.height],
+                  ["Rộng", "width", 1, 1080 - selectedOverlay.x],
+                  ["Cao", "height", 1, 1920 - selectedOverlay.y],
+                ] as const).map(([label, field, min, max]) => (
+                  <label key={field} className="space-y-1 text-[10px] text-zinc-400">
+                    <span>{label} (px)</span>
+                    <Input
+                      type="number"
+                      min={min}
+                      max={max}
+                      value={selectedOverlay[field]}
+                      aria-label={`${label} lớp diễn họa`}
+                      onChange={(event) => {
+                        const value = event.currentTarget.valueAsNumber;
+                        if (Number.isFinite(value)) handleUpdateSelectedOverlay({ [field]: value });
+                      }}
+                      className="h-7 bg-zinc-950 border-zinc-700 text-white"
+                    />
+                  </label>
+                ))}
+                <label className="space-y-1 text-[10px] text-zinc-400">
+                  <span>Bắt đầu (giây)</span>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    value={(selectedOverlay.start_ms / 1000).toFixed(1)}
+                    aria-label="Thời điểm bắt đầu lớp diễn họa"
+                    onChange={(event) => {
+                      const value = event.currentTarget.valueAsNumber;
+                      if (Number.isFinite(value)) handleUpdateSelectedOverlay({ start_ms: value * 1000 });
+                    }}
+                    className="h-7 bg-zinc-950 border-zinc-700 text-white"
+                  />
+                </label>
+                <label className="space-y-1 text-[10px] text-zinc-400">
+                  <span>Thời lượng (giây)</span>
+                  <Input
+                    type="number"
+                    min={0.1}
+                    step={0.1}
+                    value={(selectedOverlay.duration_ms / 1000).toFixed(1)}
+                    aria-label="Thời lượng lớp diễn họa"
+                    onChange={(event) => {
+                      const value = event.currentTarget.valueAsNumber;
+                      if (Number.isFinite(value)) handleUpdateSelectedOverlay({ duration_ms: value * 1000 });
+                    }}
+                    className="h-7 bg-zinc-950 border-zinc-700 text-white"
+                  />
+                </label>
+              </div>
+            </div>
           )}
 
           {/* Khử Logo Veo AI Chuyên Biệt */}
@@ -1392,7 +1937,7 @@ export default function VideoStudioPage() {
           </div>
         </div>
 
-        {/* 4 Lớp Track Thực Tế */}
+        {/* Các lớp timeline hiện có */}
         <div className="flex-1 space-y-1.5 py-1.5 overflow-y-auto">
           {/* Track 1: Phân Cảnh (Video & Ảnh) */}
           <div className="flex items-center gap-2 h-7 text-xs">
@@ -1460,6 +2005,33 @@ export default function VideoStudioPage() {
               )}
             </div>
           </div>
+
+          {timelineOverlays.length > 0 && (
+            <div className="flex items-center gap-2 h-6 text-xs">
+              <span className="w-20 font-mono text-[10px] text-zinc-400 truncate flex items-center gap-1">
+                <Layers className="size-3 text-purple-400" /> Diễn họa
+              </span>
+              <div className="flex-1 h-full rounded bg-purple-950/40 border border-purple-500/30 relative flex items-center px-1 gap-1.5 overflow-x-auto">
+                {timelineOverlays.map((overlay, index) => {
+                  const asset = assets.find((item) => item.id === overlay.asset_id);
+                  return (
+                    <button
+                      key={`${overlay.asset_id}_${index}`}
+                      type="button"
+                      aria-pressed={selectedOverlayIndex === index}
+                      onClick={() => setSelectedOverlayIndex(index)}
+                      className={`h-5 px-2 rounded flex items-center gap-1.5 shrink-0 border text-[10px] font-mono transition-colors ${selectedOverlayIndex === index
+                        ? "bg-purple-600 text-white border-purple-300"
+                        : "bg-purple-900/60 text-purple-200 border-purple-500/40 hover:bg-purple-800/60"}`}
+                    >
+                      <span className="max-w-32 truncate">{asset?.original_filename || `Lớp ${index + 1}`}</span>
+                      <span>{(overlay.start_ms / 1000).toFixed(1)}–{((overlay.start_ms + overlay.duration_ms) / 1000).toFixed(1)}s</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Track 2: Caption Track */}
           <div className="flex items-center gap-2 h-6 text-xs">

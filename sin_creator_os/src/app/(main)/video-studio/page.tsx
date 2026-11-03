@@ -2,11 +2,11 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { FileVideo2, RefreshCw, Sparkles } from "lucide-react";
+import { FileVideo2, RefreshCw, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { contentVideoApi, ContentVideoApiError } from "@/lib/api/content-video-api";
+import { contentVideoApi, ContentVideoApiError, estimateFlowShotCount } from "@/lib/api/content-video-api";
 import { mediaStudioApi, ProductionProjectResponse } from "@/lib/api/media-studio-api";
 import { randomUuid } from "@/lib/utils";
 
@@ -24,11 +24,13 @@ export default function VideoStudioIndexPage() {
   const [content, setContent] = React.useState("");
   const [duration, setDuration] = React.useState(60);
   const [aspectRatio, setAspectRatio] = React.useState<"9:16" | "16:9">("9:16");
+  const [generateFlowMusic, setGenerateFlowMusic] = React.useState(false);
   const [draftProjectId, setDraftProjectId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [errorCode, setErrorCode] = React.useState<string | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [creating, setCreating] = React.useState(false);
+  const [deletingProjectId, setDeletingProjectId] = React.useState<string | null>(null);
   const contentBytes = new TextEncoder().encode(content).length;
 
   const loadProjects = React.useCallback(async () => {
@@ -61,13 +63,30 @@ export default function VideoStudioIndexPage() {
         setProjects((current) => [project, ...current.filter((item) => item.id !== project.id)]);
       }
 
-      const plan = await contentVideoApi.createPlan(projectId, content.trim(), duration, aspectRatio, randomUuid());
+      const plan = await contentVideoApi.createPlan(projectId, content.trim(), duration, aspectRatio, randomUuid(), generateFlowMusic);
       router.push(`/video-studio/${projectId}/production?plan=${encodeURIComponent(plan.id)}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không tạo được storyboard.");
       setErrorCode(err instanceof ContentVideoApiError ? err.code || null : null);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const deleteProject = async (project: ProductionProjectResponse) => {
+    if (!window.confirm(`Xóa dự án “${project.title}”? Storyboard và timeline sẽ bị xóa; tệp vẫn được giữ trong Thư viện Media. Không thể hoàn tác.`)) return;
+
+    setDeletingProjectId(project.id);
+    setError(null);
+    setErrorCode(null);
+    try {
+      await mediaStudioApi.deleteProject(project.id);
+      setProjects((current) => current.filter((item) => item.id !== project.id));
+      if (draftProjectId === project.id) setDraftProjectId(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không thể xóa dự án.");
+    } finally {
+      setDeletingProjectId(null);
     }
   };
 
@@ -111,6 +130,17 @@ export default function VideoStudioIndexPage() {
               </select>
             </label>
           </div>
+          <fieldset className="grid gap-2 rounded-md border p-3">
+            <legend className="px-1 text-sm font-medium">Âm thanh khi dựng</legend>
+            <label htmlFor="flow-music" className="flex items-start gap-3 text-sm">
+              <input id="flow-music" type="checkbox" checked={generateFlowMusic} onChange={(event) => setGenerateFlowMusic(event.target.checked)} className="mt-1 size-4 accent-primary" />
+              <span><span className="font-medium">Tạo nhạc nền bằng Flow Music</span><span className="mt-1 block text-muted-foreground">AI sẽ viết prompt theo nội dung. Flow Music tạo nhạc khi bắt đầu sản xuất sau khi storyboard được duyệt.</span></span>
+            </label>
+            <p className="text-xs text-muted-foreground">SFX như xé giấy, nhấp chuột, gõ phím và lật trang được đặt riêng theo hành động hoạt hoạ.</p>
+          </fieldset>
+          {Number.isInteger(duration) && duration >= 20 && duration <= 180 && <p role="note" aria-live="polite" className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+            Ước tính tối đa {estimateFlowShotCount(duration)} lượt tạo cảnh Flow cho video này. Cảnh giao diện có thể được dựng bằng mã nên số lượt thực tế có thể thấp hơn; hạn mức còn lại phụ thuộc hồ sơ Flow.
+          </p>}
           <div className="grid gap-2">
             <Button type="submit" disabled={creating || projectTitle.trim().length < 2 || content.trim().length < 40 || contentBytes > 12000 || duration < 20 || duration > 180} className="h-11 w-fit px-5">
               <Sparkles className="mr-2 size-4" />{creating ? "AI đang lập storyboard..." : draftProjectId ? "Thử tạo storyboard lại" : "Tạo storyboard bằng AI"}
@@ -128,7 +158,7 @@ export default function VideoStudioIndexPage() {
           <dl className="grid gap-3 text-sm">
             <div className="flex justify-between gap-4 border-b pb-2"><dt className="text-muted-foreground">Bảng màu</dt><dd className="text-right">Xanh navy · trắng ngà · xanh teal</dd></div>
             <div className="flex justify-between gap-4 border-b pb-2"><dt className="text-muted-foreground">Chuyển động</dt><dd className="text-right">Một hành động liền mạch mỗi cảnh</dd></div>
-            <div className="flex justify-between gap-4 border-b pb-2"><dt className="text-muted-foreground">Âm thanh Flow</dt><dd className="text-right">Bật mặc định; lời nói dùng tiếng Việt</dd></div>
+            <div className="flex justify-between gap-4 border-b pb-2"><dt className="text-muted-foreground">Âm thanh Flow</dt><dd className="text-right">Theo lựa chọn; SFX theo hành động</dd></div>
             <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Tỷ lệ</dt><dd className="text-right">Theo lựa chọn ở biểu mẫu</dd></div>
           </dl>
           <p className="text-xs leading-5 text-muted-foreground">Không tạo người đang gấp giấy. Nhân vật và bối cảnh xuất hiện dưới dạng mô hình origami hoàn chỉnh.</p>
@@ -150,7 +180,12 @@ export default function VideoStudioIndexPage() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {projects.map((project) => <Card key={project.id} className="flex items-center justify-between gap-4 p-4">
               <div className="min-w-0"><p className="truncate font-medium">{project.title}</p><p className="mt-1 text-xs text-muted-foreground">{project.status}</p></div>
-              <Button type="button" size="sm" onClick={() => router.push(`/video-studio/${project.id}/production`)}><FileVideo2 className="mr-2 size-4" />Mở dự án</Button>
+              <div className="flex shrink-0 gap-2">
+                <Button type="button" size="sm" disabled={deletingProjectId !== null} onClick={() => router.push(`/video-studio/${project.id}/production`)}><FileVideo2 className="mr-2 size-4" />Mở dự án</Button>
+                <Button type="button" size="sm" variant="outline" className="text-destructive" disabled={creating || deletingProjectId !== null} onClick={() => void deleteProject(project)} aria-label={`Xóa dự án ${project.title}`}>
+                  <Trash2 className="mr-2 size-4" aria-hidden="true" />{deletingProjectId === project.id ? "Đang xóa..." : "Xóa"}
+                </Button>
+              </div>
             </Card>)}
           </div>
         )}

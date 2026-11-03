@@ -1,3 +1,12 @@
+// Client Service giao tiếp với Authentication API (PRJ_069)
+function browserStorage(): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage || null;
+  } catch {
+    return null;
+  }
+}
+
 export interface UserSession {
   id: string;
   email: string;
@@ -8,7 +17,6 @@ export interface UserSession {
 export interface WorkspaceSession {
   id: string;
   name: string;
-  role: string;
 }
 
 export interface AuthSession {

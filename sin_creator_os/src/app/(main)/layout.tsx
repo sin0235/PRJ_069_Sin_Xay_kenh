@@ -5,19 +5,22 @@ import { cn } from "cn";
 import { AppSidebar } from "@/app/(main)/_components/sidebar/app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { users } from "@/data/users";
 import { getPreference } from "@/server/server-actions";
 
+import { AccountSwitcher } from "./_components/header/account-switcher";
 import { SearchDialog } from "./_components/header/search-dialog";
 import { ThemeSwitcher } from "./_components/header/theme-switcher";
 import { ChannelSelector } from "@/components/creator/channel-selector";
 import { AIJobIndicator } from "@/components/creator/ai-job-indicator";
 import { GlobalCreateButton } from "@/components/creator/global-create-button";
 import { AuthGuard } from "@/components/auth/auth-guard";
+import { VectorConfettiCanvas } from "@/components/creator/motion-primitives";
 
 export default async function MainLayout({ children }: Readonly<{ children: ReactNode }>) {
   const cookieStore = await cookies();
   const requestHeaders = await headers();
-  const devAuthBypass = process.env.DEV_AUTH_BYPASS === "1" || requestHeaders.get("x-sin-dev-auth-bypass") === "1";
+  const devAuthBypass = requestHeaders.get("x-sin-dev-auth-bypass") === "1";
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
   const [variant, collapsible] = await Promise.all([
     getPreference("sidebar_variant"),
@@ -62,6 +65,7 @@ export default async function MainLayout({ children }: Readonly<{ children: Reac
                 <GlobalCreateButton />
                 <Separator orientation="vertical" className="h-4 data-[orientation=vertical]:self-center hidden sm:block" />
                 <ThemeSwitcher />
+                <AccountSwitcher users={users} />
               </div>
             </div>
           </header>
@@ -70,6 +74,7 @@ export default async function MainLayout({ children }: Readonly<{ children: Reac
           <main className="min-h-0 min-w-0 flex-1 overflow-x-hidden p-4 md:p-6">
             {children}
           </main>
+          <VectorConfettiCanvas />
         </SidebarInset>
       </SidebarProvider>
     </AuthGuard>

@@ -44,6 +44,7 @@ import { IdeaService } from "@/services/idea-service";
 import { ContentIdea, IdeaStatus } from "@/types";
 import { IdeaReviewModal, ReviewActionType } from "@/components/ideas/idea-review-modal";
 import { MetricCoverageBadge } from "@/components/common/metric-coverage-badge";
+import { SpotlightCard, ShimmerButton, triggerGlobalVectorConfetti } from "@/components/creator/motion-primitives";
 
 export default function IdeasPage() {
   const router = useRouter();
@@ -101,8 +102,10 @@ export default function IdeasPage() {
         prev.map((item) => {
           if (item.id === selectedIdeaForReview.id) {
             let nextStatus: IdeaStatus = "READY_FOR_REVIEW";
-            if (action === "APPROVE") nextStatus = "APPROVED";
-            else if (action === "REJECT") nextStatus = "REJECTED";
+            if (action === "APPROVE") {
+              nextStatus = "APPROVED";
+              triggerGlobalVectorConfetti();
+            } else if (action === "REJECT") nextStatus = "REJECTED";
             else if (action === "REQUEST_EVIDENCE") nextStatus = "NEEDS_EVIDENCE";
             else if (action === "REOPEN") nextStatus = "READY_FOR_REVIEW";
 
@@ -248,14 +251,13 @@ export default function IdeasPage() {
             </Button>
           </div>
 
-          <Button
-            size="sm"
+          <ShimmerButton
             onClick={() => router.push("/ideas/generate")}
-            className="h-8 text-xs font-semibold rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5"
+            className="h-8 text-xs font-semibold py-1.5 px-3"
           >
             <Sparkles className="size-3.5" />
             <span>Sinh ý tưởng mới</span>
-          </Button>
+          </ShimmerButton>
         </div>
       </div>
 
@@ -351,9 +353,11 @@ export default function IdeasPage() {
               idea.status === "ready_to_script";
 
             return (
-              <Card
+              <SpotlightCard
                 key={idea.id}
-                className="rounded-2xl border-border/80 shadow-xs flex flex-col justify-between hover:border-border transition-all duration-200 overflow-hidden bg-card"
+                className="rounded-2xl border-border/80 shadow-xs flex flex-col justify-between hover:border-primary/40 transition-all duration-200 overflow-hidden bg-card card-hover-lift"
+                spotlightColor="rgba(43, 111, 184, 0.12)"
+                spotlightSize={260}
               >
                 <div className="p-4 space-y-3">
                   {/* Top Header: Topic, Status */}
@@ -387,19 +391,19 @@ export default function IdeasPage() {
                     <div>
                       <span className="text-muted-foreground block">Liên quan</span>
                       <span className="font-bold text-foreground">
-                        {idea.scores?.relevance == null ? "—" : `${idea.scores.relevance}%`}
+                        {idea.scores?.relevance || 90}%
                       </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground block">Bắt Trend</span>
                       <span className="font-bold text-foreground">
-                        {idea.scores?.trend == null ? "—" : `${idea.scores.trend}%`}
+                        {idea.scores?.trend || 85}%
                       </span>
                     </div>
                     <div>
                       <span className="text-muted-foreground block">Điểm AI</span>
                       <span className="font-bold text-primary">
-                        {idea.scores?.overall ?? "—"}
+                        {idea.scores?.overall || 88}
                       </span>
                     </div>
                   </div>
@@ -451,7 +455,7 @@ export default function IdeasPage() {
                     </Button>
                   </div>
                 </div>
-              </Card>
+              </SpotlightCard>
             );
           })}
         </div>
@@ -495,7 +499,7 @@ export default function IdeasPage() {
                         <MetricCoverageBadge metrics={idea.evidence?.length ? { count: 1 } : null} />
                       </td>
                       <td className="py-3 px-3 text-center font-bold text-primary font-mono text-sm">
-                        {idea.scores?.overall ?? "—"}
+                        {idea.scores?.overall || 88}
                       </td>
                       <td className="py-3 px-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">

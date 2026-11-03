@@ -43,8 +43,13 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+import { cn } from "cn";
 import { AIJob } from "@/types";
 import { mediaStudioApi, MediaAssetResponse, CompiledVideoPromptResponse } from "@/lib/api/media-studio-api";
+import { voiceStudioApi } from "@/lib/api/voice-studio-api";
+import { contentVideoApi } from "@/lib/api/content-video-api";
+import { StatusBeacon, SoundEqualizer, ShimmerProgressBar, FloatingSparkleSVG } from "@/components/creator/dynamic-visuals";
+import { BorderBeam, ShimmerButton, triggerGlobalVectorConfetti } from "@/components/creator/motion-primitives";
 
 const AI_TOOLS = [
   {
@@ -133,11 +138,203 @@ export default function AIStudioPage() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = React.useState("all");
   const [jobs, setJobs] = React.useState<AIJob[]>([]);
+  const [isLoadingJobs, setIsLoadingJobs] = React.useState(false);
 
-  const handleRetry = (id: string) => {
+  const refreshAllJobs = React.useCallback(async () => {
+    setIsLoadingJobs(true);
+    try {
+      const allJobs: AIJob[] = [];
+
+      // 1. Tác vụ Voice Clone & TTS (Voice Studio)
+      try {
+        const voiceJobs = await voiceStudioApi.listJobs();
+        if (Array.isArray(voiceJobs)) {
+          for (const vj of voiceJobs) {
+            const isProcessing = vj.state === "RUNNING";
+            const isQueued = vj.state === "QUEUED";
+            const isCompleted = vj.state === "SUCCEEDED";
+            const isFailed = vj.state === "FAILED";
+
+            allJobs.push({
+              id: vj.job_id,
+              type: "tts",
+              title: `Voice Clone & TTS (${vj.provider === "VIE_NEU_V3_TURBO" ? "VieNeu-TTS" : vj.provider || "TTS"})`,
+              status: isProcessing ? "processing" : isQueued ? "queued" : isCompleted ? "completed" : "failed",
+              progress: isCompleted ? 100 : isProcessing ? 65 : isQueued ? 15 : 0,
+              createdAt: vj.created_at ? new Date(vj.created_at).toLocaleString("vi-VN") : "Vừa xong",
+              completedAt: isCompleted && vj.created_at ? new Date(vj.created_at).toLocaleString("vi-VN") : undefined,
+              error: vj.error_message || vj.error_code || undefined,
+              costCredits: 5,
+              meta: {
+                prompt: `Giọng đọc: ${vj.model_id || "Tiêu chuẩn"} | Nhà cung cấp: ${vj.provider}`,
+                route: "/voice-studio",
+              },
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("Không thể tải danh sách tác vụ Voice Studio:", err);
+      }
+
+      // 2. Tác vụ Phòng dựng Video (Video Studio & Auto Edit)
+      try {
+        const [videoProjects, autoProjects] = await Promise.all([
+          mediaStudioApi.listProjects("AI_VIDEO").catch(() => []),
+          mediaStudioApi.listProjects("AUTO_EDIT").catch(() => []),
+        ]);
+
+        const combinedProjects = [...videoProjects, ...autoProjects];
+        const historyPromises = combinedProjects.slice(0, 8).map(async (project) => {
+          try {
+            const history = await contentVideoApi.getLatestHistory(project.id);
+            return { project, history };
+          } catch {
+            return { project, history: null };
+          }
+        });
+
+        const historyResults = await Promise.all(historyPromises);
+        for (const { project, history } of historyResults) {
+          if (history?.run) {
+            const run = history.run;
+            const isProcessing = run.status === "RUNNING";
+            const isQueued = run.status === "QUEUED";
+            const isCompleted = run.status === "SUCCEEDED";
+            const isFailed = run.status === "FAILED" || run.status === "NEEDS_RECONCILIATION";
+
+            let progress = 0;
+            if (isCompleted) {
+              progress = 100;
+            } else if (isProcessing) {
+              const totalSteps = run.steps?.length || 1;
+              const completedSteps = run.steps?.filter((s) => s.state === "DONE" || s.state === "SUCCEEDED").length || 0;
+              progress = Math.min(95, Math.max(20, Math.round((completedSteps / totalSteps) * 90)));
+            } else if (isQueued) {
+              progress = 10;
+            }
+
+            allJobs.push({
+              id: run.id,
+              type: project.workflow_type === "AUTO_EDIT" ? "render" : "video_generation",
+              title: `${project.workflow_type === "AUTO_EDIT" ? "Tự động dựng video" : "Phòng dựng Video"}: ${project.title}`,
+              status: isProcessing ? "processing" : isQueued ? "queued" : isCompleted ? "completed" : "failed",
+              progress,
+              createdAt: run.created_at ? new Date(run.created_at).toLocaleString("vi-VN") : (project.created_at ? new Date(project.created_at).toLocaleString("vi-VN") : "Vừa xong"),
+              error: run.error_message || run.error_code || undefined,
+              costCredits: 10,
+              meta: {
+                prompt: `Tiến độ: ${run.current_step || run.status} (${run.steps?.length || 0} phân cảnh)`,
+                route: project.workflow_type === "AUTO_EDIT" ? "/auto-edit" : `/video-studio/${project.id}/production?run=${encodeURIComponent(run.id)}`,
+              },
+            });
+          } else if (project.status === "IN_PROGRESS" || project.status === "CREATING") {
+            allJobs.push({
+              id: `proj-${project.id}`,
+              type: project.workflow_type === "AUTO_EDIT" ? "render" : "video_generation",
+              title: `${project.workflow_type === "AUTO_EDIT" ? "Tự động dựng video" : "Phòng dựng Video"}: ${project.title}`,
+              status: "processing",
+              progress: 30,
+              createdAt: project.created_at ? new Date(project.created_at).toLocaleString("vi-VN") : "Vừa xong",
+              costCredits: 10,
+              meta: {
+                prompt: `Dự án: ${project.title} | Đang khởi tạo storyboard`,
+                route: project.workflow_type === "AUTO_EDIT" ? "/auto-edit" : `/video-studio/${project.id}/production`,
+              },
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("Không thể tải danh sách tác vụ Video Studio:", err);
+      }
+
+      // 3. Tác vụ Media Studio AI Jobs (Music, Flow, Video Queue)
+      try {
+        const backendJobs = await mediaStudioApi.listAIJobs();
+        if (Array.isArray(backendJobs)) {
+          for (const bj of backendJobs) {
+            if (allJobs.some((j) => j.id === bj.id || j.id === bj.job_id)) continue;
+            const isProcessing = bj.state === "RUNNING";
+            const isQueued = bj.state === "QUEUED";
+            const isCompleted = bj.state === "SUCCEEDED";
+            const isFailed = bj.state === "FAILED" || bj.state === "CANCELLED";
+
+            let type: AIJob["type"] = "video_generation";
+            let typeTitle = "Phòng dựng Video";
+            let route = "/video-studio";
+
+            if (bj.asset_type === "AUDIO") {
+              type = "tts";
+              typeTitle = "Voice Clone & TTS";
+              route = "/voice-studio";
+            } else if (bj.asset_type === "MUSIC") {
+              type = "render";
+              typeTitle = "Flow Music AI";
+              route = "/ai-studio";
+            } else if (bj.asset_type === "VIDEO") {
+              type = "video_generation";
+              typeTitle = "Phòng dựng Video";
+              route = bj.project_id ? `/video-studio/${bj.project_id}/production` : "/video-studio";
+            }
+
+            allJobs.push({
+              id: bj.id,
+              type,
+              title: `${typeTitle} (${bj.model_id || bj.provider})`,
+              status: isProcessing ? "processing" : isQueued ? "queued" : isCompleted ? "completed" : "failed",
+              progress: isCompleted ? 100 : isProcessing ? 50 : isQueued ? 10 : 0,
+              createdAt: bj.created_at ? new Date(bj.created_at).toLocaleString("vi-VN") : "Vừa xong",
+              completedAt: bj.finished_at ? new Date(bj.finished_at).toLocaleString("vi-VN") : undefined,
+              error: bj.error_message || bj.error_code || undefined,
+              costCredits: Math.round(bj.actual_cost || bj.estimated_cost || 5),
+              meta: {
+                prompt: `Mô hình: ${bj.model_id} | Nhà cung cấp: ${bj.provider}`,
+                route,
+              },
+            });
+          }
+        }
+      } catch {
+        // Fallback an toàn nếu /v1/ai-jobs chưa sẵn sàng
+      }
+
+      // Sắp xếp: Tác vụ đang chạy/hàng đợi lên đầu, sau đó theo thời gian giảm dần
+      allJobs.sort((a, b) => {
+        const statusPriority: Record<string, number> = { processing: 3, queued: 2, failed: 1, completed: 0, cancelled: 0 };
+        const pDiff = (statusPriority[b.status] || 0) - (statusPriority[a.status] || 0);
+        if (pDiff !== 0) return pDiff;
+        return (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0);
+      });
+
+      setJobs(allJobs);
+    } finally {
+      setIsLoadingJobs(false);
+    }
+  }, []);
+
+  // Tự động tải danh sách tác vụ khi mở trang
+  React.useEffect(() => {
+    void refreshAllJobs();
+  }, [refreshAllJobs]);
+
+  // Polling tự động khi có tác vụ đang chạy
+  React.useEffect(() => {
+    const hasActiveJobs = jobs.some((j) => j.status === "processing" || j.status === "queued");
+    if (!hasActiveJobs) return;
+    const interval = window.setInterval(() => {
+      void refreshAllJobs();
+    }, 6000);
+    return () => window.clearInterval(interval);
+  }, [jobs, refreshAllJobs]);
+
+  const handleRetry = (id: string, metaRoute?: string) => {
+    if (metaRoute) {
+      router.push(metaRoute);
+      return;
+    }
     setJobs((prev) =>
       prev.map((j) => (j.id === id ? { ...j, status: "processing", progress: 20, error: undefined } : j))
     );
+    void refreshAllJobs();
   };
 
   // States cho Interactive Generative Studio
@@ -338,6 +535,7 @@ export default function AIStudioPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
+            <FloatingSparkleSVG size={22} className="text-primary" />
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
               Trung Tâm Sáng Tạo AI (AI Studio)
             </h1>
@@ -363,19 +561,19 @@ export default function AIStudioPage() {
             <span>{isOpeningFlowLogin ? "Đang kết nối..." : "Kết nối Google Flow"}</span>
           </Button>
 
-          <Button
-            size="sm"
+          <ShimmerButton
             onClick={() => router.push("/video-studio")}
-            className="h-8 text-xs font-semibold rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shadow-sm"
+            className="h-8 text-xs font-semibold py-1.5 px-3.5"
           >
             <Video className="size-3.5" />
             <span>Mở Video Studio 9:16</span>
-          </Button>
+          </ShimmerButton>
         </div>
       </div>
 
       {/* INTERACTIVE GENERATIVE MEDIA STUDIO CARD */}
-      <Card className="rounded-2xl border-primary/30 bg-gradient-to-b from-card to-primary/5 shadow-sm overflow-hidden">
+      <Card className="relative rounded-2xl border-primary/30 bg-gradient-to-b from-card to-primary/5 shadow-sm overflow-hidden">
+        <BorderBeam size={260} duration={8} colorFrom="#2b6fb8" colorTo="#60a5fa" />
         <CardHeader className="p-5 pb-3 border-b border-border/50">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div>
@@ -520,9 +718,14 @@ export default function AIStudioPage() {
                 {/* Output Preview */}
                 <div className="p-4 rounded-xl border border-border/80 bg-background/80 flex flex-col justify-between space-y-3">
                   <div className="space-y-2">
-                    <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                      Kết Quả Render Âm Thanh
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                        Kết Quả Render Âm Thanh
+                      </span>
+                      {generatedMusic && (
+                        <SoundEqualizer isPlaying={true} colorClass="bg-emerald-500" height={14} />
+                      )}
+                    </div>
                     {generatedMusic ? (
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
@@ -792,11 +995,11 @@ export default function AIStudioPage() {
             <Card
               key={tool.id}
               onClick={() => router.push(tool.route)}
-              className="group rounded-2xl border-border/80 bg-card hover:border-primary/50 transition-all cursor-pointer p-4 flex flex-col justify-between space-y-4 shadow-xs hover:shadow-md"
+              className="group rounded-2xl border-border/80 bg-card hover:border-primary/50 transition-all cursor-pointer p-4 flex flex-col justify-between space-y-4 shadow-xs hover:shadow-md card-hover-lift"
             >
               <div className="space-y-3">
                 <div className="flex items-start justify-between">
-                  <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-105 transition-transform">
+                  <div className="size-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 group-hover:bg-primary/20 transition-all duration-300">
                     <Icon className="size-5" />
                   </div>
                   <Badge variant="outline" className="text-[10px] font-semibold border-primary/30 text-primary bg-primary/5">
@@ -833,17 +1036,18 @@ export default function AIStudioPage() {
           <div className="flex items-center gap-2">
             <h2 className="text-sm font-bold text-foreground">Hàng Đợi Xử Lý Nền (Background Jobs)</h2>
             <Badge variant="secondary" className="text-[10px] font-mono">
-              {jobs.filter((j) => j.status === "processing").length} Đang chạy
+              {jobs.filter((j) => j.status === "processing" || j.status === "queued").length} Đang chạy
             </Badge>
           </div>
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setJobs([...jobs])}
+            disabled={isLoadingJobs}
+            onClick={() => void refreshAllJobs()}
             className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1"
           >
-            <RotateCw className="size-3" />
-            <span>Làm mới trạng thái</span>
+            <RotateCw className={cn("size-3", isLoadingJobs && "animate-spin")} />
+            <span>{isLoadingJobs ? "Đang cập nhật..." : "Làm mới trạng thái"}</span>
           </Button>
         </div>
 
@@ -852,75 +1056,103 @@ export default function AIStudioPage() {
             <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-xl text-center bg-card/40">
               <Database className="size-8 text-muted-foreground mb-2 opacity-60" />
               <p className="text-sm font-semibold text-foreground">Không có dữ liệu tiến trình nền</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Chưa có tác vụ AI nào đang xếp hàng hoặc đang chạy.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Chưa có tác vụ AI nào đang xếp hàng hoặc đang chạy từ Phòng dựng Video hay Voice Clone & TTS.</p>
             </div>
           ) : (
             jobs.map((job) => {
-            const isProcessing = job.status === "processing";
-            const isCompleted = job.status === "completed";
-            const isFailed = job.status === "failed";
+              const isProcessing = job.status === "processing";
+              const isQueued = job.status === "queued";
+              const isCompleted = job.status === "completed";
+              const isFailed = job.status === "failed";
 
-            return (
-              <div
-                key={job.id}
-                className="flex flex-col md:flex-row md:items-center justify-between p-3.5 rounded-xl border border-border/70 bg-card gap-3 text-xs"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="size-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                    {isProcessing && <RotateCw className="size-4 text-primary animate-spin" />}
-                    {isCompleted && <CheckCircle2 className="size-4 text-emerald-500" />}
-                    {isFailed && <AlertCircle className="size-4 text-destructive" />}
-                  </div>
+              const typeBadgeLabel =
+                job.type === "tts"
+                  ? "Voice TTS"
+                  : job.type === "video_generation"
+                    ? "Phòng dựng Video"
+                    : "Dựng tự động";
 
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-foreground">{job.title}</span>
-                      <span className="text-[10px] font-mono text-muted-foreground">ID: {job.id}</span>
+              return (
+                <div
+                  key={job.id}
+                  className="flex flex-col md:flex-row md:items-center justify-between p-3.5 rounded-xl border border-border/70 bg-card gap-3 text-xs hover:border-primary/40 transition-all card-hover-lift"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="size-9 rounded-xl bg-muted/70 flex items-center justify-center shrink-0">
+                      <StatusBeacon status={job.status === "cancelled" ? "idle" : job.status} showIcon={true} size="md" />
                     </div>
-                    <p className="text-[11px] text-muted-foreground">{(job.meta?.prompt || job.type)}</p>
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-4 justify-between md:justify-end">
-                  {isProcessing && (
-                    <div className="w-32 space-y-1">
-                      <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
-                        <span>Đang xử lý</span>
-                        <span>{job.progress}%</span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-foreground">{job.title}</span>
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 font-medium border-border/70">
+                          {typeBadgeLabel}
+                        </Badge>
+                        <span className="text-[10px] font-mono text-muted-foreground hidden sm:inline">ID: {job.id}</span>
                       </div>
-                      <Progress value={job.progress} className="h-1.5" />
+                      <p className="text-[11px] text-muted-foreground line-clamp-1">{job.meta?.prompt || job.type}</p>
                     </div>
-                  )}
+                  </div>
 
-                  {isCompleted && (
-                    <Badge variant="outline" className="border-emerald-500/30 text-emerald-600 bg-emerald-500/5 text-[10px]">
-                      Hoàn thành
-                    </Badge>
-                  )}
+                  <div className="flex items-center gap-3 justify-between md:justify-end shrink-0">
+                    {isProcessing && (
+                      <div className="w-28 space-y-1">
+                        <div className="flex justify-between text-[10px] font-mono text-muted-foreground">
+                          <span>Đang xử lý</span>
+                          <span className="font-semibold text-primary">{job.progress}%</span>
+                        </div>
+                        <ShimmerProgressBar value={job.progress} isProcessing={true} />
+                      </div>
+                    )}
 
-                  {isFailed && (
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="border-destructive/30 text-destructive bg-destructive/5 text-[10px]">
-                        Thất bại
+                    {isQueued && (
+                      <Badge variant="outline" className="border-amber-500/30 text-amber-600 bg-amber-500/5 text-[10px]">
+                        Đang xếp hàng
                       </Badge>
+                    )}
+
+                    {isCompleted && (
+                      <Badge variant="outline" className="border-emerald-500/30 text-emerald-600 bg-emerald-500/5 text-[10px]">
+                        Hoàn thành
+                      </Badge>
+                    )}
+
+                    {isFailed && (
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="outline" className="border-destructive/30 text-destructive bg-destructive/5 text-[10px]">
+                          Thất bại
+                        </Badge>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleRetry(job.id, job.meta?.route)}
+                          className="h-6 px-2 text-[10px] text-primary hover:bg-primary/10"
+                        >
+                          Thử lại
+                        </Button>
+                      </div>
+                    )}
+
+                    {job.meta?.route && (
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => handleRetry(job.id)}
-                        className="h-6 px-2 text-[10px] text-primary hover:bg-primary/10"
+                        onClick={() => { const route = job.meta?.route; if (route) router.push(route); }}
+                        className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted gap-1"
                       >
-                        Thử lại
+                        <span>Mở</span>
+                        <ArrowRight className="size-3" />
                       </Button>
-                    </div>
-                  )}
+                    )}
 
-                  <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
-                    <Clock className="size-3" /> {job.createdAt}
-                  </span>
+                    <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
+                      <Clock className="size-3" /> {job.createdAt}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            );
-          }))}
+              );
+            })
+          )}
         </div>
       </div>
     </div>

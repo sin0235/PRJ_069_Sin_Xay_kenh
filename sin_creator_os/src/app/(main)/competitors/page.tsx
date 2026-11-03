@@ -26,7 +26,6 @@ export default function CompetitorsPage() {
   const router = useRouter();
   const [competitors, setCompetitors] = React.useState<any[]>([]);
 
-export default function EmptyDataPage() {
   return (
     <div className="space-y-6 pb-20">
       {/* Header */}

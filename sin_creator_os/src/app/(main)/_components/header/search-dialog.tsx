@@ -124,6 +124,9 @@ export function SearchDialog() {
             <CommandItem onSelect={() => handleSelect("/video-studio")} className="cursor-pointer">
               <Video className="size-4 mr-2" /> Video Studio (Dựng Video Dọc 9:16)
             </CommandItem>
+            <CommandItem onSelect={() => handleSelect("/auto-edit")} className="cursor-pointer">
+              <Video className="size-4 mr-2" /> Tự động dựng video
+            </CommandItem>
             <CommandItem onSelect={() => handleSelect("/trends")} className="cursor-pointer">
               <TrendingUp className="size-4 mr-2" /> Radar Bắt Xu Hướng (Trends)
             </CommandItem>

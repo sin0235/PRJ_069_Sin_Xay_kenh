@@ -77,7 +77,7 @@ export function ShotActionDetails({
                   {beat.start_s}–{beat.end_s} giây
                   <textarea
                     className="min-h-16 rounded-md border bg-background p-3"
-                    maxLength={1000}
+                    maxLength={2000}
                     value={beat.action}
                     onChange={(event) =>
                       onChange({
@@ -117,7 +117,7 @@ export function ShotActionDetails({
                   {roleLabels[message.role]} · {message.at_s} giây
                   <textarea
                     className="min-h-16 rounded-md border bg-background p-3"
-                    maxLength={1000}
+                    maxLength={2000}
                     value={message.text}
                     onChange={(event) =>
                       onChange({
@@ -147,7 +147,7 @@ export function ShotActionDetails({
               Điểm nhấn trên giao diện
               <textarea
                 className="min-h-16 rounded-md border bg-background p-3"
-                maxLength={500}
+                maxLength={1000}
                 value={ui.highlight ?? ""}
                 onChange={(event) =>
                   onChange({

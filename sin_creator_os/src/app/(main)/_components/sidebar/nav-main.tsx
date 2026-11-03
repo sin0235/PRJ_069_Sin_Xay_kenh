@@ -177,7 +177,13 @@ function NavItem({ item, isItemActive, isSubItemActive, isSubmenuOpen }: NavItem
 function NavLinkItem({ item, isActive, showIconFallback }: NavLinkItemProps) {
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton asChild aria-disabled={item.disabled} tooltip={item.title} isActive={isActive}>
+      <SidebarMenuButton
+        asChild
+        aria-disabled={item.disabled}
+        tooltip={item.title}
+        isActive={isActive}
+        className="transition-all duration-200 hover:translate-x-0.5"
+      >
         <Link
           prefetch={false}
           href={item.url}
@@ -197,7 +203,7 @@ function NavLinkIcon({ item, showFallback }: NavLinkIconProps) {
   const Icon = item.icon;
 
   if (Icon) {
-    return <Icon />;
+    return <Icon className="transition-transform duration-200 group-hover/menu-button:scale-110" />;
   }
 
   if (showFallback) {
@@ -310,10 +316,12 @@ function NavItemBadge({ badge }: { badge?: NavBadge }) {
   return (
     <SidebarMenuBadge
       className={cn(
-        "rounded-sm border text-[9px] font-semibold tracking-wider",
+        "rounded-sm border text-[9px] font-semibold tracking-wider transition-colors",
         badge === "new" &&
           "border-green-600 text-green-600 peer-hover/menu-button:text-green-600 peer-data-active/menu-button:text-green-600",
         badge === "soon" && "border-muted-foreground text-muted-foreground",
+        badge === "ai" && "border-primary/50 text-primary bg-primary/10 shadow-xs",
+        badge === "pro" && "border-amber-500/50 text-amber-500 bg-amber-500/10",
       )}
     >
       {badgeLabels[badge] || badge}

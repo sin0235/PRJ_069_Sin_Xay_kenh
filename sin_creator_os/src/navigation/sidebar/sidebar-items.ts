@@ -1,9 +1,9 @@
 import {
   Compass,
+  Clapperboard,
   Home,
   Lightbulb,
   Sparkles,
-  Video,
   Kanban,
   Calendar,
   FolderOpen,
@@ -17,7 +17,7 @@ import {
   Settings,
   type LucideIcon,
   PieChart,
-  Mic,
+  Wand2,
 } from "lucide-react";
 
 export type NavBadge = "new" | "ai" | "pro" | "soon";
@@ -90,16 +90,17 @@ export const sidebarItems: NavGroup[] = [
         badge: "ai",
       },
       {
-        id: "video-studio",
-        title: "Phòng dựng Video",
-        url: "/video-studio",
-        icon: Video,
+        id: "auto-edit",
+        title: "Tự động dựng video",
+        url: "/auto-edit",
+        icon: Clapperboard,
       },
       {
-        id: "voice-studio",
-        title: "Voice Clone & TTS",
-        url: "/voice-studio",
-        icon: Mic,
+        id: "animations",
+        title: "Hiệu ứng chuyển động",
+        url: "/animations",
+        icon: Wand2,
+        badge: "new",
       },
     ],
   },

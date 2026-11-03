@@ -13,12 +13,12 @@ export type IdeaStatus =
   | 'DRAFT';
 
 export interface IdeaScores {
-  relevance?: number;
-  trend?: number;
-  audienceFit?: number;
-  novelty?: number;
-  productionDifficulty?: 'easy' | 'medium' | 'hard';
-  overall?: number;
+  relevance: number; // 0-100
+  trend: number; // 0-100
+  audienceFit: number; // 0-100
+  novelty: number; // 0-100
+  productionDifficulty: 'easy' | 'medium' | 'hard';
+  overall: number; // 0-100
 }
 
 export interface ContentIdea {
@@ -41,12 +41,12 @@ export interface ContentIdea {
   topic: string;
   contentPillar: string;
   audience: string;
-  format?: 'Talking Head' | 'Tutorial / How-to' | 'POV / Skit' | 'Listicle' | 'Storytime' | 'Before / After' | 'Visual B-Roll';
-  expectedObjective?: 'Reach & Awareness' | 'High Engagement' | 'Follower Conversion' | 'Link Clicks';
+  format: 'Talking Head' | 'Tutorial / How-to' | 'POV / Skit' | 'Listicle' | 'Storytime' | 'Before / After' | 'Visual B-Roll';
+  expectedObjective: 'Reach & Awareness' | 'High Engagement' | 'Follower Conversion' | 'Link Clicks';
   status: IdeaStatus;
   createdBy: string;
-  scores?: IdeaScores;
-  freshness?: 'Breaking' | 'Rising' | 'Stable';
+  scores: IdeaScores;
+  freshness: 'Breaking' | 'Rising' | 'Stable';
   estimatedProductionEffort: string;
   whyThisIdea: string;
   evidence: EvidenceSource[];

@@ -26,16 +26,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     })),
   );
 
-  const [currentUser, setCurrentUser] = React.useState({ name: "", email: "", avatar: "", role: "" });
+  const [currentUser, setCurrentUser] = React.useState({
+    name: "Sin Admin",
+    email: "sin@test.com",
+    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80",
+    role: "WORKSPACE_OWNER",
+  });
 
   React.useEffect(() => {
     const user = AuthApi.getCurrentUser();
     if (user) {
       setCurrentUser({
-        name: user.full_name || "",
-        email: user.email || "",
-        avatar: "",
-        role: user.role || "",
+        name: user.full_name || "Sin Admin",
+        email: user.email || "sin@test.com",
+        avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80",
+        role: user.role || "WORKSPACE_OWNER",
       });
     }
   }, []);
@@ -54,7 +59,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-border/60">
-        {currentUser.name && <NavUser user={currentUser} />}
+        <NavUser user={currentUser} />
       </SidebarFooter>
     </Sidebar>
   );

@@ -153,6 +153,30 @@ export interface ProductionProjectResponse {
 
 export type ProductionWorkflowType = ProductionProjectResponse["workflow_type"];
 
+export interface AIGenerationJobItem {
+  id: string;
+  job_id?: string;
+  workspace_id: string;
+  project_id?: string | null;
+  asset_type: string;
+  provider: string;
+  provider_mode: string;
+  model_id: string;
+  idempotency_key: string;
+  state: string;
+  estimated_cost: number;
+  actual_cost: number;
+  cost_currency: string;
+  credits_source: string;
+  output_asset_ids: string[];
+  retry_count: number;
+  error_code?: string | null;
+  error_message?: string | null;
+  created_by: string;
+  created_at: string;
+  finished_at?: string | null;
+}
+
 export interface TimelineClip {
   clip_id: string;
   asset_id: string;
@@ -179,8 +203,19 @@ export interface TimelineCaption {
   duration_ms: number;
   font_size?: number;
   safe_zone?: boolean;
+  words?: { text: string; start_ms: number; end_ms: number }[];
   visual_type?: "callout";
   position_y_px?: number;
+}
+
+export interface KaraokeCaptionSettings {
+  preset: "bat_nhip" | "to_sac" | "hai_dong";
+  font_size: 42 | 56 | 70;
+  layout: "center" | "left" | "two_line";
+  accent_color: "champagne" | "baha_blue" | "coral";
+  outline: boolean;
+  shadow: boolean;
+  word_pop: boolean;
 }
 
 export interface TimelineOverlay {
@@ -203,6 +238,7 @@ export interface TimelineDocument {
   captions?: TimelineCaption[];
   overlays?: TimelineOverlay[];
   caption_style?: "legacy" | "vietsub_v1" | "vietsub_karaoke_v2";
+  karaoke_settings?: KaraokeCaptionSettings;
   transition_seconds?: number;
 }
 
@@ -289,9 +325,11 @@ export interface GenerateMusicParams {
   mode?: "CLIP_30S" | "FULL_SONG" | "PILOT_ASSISTED" | "SYNTH_FIXTURE";
   duration_sec?: number;
   project_id?: string;
+  flow_profile_id?: string;
   idempotency_key?: string;
   normalize_tiktok?: boolean;
   workspace_id?: string;
+  token?: string;
 }
 
 interface MusicJobStatusResponse {
@@ -307,6 +345,7 @@ export interface MixAudioParams {
   music_asset_id: string;
   music_attenuation_db?: number;
   workspace_id?: string;
+  token?: string;
 }
 
 export interface GenerateVideoParams {
@@ -318,15 +357,25 @@ export interface GenerateVideoParams {
   project_id?: string;
   idempotency_key?: string;
   workspace_id?: string;
+  token?: string;
 }
 
 export interface AssembleVideoParams {
   scene_asset_ids: string[];
   audio_asset_id: string;
   workspace_id?: string;
+  token?: string;
 }
 
 export const mediaStudioApi = {
+  async listAIJobs(assetType?: string): Promise<AIGenerationJobItem[]> {
+    const params = assetType ? `?asset_type=${encodeURIComponent(assetType)}` : "";
+    const res = await apiFetch(`${API_BASE_URL}/v1/ai-jobs${params}`, {
+      headers: mediaAuthHeaders(),
+    });
+    if (!res.ok) return [];
+    return (await res.json()) as AIGenerationJobItem[];
+  },
   async listProjects(workflowType: ProductionWorkflowType = "AI_VIDEO"): Promise<ProductionProjectResponse[]> {
     const res = await apiFetch(`${API_BASE_URL}/v1/media/projects?workflow_type=${workflowType}`, {
       headers: mediaAuthHeaders(),
@@ -346,6 +395,14 @@ export const mediaStudioApi = {
       throw new Error(err.detail?.message || err.detail || `Không thể tạo dự án (${res.status}).`);
     }
     return res.json();
+  },
+
+  async deleteProject(projectId: string): Promise<void> {
+    const res = await apiFetch(`${API_BASE_URL}/v1/media/projects/${encodeURIComponent(projectId)}`, {
+      method: "DELETE",
+      headers: mediaAuthHeaders(),
+    });
+    if (!res.ok) throw new Error(await responseErrorMessage(res, `Không thể xóa dự án (${res.status}).`));
   },
 
   async openGoogleFlowLogin(): Promise<void> {
@@ -412,6 +469,7 @@ export const mediaStudioApi = {
     if (params.mode) formData.append("mode", params.mode);
     if (params.duration_sec) formData.append("duration_sec", String(params.duration_sec));
     if (params.project_id) formData.append("project_id", params.project_id);
+    if (params.flow_profile_id) formData.append("flow_profile_id", params.flow_profile_id);
     const idempotencyKey = params.idempotency_key || randomUuid();
     formData.append("idempotency_key", idempotencyKey);
     formData.append("normalize_tiktok", String(params.normalize_tiktok !== false));
@@ -632,12 +690,12 @@ export const mediaStudioApi = {
     window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
   },
 
-  async listAssets(opts: string | { workspace_id?: string; project_id?: string; token?: string; limit?: number; throwOnError?: boolean } = "default_ws", token?: string): Promise<MediaAssetResponse[]> {
-    const wsId = typeof opts === "string" ? opts : (opts.workspace_id || AuthApi.getWorkspaceId());
-    const tok = typeof opts === "string" ? token : opts.token;
+  async listAssets(opts?: string | { workspace_id?: string; project_id?: string; token?: string; limit?: number; throwOnError?: boolean }, token?: string): Promise<MediaAssetResponse[]> {
+    const wsId = (typeof opts === "string" && opts !== "default_ws") ? opts : (typeof opts === "object" ? opts?.workspace_id : undefined) || AuthApi.getWorkspaceId();
+    const tok = typeof opts === "string" ? token : opts?.token;
     const headers = mediaAuthHeaders(wsId, tok);
-    const projectId = typeof opts === "string" ? undefined : opts.project_id;
-    const limit = typeof opts === "string" || opts.limit === undefined ? "" : `&limit=${opts.limit}`;
+    const projectId = typeof opts === "string" ? undefined : opts?.project_id;
+    const limit = typeof opts === "string" || opts?.limit === undefined ? "" : `&limit=${opts.limit}`;
     const query = projectId ? `?project_id=${encodeURIComponent(projectId)}${limit}` : "";
 
     const res = await apiFetch(`${API_BASE_URL}/v1/media/assets${query}`, {
@@ -645,7 +703,7 @@ export const mediaStudioApi = {
     });
 
     if (!res.ok) {
-      if (typeof opts !== "string" && opts.throwOnError) {
+      if (typeof opts !== "string" && opts?.throwOnError) {
         throw new Error(await responseErrorMessage(res, `Không thể tải danh sách tư liệu (${res.status}).`));
       }
       return [];
