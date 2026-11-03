@@ -99,6 +99,8 @@ class DesktopRuntime:
         return process
 
     def start(self) -> None:
+        if os.name == "nt":
+            return
         web_root = Path(os.environ.get("FLOW_NOVNC_WEB_ROOT", "/usr/share/novnc")).resolve()
         if not (web_root / "vnc.html").is_file():
             raise RuntimeError("FLOW_DESKTOP_RUNTIME_UNAVAILABLE")
