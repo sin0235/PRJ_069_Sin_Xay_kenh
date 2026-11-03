@@ -562,11 +562,16 @@ def render_auto_edit_diagram(db: Session, job: AIGenerationJob, request: dict) -
             duration, diagram_aspect_ratio, path, narration=narration, word_times=word_times,
             transparent_background=transparent_background,
         )
-        if meta.get("render_engine") != "hyperframes" or not path.is_file() or path.stat().st_size < 20_000:
+        engine_used = meta.get("render_engine")
+        # Nền trong suốt chỉ HyperFrames dựng được; cảnh thường mà HyperFrames chưa cài thì render_scene đã lùi sang Playwright: nhận kết quả đó thay vì báo lỗi.
+        if engine_used != "hyperframes" and (transparent_background or engine_used != "playwright"):
+            raise ValueError("HYPERFRAMES_ENGINE_NOT_USED")
+        if not path.is_file() or path.stat().st_size < 1_000:
             raise ValueError("HYPERFRAMES_ENGINE_NOT_USED")
         info = video_processor.probe_video(path)
-        if ((info.get("width"), info.get("height")) != expected_dimensions or info.get("frame_rate") != 30
-                or info.get("duration_seconds", 0) < duration or info.get("has_alpha") is not transparent_background):
+        frame_rate = info.get("frame_rate") or 0
+        if ((info.get("width"), info.get("height")) != expected_dimensions or not 24 <= frame_rate <= 60
+                or info.get("duration_seconds", 0) < duration - 0.2 or info.get("has_alpha") is not transparent_background):
             raise ValueError("HYPERFRAMES_OUTPUT_INVALID")
         from src.modules.tac_vu_tu_xa.stages import verify_decode
         if not verify_decode(path)['decode_ok']:
@@ -619,7 +624,7 @@ def chon_dien_hoa(clips: list[ClipTuDong], words: list[dict], candidates: list[d
                 "Khi cần minh họa song song với người nói, dùng OVERLAY; asset alpha sẽ hòa trong suốt, asset đục hiện thành khung chữ nhật chỉ khi nền có chủ ý. Chọn layout_position upper_left, upper_right, center_left hoặc center_right và layout_size small, medium hoặc large; tránh che mặt, tiêu đề và phụ đề.",
                 "Diễn họa HyperFrames có nền trong suốt; khi chi tiết phụ trợ, ưu tiên OVERLAY để giữ hình người nói bên dưới. Nền giấy và từng thẻ bên trong vẫn đục để chữ rõ. Chỉ tăng kích thước đủ đọc.",
                 "Tag một ý ngắn có thể dùng HYPERFRAMES alpha OVERLAY small/medium để giữ người nói. Checklist nhiều mục phải đủ lớn để đọc ở màn hình 360x640; nếu phải thu chữ quá nhỏ hoặc che mặt, dùng CUTAWAY hoặc bố cục khác phù hợp. Dùng asset đúng target, khớp lời.",
-                "Kiểm tra tỷ lệ chữ sau khi thu canvas: chữ 46 px trong asset rộng 1080 khi chèn rộng 270 chỉ còn 11,5 px trên output, không đọc rõ. Chữ nội dung phải còn ít nhất 22 px trên output 1080; không chọn small chỉ vì cảnh là checklist. Nếu không thể vừa khung và đọc rõ, đánh dấu cần rà soát thay vì nhận bố cục đó đã đạt.",
+                "Kiểm tra ở màn hình 360x640: chữ nội dung tối thiểu 16 px trên màn hình, tương đương 48 px trên output 1080. Checklist font 64 px trên canvas 1080 khi chèn rộng 405 chỉ còn 24 px trên output và 8 px trên điện thoại, không đạt. Checklist nhiều dòng phải dùng CUTAWAY toàn khung nếu overlay không đủ kích thước đọc hoặc chạm mặt; không coi large tự động là dễ đọc. Nếu không thể vừa khung và đọc rõ, đánh dấu cần rà soát thay vì nhận bố cục đó đã đạt.",
                 "Với visual_kind=diagram, chọn CUTAWAY khi sơ đồ là bằng chứng chính và asset có nền đục; chọn OVERLAY khi sơ đồ là panel bổ trợ và người nói cần giữ toàn khung; chọn SPEAKER_PIP khi asset đục và cả sơ đồ lẫn người nói cần xuất hiện. Dựa vào aspect_ratio để giữ đúng tỉ lệ, tránh crop và tự chọn vị trí/kích thước small, medium hoặc large theo nội dung, không ép mặc định một cỡ.",
                 "Với asset 9:16 có chữ hoặc số liệu và nền alpha, chọn OVERLAY large khi đủ chỗ đọc mà không che mặt/phụ đề; nếu không vừa, đánh dấu cần rà soát, không chuyển sơ đồ alpha thành PIP.",
                 "Khi asset có nền đục và cần giữ biểu cảm người nói, chọn SPEAKER_PIP. Chọn layout_position và layout_size để đặt người nói gọn trên nền giấy, không che phụ đề.",

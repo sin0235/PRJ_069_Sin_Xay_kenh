@@ -1,0 +1,26 @@
+{
+  "output": "C:\\Users\\Baha Group\\Documents\\PRJ_069_Sin_Xay_kenh_git_push_wt_auto_edit_ui\\ha_tang\\chay_dev_local\\runtime\\e2e_giong_sep\\proof_checklist_chu_64.mp4",
+  "metadata": {
+    "aspect_ratio": "9:16",
+    "bitrate_bps": 2601627,
+    "codec_name": "h264",
+    "duration_seconds": 8.5,
+    "flow_native_audio": true,
+    "frame_rate": 30.0,
+    "has_alpha": false,
+    "height": 1920,
+    "is_vertical_9_16": true,
+    "pixel_format": "yuv420p",
+    "safe_zone_tiktok": {
+      "bottom_margin_px": 320,
+      "is_compliant": true,
+      "right_margin_px": 120,
+      "top_margin_px": 150
+    },
+    "video_stream_duration_seconds": 8.5,
+    "width": 1080
+  },
+  "qc": {
+    "decode_ok": true
+  }
+}
