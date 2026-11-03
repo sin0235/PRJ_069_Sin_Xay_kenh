@@ -276,21 +276,19 @@ def reconcile_flow_job(db: Session, *, job_id: str, asset_id: str, workspace_id:
         "at": datetime.now(timezone.utc).isoformat()}
     import shutil
     recovered_path = path.with_name(f"flow_phuc_hoi_{recovered.id}.mp4")
-    shutil.copyfile(path, recovered_path)
-    recovered.storage_key = recovered_path.relative_to(root).as_posix()
-    changed = db.execute(update(AIGenerationJob).where(
-        AIGenerationJob.id == job.id, AIGenerationJob.workspace_id == workspace_id,
-        AIGenerationJob.state == "NEEDS_RECONCILIATION", AIGenerationJob.lease_token.is_(None),
-        AIGenerationJob.request_payload_json == job.request_payload_json,
-    ).values(state="SUCCEEDED", request_payload_json=json.dumps(request, ensure_ascii=False),
-        output_asset_ids_json=json.dumps([recovered.id]), error_code=None, error_message=None,
-        finished_at=datetime.now(timezone.utc), actual_cost=0).execution_options(synchronize_session=False))
-    if changed.rowcount != 1:
-        db.rollback()
-        recovered_path.unlink(missing_ok=True)
-        reject("JOB_STATE_CHANGED")
-    db.add(recovered)
     try:
+        shutil.copyfile(path, recovered_path)
+        recovered.storage_key = recovered_path.relative_to(root).as_posix()
+        changed = db.execute(update(AIGenerationJob).where(
+            AIGenerationJob.id == job.id, AIGenerationJob.workspace_id == workspace_id,
+            AIGenerationJob.state == "NEEDS_RECONCILIATION", AIGenerationJob.lease_token.is_(None),
+            AIGenerationJob.request_payload_json == job.request_payload_json,
+        ).values(state="SUCCEEDED", request_payload_json=json.dumps(request, ensure_ascii=False),
+            output_asset_ids_json=json.dumps([recovered.id]), error_code=None, error_message=None,
+            finished_at=datetime.now(timezone.utc), actual_cost=0).execution_options(synchronize_session=False))
+        if changed.rowcount != 1:
+            reject("JOB_STATE_CHANGED")
+        db.add(recovered)
         db.commit()
     except Exception:
         db.rollback()

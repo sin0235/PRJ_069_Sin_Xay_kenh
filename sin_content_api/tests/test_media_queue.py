@@ -1049,7 +1049,7 @@ def test_worker_luu_project_flow_truoc_gui_va_chan_worker_mat_lease(media_db,mon
         assert worker._execute_job(db,job,request) is expected
 
 
-@pytest.mark.parametrize('invalid', [None, 'workspace', 'project', 'hash', 'active', 'duration', 'old', 'path'])
+@pytest.mark.parametrize('invalid', [None, 'workspace', 'project', 'hash', 'active', 'duration', 'old', 'path', 'database'])
 def test_doi_soat_flow_da_tai_khong_tao_lai(media_db,monkeypatch,tmp_path,invalid):
     from src.modules.media_queue import service
     from src.modules.media_studio import security
@@ -1073,6 +1073,17 @@ def test_doi_soat_flow_da_tai_khong_tao_lai(media_db,monkeypatch,tmp_path,invali
         'duration_seconds':4 if invalid=='duration' else 10,'frame_rate':30})
     args=dict(job_id=job.id,asset_id=asset.id,workspace_id=ws,user_id='user-queue',
         project_url='https://flow.google.com/project/doi-soat',reason='Đã đối chiếu cảnh tải từ Flow và kiểm tra gỡ logo.')
+    if invalid=='database':
+        from sqlalchemy.sql.dml import Update
+        execute=db.execute
+        def fail_update(statement,*args,**kwargs):
+            if isinstance(statement,Update):raise RuntimeError('DATABASE_UNAVAILABLE')
+            return execute(statement,*args,**kwargs)
+        monkeypatch.setattr(db,'execute',fail_update)
+        with pytest.raises(RuntimeError,match='DATABASE_UNAVAILABLE'):service.reconcile_flow_job(db,**args)
+        assert not list(tmp_path.glob('flow_phuc_hoi_*.mp4'))
+        assert path.read_bytes()==b'flow-recovered'
+        return
     if invalid:
         with pytest.raises(HTTPException):service.reconcile_flow_job(db,**args)
         db.refresh(job);assert job.state!='SUCCEEDED'
