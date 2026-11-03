@@ -23,3 +23,9 @@ Bản sửa chỉ xử lý màu/composite, chưa cải thiện khoảng trống 
 ## Giữ dữ liệu nhẹ để phục vụ dựng lại
 
 Cache kế hoạch bị dọn sau khi job hoàn tất. Manifest trước đây chỉ có timeline, lý do và lựa chọn diễn họa, chưa giữ transcript gốc theo word ID và toàn kế hoạch/brief. Bổ sung words, plan và visual_briefs vào manifest đã được kiểm soát workspace. Không giữ thêm bản sao video gốc hoặc audio. Kiểm thử tích hợp xuất clip hiện hữu xác nhận word ID, clip ID, hash nguồn, danh sách brief được lưu và hash nguồn không đổi:1/1 đạt trong30,98 giây,106 ca không chạy. Đây là metadata cho các lượt xuất mới, chưa bổ sung endpoint dựng lại và không khôi phục cache đã dọn của v4. Không dùng MP4 đã edit làm đầu vào thay thế.
+
+## Nối dựng lại vào pipeline
+
+API Auto Edit hiện hữu nhận thêm manifest_asset_id tùy chọn. Loader kiểm manifest AUTO_EDIT/JSON, workspace, project, parent nguồn, giới hạn32MiB, đường dẫn, hash/size và source_sha256; biên bản thiếu words/plan/brief hoặc sai nguồn bị từ chối. Danh sách child job không trùng, khớp số brief và trong giới hạn hiện hữu. API enqueue cùng operation auto_edit_video ở phase render; worker đọc lại manifest có xác thực, lấy các child đã tạo, cho LLM chọn lại bố cục, rồi chạy render/QC/publish hiện hữu. Không gọi nhánh phân tích nguồn, ASR hoặc tạo cảnh mới. Idempotency tiếp tục dùng khóa request hiện hữu.
+
+Kiểm thử: media_queue70/70 đạt trước bước siết danh sách child;5 ca loader sau siết đạt. Kiểm thử xuất rồi dựng lại từ manifest đạt1/1 trong84,92 giây; gài lỗi nếu ASR hoặc tạo ý tưởng cảnh bị gọi, xác nhận output mới vẫn có parent nguồn gốc và hash nguồn không đổi. API hiện hữu và trường hợp manifest không tồn tại đạt1/1, trả409 AUTO_EDIT_MANIFEST_NOT_REPLAYABLE. Không chạy video8GB hoặc render nặng sản xuất local. Chưa nối nút dựng lại trên UI, chưa nạp backend mới và chưa E2E thật nhánh này; v4 cũ chưa có đủ metadata nên không tự khôi phục bằng suy đoán.

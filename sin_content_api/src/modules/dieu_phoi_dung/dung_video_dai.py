@@ -1723,15 +1723,48 @@ def lay_am_thanh_nguon_da_tach(source_path: Path, source_sha256: str) -> Path:
     return path
 
 
+def doc_bien_ban_dung_lai(db: Session, manifest_id: str, source: MediaAsset,
+                         workspace_id: str, project_id: str | None) -> dict:
+    asset = db.query(MediaAsset).filter(
+        MediaAsset.id == manifest_id, MediaAsset.workspace_id == workspace_id,
+        MediaAsset.project_id == project_id, MediaAsset.parent_asset_id == source.id,
+        MediaAsset.source_product == "AUTO_EDIT", MediaAsset.mime_detected == "application/json",
+    ).first()
+    if not asset or not 0 < asset.byte_size <= 32 * 1024 * 1024:
+        raise ValueError("AUTO_EDIT_MANIFEST_INVALID")
+    root = MEDIA_ROOT_DIR.resolve()
+    path = (root / asset.storage_key).resolve()
+    if not path.is_relative_to(root) or not path.is_file() or hash_file(path) != (asset.sha256, asset.byte_size):
+        raise ValueError("AUTO_EDIT_MANIFEST_HASH_INVALID")
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    if saved.get("source_asset_id") != source.id or saved.get("source_sha256") != source.sha256:
+        raise ValueError("AUTO_EDIT_PLAN_SOURCE_MISMATCH")
+    if not all(key in saved for key in ("words", "plan", "visual_briefs", "visual_generation",
+                                        "removed_pause_intervals", "pause_candidates", "waveform_peaks")):
+        raise ValueError("AUTO_EDIT_MANIFEST_NOT_REPLAYABLE")
+    TaoKeHoachDungVideo.model_validate(saved["plan"])
+    if not isinstance(saved["words"], list) or not saved["words"]:
+        raise ValueError("AUTO_EDIT_MANIFEST_NOT_REPLAYABLE")
+    generations = saved["visual_generation"]
+    if (not isinstance(generations, list) or not isinstance(saved["visual_briefs"], list)
+            or len(generations) != len(saved["visual_briefs"])
+            or len(generations) > GIOI_HAN_TAC_VU_DIEN_HOA
+            or any(not isinstance(item, dict) or not isinstance(item.get("job_id"), str) or not item["job_id"] for item in generations)):
+        raise ValueError("AUTO_EDIT_MANIFEST_NOT_REPLAYABLE")
+    if len({item["job_id"] for item in generations}) != len(generations):
+        raise ValueError("AUTO_EDIT_MANIFEST_NOT_REPLAYABLE")
+    return saved
+
+
 @pipeline("AUTO_EDIT")
 def dung_video_dai(
     db: Session, *, source_asset_id: str, workspace_id: str, user_id: str, project_id: str | None,
     job_id: str | None = None, phase: str = "plan", flow_job_ids: list[str] | None = None,
-    plan_storage_key: str | None = None,
+    plan_storage_key: str | None = None, manifest_asset_id: str | None = None,
 ) -> list[MediaAsset]:
     if phase not in {"plan", "render"}:
         raise ValueError("AUTO_EDIT_PHASE_INVALID")
-    if phase == "render" and (
+    if phase == "render" and not manifest_asset_id and (
         not isinstance(flow_job_ids, list)
         or not flow_job_ids
         or len(flow_job_ids) > GIOI_HAN_TAC_VU_DIEN_HOA
@@ -1766,12 +1799,16 @@ def dung_video_dai(
         work_dir = Path(temporary)
         audio_path = work_dir / "nguon.wav"
         if phase == "render":
-            if not job_id or not plan_storage_key:
-                raise ValueError("AUTO_EDIT_PLAN_REQUIRED")
-            saved_path = (MEDIA_ROOT_DIR / plan_storage_key).resolve()
-            if not saved_path.is_relative_to(MEDIA_ROOT_DIR.resolve()) or saved_path != _auto_edit_plan_path(job_id) or not saved_path.is_file():
-                raise ValueError("AUTO_EDIT_PLAN_FILE_INVALID")
-            saved = json.loads(saved_path.read_text(encoding="utf-8"))
+            if manifest_asset_id:
+                saved = doc_bien_ban_dung_lai(db, manifest_asset_id, source, workspace_id, project_id)
+                flow_job_ids = [item["job_id"] for item in saved["visual_generation"]]
+            else:
+                if not job_id or not plan_storage_key:
+                    raise ValueError("AUTO_EDIT_PLAN_REQUIRED")
+                saved_path = (MEDIA_ROOT_DIR / plan_storage_key).resolve()
+                if not saved_path.is_relative_to(MEDIA_ROOT_DIR.resolve()) or saved_path != _auto_edit_plan_path(job_id) or not saved_path.is_file():
+                    raise ValueError("AUTO_EDIT_PLAN_FILE_INVALID")
+                saved = json.loads(saved_path.read_text(encoding="utf-8"))
             if saved.get("source_asset_id") != source.id or saved.get("source_sha256") != source.sha256:
                 raise ValueError("AUTO_EDIT_PLAN_SOURCE_MISMATCH")
             words = saved["words"]

@@ -1100,6 +1100,31 @@ def test_doi_soat_flow_da_tai_khong_tao_lai(media_db,monkeypatch,tmp_path,invali
         assert json.loads(job.output_asset_ids_json)==output
 
 
+@pytest.mark.parametrize('invalid',[None,'old','hash','source','workspace'])
+def test_doc_bien_ban_dung_lai_kiem_nguon_va_du_lieu(media_db,monkeypatch,tmp_path,invalid):
+    from src.modules.dieu_phoi_dung import dung_video_dai as editor
+    db,ws,_=media_db
+    source=MediaAsset(id='source-original',workspace_id=ws,project_id='project-01',storage_key='source.mp4',
+        sha256='a'*64,byte_size=1,mime_detected='video/mp4',source_product='UPLOAD',created_by='user-queue')
+    data={'source_asset_id':source.id,'source_sha256':'wrong' if invalid=='source' else source.sha256,
+        'words':[{'id':'w1','text':'nội dung','start_ms':0,'end_ms':3000}],
+        'plan':{'clips':[{'clip_id':'c1','start_ms':0,'end_ms':3000,'title':'Đủ ý','reason':'Đủ ý'}]},
+        'visual_briefs':[],'visual_generation':[],'removed_pause_intervals':[],
+        'pause_candidates':[],'waveform_peaks':[]}
+    if invalid=='old':data.pop('words')
+    path=tmp_path/'bien_ban.json';path.write_text(json.dumps(data),encoding='utf-8')
+    from src.modules.media_studio.security import hash_file
+    digest,size=hash_file(path)
+    manifest=MediaAsset(id='manifest',workspace_id='other' if invalid=='workspace' else ws,project_id=source.project_id,
+        parent_asset_id=source.id,storage_key=path.name,sha256='bad' if invalid=='hash' else digest,byte_size=size,
+        mime_detected='application/json',source_product='AUTO_EDIT',created_by='user-queue')
+    db.add_all([source,manifest]);db.commit();monkeypatch.setattr(editor,'MEDIA_ROOT_DIR',tmp_path)
+    if invalid:
+        with pytest.raises(ValueError):editor.doc_bien_ban_dung_lai(db,manifest.id,source,ws,source.project_id)
+    else:
+        assert editor.doc_bien_ban_dung_lai(db,manifest.id,source,ws,source.project_id)==data
+
+
 @pytest.mark.parametrize("child_count", [2, 4, 20, 21])
 def test_auto_edit_waits_for_flow_children_then_resumes_once(media_db, child_count):
     from src.modules.media_queue import worker

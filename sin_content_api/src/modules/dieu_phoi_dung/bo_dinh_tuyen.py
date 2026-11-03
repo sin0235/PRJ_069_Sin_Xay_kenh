@@ -67,6 +67,7 @@ class XuatGoiBanGiaoRequest(BaseModel):
 class TaoVideoDaiRequest(BaseModel):
     source_asset_id: str = Field(min_length=1, max_length=36)
     idempotency_key: str = Field(min_length=8, max_length=128)
+    manifest_asset_id: str | None = Field(default=None, min_length=1, max_length=36)
 
 
 def _kiem_tra_quyen_du_an(db: Session, project_id: str, workspace_id: str) -> ProductionProject:
@@ -116,6 +117,15 @@ def tu_dong_dung_video_dai(
             "message": "Chọn video gốc tải lên; không dùng thành phẩm hoặc cảnh AI để dựng lại.",
         })
 
+    parameters = {"source_asset_id": source.id}
+    if req.manifest_asset_id:
+        from .dung_video_dai import doc_bien_ban_dung_lai
+        try:
+            doc_bien_ban_dung_lai(db, req.manifest_asset_id, source, ctx.workspace_id, project_id)
+        except (ValueError, OSError, TypeError, KeyError) as exc:
+            raise HTTPException(409, detail={"error_code": "AUTO_EDIT_MANIFEST_NOT_REPLAYABLE",
+                "message": "Biên bản không đủ dữ liệu dựng lại hoặc không khớp nguồn. Cần phân tích lại video gốc."}) from exc
+        parameters.update(phase="render", manifest_asset_id=req.manifest_asset_id)
     llm = LLMClient.from_db(db)
     if not llm.is_enabled:
         raise HTTPException(
@@ -133,7 +143,7 @@ def tu_dong_dung_video_dai(
         provider_mode="LOCAL_CPU_AND_CONFIGURED_LLM",
         model_id=llm.model,
         prompt_text="Dựng video nguồn thành các clip mạng xã hội, giữ nguyên khuôn mặt gốc.",
-        parameters={"source_asset_id": source.id},
+        parameters=parameters,
         idempotency_key=req.idempotency_key,
         project_id=project_id,
         estimated_cost=0.0,

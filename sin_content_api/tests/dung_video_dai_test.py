@@ -2283,6 +2283,16 @@ def test_dung_video_dai_render_luu_nhieu_clip_va_giu_nguyen_nguon(monkeypatch, t
         }
         assert manifest["clips"][0]["timeline"]["brand_end_card"]["logo_asset"] == "logo_doc_mau.png"
         assert security.hash_file(source_path)[0] == original_hash
+        def no_analysis(*args, **kwargs):
+            raise AssertionError("RERENDER_MUST_NOT_TRANSCRIBE_OR_GENERATE")
+        monkeypatch.setattr(editor, "transcribe_words_cached", no_analysis)
+        monkeypatch.setattr(editor, "_retranscribe_candidates", no_analysis)
+        monkeypatch.setattr(editor, "tao_y_tuong_dien_hoa_flow", no_analysis)
+        replayed = editor.dung_video_dai(db, source_asset_id=source.id, workspace_id=workspace_id,
+            user_id=user_id, project_id=None, job_id=job_id, phase="render", manifest_asset_id=manifests[0].id)
+        replay_video = next(asset for asset in replayed if asset.mime_detected == "video/mp4")
+        assert replay_video.id != videos[0].id and replay_video.parent_asset_id == source.id
+        assert security.hash_file(source_path)[0] == original_hash
     finally:
         db.close()
         Base.metadata.drop_all(engine)

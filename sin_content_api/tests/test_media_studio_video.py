@@ -2454,3 +2454,7 @@ def test_auto_edit_api_queues_only_when_real_llm_configured(video_fixture, monke
     repeated = client.post(url, headers=headers, json=payload)
     assert repeated.status_code == 202
     assert repeated.json()["job_id"] == job_id
+    rejected = client.post(url, headers=headers, json={**payload,
+        "idempotency_key": f"replay-{uuid.uuid4().hex}", "manifest_asset_id": str(uuid.uuid4())})
+    assert rejected.status_code == 409
+    assert rejected.json()["detail"]["error_code"] == "AUTO_EDIT_MANIFEST_NOT_REPLAYABLE"

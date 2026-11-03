@@ -328,6 +328,7 @@ def _execute_job(db: Session, job: AIGenerationJob, request: dict) -> MediaAsset
             phase=parameters.get("phase", "plan"),
             flow_job_ids=parameters.get("flow_job_ids"),
             plan_storage_key=parameters.get("plan_storage_key"),
+            manifest_asset_id=parameters.get("manifest_asset_id"),
         )
     if operation == "create_content_video_storyboard":
         from src.modules.tao_video_noi_dung.contracts import CreatePlanRequest
