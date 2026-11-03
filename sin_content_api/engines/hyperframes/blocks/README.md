@@ -12,6 +12,7 @@ Các khối còn lại là nguồn của 6 loại cảnh mới (`hf_blocks.BLOCK
 | `chart-story` | CHART_STORY, CHART_STORY |
 | `conic-progress-ring` | STAT_RING |
 | `headline-slam` | KINETIC_TITLE |
+| `kinetic-center-build` | KINETIC_TITLE |
 | `kinetic-type-swap` | WORD_SWAP |
 | `marker-highlight` | MARK_PHRASE, MARK_PHRASE, MARK_PHRASE |
 | `overwhelm-surround` | PILE_UP |
@@ -28,4 +29,5 @@ Khi dựng, `hf_blocks.prepare_block` bỏ GSAP/font tải từ CDN (dùng GSAP 
 Lưu ý khi nối thêm khối:
 - Phần lớn khối chuyển cảnh (`torn-paper-rip`, `halftone-dissolve`, `iris-reveal`, `whip-pan-cut`...) nhận hai cảnh qua `<template data-slot>` nên không phải lớp phủ trong suốt như `paper-collage-reveal`; cần kiến trúc ghép khác.
 - Trang mẫu có nội dung cố định (biểu đồ, `flowchart`, `lt-*`...) chứa chữ tiếng Anh và số mẫu, phải thay nội dung trước khi dùng; không để số liệu mẫu lên video.
-- Khối dùng thêm thư viện qua CDN (ví dụ `CustomEase`) chưa được dùng vì cần đưa về cục bộ.
+- Thư viện GSAP đi kèm khối phải nạp cục bộ: `CustomEase` đã có ở `engines/vendor`; plugin khác cần thêm tương tự trước khi dùng khối.
+- Chuyển cảnh giữa các shot (hf_project): mảnh giấy xé (khối `paper-collage-reveal`) xen kẽ với mở vòng, lia ngang và chớp sáng viết bằng GSAP trên cảnh vào.

@@ -42,6 +42,24 @@ def collage_block(cid: str) -> str:
     return text.replace("pcr-", f"{cid}-").replace("paper-collage-reveal", cid)
 
 
+BOUNDARY_TRANSITIONS = ("iris", "whip", "flash")   # luân phiên ở các ranh giới không dùng mảnh giấy xé
+
+
+def boundary_transition(kind: str, target: str, shot_start: float) -> str:
+    """Chuyển cảnh viết bằng GSAP trên chính cảnh vào (hàm thuần của thời gian nên dựng lại ra đúng khung hình cũ).
+    iris: cảnh mới mở ra từ giữa khung bằng vòng tròn; whip: cảnh mới trượt vào từ phải, mờ theo chiều ngang rồi nét lại;
+    flash: chớp sáng ngắn che chỗ cắt (lớp #flash dùng chung)."""
+    t0 = max(0.0, shot_start - 0.15)
+    if kind == "iris":
+        return (f'tl.fromTo("{target}", {{ clipPath: "circle(0% at 50% 50%)" }}, {{ clipPath: "circle(75% at 50% 50%)", duration: 0.6, ease: "power2.out" }}, {t0:.3f});\n'
+                f'tl.set("{target}", {{ clipPath: "none" }}, {t0 + 0.62:.3f});\n')
+    if kind == "whip":
+        return (f'tl.fromTo("{target}", {{ xPercent: 100, filter: "blur(14px)" }}, {{ xPercent: 0, filter: "blur(0px)", duration: 0.5, ease: "power3.out" }}, {t0:.3f});\n'
+                f'tl.set("{target}", {{ filter: "none" }}, {t0 + 0.52:.3f});\n')
+    return (f'tl.fromTo("#flash", {{ opacity: 0 }}, {{ opacity: 0.85, duration: 0.1, ease: "power1.in" }}, {max(0.0, shot_start - 0.12):.3f});\n'
+            f'tl.to("#flash", {{ opacity: 0, duration: 0.32, ease: "power2.out" }}, {shot_start:.3f});\n')
+
+
 def hyperframes_cli() -> Path:
     cli = engines_dir() / "hyperframes" / "node_modules" / "hyperframes" / "bin" / "hyperframes.mjs"
     if not cli.is_file():
@@ -124,6 +142,7 @@ def build_project(
     for name in ("logo_doc_mau.png", "logo_ngang_mau.png", "logo_doc_am_ban.png"):
         shutil.copy(BRAND_DIR / name, brand / name)
     shutil.copy(engines_dir() / "vendor" / "gsap.min.js", vendor / "gsap.min.js")
+    shutil.copy(engines_dir() / "vendor" / "CustomEase.min.js", vendor / "CustomEase.min.js")   # plugin mà vài khối HyperFrames cần
     if voice_wav:
         shutil.copy(voice_wav, out / "assets" / "voice.wav")
     audio_tracks = []
@@ -137,6 +156,7 @@ def build_project(
         shutil.copy(music_path, out / "assets" / music_name)
         audio_tracks.append(f'<audio id="music" src="assets/{music_name}" data-start="0" data-duration="__DURATION__" data-volume="0.126"></audio>')
     hosts, start, native, legacy, videos, collages, main_js = "", 0.0, [], [], [], 0, ""
+    flashes = 0
     staged_media: dict[str, str] = {}
 
     def stage_media(source: Path, preferred_name: str) -> str:
@@ -196,6 +216,8 @@ def build_project(
                 raise ValueError("HYPERFRAMES_SHOT_SCENE_MISSING")
             dump = display_json(scene.diagram.model_dump(exclude={"on"}, exclude_none=True))
             dump["kind"] = scene.layout
+            if aspect_ratio == "9:16" and scene.layout in BLOCK_LAYOUTS:
+                dump["portrait"] = True
             builder = hf_scenes.NATIVE.get(scene.layout) if aspect_ratio == "16:9" or scene.layout in BLOCK_LAYOUTS else None
             host_extra, host_css = "", ""
             if builder:
@@ -220,6 +242,11 @@ def build_project(
                       f'data-track-index="{40 + index}" data-track-kind="graphics" data-width="{width}" data-height="{height}" data-variable-values=\'{{"panels":6,"tone":"mixed","spread":"{spread}"}}\' '
                       f'style="z-index:{40 + index};--surface:#fbf3df;--accent-2:#c8a468;opacity:0"></div>\n')
             main_js += f'tl.fromTo("#{tid}", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.12, ease: "none" }}, {tstart:.3f});\n'
+        elif transitions and index:   # các ranh giới còn lại: đổi kiểu theo vòng để không lặp một hiệu ứng
+            kind = BOUNDARY_TRANSITIONS[(index // 2 - 1) % len(BOUNDARY_TRANSITIONS)]
+            target = f"#{cid}-video" if media_path else f"#{cid}"
+            main_js += boundary_transition(kind, target, shot_start)
+            flashes += kind == "flash"
         start = max(start, shot_start + seconds)
 
     for index, layer in enumerate(media_layers or []):
@@ -269,9 +296,11 @@ def build_project(
         (out / "compositions" / "captions.html").write_text(captions_scene(words, total, aspect_ratio), encoding="utf-8")
         hosts += (f'<div id="captions" data-composition-id="captions" data-composition-src="compositions/captions.html" data-start="0" data-duration="{total:.3f}" '
                   f'data-track-index="90" data-track-kind="captions" data-width="{width}" data-height="{height}" style="z-index:100"></div>\n')
+    if flashes:
+        hosts += '<div id="flash" style="position:absolute;inset:0;background:#fff8e6;opacity:0;z-index:70;pointer-events:none"></div>\n'
     audio = "\n".join(audio_tracks).replace("__DURATION__", f"{total:.3f}")
     (out / "index.html").write_text(
-        f'<!doctype html>\n<html lang="vi">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width={width}, height={height}">\n<script src="assets/vendor/gsap.min.js"></script>\n'
+        f'<!doctype html>\n<html lang="vi">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width={width}, height={height}">\n<script src="assets/vendor/gsap.min.js"></script>\n<script src="assets/vendor/CustomEase.min.js"></script>\n'
         f'<style>@font-face{{font-family:"Viet";src:url(assets/fonts/be_vietnam_pro_semibold.ttf);font-weight:100 900}}html,body{{margin:0;width:{width}px;height:{height}px;overflow:hidden;background:#0a1c2b}}#bg{{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,#12324a 0%,#0a1c2b 62%,#06131d 100%)}}</style>\n</head>\n<body>\n'
         f'<div id="root" data-composition-id="main" data-start="0" data-duration="{total:.3f}" data-width="{width}" data-height="{height}" data-motion-blur="on">\n<div id="bg"></div>\n{hosts}{audio}</div>\n'
         '<script>\nwindow.__timelines = window.__timelines || {};\nconst tl = gsap.timeline({ paused: true });\n' + main_js + 'window.__timelines["main"] = tl;\n</script>\n</body>\n</html>\n', encoding="utf-8")

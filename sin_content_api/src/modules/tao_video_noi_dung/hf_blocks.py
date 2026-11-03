@@ -24,7 +24,7 @@ CATALOG_FILE = BLOCKS_DIR / "catalog.json"
 # Biến CSS mà các khối đọc (--fg, --bg, --brand, --accent...). Bảng màu khớp "Origami Editorial Motion B2B v1": navy, ngà, ngọc lam, vàng, đỏ san hô.
 THEME_STYLE = ("--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;"
                "--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace")
-_CDN_GSAP = re.compile(r'<script[^>]+src="https://cdn\.jsdelivr\.net/npm/gsap@[^"]+gsap\.min\.js"[^>]*></script>\s*')
+_CDN_GSAP = re.compile(r'<script[^>]+src="https://cdn\.jsdelivr\.net/npm/gsap@[^"]+/(?:gsap|CustomEase)\.min\.js"[^>]*></script>\s*')   # CustomEase nạp cục bộ ở index
 _CDN_FONT = re.compile(r'<link[^>]+fonts\.(?:googleapis|gstatic)\.com[^>]*>\s*')
 
 # Chữ mẫu tiếng Anh có sẵn trong mã khối -> tiếng Việt (khối không có biến cho các chữ này).
@@ -158,6 +158,10 @@ def _titlecard(d):
     return {"headline": d["title"], "kicker": (d.get("caption") or d.get("tag") or "").upper()}
 
 
+def _center_build(d):
+    return {"text": d["title"], "font_size": 96, "color": "#f6efe0", "font_weight": "700"}
+
+
 def _match_cut(d):
     words = d["title"].split()
     half = max(1, len(words) // 2)
@@ -167,13 +171,17 @@ def _match_cut(d):
 # layout -> các biến thể khối (chọn một theo nội dung). Chỉ liệt kê khối đã dựng và xem bằng ảnh chụp (xem blocks/catalog.json).
 BLOCK_SCENES: dict[str, list[Variant]] = {
     "KINETIC_TITLE": [Variant("headline-slam", _headline, 14), Variant("shutter-slam", _shutter, 22), Variant("titlecard-calm", _titlecard),
-                      Variant("text-match-cut", _match_cut)],
+                      Variant("kinetic-center-build", _center_build), Variant("text-match-cut", _match_cut)],
     "MARK_PHRASE": [Variant("marker-highlight", _mark("highlight")), Variant("marker-highlight", _mark("circle")), Variant("vox-annotate", _vox), Variant("marker-highlight", _mark("underline"))],
     "WORD_SWAP": [Variant("kinetic-type-swap", _swap)],
     "PILE_UP": [Variant("overwhelm-surround", _overwhelm)],
     "STAT_RING": [Variant("conic-progress-ring", _ring)],
     "CHART_STORY": [Variant("chart-story", _chart("bars")), Variant("chart-story", _chart("line"))],
 }
+
+
+# hệ số phóng cảnh khối ở khung 9:16 (đã xem bằng ảnh chụp)
+PORTRAIT_SCALE = {"MARK_PHRASE": 1.5, "WORD_SWAP": 1.5, "CHART_STORY": 1.25}
 
 
 def pick_variant(layout: str, data: dict) -> Variant:
@@ -185,4 +193,6 @@ def pick_variant(layout: str, data: dict) -> Variant:
 def scene_composition(layout: str, cid: str, data: dict, duration: float | None = None) -> tuple[str, str, str]:
     """(mã composition, thuộc tính host, style host) cho một cảnh khối; style host mang bảng màu thương hiệu."""
     variant = pick_variant(layout, data)
-    return prepare_block(variant.block, cid, duration), host_attrs(variant.variables(data)), THEME_STYLE
+    scale = PORTRAIT_SCALE.get(layout, 1.0) if data.get("portrait") else 1.0   # khung 9:16 hẹp hơn nên khối cỡ chữ theo chiều ngang trông nhỏ
+    style = THEME_STYLE + (f";transform:scale({scale});transform-origin:50% 50%" if scale != 1.0 else "")
+    return prepare_block(variant.block, cid, duration), host_attrs(variant.variables(data)), style

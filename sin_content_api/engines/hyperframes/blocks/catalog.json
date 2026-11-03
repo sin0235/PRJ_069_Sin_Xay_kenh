@@ -398,7 +398,11 @@
    "loai": "co_bien",
    "dung_duoc": true,
    "loi_chay": 0,
-   "thoi_luong_mac_dinh": 2.0
+   "thoi_luong_mac_dinh": 2.0,
+   "dang_dung_cho": [
+    "KINETIC_TITLE"
+   ],
+   "trang_thai": "đã nối vào pipeline"
   },
   "kinetic-type-swap": {
    "loai": "co_bien",

@@ -115,3 +115,30 @@ def test_ghep_canh_khoi_vao_du_an(tmp_path, aspect):
 
 def test_ban_do_native_co_du_loai_canh_khoi():
     assert all(layout in hf_scenes.NATIVE for layout in BLOCK_LAYOUTS)
+
+
+def test_chuyen_canh_luan_phien_va_deu_dinh_thoi():
+    assert hf_project.BOUNDARY_TRANSITIONS == ("iris", "whip", "flash")
+    iris = hf_project.boundary_transition("iris", "#s03", 10.0)
+    assert "circle(0% at 50% 50%)" in iris and iris.count("tl.") == 2 and '9.850' in iris
+    assert "xPercent: 100" in hf_project.boundary_transition("whip", "#s05", 20.0)
+    flash = hf_project.boundary_transition("flash", "#s07", 30.0)
+    assert '"#flash"' in flash and "opacity: 0.85" in flash
+
+
+def test_ghep_nhieu_canh_dung_du_kieu_chuyen_canh(tmp_path):
+    shots, start = [], 0.0
+    for layout in list(BLOCK_LAYOUTS) + list(BLOCK_LAYOUTS):
+        shots.append({"seconds": 5.0, "scene": scene(layout), "events": {}, "narration": "lời đọc", "start_seconds": start})
+        start += 5.0
+    hf_project.build_project(tmp_path / "p", shots, None, None, transitions=True, aspect_ratio="16:9")
+    index = (tmp_path / "p" / "index.html").read_text(encoding="utf-8")
+    assert "circle(0% at 50% 50%)" in index and "xPercent: 100" in index and 'id="flash"' in index and "tr01" in index
+    assert "assets/vendor/CustomEase.min.js" in index and (tmp_path / "p" / "assets" / "vendor" / "CustomEase.min.js").is_file()
+
+
+def test_khung_doc_phong_to_canh_chu_nho():
+    data = {**VALID["MARK_PHRASE"], "portrait": True}
+    assert "transform:scale(1.5)" in hf_blocks.scene_composition("MARK_PHRASE", "s01", data, 5)[2]
+    assert "transform:scale" not in hf_blocks.scene_composition("MARK_PHRASE", "s01", VALID["MARK_PHRASE"], 5)[2]
+    assert "transform:scale" not in hf_blocks.scene_composition("STAT_RING", "s01", {**VALID["STAT_RING"], "portrait": True}, 5)[2]
