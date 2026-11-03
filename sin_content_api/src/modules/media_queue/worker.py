@@ -284,7 +284,8 @@ def _execute_job(db: Session, job: AIGenerationJob, request: dict) -> MediaAsset
                 AIGenerationJob.state == "SUBMITTING",
                 AIGenerationJob.lease_token == expected_lease,
                 AIGenerationJob.lease_expires_at > _now(),
-            ).values(request_payload_json=json.dumps(payload, ensure_ascii=False)))
+            ).values(request_payload_json=json.dumps(payload, ensure_ascii=False))
+                .execution_options(synchronize_session="fetch"))
             if not expected_lease or saved.rowcount != 1:
                 db.rollback()
                 raise RuntimeError("MEDIA_JOB_LEASE_LOST_BEFORE_FLOW_SUBMISSION")

@@ -1026,6 +1026,7 @@ def test_worker_luu_project_flow_truoc_gui_va_chan_worker_mat_lease(media_db,mon
     job.state='SUBMITTING';job.lease_token='owned'
     job.lease_expires_at=datetime.now(timezone.utc)+timedelta(minutes=5)
     db.commit()
+    db.refresh(job)
     request=json.loads(job.request_payload_json)
     expected=object()
     def generate(**kwargs):
