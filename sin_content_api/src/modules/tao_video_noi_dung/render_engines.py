@@ -93,7 +93,14 @@ def render_hyperframes(scene: UiScene, duration_seconds: int, out_path: Path, na
     with tempfile.TemporaryDirectory(prefix="hf_", dir=out_path.parent, ignore_cleanup_errors=True) as tmp:   # Windows: Chrome còn giữ tay cầm thư mục một lúc sau khi dựng xong
         project = Path(tmp) / "du_an"
         project.mkdir()
-        (project / "index.html").write_text(hyperframes_composition_html(scene, narration, duration_seconds, word_times, gsap_src="gsap.min.js", aspect_ratio=aspect_ratio, transparent_background=transparent_background), encoding="utf-8")
+        from .planner import BLOCK_LAYOUTS
+        if scene.layout in BLOCK_LAYOUTS:
+            from .hf_project import build_project
+            build_project(project, [{"scene": scene, "seconds": duration_seconds, "events": {},
+                "narration": narration, "word_times": word_times}], None, None,
+                transitions=False, aspect_ratio=aspect_ratio, transparent_background=transparent_background)
+        else:
+            (project / "index.html").write_text(hyperframes_composition_html(scene, narration, duration_seconds, word_times, gsap_src="gsap.min.js", aspect_ratio=aspect_ratio, transparent_background=transparent_background), encoding="utf-8")
         shutil.copy(gsap, project / "gsap.min.js")
         (project / "hyperframes.json").write_text(json.dumps({"paths": {"blocks": "compositions", "components": "compositions/components", "assets": "assets"}}), encoding="utf-8")
         raw = Path(tmp) / ("raw.mov" if transparent_background else "raw.mp4")

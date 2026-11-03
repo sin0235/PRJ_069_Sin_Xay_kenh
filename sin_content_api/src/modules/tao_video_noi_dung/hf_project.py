@@ -124,6 +124,7 @@ def build_project(
     out: Path, shots: list[dict], voice_wav: Path | None, words: list[dict] | None,
     transitions: bool | None = None, music_path: Path | None = None, sfx_cues: list[dict] | None = None,
     aspect_ratio: str = "16:9", media_layers: list[dict] | None = None, link_media: bool = False,
+    transparent_background: bool = False,
 ) -> dict:
     """shots có thể là cảnh UiScene hoặc video MP4 đã xác minh; Trả về thông tin project."""
     if aspect_ratio not in {"9:16", "16:9"}:
@@ -299,10 +300,12 @@ def build_project(
     if flashes:
         hosts += '<div id="flash" style="position:absolute;inset:0;background:#fff8e6;opacity:0;z-index:70;pointer-events:none"></div>\n'
     audio = "\n".join(audio_tracks).replace("__DURATION__", f"{total:.3f}")
+    root_background = "transparent" if transparent_background else "#0a1c2b"
+    background_markup = "" if transparent_background else '<div id="bg"></div>'
     (out / "index.html").write_text(
         f'<!doctype html>\n<html lang="vi">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width={width}, height={height}">\n<script src="assets/vendor/gsap.min.js"></script>\n<script src="assets/vendor/CustomEase.min.js"></script>\n'
-        f'<style>@font-face{{font-family:"Viet";src:url(assets/fonts/be_vietnam_pro_semibold.ttf);font-weight:100 900}}html,body{{margin:0;width:{width}px;height:{height}px;overflow:hidden;background:#0a1c2b}}#bg{{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,#12324a 0%,#0a1c2b 62%,#06131d 100%)}}</style>\n</head>\n<body>\n'
-        f'<div id="root" data-composition-id="main" data-start="0" data-duration="{total:.3f}" data-width="{width}" data-height="{height}" data-motion-blur="on">\n<div id="bg"></div>\n{hosts}{audio}</div>\n'
+        f'<style>@font-face{{font-family:"Viet";src:url(assets/fonts/be_vietnam_pro_semibold.ttf);font-weight:100 900}}html,body{{margin:0;width:{width}px;height:{height}px;overflow:hidden;background:{root_background}}}#bg{{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,#12324a 0%,#0a1c2b 62%,#06131d 100%)}}</style>\n</head>\n<body>\n'
+        f'<div id="root" data-composition-id="main" data-start="0" data-duration="{total:.3f}" data-width="{width}" data-height="{height}" data-motion-blur="on">\n{background_markup}\n{hosts}{audio}</div>\n'
         '<script>\nwindow.__timelines = window.__timelines || {};\nconst tl = gsap.timeline({ paused: true });\n' + main_js + 'window.__timelines["main"] = tl;\n</script>\n</body>\n</html>\n', encoding="utf-8")
     (out / "hyperframes.json").write_text(json.dumps({"paths": {"blocks": "compositions", "components": "compositions/components", "assets": "assets"}}), encoding="utf-8")
     (out / "package.json").write_text(json.dumps({"name": "video-baha", "private": True, "type": "module"}), encoding="utf-8")

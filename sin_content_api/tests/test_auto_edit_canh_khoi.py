@@ -33,3 +33,45 @@ def test_auto_edit_nhan_canh_khoi_khong_co_moc_su_kien(layout,fields):
     assert result[0]['duration_seconds']==4
     assert result[0]['target_start_word_id']=='w1'
     assert result[0]['target_end_word_id']=='w3'
+
+
+def test_render_canh_khoi_dung_project_day_du_thay_vi_the_du_phong(tmp_path,monkeypatch):
+    from src.modules.tao_video_noi_dung import render_engines, hf_project
+    from src.modules.tao_video_noi_dung.planner import UiScene
+    engines=tmp_path/'engines'
+    cli=engines/'hyperframes/node_modules/hyperframes/bin/hyperframes.mjs'
+    cli.parent.mkdir(parents=True);cli.write_text('')
+    (engines/'vendor').mkdir();(engines/'vendor/gsap.min.js').write_text('')
+    monkeypatch.setattr(render_engines,'engines_dir',lambda:engines)
+    monkeypatch.setattr(render_engines,'_node',lambda:'node')
+    monkeypatch.setattr(render_engines,'_chrome',lambda:None)
+    calls=[]
+    def build(out,shots,voice_wav,words,**kwargs):
+        out.mkdir(exist_ok=True)
+        calls.append((shots,kwargs))
+    monkeypatch.setattr(hf_project,'build_project',build)
+    def run(command,project,env):
+        from pathlib import Path
+        Path(command[command.index('-o')+1]).write_bytes(b'mov')
+    monkeypatch.setattr(render_engines,'_run',run)
+    monkeypatch.setattr(render_engines.video_processor,'probe_video',lambda _: {'has_alpha':True})
+    scene=UiScene.model_validate({'layout':'KINETIC_TITLE','diagram':{'title':'Giữ đúng tiền lời','on':{}}})
+    render_engines.render_hyperframes(scene,4,tmp_path/'scene.mov',narration='Giữ đúng tiền lời',aspect_ratio='9:16',transparent_background=True)
+    assert len(calls)==1
+    assert calls[0][0][0]['scene']==scene
+    assert calls[0][1]['transparent_background'] is True
+    assert calls[0][1]['transitions'] is False
+
+
+@pytest.mark.parametrize('transparent',[False,True])
+def test_nen_project_chi_trong_suot_khi_duoc_yeu_cau(tmp_path,transparent):
+    from src.modules.tao_video_noi_dung import hf_project
+    from src.modules.tao_video_noi_dung.planner import UiScene
+    scene=UiScene.model_validate({'layout':'KINETIC_TITLE','diagram':{'title':'Giữ đúng tiền lời','on':{}}})
+    info=hf_project.build_project(tmp_path/'project',[
+        {'scene':scene,'seconds':4,'events':{},'narration':'Giữ đúng tiền lời'}],
+        None,None,transitions=False,aspect_ratio='9:16',transparent_background=transparent)
+    index=(tmp_path/'project/index.html').read_text(encoding='utf-8')
+    assert ('<div id="bg"></div>' in index) is not transparent
+    assert ('background:transparent' in index) is transparent
+    assert info['native_scenes']==['KINETIC_TITLE'] and not info['legacy_scenes']
