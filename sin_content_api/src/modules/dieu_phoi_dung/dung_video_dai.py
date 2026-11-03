@@ -9,6 +9,8 @@ import re
 import subprocess
 import tempfile
 import uuid
+import wave
+from contextlib import suppress
 from pathlib import Path
 from typing import Literal
 
@@ -1671,6 +1673,29 @@ def _visual_candidates_for_jobs(
     return candidates, failed
 
 
+def lay_am_thanh_nguon_da_tach(source_path: Path, source_sha256: str) -> Path:
+    if not re.fullmatch(r"[0-9a-f]{64}", source_sha256):
+        raise ValueError("VIDEO_SOURCE_HASH_INVALID")
+    path = MEDIA_ROOT_DIR / ".cache" / "auto_edit" / f"{source_sha256}.wav"
+    if path.is_file():
+        try:
+            with wave.open(str(path), "rb") as audio:
+                if ((audio.getnchannels(), audio.getsampwidth(), audio.getframerate()) == (1, 2, 16000)
+                        and audio.getnframes() > 0 and path.stat().st_size >= 44 + audio.getnframes() * 2):
+                    return path
+        except (OSError, EOFError, wave.Error):
+            pass
+        path.unlink()
+    from src.modules.tac_vu_tu_xa.stages import extract_audio
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        extract_audio(source_path, path)
+    except BaseException:
+        path.unlink(missing_ok=True)
+        raise
+    return path
+
+
 @pipeline("AUTO_EDIT")
 def dung_video_dai(
     db: Session, *, source_asset_id: str, workspace_id: str, user_id: str, project_id: str | None,
@@ -1748,8 +1773,7 @@ def dung_video_dai(
                     clip.needs_review = True
                     clip.selection_reason += " Diễn họa theo kế hoạch chưa tạo được; cần rà soát."
         else:
-            from src.modules.tac_vu_tu_xa.stages import extract_audio
-            extract_audio(source_path, audio_path)
+            audio_path = lay_am_thanh_nguon_da_tach(source_path, source.sha256)
 
             cache_key = source.sha256
             words_cache = MEDIA_ROOT_DIR / ".cache" / "auto_edit" / f"{cache_key}.json"
@@ -1862,6 +1886,8 @@ def dung_video_dai(
                         "plan_storage_key": plan_storage_key,
                     })
                     from src.modules.media_queue.contracts import DeferredMediaJob
+                    with suppress(OSError):
+                        audio_path.unlink(missing_ok=True)
                     return DeferredMediaJob(
                         request_payload_json=json.dumps(request, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
                         status_message="Đang tạo diễn họa Flow và HyperFrames theo kịch bản LLM.",
@@ -1982,6 +2008,8 @@ def dung_video_dai(
             db.commit()
             for asset in outputs:
                 db.refresh(asset)
+            with suppress(OSError):
+                audio_path.unlink(missing_ok=True)
             return outputs
         except Exception:
             db.rollback()
