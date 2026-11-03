@@ -1,0 +1,26 @@
+{
+  "source_plan": "planner_canh_khoi_that.json",
+  "layout": "KINETIC_TITLE",
+  "metadata": {
+    "aspect_ratio": "9:16",
+    "bitrate_bps": 19814400,
+    "codec_name": "prores",
+    "duration_seconds": 3.0,
+    "frame_rate": 30.0,
+    "has_alpha": true,
+    "height": 1920,
+    "is_vertical_9_16": true,
+    "pixel_format": "yuva444p12le",
+    "render_engine": "hyperframes",
+    "safe_zone_tiktok": {
+      "bottom_margin_px": 320,
+      "is_compliant": true,
+      "right_margin_px": 120,
+      "top_margin_px": 150
+    },
+    "video_stream_duration_seconds": 3.0,
+    "width": 1080
+  },
+  "sha256": "aff80953e6c6134d4edc53118658d2f52df633b46a0e0caff1253a26cdb0e5a7",
+  "byte_size": 7430400
+}

@@ -28,3 +28,9 @@ Rà tiếp thấy `render_hyperframes` trước đây luôn gọi `hyperframes_c
 Đã sửa renderer dùng `hf_project.build_project` cho đúng BLOCK_LAYOUTS, không bật chuyển cảnh giữa các shot vì đây là một cảnh rời. Các layout khác giữ đường render hiện hữu. Bổ sung tùy chọn nền trong suốt vào build_project để giữ yêu cầu xuất MOV alpha; mặc định nền đục của caller AI Video không thay đổi. Đây là nền của project, không phải thuật toán tách nền các vật thể hoặc bỏ mọi nền riêng bên trong từng khối.
 
 Test đường render thất bại trước sửa vì không gọi build_project, đạt sau sửa. Chạy nhóm Auto Edit cảnh khối, thư viện HyperFrames và checklist: 42 test đạt trong 4,46 giây. Có test tạo project thật ở cả nền đục và nền trong suốt, xác nhận native_scenes có KINETIC_TITLE và legacy_scenes rỗng. CLI render được giả lập trong test định tuyến; chưa có MOV thật của đường định tuyến mới này.
+
+## MOV thật của đường render mới
+
+Actions `41659870643`, commit `0b58a38`, task `d1eb47b3-59b7-47a9-90e6-d4256b30dd43` thành công. `canh_khoi_llm_that_render.json` ghi MOV 3 giây, 1080×1920, 30 fps, ProRes có alpha, 7.430.400 byte. SHA-256 `aff80953e6c6134d4edc53118658d2f52df633b46a0e0caff1253a26cdb0e5a7`.
+
+Đã trích và xem ba khung 0,3 / 1,5 / 2,6 giây: `canh_khoi_llm_dau.png`, `canh_khoi_llm_giua.png`, `canh_khoi_llm_cuoi.png`. Chữ đi từ “Chỗ” đến “Chỗ dễ nhầm”; có thay đổi nội dung trong pha vào. Cảnh nhấn chữ đơn giản này không tự chứng minh diễn họa phong phú, chuyển động toàn video hoặc tương đương mẫu. Chưa ghép vào video nghiệm thu mới, chưa xác minh hình thực tế của năm loại khối còn lại.
