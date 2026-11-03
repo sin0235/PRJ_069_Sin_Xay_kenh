@@ -1114,7 +1114,28 @@ function sceneSearch(t, p) {
   return out;
 }
 
-var SCENES = { RACE_LANES: sceneRace, TABLE_AUDIT: sceneTable, ALERT_STACK: sceneAlert, PYRAMID_LEVELS: scenePyramid, VERSUS_LIST: sceneVersus, DOC_SEARCH: sceneSearch, HUB_SPOKE: sceneHubSpoke, MATRIX_2X2: sceneMatrix, RANK_BARS: sceneRank, KPI_CARDS: sceneKpi, ASSIGN_CARDS: sceneAssign, WAIT_CLOCK: sceneWait, RADAR_SCAN: sceneRadar, FUNNEL: sceneFunnel, TIMELINE: sceneTimeline, BEFORE_AFTER: sceneBeforeAfter, DONUT_SHARE: sceneDonut, GAUGE: sceneGauge, CHECKLIST: sceneChecklist, OPEN_HOOK: sceneOpenHook, OPEN_NUMBER: sceneOpenNumber, OPEN_DRAIN: sceneOpenDrain, OPEN_QUESTION: sceneOpenQuestion, CASH_FLOW: sceneCashFlow, STACK_HEIGHT: sceneStackHeight, DOC_LAYERS: sceneDocLayers, END_CARD: sceneEndCard, CHART_TARGET: sceneChartTarget, CHART_GROWTH: sceneChartGrowth, COMPARE_DOCS: sceneCompareDocs, PROCESS_RAIL: sceneProcessRail, COST_SLICE: sceneCostSlice };
+/* ---------- cảnh khối HyperFrames (KINETIC_TITLE, MARK_PHRASE, ...): bản dự phòng của Playwright, thẻ giấy ghi chữ chính; bản đẹp do hf_blocks dựng ---------- */
+function sceneBlockCard(t, p) {
+  var fs = 84, words = p.title.split(/\s+/), lines = [[]], widths = [0], gap = fs * .3, intro = eo(seg(t, 0, .5)), out = "";
+  words.forEach(function (w) { var wd = tw(w, fs), cl = lines.length - 1; if (lines[cl].length && widths[cl] + gap + wd > 1100) { lines.push([]); widths.push(0); cl++; } widths[cl] += (lines[cl].length ? gap : 0) + wd; lines[cl].push([w, wd]); });
+  var key = (p.tag || "").toLowerCase().split(/\s+/).filter(Boolean), flat = words.map(function (w) { return w.toLowerCase().replace(/[.,;:!?]+$/, ""); }), ks = -1;
+  for (var i = 0; key.length && i + key.length <= flat.length; i++) { if (key.every(function (k, j) { return flat[i + j] === k; })) { ks = i; break; } }
+  out += '<g opacity="' + intro + '"><rect x="304" y="276" width="1320" height="520" rx="26" fill="#cdbf9c" opacity=".5"/><rect x="290" y="262" width="1320" height="520" rx="26" fill="#fffdf7" stroke="#cdbf9c" stroke-width="4"/></g>';
+  var y0 = 500 - (lines.length - 1) * 56, wi = 0;
+  lines.forEach(function (ln, li) {
+    var x = 950 - widths[li] / 2;
+    ln.forEach(function (it) {
+      var o = eo(seg(t, wi * .12, wi * .12 + .35)), isKey = ks >= 0 && wi >= ks && wi < ks + key.length;
+      out += '<text x="' + x + '" y="' + (y0 + li * 112 + (1 - o) * 16) + '" font-size="' + fs + '" font-weight="800" fill="' + (isKey ? COL.coral : COL.cardInk) + '" opacity="' + o + '">' + esc(it[0]) + '</text>';
+      x += it[1] + gap; wi++;
+    });
+  });
+  var sub = p.caption || (p.steps && p.steps.length ? p.steps.join(" · ") : "") || (p.value ? p.value : "");
+  if (sub) out += '<text x="950" y="' + (y0 + lines.length * 112 + 20) + '" font-size="' + fit(sub, 1100, 44, 700) + '" font-weight="700" text-anchor="middle" fill="' + COL.coral + '" opacity="' + eo(seg(t, .8, 1.3)) + '">' + esc(sub) + '</text>';
+  return out;
+}
+
+var SCENES = { KINETIC_TITLE: sceneBlockCard, MARK_PHRASE: sceneBlockCard, WORD_SWAP: sceneBlockCard, PILE_UP: sceneBlockCard, STAT_RING: sceneBlockCard, CHART_STORY: sceneBlockCard, RACE_LANES: sceneRace, TABLE_AUDIT: sceneTable, ALERT_STACK: sceneAlert, PYRAMID_LEVELS: scenePyramid, VERSUS_LIST: sceneVersus, DOC_SEARCH: sceneSearch, HUB_SPOKE: sceneHubSpoke, MATRIX_2X2: sceneMatrix, RANK_BARS: sceneRank, KPI_CARDS: sceneKpi, ASSIGN_CARDS: sceneAssign, WAIT_CLOCK: sceneWait, RADAR_SCAN: sceneRadar, FUNNEL: sceneFunnel, TIMELINE: sceneTimeline, BEFORE_AFTER: sceneBeforeAfter, DONUT_SHARE: sceneDonut, GAUGE: sceneGauge, CHECKLIST: sceneChecklist, OPEN_HOOK: sceneOpenHook, OPEN_NUMBER: sceneOpenNumber, OPEN_DRAIN: sceneOpenDrain, OPEN_QUESTION: sceneOpenQuestion, CASH_FLOW: sceneCashFlow, STACK_HEIGHT: sceneStackHeight, DOC_LAYERS: sceneDocLayers, END_CARD: sceneEndCard, CHART_TARGET: sceneChartTarget, CHART_GROWTH: sceneChartGrowth, COMPARE_DOCS: sceneCompareDocs, PROCESS_RAIL: sceneProcessRail, COST_SLICE: sceneCostSlice };
 
 /* chuẩn hóa dữ liệu cảnh: trục, thang, tiêu điểm camera (C_RACK nhẹ vào ý đang nói) */
 function prep(sc) {
@@ -1179,6 +1200,7 @@ function prep(sc) {
   else if (p.kind === "OPEN_NUMBER") { f = { x: 960, y: 700, from: a.count, to: a.count + 1.8, k: 1.05 }; }
   else if (p.kind === "OPEN_DRAIN") { f = { x: 960, y: 700, from: a.drain, to: a.drain + 1.9, k: 1.05 }; }
   else if (p.kind === "OPEN_QUESTION") { p.simulated = false; f = { x: 960, y: 700, from: a.key, to: a.key + 1.0, k: 1.04 }; }
+  else if (["KINETIC_TITLE", "MARK_PHRASE", "WORD_SWAP", "PILE_UP", "STAT_RING", "CHART_STORY"].indexOf(p.kind) >= 0) { p.simulated = false; f = { x: 960, y: 560, from: 0, to: 1, k: 1 }; }
   else if (p.kind === "END_CARD") { p.simulated = false; f = { x: 960, y: 560, from: a.fold, to: a.fold + 1.2, k: 1.03 }; }
   else if (p.kind === "COMPARE_DOCS") { f = { x: 960, y: 700, from: a.thread - .1, to: a.thread + 1.0, k: 1.06 }; }
   else if (p.kind === "PROCESS_RAIL") { f = { x: stationX(p)[p.block_step], y: 700, from: a.block, to: a.block + 1.1, k: 1.08 }; }

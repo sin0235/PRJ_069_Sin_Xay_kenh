@@ -105,8 +105,11 @@ class UiMessage(BaseModel):
 DIAGRAM_LAYOUTS = ("CHART_TARGET", "CHART_GROWTH", "COMPARE_DOCS", "PROCESS_RAIL", "COST_SLICE", "CASH_FLOW", "STACK_HEIGHT", "DOC_LAYERS", "END_CARD", "OPEN_NUMBER", "OPEN_DRAIN", "OPEN_QUESTION", "OPEN_HOOK",
                   "FUNNEL", "TIMELINE", "BEFORE_AFTER", "DONUT_SHARE", "GAUGE", "CHECKLIST",
                   "HUB_SPOKE", "MATRIX_2X2", "RANK_BARS", "KPI_CARDS", "ASSIGN_CARDS", "WAIT_CLOCK", "RADAR_SCAN",
-                  "RACE_LANES", "TABLE_AUDIT", "ALERT_STACK", "PYRAMID_LEVELS", "VERSUS_LIST", "DOC_SEARCH")
-PORTRAIT_DIAGRAM_LAYOUTS = ("BEFORE_AFTER", "KPI_CARDS", "VERSUS_LIST", "CHECKLIST")
+                  "RACE_LANES", "TABLE_AUDIT", "ALERT_STACK", "PYRAMID_LEVELS", "VERSUS_LIST", "DOC_SEARCH",
+                  "KINETIC_TITLE", "MARK_PHRASE", "WORD_SWAP", "PILE_UP", "STAT_RING", "CHART_STORY")
+# Cảnh dựng từ khối HyperFrames dựng sẵn (hf_blocks.py): chuyển động nằm trong khối nên không có mốc sự kiện bám lời đọc (diagram.on rỗng).
+BLOCK_LAYOUTS = ("KINETIC_TITLE", "MARK_PHRASE", "WORD_SWAP", "PILE_UP", "STAT_RING", "CHART_STORY")
+PORTRAIT_DIAGRAM_LAYOUTS = ("BEFORE_AFTER", "KPI_CARDS", "VERSUS_LIST", "CHECKLIST", *BLOCK_LAYOUTS)
 
 
 class DiagramSeries(BaseModel):
@@ -258,6 +261,8 @@ def diagram_required_events(layout: str, spec: DiagramSpec) -> list[str]:
         return ["left", "right", "verdict"]
     if layout == "DOC_SEARCH":
         return ["query", "found"]
+    if layout in BLOCK_LAYOUTS:
+        return []
     return [*(f"d{i}" for i in range(len(spec.slices))), "final"]
 
 
@@ -391,6 +396,24 @@ def validate_diagram(layout: str, spec: DiagramSpec) -> None:
     elif layout == "OPEN_QUESTION":
         if not spec.caption or not _tokens(spec.caption) or " ".join(_tokens(spec.caption)) not in " ".join(_tokens(spec.title)):
             raise ValueError("DIAGRAM_OPEN_QUESTION_FIELDS")
+    elif layout == "KINETIC_TITLE":
+        if not 2 <= len(spec.title.split()) <= 7 or len(spec.title) > 40 or (spec.tag and " ".join(_tokens(spec.tag)) not in " ".join(_tokens(spec.title))):
+            raise ValueError("DIAGRAM_KINETIC_TITLE_FIELDS")
+    elif layout == "MARK_PHRASE":
+        if not 3 <= len(spec.title.split()) <= 10 or not spec.tag or not _tokens(spec.tag) or " ".join(_tokens(spec.tag)) not in " ".join(_tokens(spec.title))                 or len(spec.tag) >= len(spec.title) or (spec.caption and len(spec.caption) > 30):
+            raise ValueError("DIAGRAM_MARK_PHRASE_FIELDS")
+    elif layout == "WORD_SWAP":
+        if not 3 <= len(spec.steps) <= 4 or len(spec.title) > 24 or any(not step.strip() or len(step) > 14 for step in spec.steps)                 or len({step.casefold() for step in spec.steps}) != len(spec.steps) or (spec.caption and len(spec.caption) > 24):
+            raise ValueError("DIAGRAM_WORD_SWAP_FIELDS")
+    elif layout == "PILE_UP":
+        if len(spec.title) > 14 or not spec.value or not spec.value.strip().isdigit() or not 8 <= int(spec.value) <= 24:
+            raise ValueError("DIAGRAM_PILE_UP_FIELDS")
+    elif layout == "STAT_RING":
+        if spec.to_value is None or not 0 < spec.to_value <= 100 or not spec.caption or len(spec.caption) > 30:
+            raise ValueError("DIAGRAM_STAT_RING_FIELDS")
+    elif layout == "CHART_STORY":
+        if len(spec.series) != 1 or not 3 <= n <= 6 or len(spec.series[0].values) != n or any(not label.strip() or len(label) > 10 for label in spec.labels)                 or len(set(spec.series[0].values)) < 2:
+            raise ValueError("DIAGRAM_CHART_STORY_FIELDS")
     need = diagram_required_events(layout, spec)
     optional = {"doc0"} if layout == "COMPARE_DOCS" else set()
     ignored = {"rail", "count"} if layout == "PROCESS_RAIL" else {"block"} if layout == "COST_SLICE" else set()
@@ -404,7 +427,8 @@ class UiScene(BaseModel):
                     "CASH_FLOW", "STACK_HEIGHT", "DOC_LAYERS", "END_CARD", "OPEN_NUMBER", "OPEN_DRAIN", "OPEN_QUESTION", "OPEN_HOOK",
                     "FUNNEL", "TIMELINE", "BEFORE_AFTER", "DONUT_SHARE", "GAUGE", "CHECKLIST",
                     "HUB_SPOKE", "MATRIX_2X2", "RANK_BARS", "KPI_CARDS", "ASSIGN_CARDS", "WAIT_CLOCK", "RADAR_SCAN",
-                    "RACE_LANES", "TABLE_AUDIT", "ALERT_STACK", "PYRAMID_LEVELS", "VERSUS_LIST", "DOC_SEARCH"]
+                    "RACE_LANES", "TABLE_AUDIT", "ALERT_STACK", "PYRAMID_LEVELS", "VERSUS_LIST", "DOC_SEARCH",
+                    "KINETIC_TITLE", "MARK_PHRASE", "WORD_SWAP", "PILE_UP", "STAT_RING", "CHART_STORY"]
     messages: list[UiMessage] = Field(default_factory=list, max_length=60)
     highlight: str | None = Field(default=None, max_length=1000)
     diagram: DiagramSpec | None = None
@@ -514,6 +538,12 @@ _DIAGRAM_HINTS = {
     "DOC_SEARCH_FIELDS": "steps 3 đến 5 tên tài liệu (tối đa 20 ký tự), pick là chỉ số tài liệu khớp, caption là từ khóa tìm (tối đa 30 ký tự)",
     "RADAR_SCAN_FIELDS": "items 3 đến 5 khách tiềm năng {label,value là điểm}, điểm cao nhất phải lớn hơn rõ rệt điểm thứ hai",
     "OPEN_HOOK_FIELDS": "variant hợp lệ, có caption; TWOTRUTHS cần đúng 2 docs, các variant khác cần value",
+    "KINETIC_TITLE_FIELDS": "title 2 đến 7 từ (tối đa 40 ký tự), tag tùy chọn là cụm nằm nguyên văn trong title; on để rỗng",
+    "MARK_PHRASE_FIELDS": "title là câu 3 đến 10 từ, tag là cụm ngắn hơn nằm nguyên văn trong title (cụm được khoanh), caption tùy chọn tối đa 30 ký tự; on để rỗng",
+    "WORD_SWAP_FIELDS": "title là vế đầu (tối đa 24 ký tự), steps 3 đến 4 phương án khác nhau (tối đa 14 ký tự), caption tùy chọn là vế sau; on để rỗng",
+    "PILE_UP_FIELDS": "title là người đang bị dồn việc (tối đa 14 ký tự), value là số lượng việc dạng chữ số từ 8 đến 24; on để rỗng",
+    "STAT_RING_FIELDS": "to_value là phần trăm lớn hơn 0 và tối đa 100, caption là nhãn (tối đa 30 ký tự); on để rỗng",
+    "CHART_STORY_FIELDS": "series đúng 1 chuỗi, labels 3 đến 6 mục (tối đa 10 ký tự), values cùng số lượng và không phẳng, unit tùy chọn; on để rỗng",
 }
 
 
@@ -975,6 +1005,9 @@ def _repair_diagram_data(scene, narration: str | None = None) -> None:
         diagram["steps"] = steps
         block = diagram.get("block_step")
         diagram["block_step"] = min(max(block if isinstance(block, int) else 1, 1), len(steps) - 2)
+    if layout in BLOCK_LAYOUTS:
+        _repair_block_layout(layout, diagram)
+        return
     labels, series = diagram.get("labels"), diagram.get("series")
     if layout in ("CHART_TARGET", "CHART_GROWTH") and isinstance(labels, list) and isinstance(series, list) \
             and all(isinstance(item, dict) and isinstance(item.get("values"), list) for item in series):
@@ -1019,6 +1052,43 @@ def _repair_diagram_data(scene, narration: str | None = None) -> None:
                 last_phrase = phrase
                 last_word = max(last_word, max((w for w, s in enumerate(word_start) if s <= index), default=-1))
             last_index = index
+
+
+def _repair_block_layout(layout: str, diagram: dict) -> None:
+    """Cảnh khối dựng sẵn không có mốc bám lời: bỏ `on`, cắt chữ quá dài và chỉnh các trường LLM hay lệch (cụm nhấn không nằm trong câu, số ngoài khoảng)."""
+    diagram["on"] = {}
+    title = diagram.get("title")
+    if not isinstance(title, str):
+        return
+    limits = {"KINETIC_TITLE": 40, "MARK_PHRASE": 60, "WORD_SWAP": 24, "PILE_UP": 14, "STAT_RING": 40, "CHART_STORY": 40}
+    if len(title) > limits[layout]:
+        diagram["title"] = title = title[:limits[layout]].rstrip().rsplit(" ", 1)[0] or title[:limits[layout]].rstrip()
+    tag = diagram.get("tag")
+    if layout in ("KINETIC_TITLE", "MARK_PHRASE") and isinstance(tag, str) and " ".join(_tokens(tag)) not in " ".join(_tokens(title)):
+        words = title.split()
+        diagram["tag"] = " ".join(words[-2:]) if layout == "MARK_PHRASE" and len(words) > 2 else None
+    if layout == "MARK_PHRASE" and not diagram.get("tag") and len(title.split()) > 2:
+        diagram["tag"] = " ".join(title.split()[-2:])
+    if isinstance(diagram.get("caption"), str):
+        diagram["caption"] = diagram["caption"][:30].rstrip()
+    steps = diagram.get("steps")
+    if layout == "WORD_SWAP" and isinstance(steps, list):
+        unique = []
+        for step in steps:
+            if isinstance(step, str) and step.strip() and step.strip().casefold() not in {s.casefold() for s in unique}:
+                unique.append(step.strip()[:14].rstrip())
+        diagram["steps"] = unique[:4]
+    if layout == "PILE_UP":
+        digits = re.sub(r"\D", "", str(diagram.get("value") or ""))
+        diagram["value"] = str(min(24, max(8, int(digits)))) if digits else "12"
+    if layout == "STAT_RING" and isinstance(diagram.get("to_value"), (int, float)) and not isinstance(diagram.get("to_value"), bool):
+        diagram["to_value"] = min(100.0, max(1.0, float(diagram["to_value"])))
+    if layout == "CHART_STORY":
+        labels, series = diagram.get("labels"), diagram.get("series")
+        if isinstance(labels, list) and isinstance(series, list) and series and isinstance(series[0], dict) and isinstance(series[0].get("values"), list):
+            size = min(len(labels), len(series[0]["values"]), 6)
+            diagram["labels"] = [str(label)[:10] for label in labels[:size]]
+            diagram["series"] = [{**series[0], "values": series[0]["values"][:size]}]
 
 
 def _ui_cap(shot: dict) -> int:
@@ -1331,6 +1401,14 @@ def generate_storyboard(
             "PYRAMID_LEVELS (bậc trưởng thành: steps 3 đến 5 bậc từ dưới lên, pick là bậc hiện tại; on cần levels, here), "
             "VERSUS_LIST (so hai phương án: docs đúng 2 {title,label,value}, layers là 2 đến 4 ý của phương án đầu, values là 2 đến 4 ý của phương án sau, diff_label là kết luận; on cần left, right, verdict), "
             "DOC_SEARCH (tìm đúng tài liệu: steps 3 đến 5 tên tài liệu, pick là tài liệu khớp, caption là từ khóa tìm; on cần query, found). "
+            "Sáu loại chuyển động dựng sẵn, KHÔNG có mốc bám lời nên diagram.on luôn là {} và không cần cụm neo; dùng cho nhịp nhấn, chuyển ý, mở chương: "
+            "KINETIC_TITLE (câu chốt hoặc tên chương hiện thành chữ lớn: title 2 đến 7 từ tối đa 40 ký tự, tag tùy chọn là cụm nhấn màu nằm nguyên văn trong title), "
+            "MARK_PHRASE (một câu quan trọng được khoanh hoặc gạch dưới đúng cụm then chốt: title là câu 3 đến 10 từ, tag là cụm ngắn hơn nằm nguyên văn trong title, caption tùy chọn là ghi chú tối đa 30 ký tự), "
+            "WORD_SWAP (một từ đổi liên tục rồi dừng ở từ cuối, hợp để liệt kê các cách gọi hoặc kết quả: title là vế đầu tối đa 24 ký tự, steps 3 đến 4 từ khác nhau tối đa 14 ký tự, caption tùy chọn là vế sau), "
+            "PILE_UP (việc, tin nhắn, thông báo dồn dập quanh một người: title là người đó tối đa 14 ký tự, value là số lượng dạng chữ số từ 8 đến 24), "
+            "STAT_RING (vòng tròn đầy tới một phần trăm: to_value lớn hơn 0 và tối đa 100, caption là nhãn tối đa 30 ký tự), "
+            "CHART_STORY (biểu đồ cột hoặc đường tự kể: series đúng 1 chuỗi {name,values}, labels 3 đến 6 mục tối đa 10 ký tự, values cùng số lượng và không phẳng, unit tùy chọn). "
+            "Các loại này hợp với khung 9:16 và không tốn thời gian dựng như clip Flow; dùng chúng cho các shot nhấn ý ngắn. "
             "Kịch bản mẫu để chọn nhịp: (1) vấn đề - nguyên nhân - cơ chế - kết quả: mở OPEN_*, bằng chứng CHART_TARGET hoặc COMPARE_DOCS hoặc GAUGE, nguyên nhân DOC_LAYERS hoặc FUNNEL hoặc DONUT_SHARE, "
             "cơ chế PROCESS_RAIL hoặc CHECKLIST hoặc TIMELINE, kết quả BEFORE_AFTER hoặc CHART_GROWTH, kết END_CARD; "
             "(2) tiền và chi phí: mở OPEN_DRAIN hoặc OPEN_NUMBER, CASH_FLOW, DONUT_SHARE, COST_SLICE, BEFORE_AFTER, END_CARD; "
@@ -1362,7 +1440,7 @@ def generate_storyboard(
             " CHẾ ĐỘ CHỈ CẢNH GIẤY DỰNG BẰNG MÃ (style_snapshot.diagram_only): MỌI shot phải là shot_kind=UI_SIM với ui_scene.layout thuộc "
             "CHART_TARGET, CHART_GROWTH, COMPARE_DOCS, PROCESS_RAIL, COST_SLICE, CASH_FLOW, STACK_HEIGHT, DOC_LAYERS, END_CARD, OPEN_NUMBER, OPEN_DRAIN, OPEN_QUESTION, OPEN_HOOK, "
             "FUNNEL, TIMELINE, BEFORE_AFTER, DONUT_SHARE, GAUGE, CHECKLIST, HUB_SPOKE, MATRIX_2X2, RANK_BARS, KPI_CARDS, ASSIGN_CARDS, WAIT_CLOCK, RADAR_SCAN, "
-            "RACE_LANES, TABLE_AUDIT, ALERT_STACK, PYRAMID_LEVELS, VERSUS_LIST, DOC_SEARCH; "
+            "RACE_LANES, TABLE_AUDIT, ALERT_STACK, PYRAMID_LEVELS, VERSUS_LIST, DOC_SEARCH, KINETIC_TITLE, MARK_PHRASE, WORD_SWAP, PILE_UP, STAT_RING, CHART_STORY; "
             "không dùng FLOW_ORIGAMI, CHAT, AI_PANEL, DASHBOARD. Shot đầu là một kiểu OPEN_*, shot cuối là END_CARD, các shot giữa chọn loại cảnh khớp đúng ý lời đọc "
             "và tuyệt đối không dùng cùng một loại cho hai shot liền nhau, mỗi loại tối đa hai shot trong cả video. Mỗi shot vẫn phải đủ lời đọc theo ngân sách âm tiết và đủ cụm neo trong diagram.on. "
             "Với shot UI_SIM, prompt chỉ là mô tả ngắn bằng tiếng Việt cảnh giấy sẽ dựng (tối thiểu 8 ký tự), action_beats để trống.")

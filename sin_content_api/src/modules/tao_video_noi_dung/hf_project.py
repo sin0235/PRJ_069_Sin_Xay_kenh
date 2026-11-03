@@ -18,6 +18,7 @@ from pathlib import Path
 
 from . import hf_scenes
 from .brand import display_json
+from .planner import BLOCK_LAYOUTS
 from .render_engines import ENGINE_TIMEOUT_SECONDS, EngineUnavailable, _chrome, _node, engines_dir
 from .ui_sim import _diagram_html, diagram_payload
 from src.modules.media_studio.video_processor import VIETSUB_FONT_PATH
@@ -195,17 +196,21 @@ def build_project(
                 raise ValueError("HYPERFRAMES_SHOT_SCENE_MISSING")
             dump = display_json(scene.diagram.model_dump(exclude={"on"}, exclude_none=True))
             dump["kind"] = scene.layout
-            builder = hf_scenes.NATIVE.get(scene.layout) if aspect_ratio == "16:9" else None
+            builder = hf_scenes.NATIVE.get(scene.layout) if aspect_ratio == "16:9" or scene.layout in BLOCK_LAYOUTS else None
+            host_extra, host_css = "", ""
             if builder:
                 native.append(scene.layout)
-                text = builder(cid, dump, lead, seconds + lead, shot["events"])
+                built = builder(cid, dump, lead, seconds + lead, shot["events"])
+                text, host_extra, host_css = built if isinstance(built, tuple) else (built, "", "")
+                if scene.layout in BLOCK_LAYOUTS:   # khối tự vào cảnh; thoát bằng mờ dần ở 0,25 giây cuối để nhường cảnh sau
+                    main_js += f'tl.to("#{cid}", {{ opacity: 0, duration: 0.25, ease: "power1.in" }}, {max(0.0, shot_start + seconds - 0.25):.3f});\n'
             else:
                 legacy.append(scene.layout)
                 text = legacy_scene(cid, scene, shot["narration"], seconds, lead, shot.get("word_times"), aspect_ratio)
             (out / "compositions" / f"{cid}.html").write_text(text, encoding="utf-8")
             host_start = max(0.0, shot_start - lead)
             hosts += (f'<div id="{cid}" data-composition-id="{cid}" data-composition-src="compositions/{cid}.html" data-start="{host_start:.3f}" data-duration="{seconds + lead:.3f}" '
-                      f'data-track-index="{index + 1}" data-track-kind="graphics" data-width="{width}" data-height="{height}" style="z-index:{index + 1}"></div>\n')
+                      f'data-track-index="{index + 1}" data-track-kind="graphics" data-width="{width}" data-height="{height}"{host_extra} style="z-index:{index + 1};{host_css}"></div>\n')
         if transitions and index % 2 == 1:   # cách quãng: mảnh giấy xé phủ cuối cảnh trước rồi lột ra để lộ cảnh mới
             tid, collages = f"tr{index:02d}", collages + 1
             (out / "compositions" / f"{tid}.html").write_text(collage_block(tid), encoding="utf-8")
@@ -267,7 +272,7 @@ def build_project(
     audio = "\n".join(audio_tracks).replace("__DURATION__", f"{total:.3f}")
     (out / "index.html").write_text(
         f'<!doctype html>\n<html lang="vi">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width={width}, height={height}">\n<script src="assets/vendor/gsap.min.js"></script>\n'
-        f'<style>html,body{{margin:0;width:{width}px;height:{height}px;overflow:hidden;background:#0a1c2b}}#bg{{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,#12324a 0%,#0a1c2b 62%,#06131d 100%)}}</style>\n</head>\n<body>\n'
+        f'<style>@font-face{{font-family:"Viet";src:url(assets/fonts/be_vietnam_pro_semibold.ttf);font-weight:100 900}}html,body{{margin:0;width:{width}px;height:{height}px;overflow:hidden;background:#0a1c2b}}#bg{{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,#12324a 0%,#0a1c2b 62%,#06131d 100%)}}</style>\n</head>\n<body>\n'
         f'<div id="root" data-composition-id="main" data-start="0" data-duration="{total:.3f}" data-width="{width}" data-height="{height}" data-motion-blur="on">\n<div id="bg"></div>\n{hosts}{audio}</div>\n'
         '<script>\nwindow.__timelines = window.__timelines || {};\nconst tl = gsap.timeline({ paused: true });\n' + main_js + 'window.__timelines["main"] = tl;\n</script>\n</body>\n</html>\n', encoding="utf-8")
     (out / "hyperframes.json").write_text(json.dumps({"paths": {"blocks": "compositions", "components": "compositions/components", "assets": "assets"}}), encoding="utf-8")

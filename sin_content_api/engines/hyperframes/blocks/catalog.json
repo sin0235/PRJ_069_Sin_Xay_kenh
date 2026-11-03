@@ -1,0 +1,944 @@
+{
+ "nguon": "hyperframes registry 0.8.222 (Apache-2.0, HeyGen), kiểm bằng hyperframes check + snapshot trên khung 16:9 ngày 2026-11-03",
+ "ghi_chu": {
+  "co_bien": "khối nhận biến (text, accent...) qua data-variable-values",
+  "trang_mau": "trang mẫu nội dung cố định, cần thay nội dung mới dùng được",
+  "snippet": "mảnh mã, không dựng độc lập",
+  "dang_dung_cho": "loại cảnh planner dùng khối này"
+ },
+ "blocks": {
+  "agent-cursor": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.8
+  },
+  "ai-answer-rank": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 9.0
+  },
+  "animated-bar-chart": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "avatar-cloud": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 5.0
+  },
+  "bar-chart-race": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 12.0
+  },
+  "beat-timeline": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 5.5
+  },
+  "before-after-wipe": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "camcorder-hud": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "camera-rig-depth-stack": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "camera-shake": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 6.0
+  },
+  "caption-blend-difference": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 30.0
+  },
+  "caption-camera-follow": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 9.0
+  },
+  "caption-clip-wipe": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 8.0
+  },
+  "caption-editorial-emphasis": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 8.0
+  },
+  "caption-glitch-rgb": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 8.0
+  },
+  "caption-highlight": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 8.0
+  },
+  "caption-kinetic-slam": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 8.0
+  },
+  "caption-parallax-layers": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 8.0
+  },
+  "caption-particle-burst": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 8.0
+  },
+  "caption-pill-karaoke": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 8.0
+  },
+  "caption-weight-shift": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 8.0
+  },
+  "card-resize": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "char-slam-explode": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 3.5
+  },
+  "chart-story": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 5.0,
+   "dang_dung_cho": [
+    "CHART_STORY",
+    "CHART_STORY"
+   ],
+   "trang_thai": "đã nối vào pipeline"
+  },
+  "chat-message": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 3.0
+  },
+  "chromatic-aberration-wipe": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "chromatic-radial-split": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "cinematic-zoom": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "comparison-split": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "confetti": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "conic-progress-ring": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0,
+   "dang_dung_cho": [
+    "STAT_RING"
+   ],
+   "trang_thai": "đã nối vào pipeline"
+  },
+  "cross-warp-morph": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "cursor-annotate": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 2.95
+  },
+  "cursor-drag-drop": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 3.6
+  },
+  "cursor-marquee-select": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 3.4
+  },
+  "cursor-text-select": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.2
+  },
+  "cut-the-curve": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 1.0
+  },
+  "data-chart": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 15.0
+  },
+  "decline-chart": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "device-frame-stage": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 5.0
+  },
+  "directional-wipe": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "drift-hold": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "dynamic-grid": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "echo-smear": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "exploded-stack": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 5.0
+  },
+  "extruded-logo": {
+   "loai": "co_bien",
+   "dung_duoc": false,
+   "loi_chay": 3,
+   "thoi_luong_mac_dinh": 5.0
+  },
+  "fade-through": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "flash-through-white": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "flowchart": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 12.0
+  },
+  "flowchart-vertical": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 12.0
+  },
+  "focus-rack": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 3.5
+  },
+  "grain-field": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "grain-overlay": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "grid-pixelate-wipe": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "halftone-dissolve": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 3.5
+  },
+  "halftone-field": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 10.0
+  },
+  "headline-slam": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 3.5,
+   "dang_dung_cho": [
+    "KINETIC_TITLE"
+   ],
+   "trang_thai": "đã nối vào pipeline"
+  },
+  "hw-box-label": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 2,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "hw-callout-circle": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 2,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "hw-pipeline": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 2,
+   "thoi_luong_mac_dinh": 7.0
+  },
+  "hw-scribble-transition": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 2.2
+  },
+  "hw-title": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 2,
+   "thoi_luong_mac_dinh": 6.0
+  },
+  "hw-write-title": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 5,
+   "thoi_luong_mac_dinh": 6.0
+  },
+  "ink-bleed-reveal": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "inline-highlight": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "iris-reveal": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 3.5
+  },
+  "kinetic-center-build": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 2.0
+  },
+  "kinetic-type-swap": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0,
+   "dang_dung_cho": [
+    "WORD_SWAP"
+   ],
+   "trang_thai": "đã nối vào pipeline"
+  },
+  "light-leak": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "logo-brand-close": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "logo-outro": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 6.0
+  },
+  "logo-wall": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 5.0
+  },
+  "lt-accent-underline": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.8
+  },
+  "lt-clean-bar": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.8
+  },
+  "lt-kicker-name": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.8
+  },
+  "lt-side-rule": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.8
+  },
+  "lt-soft-pill": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.8
+  },
+  "magnetic-cursor": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 3.6
+  },
+  "marker-highlight": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 3.5,
+   "dang_dung_cho": [
+    "MARK_PHRASE",
+    "MARK_PHRASE",
+    "MARK_PHRASE"
+   ],
+   "trang_thai": "đã nối vào pipeline"
+  },
+  "match-cut": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "menu-morph": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "mesh-gradient-bg": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "mk-background": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 10.0
+  },
+  "mk-callout-highlight": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 8.0
+  },
+  "mk-clone-wall-transition": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 2.4
+  },
+  "mk-line-graph": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 7.0
+  },
+  "mk-progress-stat": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 7.0
+  },
+  "mk-specs-list": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 8.0
+  },
+  "mk-usage-arc": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "morph-swap": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 3.5
+  },
+  "notification-pileup": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 8.0
+  },
+  "number-pop-in": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "number-wheel": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "onboarding-stepper-flow": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "organic-light-leak-overlay": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "overwhelm-surround": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.5,
+   "dang_dung_cho": [
+    "PILE_UP"
+   ],
+   "trang_thai": "đã nối vào pipeline"
+  },
+  "page-slide": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "pan-stations": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "paper-collage-reveal": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 2.6
+  },
+  "parallax-device-dive": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.5
+  },
+  "parallax-unzoom": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "parallax-zoom": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "press-ripple": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 2.4
+  },
+  "pull-back-reveal": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.5
+  },
+  "push-in": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "rgb-glitch-text": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "ripple-waves": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "scroll-camera-story": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 5.5
+  },
+  "sdf-iris": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "settings-toggle-flow": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "shutter-slam": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 6.0,
+   "dang_dung_cho": [
+    "KINETIC_TITLE"
+   ],
+   "trang_thai": "đã nối vào pipeline"
+  },
+  "skeleton-reveal": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "slot-machine-roll": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "snow": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 6.0
+  },
+  "split-flap-board": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 3.5
+  },
+  "spotlight-card": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "star-rating-fill": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "starfield": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 6.0
+  },
+  "streaming-text": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "strikethrough-replace": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "success-check": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "svg-line-draw-loader": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "swirl-vortex": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "terminal-simulator": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "text-match-cut": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 3.0,
+   "dang_dung_cho": [
+    "KINETIC_TITLE"
+   ],
+   "trang_thai": "đã nối vào pipeline"
+  },
+  "ticker-takeover": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.5
+  },
+  "tilt-card": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "titlecard-calm": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0,
+   "dang_dung_cho": [
+    "KINETIC_TITLE"
+   ],
+   "trang_thai": "đã nối vào pipeline"
+  },
+  "titlecard-lockup": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "torn-paper-rip": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 2.4
+  },
+  "transitions-3d": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 11.0
+  },
+  "transitions-blur": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 20.0
+  },
+  "transitions-cover": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 21.0
+  },
+  "transitions-destruction": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 14.0
+  },
+  "transitions-dissolve": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 24.0
+  },
+  "transitions-grid": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 11.0
+  },
+  "transitions-light": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 21.0
+  },
+  "transitions-mechanical": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 15.0
+  },
+  "transitions-push": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 24.0
+  },
+  "transitions-radial": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 20.0
+  },
+  "transitions-scale": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 15.0
+  },
+  "type-match-cut": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "typing-indicator": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "ui-focus-zoom": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.5
+  },
+  "us-map-flow": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 12.0
+  },
+  "vignette": {
+   "loai": "snippet",
+   "ghi_chu": "mảnh mã dán vào composition, không dựng độc lập"
+  },
+  "vox-annotate": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0,
+   "dang_dung_cho": [
+    "MARK_PHRASE"
+   ],
+   "trang_thai": "đã nối vào pipeline"
+  },
+  "week-in-merges": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 16.0
+  },
+  "weight-wave": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 3,
+   "thoi_luong_mac_dinh": 6.0
+  },
+  "whip-pan": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "whip-pan-cut": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 1.2
+  },
+  "world-map": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 14.0
+  },
+  "yt-camera-move": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "yt-feather-highlight": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 5.0
+  },
+  "yt-lcd-background": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 10.0
+  },
+  "yt-logo-intro": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 6.0
+  },
+  "yt-prism-title": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 6.0
+  },
+  "yt-screen-warp": {
+   "loai": "trang_mau",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 4.0
+  },
+  "zoom-through-transition": {
+   "loai": "co_bien",
+   "dung_duoc": true,
+   "loi_chay": 0,
+   "thoi_luong_mac_dinh": 3.0
+  }
+ }
+}

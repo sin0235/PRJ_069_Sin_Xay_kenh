@@ -389,4 +389,15 @@ point(q('#{cid}-cta'), T('cta') + .45, .7, .72);
     return scaffold(cid, scene, css, body, js, lead, seconds, ev, title=False, simulated=False, exit_slide=False)
 
 
+from . import hf_blocks  # noqa: E402
+
+
+def _block_scene(layout: str):
+    """Cảnh dựng từ khối HyperFrames dựng sẵn: trả (composition, thuộc tính host, style host); hf_project ghép vào thẻ host."""
+    def build(cid, scene, lead, seconds, ev):
+        return hf_blocks.scene_composition(layout, cid, scene, seconds)
+    return build
+
+
 NATIVE = {"FUNNEL": funnel, "CHECKLIST": checklist, "BEFORE_AFTER": before_after, "HUB_SPOKE": hub_spoke, "TIMELINE": timeline, "OPEN_QUESTION": open_question, "END_CARD": end_card}
+NATIVE.update({layout: _block_scene(layout) for layout in hf_blocks.BLOCK_SCENES})
