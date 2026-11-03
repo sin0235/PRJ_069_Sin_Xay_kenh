@@ -189,6 +189,7 @@ def assembly_mode(style_snapshot: dict | None) -> str:
     return name
 
 
+@offload("placeholder", "RENDER_VISUAL", output="out_path")
 def render_placeholder(out_path: Path, seconds: int, aspect_ratio: str = "16:9") -> dict:
     """Clip đen đúng độ dài, chỉ để giữ chỗ trong dây chuyền tài sản và QC khi cả video sẽ được dựng bằng HyperFrames (không tốn thời gian dựng cảnh)."""
     width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)

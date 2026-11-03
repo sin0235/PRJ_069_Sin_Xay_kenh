@@ -53,21 +53,25 @@ def download(task: uuid.UUID, index: int, request: Request):
 
 @router.put('/{task}/output')
 async def upload(task: uuid.UUID, request: Request, offset: int = 0):
+    store, token = get_store(), bearer(request)
+    store.validate_access(str(task), token)
     try:
         length = int(request.headers.get('content-length', '0'))
     except ValueError:
         raise HTTPException(400, 'REMOTE_CHUNK_INVALID')
     if not 0 < length <= MAX_CHUNK:
         raise HTTPException(413, 'REMOTE_CHUNK_TOO_LARGE')
-    data = bytearray()
+    received, next_offset = 0, offset
     async for block in request.stream():
-        if len(data) + len(block) > length:
+        if received + len(block) > length:
             raise HTTPException(413, 'REMOTE_CHUNK_TOO_LARGE')
-        data.extend(block)
-    if len(data) != length:
+        for start in range(0, len(block), 1024 * 1024):
+            piece = block[start:start + 1024 * 1024]
+            next_offset = store.append(str(task), token, offset + received, piece)
+            received += len(piece)
+    if received != length:
         raise HTTPException(400, 'REMOTE_CHUNK_INCOMPLETE')
-    offset = get_store().append(str(task), bearer(request), offset, data)
-    return {'next_offset': offset}
+    return {'next_offset': next_offset}
 
 
 async def bounded_json(request):
@@ -88,6 +92,7 @@ async def bounded_json(request):
 
 @router.post('/{task}/complete')
 async def complete(task: uuid.UUID, request: Request):
+    get_store().validate_access(str(task), bearer(request), finished=True)
     payload = await bounded_json(request)
     get_store().complete(str(task), bearer(request), payload.get('result', {}), payload.get('output'))
     return {'state': 'SUCCEEDED'}
@@ -95,6 +100,7 @@ async def complete(task: uuid.UUID, request: Request):
 
 @router.post('/{task}/fail')
 async def fail(task: uuid.UUID, request: Request):
+    get_store().validate_access(str(task), bearer(request))
     payload = await bounded_json(request)
     get_store().fail(str(task), bearer(request), str(payload.get('error', 'REMOTE_ENGINE_FAILED')))
     return {'state': 'FAILED'}

@@ -6,6 +6,8 @@ import os
 from pathlib import Path
 import shutil
 import sys
+import subprocess
+import signal
 import tempfile
 import threading
 import time
@@ -20,6 +22,75 @@ os.environ['OPENBLAS_NUM_THREADS'] = '2'
 os.environ['MKL_NUM_THREADS'] = '2'
 
 from src.modules.tac_vu_tu_xa.service import file_hash
+
+
+def stage_child(payload_path):
+    from src.modules.tac_vu_tu_xa.stages import execute_stage
+    payload = json.loads(Path(payload_path).read_text(encoding='utf-8'))
+    try:
+        result = execute_stage(payload['spec'], [Path(item) for item in payload['inputs']], Path(payload['output']))
+        receipt = {'result': result}
+    except Exception as exc:
+        import re
+        code = str(exc).split(':', 1)[0]
+        receipt = {'error': code if re.fullmatch('[A-Z0-9_]{1,150}', code) else type(exc).__name__}
+    Path(payload['receipt']).write_text(json.dumps(receipt, ensure_ascii=False), encoding='utf-8')
+    return 1 if 'error' in receipt else 0
+
+
+def execute_isolated(spec, inputs, output, root, heartbeat_errors):
+    payload_path, receipt = root / 'stage.json', root / 'receipt.json'
+    payload_path.write_text(json.dumps({'spec': spec, 'inputs': [str(path) for path in inputs],
+                                      'output': str(output), 'receipt': str(receipt)}), encoding='utf-8')
+    started = time.monotonic()
+    peak_rss, peak_scratch = 0, 0
+    with (root / 'engine.log').open('wb') as log:
+        process = subprocess.Popen([sys.executable, __file__, '--execute-stage', str(payload_path)],
+                                   stdout=log, stderr=log, start_new_session=True)
+        try:
+            while process.poll() is None:
+                # Đo cả cây Chromium/FFmpeg, không chỉ RSS của Python cha.
+                rows = subprocess.check_output(['ps', '-eo', 'pid=,ppid=,rss='], text=True)
+                entries = [tuple(map(int, row.split())) for row in rows.splitlines() if row.strip()]
+                owned = {process.pid}
+                while True:
+                    descendants = {pid for pid, parent, _ in entries if parent in owned}
+                    if descendants <= owned:
+                        break
+                    owned |= descendants
+                rss = sum(size * 1024 for pid, _, size in entries if pid in owned)
+                peak_rss = max(peak_rss, rss)
+                scratch_size = 0
+                for path in root.rglob('*'):
+                    try:
+                        if path.is_file():
+                            scratch_size += path.stat().st_size
+                    except FileNotFoundError:
+                        pass
+                peak_scratch = max(peak_scratch, scratch_size)
+                if heartbeat_errors:
+                    raise RuntimeError(heartbeat_errors[0])
+                if rss > 6 * 1024 ** 3:
+                    raise RuntimeError('REMOTE_MEMORY_BUDGET_EXCEEDED')
+                if shutil.disk_usage(root).free < 512 * 1024 ** 2:
+                    raise RuntimeError('REMOTE_DISK_BUDGET_EXCEEDED')
+                if time.monotonic() - started > 7200:
+                    raise RuntimeError('REMOTE_STAGE_TIMEOUT')
+                time.sleep(2)
+        finally:
+            if process.poll() is None:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                process.wait(timeout=20)
+    if not receipt.is_file():
+        raise RuntimeError('REMOTE_ENGINE_PROCESS_FAILED')
+    result = json.loads(receipt.read_text(encoding='utf-8'))
+    if 'error' in result:
+        raise RuntimeError(result['error'])
+    return result['result'], {'peak_rss_bytes': peak_rss, 'peak_scratch_bytes': peak_scratch,
+                              'elapsed_seconds': round(time.monotonic() - started, 2)}
 
 
 def oidc(origin):
@@ -79,14 +150,13 @@ def process(client, base, spec, token):
                 if path.stat().st_size != item['size'] or digest.hexdigest() != item['sha256']:
                     raise RuntimeError('REMOTE_INPUT_HASH_MISMATCH')
                 inputs.append(path)
-            from src.modules.tac_vu_tu_xa.stages import execute_stage
             suffix = spec['parameters'].get('output_suffix') or '.mp4'
             if suffix not in {'.wav', '.m4a', '.mp3', '.mp4', '.mov', '.png', '.jpg', '.webm'}:
                 raise RuntimeError('REMOTE_OUTPUT_SUFFIX_INVALID')
             if spec['parameters']['operation'] == 'render_scene' and spec['parameters']['arguments'].get('transparent_background'):
                 suffix = '.mov'
             output = root / ('output' + suffix)
-            result = execute_stage(spec, inputs, output)
+            result, metrics = execute_isolated(spec, inputs, output, root, errors)
             if errors:
                 raise RuntimeError(errors[0])
             manifest = None
@@ -100,7 +170,7 @@ def process(client, base, spec, token):
                         source.seek(offset)
             request(client, 'POST', task_url + '/complete', headers=headers, json={'result': result, 'output': manifest})
             print(json.dumps({'task': spec['id'], 'stage': spec['stage'], 'state': 'SUCCEEDED',
-                              'output_bytes': manifest['size'] if manifest else 0}), flush=True)
+                              'output_bytes': manifest['size'] if manifest else 0, **metrics}), flush=True)
     except Exception as exc:
         # Nhật ký chỉ chứa mã/lớp lỗi; thông báo thư viện có thể chứa header hoặc đường dẫn riêng.
         code = str(exc) if str(exc).startswith(('REMOTE_', 'VIDEO_', 'FLOW_')) and len(str(exc)) < 150 else type(exc).__name__
@@ -138,4 +208,6 @@ def main():
 
 
 if __name__ == '__main__':
+    if len(sys.argv) == 3 and sys.argv[1] == '--execute-stage':
+        raise SystemExit(stage_child(sys.argv[2]))
     main()

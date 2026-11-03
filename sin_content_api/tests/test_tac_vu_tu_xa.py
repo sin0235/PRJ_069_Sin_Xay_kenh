@@ -53,6 +53,15 @@ def test_expired_lease_fences_worker_and_queue_survives_restart(tmp_path):
     assert restored.get(task)['state'] == 'LOST'
 
 
+def test_partial_network_retry_checks_overlap_then_appends_only_missing_bytes(tmp_path):
+    store = TaskStore(tmp_path / 'jobs.sqlite3', tmp_path / 'scratch')
+    task = store.create('EXTRACT_AUDIO', {}, [], 'ws1', 'AUTO_EDIT')
+    _, token = store.claim('run-1')
+    assert store.append(task, token, 0, b'abc') == 3
+    assert store.append(task, token, 0, b'abcdef') == 6
+    assert store.output_path(task).read_bytes() == b'abcdef'
+
+
 def test_oidc_checks_signature_repo_id_ref_event_and_audience(monkeypatch):
     import base64
     import json

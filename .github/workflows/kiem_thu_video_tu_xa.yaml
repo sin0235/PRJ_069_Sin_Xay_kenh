@@ -45,7 +45,7 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core fonts-liberation fonts-noto-core
-          python -m pip install -r sin_content_api/requirements.txt soundfile numpy python-multipart
+          python -m pip install -r sin_content_api/requirements.txt soundfile numpy python-multipart vieneu==3.8.3 onnxruntime==1.28.0
           python -m playwright install --with-deps chromium
           npm ci --prefix sin_content_api/engines/hyperframes
           npm ci --prefix sin_content_api/engines/remotion

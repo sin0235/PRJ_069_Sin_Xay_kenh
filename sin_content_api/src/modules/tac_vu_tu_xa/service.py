@@ -113,6 +113,10 @@ class TaskStore:
             db.execute('UPDATE tasks SET lease_until=? WHERE id=?', (time.time() + 300, task))
             db.execute('UPDATE runner_session SET updated=? WHERE run_id=?', (time.time(), row['runner']))
 
+    def validate_access(self, task, token, *, finished=False):
+        with self.connect() as db:
+            self._authorize(db, task, token, finished=finished)
+
     def input_path(self, task, token, index):
         with self.connect() as db:
             row = self._authorize(db, task, token)
@@ -137,12 +141,15 @@ class TaskStore:
             path = self.output_path(task)
             size = path.stat().st_size if path.exists() else 0
             if offset < size:
-                if offset + len(data) <= size:
-                    with path.open('rb') as source:
-                        source.seek(offset)
-                        if secrets.compare_digest(source.read(len(data)), data):
-                            return size
-                raise RemoteTaskError('REMOTE_OFFSET_MISMATCH')
+                overlap = min(size - offset, len(data))
+                with path.open('rb') as source:
+                    source.seek(offset)
+                    if not secrets.compare_digest(source.read(overlap), data[:overlap]):
+                        raise RemoteTaskError('REMOTE_OFFSET_MISMATCH')
+                data = data[overlap:]
+                offset += overlap
+                if not data:
+                    return size
             if offset != size or size + len(data) > 12 * 1024 ** 3:
                 raise RemoteTaskError('REMOTE_OFFSET_MISMATCH')
             import shutil

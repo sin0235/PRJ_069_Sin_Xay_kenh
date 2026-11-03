@@ -71,6 +71,8 @@ def execute(stage, operation, arguments, inputs, output=None):
                 raise RemoteTaskError(row['error'] or 'REMOTE_TASK_STOPPED')
             if row['state'] in {'RUNNING', 'UPLOADING'} and row['lease_until'] < time.time():
                 raise RemoteTaskError('REMOTE_LEASE_LOST')
+            if row['state'] == 'QUEUED':
+                ensure_runner(store)
             if context.get('parent_id'):
                 from src.database import SessionLocal
                 from src.models.entities import AIGenerationJob, ContentVideoRun

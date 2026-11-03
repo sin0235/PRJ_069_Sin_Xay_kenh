@@ -2,7 +2,8 @@
     admin off
     auto_https off
 }
-http://127.0.0.1:13069 {
+http://:13069 {
+    bind 127.0.0.1
     @api path /v1/* /healthz /readyz
     handle @api {
         reverse_proxy 127.0.0.1:8001 {

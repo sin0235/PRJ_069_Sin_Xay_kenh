@@ -75,7 +75,7 @@ def decode_arguments(value, inputs):
 def execute_stage(spec, inputs, output):
     from src.modules.media_studio.video_processor import video_processor
     from src.modules.media_studio.audio_processor import audio_processor
-    from src.modules.tao_video_noi_dung.render_engines import render_scene
+    from src.modules.tao_video_noi_dung.render_engines import render_scene, render_placeholder
     from src.modules.tao_video_noi_dung.runner import _render_with_hyperframes, _add_brand_end_card, _probe_shot_with_qc
     from src.modules.dieu_phoi_dung.dung_video_dai import _kiem_tra_khung_den
     from src.modules.tao_video_noi_dung.vietsub import transcribe_words, transcribe_vietnamese
@@ -92,6 +92,7 @@ def execute_stage(spec, inputs, output):
         'transcribe_words': ('TRANSCRIBE', transcribe_words, None),
         'transcribe_cues': ('TRANSCRIBE', transcribe_vietnamese, None),
         'render_scene': ('RENDER_VISUAL', render_scene, 'out_path'),
+        'placeholder': ('RENDER_VISUAL', render_placeholder, 'out_path'),
         'render_timeline': ('RENDER_FINAL', video_processor.render_timeline_document, 'output_path'),
         'render_project': ('RENDER_FINAL', _render_with_hyperframes, 'output_path'),
         'brand_end': ('RENDER_FINAL', _add_brand_end_card, 'video_path'),
