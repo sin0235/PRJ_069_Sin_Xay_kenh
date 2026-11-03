@@ -463,10 +463,29 @@ def _tts_reference_path(db, run: ContentVideoRun) -> str | None:
 _BAHA_WORD = re.compile(r"(?<!\w)ba-?ha(?!\w)", re.IGNORECASE)
 
 
+def _pause_pad_samples(previous, current, rate: int, pause_seconds: float) -> int:
+    """Số mẫu im lặng cần chèn giữa hai câu. Dùng hàm của gói VieNeu nếu có; máy điều phối không cài gói đó nên tự tính:
+    khoảng lặng sẵn có ở cuối câu trước và đầu câu sau được trừ vào thời gian nghỉ cần có."""
+    try:
+        from vieneu_utils.core_utils import pause_pad_samples
+        return int(pause_pad_samples(previous, current, rate, pause_seconds))
+    except ImportError:
+        import numpy as np
+
+        def silent_edge(samples, from_end: bool) -> int:
+            values = np.abs(np.asarray(samples, dtype=np.float32).reshape(-1))
+            if from_end:
+                values = values[::-1]
+            loud = np.flatnonzero(values > 1e-3)
+            return int(loud[0]) if loud.size else int(values.size)
+
+        wanted = round(max(0.0, pause_seconds) * rate)
+        return max(0, wanted - silent_edge(previous, True) - silent_edge(current, False))
+
+
 def _prepare_run_tts(db, run: ContentVideoRun, shots: list, config: dict, token: str):
     """Lưu từng đoạn đã hoàn tất; restart không phải sinh lại toàn bộ giọng đọc."""
     import numpy as np
-    from vieneu_utils.core_utils import pause_pad_samples
     # Ghi rõ mặc định hiệu lực vào hash để không dùng lại cache khử nhiễu cũ.
     config = {**config, "advanced": {"denoise_reference": False, "max_chars": 128, **(config.get("advanced") or {})}}
     reference = _tts_reference_path(db, run)
@@ -521,7 +540,7 @@ def _prepare_run_tts(db, run: ContentVideoRun, shots: list, config: dict, token:
         if samples:
             previous_text = shots[index - 1].narration.rstrip().rstrip('"\'”’)]')
             pause_seconds = 0.5 if previous_text.endswith((".", "!", "?", "…")) else 0.3 if previous_text.endswith((",", ";", ":")) else 0.0
-            padding = pause_pad_samples(samples[-1], audio, int(source_rate), pause_seconds)
+            padding = _pause_pad_samples(samples[-1], audio, int(source_rate), pause_seconds)
             if padding:
                 samples.append(np.zeros(padding, dtype=np.float32))
             steps[index - 1]["tts_audio"]["pause_after_ms"] = round(padding * 1000 / source_rate)
