@@ -24,6 +24,11 @@ test("biên bản nhiều cảnh vẫn đọc được, chỉ bản đủ dữ l
   assert.equal(parse().replay_source_asset_id,null);
   Object.assign(raw,{words:[{id:"w1"}],plan:{clips:[]},visual_briefs:[],visual_generation:[]});
   assert.equal(parse().replay_source_asset_id,"original");
+  raw.clips=[{clip_id:"c1",title:"Nội dung",source_start_ms:0,source_end_ms:3000,
+    selected_take_id:"t1",selection_reason:"Đủ ý",needs_review:false,
+    take_options:[{take_id:"t1",start_ms:0,end_ms:3000,title:"Nội dung",reason:"Đủ ý"}],
+    visual_actions:[{asset_id:"paper",mode:"SPEAKER_PIP",start_ms:0,end_ms:3000,reason:"Giữ người nói"}]}];
+  assert.equal(parse().clips[0].visual_actions[0].mode,"SPEAKER_PIP");
   raw.flow_generated_visuals=Array.from({length:2001},()=>({state:"SUCCEEDED"}));
   assert.throws(parse,/AUTO_EDIT_MANIFEST_INVALID/);
 });

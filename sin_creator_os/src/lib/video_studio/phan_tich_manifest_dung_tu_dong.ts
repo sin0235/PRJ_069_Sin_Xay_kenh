@@ -24,7 +24,7 @@ export interface ClipDungTuDong {
 
 export interface VisualAction {
   asset_id: string;
-  mode: "CUTAWAY" | "OVERLAY";
+  mode: "CUTAWAY" | "OVERLAY" | "SPEAKER_PIP";
   start_ms: number;
   end_ms: number;
   reason: string;
@@ -198,7 +198,7 @@ export function docManifestDungTuDong(value: string): ManifestDungTuDong {
         const action = rawAction as Record<string, unknown>;
         if (
           typeof action.asset_id !== "string" ||
-          (action.mode !== "CUTAWAY" && action.mode !== "OVERLAY") ||
+          (action.mode !== "CUTAWAY" && action.mode !== "OVERLAY" && action.mode !== "SPEAKER_PIP") ||
           !laSoKhongAm(action.start_ms) ||
           !laSoKhongAm(action.end_ms) ||
           action.end_ms <= action.start_ms ||

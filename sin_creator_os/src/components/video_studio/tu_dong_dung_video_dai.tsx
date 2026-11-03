@@ -416,7 +416,7 @@ export function TuDongDungVideoDai({ projectId, assets, onAssetsChanged, initial
                     <ul className="mt-2 space-y-1 text-sm text-muted-foreground" aria-label="Các lớp diễn hoạ được chọn">
                         {clip.visual_actions.map((action) => (
                           <li key={`${action.asset_id}-${action.start_ms}`}>
-                            {action.mode === "OVERLAY" ? "Lớp phủ góc phải" : "Cảnh diễn hoạ xen vào"} {formatMs(action.start_ms)}–{formatMs(action.end_ms)}: {action.reason}
+                            {action.mode === "OVERLAY" ? "Lớp phủ hoạt ảnh" : action.mode === "SPEAKER_PIP" ? "Người nói trong khung nhỏ" : "Cảnh diễn hoạ xen vào"} {formatMs(action.start_ms)}–{formatMs(action.end_ms)}: {action.reason}
                           </li>
                         ))}
                       </ul>
