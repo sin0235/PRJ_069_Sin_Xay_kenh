@@ -599,6 +599,7 @@ def chon_dien_hoa(clips: list[ClipTuDong], words: list[dict], candidates: list[d
     asset_context = [{key: asset[key] for key in ("asset_id", "scene", "narration", "duration_seconds", "has_alpha")}
                      | {"scene": str(asset["scene"])[:180], "narration": str(asset["narration"])[:180]}
                      | {key: asset[key] for key in ("width", "height", "aspect_ratio") if asset.get(key)}
+                     | ({"overlay_presentation": asset["overlay_presentation"]} if asset.get("overlay_presentation") else {})
                      | ({"visual_kind": asset["visual_kind"], "renderer": asset["renderer"]} if asset.get("renderer") else {})
                      | ({"target_clip_id": asset["target_clip_id"]} if asset.get("target_clip_id") else {})
                      | {key: asset[key] for key in ("target_start_word_id", "target_end_word_id") if asset.get(key)}
@@ -625,6 +626,7 @@ def chon_dien_hoa(clips: list[ClipTuDong], words: list[dict], candidates: list[d
                 "Diễn họa HyperFrames có nền trong suốt; khi chi tiết phụ trợ, ưu tiên OVERLAY để giữ hình người nói bên dưới. Nền giấy và từng thẻ bên trong vẫn đục để chữ rõ. Chỉ tăng kích thước đủ đọc.",
                 "Tag một ý ngắn có thể dùng HYPERFRAMES alpha OVERLAY small/medium để giữ người nói. Checklist nhiều mục phải đủ lớn để đọc ở màn hình 360x640; nếu phải thu chữ quá nhỏ hoặc che mặt, dùng CUTAWAY hoặc bố cục khác phù hợp. Dùng asset đúng target, khớp lời.",
                 "Kiểm tra ở màn hình 360x640: chữ nội dung tối thiểu 16 px trên màn hình, tương đương 48 px trên output 1080. Checklist font 64 px trên canvas 1080 khi chèn rộng 405 chỉ còn 24 px trên output và 8 px trên điện thoại, không đạt. Checklist nhiều dòng phải dùng CUTAWAY toàn khung nếu overlay không đủ kích thước đọc hoặc chạm mặt; không coi large tự động là dễ đọc. Nếu không thể vừa khung và đọc rõ, đánh dấu cần rà soát thay vì nhận bố cục đó đã đạt.",
+                "Nếu asset có overlay_presentation.kind=single_item_card, đây là một thẻ giấy thay mục theo lời, không phải bảng nhiều dòng. Dùng min_font_size_px và width để tính chữ sau scale; ưu tiên OVERLAY khi đọc rõ và không che mặt/phụ đề. Không mặc định chuyển thẻ alpha gọn sang CUTAWAY.",
                 "Với visual_kind=diagram, chọn CUTAWAY khi sơ đồ là bằng chứng chính và asset có nền đục; chọn OVERLAY khi sơ đồ là panel bổ trợ và người nói cần giữ toàn khung; chọn SPEAKER_PIP khi asset đục và cả sơ đồ lẫn người nói cần xuất hiện. Dựa vào aspect_ratio để giữ đúng tỉ lệ, tránh crop và tự chọn vị trí/kích thước small, medium hoặc large theo nội dung, không ép mặc định một cỡ.",
                 "Với asset 9:16 có chữ hoặc số liệu và nền alpha, chọn OVERLAY large khi đủ chỗ đọc mà không che mặt/phụ đề; nếu không vừa, đánh dấu cần rà soát, không chuyển sơ đồ alpha thành PIP.",
                 "Khi asset có nền đục và cần giữ biểu cảm người nói, chọn SPEAKER_PIP. Chọn layout_position và layout_size để đặt người nói gọn trên nền giấy, không che phụ đề.",
@@ -1664,6 +1666,13 @@ def _visual_candidates_for_jobs(
                            "asset_id": asset.id, "duration_seconds": info["duration_seconds"],
                            "has_alpha": info["has_alpha"], "width": info["width"], "height": info["height"],
                            "aspect_ratio": info["aspect_ratio"],
+                           "overlay_presentation": (
+                               {"kind": "single_item_card", "min_font_size_px": 128}
+                               if renderer == "HYPERFRAMES" and info["has_alpha"]
+                               and parameters.get("diagram_revision") == 2
+                               and isinstance(parameters.get("ui_scene"), dict)
+                               and parameters.get("ui_scene", {}).get("layout") == "CHECKLIST" else None
+                           ),
                            "visual_kind": "diagram" if renderer == "HYPERFRAMES" else "flow_scene"})
     return candidates, failed
 
@@ -1832,6 +1841,7 @@ def dung_video_dai(
                                 "target_end_word_id": brief.get("end_word_id"),
                                 "narration": brief["narration"], "narration_word_times": brief.get("word_times"),
                                 "transparent_background": True,
+                                "diagram_revision": 2,
                                 "ui_scene": brief["ui_scene"],
                                 "style_snapshot": brief["style_snapshot"], "style_snapshot_hash": brief["style_snapshot_hash"],
                             }

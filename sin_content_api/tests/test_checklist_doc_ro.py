@@ -25,3 +25,31 @@ console.log(JSON.stringify(sceneChecklist(5, {steps:['giá bán','phân bổ và
     displayed_text = ' '.join(re.findall(r'<text[^>]*>(.*?)</text>', svg))
     assert 'phân bổ và đóng gói' in displayed_text
     assert 'giá bán' not in displayed_text
+
+
+def test_llm_nhan_duoc_kieu_the_alpha_va_co_chu_thuc():
+    from types import SimpleNamespace
+    from src.modules.dieu_phoi_dung.dung_video_dai import ClipTuDong, chon_dien_hoa
+
+    presentation = {'kind':'single_item_card','min_font_size_px':128}
+
+    class Client:
+        max_input_bytes = 64000
+        max_output_tokens = 4000
+
+        def complete(self, messages, **kwargs):
+            payload = json.loads(messages[1]['content'])
+            asset = payload['assets_dien_hoa_giay_cung_du_an'][0]
+            assert asset['overlay_presentation'] == presentation
+            return SimpleNamespace(content=json.dumps({'actions':[{
+                'clip_id':'clip','asset_id':'the','mode':'OVERLAY','start_word_id':'w1','end_word_id':'w1',
+                'layout_position':'upper_left','layout_size':'large','reason':'Một thẻ chữ lớn theo lời',
+            }]}))
+
+    clip = ClipTuDong(clip_id='clip',start_ms=0,end_ms=5000,title='Chi phí',reason='Một ý')
+    actions = chon_dien_hoa([clip],[{'id':'w1','text':'giá bán','start_ms':1000,'end_ms':4000}],[{
+        'asset_id':'the','scene':'Thẻ giấy hiện một mục mỗi cue','narration':'giá bán',
+        'duration_seconds':3,'has_alpha':True,'width':1080,'height':1920,'aspect_ratio':'9:16',
+        'renderer':'HYPERFRAMES','visual_kind':'diagram','overlay_presentation':presentation,
+    }],Client())
+    assert actions[0]['mode'] == 'OVERLAY' and actions[0]['layout_size'] == 'large'
