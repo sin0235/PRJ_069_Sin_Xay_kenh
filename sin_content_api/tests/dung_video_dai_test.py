@@ -2090,8 +2090,8 @@ def test_retranscribe_every_candidate_uses_router_and_removes_temp_audio(monkeyp
     local = [tu(1, "xin", 100, 300), tu(2, "tăng", 800, 1000), tu(3, "giả", 1500, 1700)]
     calls = []
 
-    def render_audio(args, **_kwargs):
-        target = Path(args[-1])
+    def render_audio(source, target, start_ms, duration_ms):
+        assert source == audio_path and start_ms == 100 and duration_ms == 1600
         target.write_bytes(b"mp3")
         return SimpleNamespace(returncode=0)
 
@@ -2106,7 +2106,8 @@ def test_retranscribe_every_candidate_uses_router_and_removes_temp_audio(monkeyp
             assert prompt["router_transcript"] == "xin tăng giá."
             return type("KetQua", (), {"content": json.dumps({"transcript": "xin tăng giá.", "needs_review": False})})()
 
-    monkeypatch.setattr(editor, "run_media_command", render_audio)
+    from src.modules.tac_vu_tu_xa import stages
+    monkeypatch.setattr(stages, "extract_audio", render_audio)
     corrected = _retranscribe_candidates(audio_path, [clip], local, RouterClient())
 
     assert len(calls) == 1
@@ -2127,8 +2128,9 @@ def test_retranscribe_reconciliation_error_keeps_router_transcript_and_marks_rev
     clip = ClipTuDong(clip_id="part1_01", start_ms=100, end_ms=1700, title="Một ý", reason="Đủ ý.")
     local = [tu(1, "xin", 100, 300), tu(2, "tăng", 800, 1000), tu(3, "giả", 1500, 1700)]
 
-    def render_audio(args, **_kwargs):
-        Path(args[-1]).write_bytes(b"mp3")
+    def render_audio(source, target, start_ms, duration_ms):
+        assert source == audio_path and start_ms == 100 and duration_ms == 1600
+        target.write_bytes(b"mp3")
         return SimpleNamespace(returncode=0)
 
     class RouterClient:
@@ -2138,7 +2140,8 @@ def test_retranscribe_reconciliation_error_keeps_router_transcript_and_marks_rev
         def complete(self, _messages, max_tokens=None):
             raise LLMResponseError("failed", error_code="UPSTREAM_TIMEOUT")
 
-    monkeypatch.setattr(editor, "run_media_command", render_audio)
+    from src.modules.tac_vu_tu_xa import stages
+    monkeypatch.setattr(stages, "extract_audio", render_audio)
     corrected = _retranscribe_candidates(audio_path, [clip], local, RouterClient())
 
     assert [word["text"] for word in corrected] == ["xin", "tăng", "giá."]
@@ -2158,15 +2161,17 @@ def test_retranscribe_router_error_keeps_whisper_words_and_review_flag(monkeypat
     )
     local = [tu(1, "xin", 100, 300)]
 
-    def render_audio(args, **_kwargs):
-        Path(args[-1]).write_bytes(b"mp3")
+    def render_audio(source, target, start_ms, duration_ms):
+        assert source == audio_path and start_ms == 100 and duration_ms == 1600
+        target.write_bytes(b"mp3")
         return SimpleNamespace(returncode=0)
 
     class RouterClient:
         def transcribe_audio(self, _path):
             raise LLMResponseError("failed", error_code="UPSTREAM_TIMEOUT")
 
-    monkeypatch.setattr(editor, "run_media_command", render_audio)
+    from src.modules.tac_vu_tu_xa import stages
+    monkeypatch.setattr(stages, "extract_audio", render_audio)
     corrected = _retranscribe_candidates(audio_path, [clip], local, RouterClient())
 
     assert corrected == local
