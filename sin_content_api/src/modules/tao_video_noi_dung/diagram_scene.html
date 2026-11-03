@@ -29,7 +29,7 @@ body.sach #bar { display: none; }
    Ngôn ngữ chuyển động theo bộ hiệu ứng của Founder (PRJ_086): giảm tốc mềm rồi dừng chính xác, không nảy, camera macro nhẹ, kéo nét,
    sợi chỉ, kính lúp, dấu son; mỗi cảnh một ý. Phụ đề do bước dựng cuối đốt, cảnh không tự vẽ phụ đề (trừ chế độ xem thử). */
 var PORTRAIT = window.PORTRAIT === true, TRANSPARENT_BG = window.TRANSPARENT_BG === true, W = PORTRAIT ? 1080 : 1920, H = PORTRAIT ? 1920 : 1080, BASE = 800, KH = 560, K = 4, NS = "http://www.w3.org/2000/svg";
-var COL = { bg: "#0B0F17", shadow: "#070A10", sheet: "#121B2B", ink: "#F2EEE6", teal: "#0562AF", tealD: "#083D70", tealL: "#5FA8FF",
+var COL = { bg: "#0B0F17", shadow: "#070A10", sheet: "#121B2B", ink: "#F2EEE6", cardInk: "#1b2a41", teal: "#0562AF", tealD: "#083D70", tealL: "#5FA8FF",
             navy: "#D9B26A", navyD: "#9A7339", navyL: "#F6E2B0", coral: "#ED1B24", grid: "#344256", gold: "#FABC11", mint: "#172434" };
 function clamp(x, a, b) { return Math.min(b === undefined ? 1 : b, Math.max(a === undefined ? 0 : a, x)); }
 function seg(t, a, b) { return clamp((t - a) / Math.max(1e-6, b - a)); }
@@ -185,13 +185,13 @@ function docCard(x, y, w, h, title, op) {
   var o = '<g opacity="' + op + '"><rect x="' + (x + 10) + '" y="' + (y + 12) + '" width="' + w + '" height="' + h + '" rx="14" fill="#cdbf9c" opacity=".55"/>' +
     '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="14" fill="#fffdf7" stroke="#cdbf9c" stroke-width="3"/>' +
     '<path d="M' + (x + w) + ' ' + y + ' v60 l-60 -60z" fill="#efe6cf"/><path d="M' + (x + w) + ' ' + (y + 60) + ' l-60 -60 v60z" fill="#d9cdae"/>' +
-    '<text x="' + (x + 30) + '" y="' + (y + 64) + '" font-size="' + fit(title, w - 130, 30) + '" font-weight="700" fill="' + COL.ink + '">' + esc(title) + '</text>';
+    '<text x="' + (x + 30) + '" y="' + (y + 64) + '" font-size="' + fit(title, w - 130, 30) + '" font-weight="700" fill="' + COL.cardInk + '">' + esc(title) + '</text>';
   for (var i = 0; i < 5; i++) o += '<rect x="' + (x + 30) + '" y="' + (y + 110 + i * 38) + '" width="' + (w - 60 - (i % 3) * 70) + '" height="12" rx="6" fill="#dcd6c3"/>';
   return o + '</g>';
 }
 function loupe(cx, cy, r, txt, fs, op, id) {
   return '<g opacity="' + op + '"><clipPath id="' + id + '"><circle cx="' + cx + '" cy="' + cy + '" r="' + r + '"/></clipPath><circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="#fffdf7"/>' +
-    '<g clip-path="url(#' + id + ')"><text x="' + cx + '" y="' + (cy + fs * .35) + '" font-size="' + fs + '" font-weight="800" text-anchor="middle" fill="' + COL.ink + '">' + esc(txt) + '</text></g>' +
+    '<g clip-path="url(#' + id + ')"><text x="' + cx + '" y="' + (cy + fs * .35) + '" font-size="' + fs + '" font-weight="800" text-anchor="middle" fill="' + COL.cardInk + '">' + esc(txt) + '</text></g>' +
     '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="none" stroke="' + COL.tealD + '" stroke-width="12"/>' +
     '<line x1="' + (cx + r * .72) + '" y1="' + (cy + r * .72) + '" x2="' + (cx + r * 1.45) + '" y2="' + (cy + r * 1.45) + '" stroke="' + COL.tealD + '" stroke-width="18" stroke-linecap="round"/></g>';
 }
@@ -258,7 +258,7 @@ function sceneProcessRail(t, p) {
     out += '<g opacity="' + si + '" transform="translate(0 ' + ((1 - si) * 24) + ')"><rect x="' + (sx[i] - bw2 / 2 + 8) + '" y="' + (RY - 262) + '" width="' + bw2 + '" height="170" rx="14" fill="#cdbf9c" opacity=".5"/>' +
       '<rect x="' + (sx[i] - bw2 / 2) + '" y="' + (RY - 272) + '" width="' + bw2 + '" height="170" rx="14" fill="' + (hot > .5 ? "#fde6df" : "#fffdf7") + '" stroke="' + (hot > .5 ? COL.coral : "#cdbf9c") + '" stroke-width="' + (hot > .5 ? 6 : 3) + '"/>' +
       '<text x="' + sx[i] + '" y="' + (RY - 208) + '" font-size="34" font-weight="800" text-anchor="middle" fill="' + COL.tealD + '">Bước ' + (i + 1) + '</text>' +
-      '<text x="' + sx[i] + '" y="' + (RY - 148) + '" font-size="' + fit(p.steps[i], bw2 - 24, 44) + '" font-weight="700" text-anchor="middle" fill="' + COL.ink + '">' + esc(p.steps[i]) + '</text>' +
+      '<text x="' + sx[i] + '" y="' + (RY - 148) + '" font-size="' + fit(p.steps[i], bw2 - 24, 44) + '" font-weight="700" text-anchor="middle" fill="' + COL.cardInk + '">' + esc(p.steps[i]) + '</text>' +
       '<line x1="' + sx[i] + '" y1="' + (RY - 102) + '" x2="' + sx[i] + '" y2="' + (RY + 8) + '" stroke="#b9ab86" stroke-width="4" stroke-dasharray="6 8"/></g>';
   }
   if (t >= a.block - .1) out += '<g transform="rotate(' + (-78 * (1 - blocked)) + ' ' + XB + ' ' + (RY + 20) + ')"><rect x="' + (XB - 7) + '" y="' + (RY - 118) + '" width="14" height="138" rx="5" fill="' + COL.coral + '"/><rect x="' + (XB - 7) + '" y="' + (RY - 118) + '" width="14" height="34" rx="5" fill="#fff" opacity=".35"/></g><circle cx="' + XB + '" cy="' + (RY + 20) + '" r="12" fill="#8c3d27"/>';
@@ -351,11 +351,11 @@ function sceneCashFlow(t, p) {
   if (p.drill_use !== undefined && dim > 0) {
     var un = U[p.drill_use], rows = p.drill_rows, cw = 380, ch = 100 + rows.length * 62, cx = XH + HW + 64, cyy = Math.min(Math.max(un.c - ch / 2, 230), 860 - ch), tot = un.v;
     out += '<g opacity="' + dim + '" transform="translate(' + ((1 - dim) * 40) + ' 0)"><rect x="' + (cx + 10) + '" y="' + (cyy + 12) + '" width="' + cw + '" height="' + ch + '" rx="14" fill="#cdbf9c" opacity=".55"/><rect x="' + cx + '" y="' + cyy + '" width="' + cw + '" height="' + ch + '" rx="14" fill="#fffdf7" stroke="' + ucols[p.drill_use % 4] + '" stroke-width="5"/>' +
-      '<text x="' + (cx + 26) + '" y="' + (cyy + 52) + '" font-size="' + fit("Chi tiết: " + un.label, cw - 52, 32) + '" font-weight="800" fill="' + COL.ink + '">Chi tiết: ' + esc(un.label) + '</text>';
+      '<text x="' + (cx + 26) + '" y="' + (cyy + 52) + '" font-size="' + fit("Chi tiết: " + un.label, cw - 52, 32) + '" font-weight="800" fill="' + COL.cardInk + '">Chi tiết: ' + esc(un.label) + '</text>';
     rows.forEach(function (r, i) {
       var ry = cyy + 78 + i * 62, rp = eo(seg(t, a.drill + .3 + i * .15, a.drill + .8 + i * .15)), bw = (cw - 52) * r.value / tot * rp;
       out += '<rect x="' + (cx + 26) + '" y="' + (ry + 30) + '" width="' + bw + '" height="14" rx="7" fill="' + ucols[p.drill_use % 4] + '" opacity=".75"/>' +
-        '<text x="' + (cx + 26) + '" y="' + (ry + 22) + '" font-size="' + fit(r.label, 230, 26, 600) + '" font-weight="600" fill="' + COL.ink + '" opacity="' + rp + '">' + esc(r.label) + '</text>' +
+        '<text x="' + (cx + 26) + '" y="' + (ry + 22) + '" font-size="' + fit(r.label, 230, 26, 600) + '" font-weight="600" fill="' + COL.cardInk + '" opacity="' + rp + '">' + esc(r.label) + '</text>' +
         '<text x="' + (cx + cw - 26) + '" y="' + (ry + 22) + '" font-size="26" font-weight="700" text-anchor="end" fill="' + ucols[p.drill_use % 4] + '" opacity="' + rp + '">' + num(r.value) + '</text>';
     });
     out += '</g>';
@@ -402,10 +402,10 @@ function sceneDocLayers(t, p) {
     ys[i] = yc + SH / 2;
     out += '<g opacity="' + clamp(appear * 2) + '" transform="translate(' + xo + ' 0)"><rect x="' + (X0 + 10) + '" y="' + (yc + 10) + '" width="' + SW + '" height="' + SH + '" rx="14" fill="#cdbf9c" opacity=".5"/>' +
       '<rect x="' + X0 + '" y="' + yc + '" width="' + SW + '" height="' + SH + '" rx="14" fill="#fffdf7" stroke="' + (odd && t >= a.thread + .6 ? COL.coral : "#cdbf9c") + '" stroke-width="' + (odd && t >= a.thread + .6 ? 6 : 3) + '"/>' +
-      '<text x="' + (X0 + 28) + '" y="' + (yc + 56) + '" font-size="' + fit(p.layers[i], 330, 30) + '" font-weight="700" fill="' + COL.ink + '">' + esc(p.layers[i]) + '</text>' +
+      '<text x="' + (X0 + 28) + '" y="' + (yc + 56) + '" font-size="' + fit(p.layers[i], 330, 30) + '" font-weight="700" fill="' + COL.cardInk + '">' + esc(p.layers[i]) + '</text>' +
       '<rect x="' + (X0 + 28) + '" y="' + (yc + 78) + '" width="300" height="12" rx="6" fill="#dcd6c3"/><rect x="' + (X0 + 28) + '" y="' + (yc + 98) + '" width="210" height="12" rx="6" fill="#dcd6c3"/>' +
       '<rect x="' + boxX + '" y="' + (yc + 24) + '" width="160" height="80" rx="10" fill="' + (odd && t >= a.thread + .6 ? "#fde6df" : "#e4f3ef") + '" stroke="' + (odd && t >= a.thread + .6 ? COL.coral : COL.teal) + '" stroke-width="4"/>' +
-      '<text x="' + (boxX + 80) + '" y="' + (yc + 78) + '" font-size="' + fit(p.values[i], 140, 44, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.ink + '">' + esc(p.values[i]) + '</text></g>';
+      '<text x="' + (boxX + 80) + '" y="' + (yc + 78) + '" font-size="' + fit(p.values[i], 140, 44, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.cardInk + '">' + esc(p.values[i]) + '</text></g>';
   }
   /* sợi chỉ nối các ô giá trị từ lớp trên xuống lớp dưới */
   var tp = eo(seg(t, a.thread, a.thread + .9));
@@ -433,7 +433,7 @@ function sceneEndCard(t, p) {
   var wm = "BAHA GROUP", wf = 58 * (.8 + .2 * f);
   out += '<text x="960" y="' + (500 - 8) + '" font-size="' + wf + '" font-weight="800" text-anchor="middle" fill="' + COL.tealD + '" opacity="' + clamp(f * 2) + '">' + wm + '</text>' +
          '<rect x="' + (960 - 150) + '" y="' + (500 + 14) + '" width="300" height="6" rx="3" fill="' + COL.gold + '" opacity="' + clamp(f * 2) + '"/>' +
-         '<text x="960" y="' + (500 + 70) + '" font-size="' + fit(p.title, 460, 34, 600) + '" font-weight="600" text-anchor="middle" fill="' + COL.ink + '" opacity="' + clamp(f * 2) + '">' + esc(p.title) + '</text>';
+         '<text x="960" y="' + (500 + 70) + '" font-size="' + fit(p.title, 460, 34, 600) + '" font-weight="600" text-anchor="middle" fill="' + COL.cardInk + '" opacity="' + clamp(f * 2) + '">' + esc(p.title) + '</text>';
   var cs = eo(seg(t, a.cta, a.cta + .5));
   if (cs > 0) out += '<g opacity="' + cs + '" transform="translate(0 ' + ((1 - cs) * 18) + ')"><rect x="' + (960 - 340) + '" y="740" width="680" height="76" rx="38" fill="' + COL.teal + '"/><text x="960" y="790" font-size="' + fit(p.cta, 620, 38, 700) + '" font-weight="700" text-anchor="middle" fill="#fff">' + esc(p.cta) + '</text></g>';
   return out;
@@ -445,7 +445,7 @@ function sceneOpenNumber(t, p) {
   var txt = numRun(val, p.from_value, p.to_value), fs = fit(txt + (p.unit ? " " + p.unit : ""), 1000, 230, 800);
   out += '<g opacity="' + intro + '"><rect x="300" y="262" width="1320" height="520" rx="26" fill="#cdbf9c" opacity=".5" transform="translate(14 16)"/><rect x="300" y="262" width="1320" height="520" rx="26" fill="#fffdf7" stroke="#cdbf9c" stroke-width="4"/>' +
     '<path d="M1620 262 v90 l-90 -90z" fill="#efe6cf"/><path d="M1620 352 l-90 -90 v90z" fill="#d9cdae"/>' +
-    '<text x="960" y="' + (560 + fs * .12) + '" font-size="' + fs + '" font-weight="800" text-anchor="middle" fill="' + COL.ink + '">' + txt + '<tspan font-size="' + fs * .3 + '" font-weight="600" fill="#5b7a82">' + (p.unit ? " " + esc(p.unit) : "") + '</tspan></text>' +
+    '<text x="960" y="' + (560 + fs * .12) + '" font-size="' + fs + '" font-weight="800" text-anchor="middle" fill="' + COL.cardInk + '">' + txt + '<tspan font-size="' + fs * .3 + '" font-weight="600" fill="#5b7a82">' + (p.unit ? " " + esc(p.unit) : "") + '</tspan></text>' +
     '<rect x="' + (960 - 160) + '" y="' + (560 + fs * .12 + 26) + '" width="320" height="7" rx="3" fill="' + COL.gold + '"/></g>';
   var sc = eo(seg(t, a.caption, a.caption + .5));
   if (sc > 0) out += '<g opacity="' + sc + '" transform="translate(0 ' + ((1 - sc) * 18) + ')"><text x="960" y="730" font-size="' + fit(p.caption, 1100, 44, 700) + '" font-weight="700" text-anchor="middle" fill="' + COL.coral + '">' + esc(p.caption) + '</text></g>';
@@ -500,7 +500,7 @@ function hookRoom(t, p) {   /* H_LIGHTSON và H_SPOTLIGHT: căn phòng giấy t�
   out += '<rect x="330" y="640" width="1260" height="40" fill="#cdbf9c"/><rect x="420" y="560" width="1080" height="84" rx="8" fill="#e9dcc0" stroke="#cdbf9c" stroke-width="3"/>' +
     '<rect x="760" y="330" width="400" height="230" rx="12" fill="#fffdf7" stroke="#8c7f5f" stroke-width="5"/><rect x="940" y="560" width="40" height="26" fill="#8c7f5f"/>' +
     '<rect x="1290" y="400" width="14" height="160" fill="#8c7f5f"/><polygon points="1220,400 1374,400 1340,330 1254,330" fill="' + COL.gold + '"/>' +
-    '<text x="960" y="' + (p.variant === "SPOTLIGHT" ? 470 : 480) + '" font-size="' + fit(p.value || "", 340, 120, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.ink + '">' + esc(p.value || "") + '</text>';
+    '<text x="960" y="' + (p.variant === "SPOTLIGHT" ? 470 : 480) + '" font-size="' + fit(p.value || "", 340, 120, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.cardInk + '">' + esc(p.value || "") + '</text>';
   out += '<mask id="hm"><rect x="0" y="0" width="1920" height="1080" fill="#fff"/><circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="#000"/></mask><rect x="170" y="70" width="1576" height="860" fill="#0a1c2b" opacity=".92" mask="url(#hm)"/>';
   return out + hookCaption(t, p, 840);
 }
@@ -536,7 +536,7 @@ function hookMisalign(t, p) {
   var a = p.t, k = eio(seg(t, a.start, a.start + 1.4)), out = "", gap = 240 * (1 - k) + 6, off = 28 * eo(seg(t, a.hit - .2, a.hit + .4)), fs = fit(p.value, 900, 260, 800);
   [[-1, 0], [1, off]].forEach(function (h) {
     out += '<clipPath id="hf' + h[0] + '"><rect x="' + (h[0] < 0 ? 200 : 960) + '" y="320" width="760" height="420"/></clipPath><g transform="translate(' + (h[0] * gap / 2) + ' ' + h[1] + ')"><g clip-path="url(#hf' + h[0] + ')"><rect x="260" y="330" width="1400" height="400" rx="26" fill="#fffdf7" stroke="#cdbf9c" stroke-width="4"/>' +
-      '<text x="960" y="620" font-size="' + fs + '" font-weight="800" text-anchor="middle" fill="' + COL.ink + '">' + esc(p.value) + '</text></g></g>';
+      '<text x="960" y="620" font-size="' + fs + '" font-weight="800" text-anchor="middle" fill="' + COL.cardInk + '">' + esc(p.value) + '</text></g></g>';
   });
   if (off > 0) out += '<line x1="960" y1="320" x2="960" y2="740" stroke="' + COL.coral + '" stroke-width="5" stroke-dasharray="12 10" opacity="' + off / 28 + '"/>';
   return out + hookCaption(t, p, 830);
@@ -563,7 +563,7 @@ function hookDevice(t, p) {
   out += '<rect x="570" y="250" width="780" height="540" rx="40" fill="#cdbf9c" opacity=".5" transform="translate(14 16)"/><rect x="570" y="250" width="780" height="540" rx="40" fill="#8c7f5f"/>' +
     '<rect x="600" y="280" width="720" height="480" rx="22" fill="' + (g > .5 ? "#fffdf7" : "#1d2a36") + '"/><rect x="600" y="280" width="720" height="480" rx="22" fill="#1d2a36" opacity="' + (1 - g) + '"/>' +
     '<circle cx="960" cy="520" r="' + (330 * g) + '" fill="' + COL.gold + '" opacity="' + (.18 * g) + '"/>' +
-    '<text x="960" y="560" font-size="' + fit(p.value, 640, 190, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.ink + '" opacity="' + g + '">' + esc(p.value) + '</text>';
+    '<text x="960" y="560" font-size="' + fit(p.value, 640, 190, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.cardInk + '" opacity="' + g + '">' + esc(p.value) + '</text>';
   return out + hookCaption(t, p, 860);
 }
 function sceneOpenHook(t, p) {
@@ -629,7 +629,7 @@ function sceneTimeline(t, p) {
     out += '<g opacity="' + k + '"><line x1="' + xs[j] + '" y1="' + (up ? cy + 140 : cy) + '" x2="' + xs[j] + '" y2="' + (up ? ty : ty) + '" stroke="#b9ab86" stroke-width="5" stroke-dasharray="7 9"/>' +
       '<g transform="translate(0 ' + ((1 - k) * (up ? 26 : -26)) + ')">' + paperCard(xs[j] - 150, cy, 300, 140, j === latest ? "#fde6df" : "#fffdf7", j === latest ? COL.coral : "#cdbf9c") +
       '<text x="' + xs[j] + '" y="' + (cy + 52) + '" font-size="' + fit(p.labels[j], 260, 32, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.coral + '">' + esc(p.labels[j]) + '</text>' +
-      '<text x="' + xs[j] + '" y="' + (cy + 106) + '" font-size="' + fit(p.steps[j], 270, 40, 700) + '" font-weight="700" text-anchor="middle" fill="' + COL.ink + '">' + esc(p.steps[j]) + '</text></g>' +
+      '<text x="' + xs[j] + '" y="' + (cy + 106) + '" font-size="' + fit(p.steps[j], 270, 40, 700) + '" font-weight="700" text-anchor="middle" fill="' + COL.cardInk + '">' + esc(p.steps[j]) + '</text></g>' +
       '<circle cx="' + xs[j] + '" cy="' + y + '" r="' + (30 * k) + '" fill="#fff" stroke="' + (j === latest ? COL.coral : COL.tealD) + '" stroke-width="10"/></g>';
   }
   return out;
@@ -648,7 +648,7 @@ function sceneBeforeAfter(t, p) {
     if (ka > 0) out += '<g opacity="' + clamp(ka * 2) + '" transform="translate(0 ' + ((1 - ka) * 70) + ')">' + paperCard(132, 780, 796, 360, "#121B2B", COL.tealL) +
       '<rect x="132" y="780" width="796" height="78" rx="18" fill="' + COL.teal + '"/><rect x="132" y="822" width="796" height="36" fill="' + COL.teal + '"/><text x="530" y="833" font-size="' + fit(c.title, 730, 40, 800) + '" font-weight="800" text-anchor="middle" fill="#fff">' + esc(c.title) + '</text>' +
       '<text x="530" y="935" font-size="32" text-anchor="middle" fill="#AAB7C8">' + esc(c.label) + '</text>' +
-      '<text x="530" y="1080" font-size="' + fit(c.value, 720, 132, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.ink + '">' + esc(c.value) + '</text></g>';
+      '<text x="530" y="1080" font-size="' + fit(c.value, 720, 132, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.cardInk + '">' + esc(c.value) + '</text></g>';
     if (kd > 0) out += '<g opacity="' + kd + '" transform="translate(0 ' + ((1 - kd) * 24) + ')"><rect x="180" y="1180" width="700" height="88" rx="44" fill="' + COL.tealD + '"/><text x="530" y="1236" font-size="' + fit(p.diff_label, 640, 42, 800) + '" font-weight="800" text-anchor="middle" fill="#fff">' + esc(p.diff_label) + '</text></g>';
     return out;
   }
@@ -660,7 +660,7 @@ function sceneBeforeAfter(t, p) {
   if (ka > 0) out += '<g opacity="' + clamp(ka * 2) + '" transform="translate(' + ((1 - ka) * 260) + ' 0)">' + paperCard(1020, 250, 660, 520, "#121B2B", COL.tealL) +
     '<rect x="1020" y="250" width="660" height="92" rx="20" fill="' + COL.teal + '"/><rect x="1020" y="300" width="660" height="42" fill="' + COL.teal + '"/><text x="1350" y="311" font-size="' + fit(c.title, 600, 44, 800) + '" font-weight="800" text-anchor="middle" fill="#fff">' + esc(c.title) + '</text>' +
     '<text x="1350" y="430" font-size="32" text-anchor="middle" fill="#AAB7C8">' + esc(c.label) + '</text>' +
-    '<text x="1350" y="610" font-size="' + fit(c.value, 560, 150, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.ink + '">' + esc(c.value) + '</text></g>';
+    '<text x="1350" y="610" font-size="' + fit(c.value, 560, 150, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.cardInk + '">' + esc(c.value) + '</text></g>';
   if (kd > 0) out += '<g opacity="' + kd + '" transform="translate(0 ' + ((1 - kd) * 20) + ')"><rect x="' + (960 - 190) + '" y="810" width="380" height="80" rx="40" fill="' + COL.tealD + '"/><text x="960" y="864" font-size="' + fit(p.diff_label, 340, 44, 800) + '" font-weight="800" text-anchor="middle" fill="#fff">' + esc(p.diff_label) + '</text></g>';
   return out;
 }
@@ -680,8 +680,8 @@ function sceneDonut(t, p) {
     out += '<g opacity="' + (isBig ? 1 : 1 - .5 * kt) + '" transform="translate(' + dx + ' ' + dy + ')"><g filter="url(#sh)"><path d="' + arcPath(cx, cy, r0, r1, a0, a1) + '" fill="' + DONUT_COL[i % 5] + '" stroke="#fffdf7" stroke-width="5"/></g></g>';
   }
   var cTot = 1 - kt, pct = Math.round(p.items[L.big].value / L.tot * 100);
-  out += '<g opacity="' + cTot + '"><text x="' + cx + '" y="' + (cy + 8) + '" font-size="' + fit(String(Math.round(L.tot)), 220, 84, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.ink + '">' + num(L.tot * eo(seg(t, a.ring, a.ring + 1.2))) + '</text><text x="' + cx + '" y="' + (cy + 52) + '" font-size="' + fit((p.total_label || "Tổng") + (p.unit ? " (" + p.unit + ")" : ""), 250, 28, 600) + '" text-anchor="middle" fill="#5b7a82">' + esc((p.total_label || "Tổng") + (p.unit ? " (" + p.unit + ")" : "")) + '</text></g>';
-  out += '<g opacity="' + kt + '"><text x="' + cx + '" y="' + (cy + 24) + '" font-size="110" font-weight="800" text-anchor="middle" fill="' + DONUT_COL[L.big % 5] + '">' + pct + '%</text><text x="' + cx + '" y="' + (cy + 70) + '" font-size="' + fit(p.items[L.big].label, 250, 30, 700) + '" font-weight="700" text-anchor="middle" fill="' + COL.ink + '">' + esc(p.items[L.big].label) + '</text></g>';
+  out += '<g opacity="' + cTot + '"><text x="' + cx + '" y="' + (cy + 8) + '" font-size="' + fit(String(Math.round(L.tot)), 220, 84, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.cardInk + '">' + num(L.tot * eo(seg(t, a.ring, a.ring + 1.2))) + '</text><text x="' + cx + '" y="' + (cy + 52) + '" font-size="' + fit((p.total_label || "Tổng") + (p.unit ? " (" + p.unit + ")" : ""), 250, 28, 600) + '" text-anchor="middle" fill="#5b7a82">' + esc((p.total_label || "Tổng") + (p.unit ? " (" + p.unit + ")" : "")) + '</text></g>';
+  out += '<g opacity="' + kt + '"><text x="' + cx + '" y="' + (cy + 24) + '" font-size="110" font-weight="800" text-anchor="middle" fill="' + DONUT_COL[L.big % 5] + '">' + pct + '%</text><text x="' + cx + '" y="' + (cy + 70) + '" font-size="' + fit(p.items[L.big].label, 250, 30, 700) + '" font-weight="700" text-anchor="middle" fill="' + COL.cardInk + '">' + esc(p.items[L.big].label) + '</text></g>';
   for (var j = 0; j < n; j++) {
     var kj = eo(seg(t, a.ring + j * .45 + .2, a.ring + j * .45 + .7)), yy = 300 + j * 110, big = j === L.big && kt > .5;
     out += '<g opacity="' + kj + '" transform="translate(' + ((1 - kj) * 40) + ' 0)"><rect x="1170" y="' + yy + '" width="44" height="44" rx="8" fill="' + DONUT_COL[j % 5] + '"/>' +
@@ -797,7 +797,7 @@ function sceneHubSpoke(t, p) {
     if (kn <= 0) continue;
     out += '<g opacity="' + kn + '" transform="translate(0 ' + ((1 - kn) * 24) + ')">' + paperCard(x2 - 170, y2 - 60, 340, 120, done ? "#f1faf6" : "#fffdf7", done ? COL.teal : COL.coral) +
       (done ? '' : '<rect x="' + (x2 - 170) + '" y="' + (y2 - 60) + '" width="340" height="120" rx="20" fill="none" stroke="#fffdf7" stroke-width="3" stroke-dasharray="14 14"/>') +
-      '<text x="' + x2 + '" y="' + (y2 + 14) + '" font-size="' + fit(p.steps[k], 300, 40, 700) + '" font-weight="700" text-anchor="middle" fill="' + COL.ink + '">' + esc(p.steps[k]) + '</text></g>';
+      '<text x="' + x2 + '" y="' + (y2 + 14) + '" font-size="' + fit(p.steps[k], 300, 40, 700) + '" font-weight="700" text-anchor="middle" fill="' + COL.cardInk + '">' + esc(p.steps[k]) + '</text></g>';
   }
   if (kh > 0) {
     var pulse = eo(seg(t, a.hub + .5, a.hub + 1.4));
@@ -873,7 +873,7 @@ function sceneKpi(t, p) {
         '<path d="M' + x + ' ' + (y + 28) + ' H' + (x + w) + '" stroke="#fff" stroke-width="3" opacity=".75"/>' +
         '<path d="M' + (x + 22) + ' ' + (y + titleY + 14) + ' H' + (x + w - 22) + '" stroke="#cdbf9c" stroke-width="2" opacity=".58"/>' +
         '<text x="' + (x + 34) + '" y="' + (y + titleY) + '" font-size="' + fit(c.title, w - 150, titleSize, 700) + '" font-weight="700" fill="#5b7a82">' + esc(c.title) + '</text>' +
-        '<text x="' + cx + '" y="' + valueY + '" font-size="' + fit(c.value, w - 72, valueSize, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.ink + '">' + metricText(c.value, valueProgress) + '</text>' +
+        '<text x="' + cx + '" y="' + valueY + '" font-size="' + fit(c.value, w - 72, valueSize, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.cardInk + '">' + metricText(c.value, valueProgress) + '</text>' +
         '<path d="M' + (cx - 132) + ' ' + (valueY + 14) + ' H' + (cx + 132) + '" fill="none" stroke="' + COL.gold + '" stroke-width="9" stroke-linecap="round" stroke-dasharray="264" stroke-dashoffset="' + (264 * (1 - line)) + '"/>' +
         '<g opacity="' + labelIn + '" transform="translate(0 ' + ((1 - labelIn) * 16) + ')"><rect x="' + (x + 30) + '" y="' + labelY + '" width="' + (w - 60) + '" height="' + labelH + '" rx="' + (labelH / 2) + '" fill="' + (down ? "#fde6df" : "#dff1ec") + '"/><text x="' + cx + '" y="' + (labelY + labelH * .68) + '" font-size="' + fit(c.label, w - 100, Math.min(28, labelH * .56), 800) + '" font-weight="800" text-anchor="middle" fill="' + (down ? COL.coral : COL.tealD) + '">' + esc(c.label) + '</text></g>' +
         '<path d="M' + (x + w) + ' ' + y + ' L' + (x + w) + ' ' + (y + foldSize) + ' L' + (x + w - foldSize) + ' ' + y + ' Z" fill="#e8dfc7"/>' +
@@ -897,7 +897,7 @@ function sceneKpi(t, p) {
     out += '<g opacity="' + k + '" transform="translate(0 ' + ((1 - k) * 60) + ')">' + paperCard(x, 280, cw, 520, "#fffdf7", "#cdbf9c") +
       '<rect x="' + x + '" y="280" width="' + cw + '" height="22" rx="10" fill="' + col + '"/>' +
       '<text x="' + (x + cw / 2) + '" y="372" font-size="' + fit(c.title, cw - 40, 36, 700) + '" font-weight="700" text-anchor="middle" fill="#5b7a82">' + esc(c.title) + '</text>' +
-      '<text x="' + (x + cw / 2) + '" y="566" font-size="' + fit(c.value, cw - 40, 150, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.ink + '">' + metricText(c.value, eo(seg(t, a["k" + i] + .24, a["k" + i] + 1.28))) + '</text>' +
+      '<text x="' + (x + cw / 2) + '" y="566" font-size="' + fit(c.value, cw - 40, 150, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.cardInk + '">' + metricText(c.value, eo(seg(t, a["k" + i] + .24, a["k" + i] + 1.28))) + '</text>' +
       '<rect x="' + (x + cw / 2 - 90 * eo(seg(t, a["k" + i] + .3, a["k" + i] + .8))) + '" y="590" width="' + (180 * eo(seg(t, a["k" + i] + .3, a["k" + i] + .8))) + '" height="10" rx="5" fill="' + COL.gold + '"/>' +
       '<rect x="' + (x + 30) + '" y="680" width="' + (cw - 60) + '" height="70" rx="35" fill="' + (down ? "#fde6df" : "#dff1ec") + '"/><text x="' + (x + cw / 2) + '" y="728" font-size="' + fit(c.label, cw - 90, 34, 800) + '" font-weight="800" text-anchor="middle" fill="' + (down ? COL.coral : COL.tealD) + '">' + esc(c.label) + '</text></g>';
   }
@@ -923,7 +923,7 @@ function sceneAssign(t, p) {
     if (ki <= 0) continue;
     var done = eo(seg(t, a["a" + i] + .7, a["a" + i] + 1.0));
     out += '<g opacity="' + ki + '"><g filter="url(#sh)"><rect x="' + x + '" y="' + y + '" width="' + w + '" height="76" rx="14" fill="#fffdf7" stroke="' + (ka > .99 ? COL.teal : "#cdbf9c") + '" stroke-width="4"/></g>' +
-      '<text x="' + (x + 22) + '" y="' + (y + 48) + '" font-size="' + fit(p.steps[i], w - 120, 32, 700) + '" font-weight="700" fill="' + COL.ink + '">' + esc(p.steps[i]) + '</text>' +
+      '<text x="' + (x + 22) + '" y="' + (y + 48) + '" font-size="' + fit(p.steps[i], w - 120, 32, 700) + '" font-weight="700" fill="' + COL.cardInk + '">' + esc(p.steps[i]) + '</text>' +
       (done > 0 ? '<path d="M' + (x + w - 60) + ' ' + (y + 40) + ' l12 14 l24 -30" fill="none" stroke="' + COL.teal + '" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="70" stroke-dashoffset="' + (70 * (1 - done)) + '"/>' : '') + '</g>';
   }
   return out;
@@ -939,7 +939,7 @@ function sceneWait(t, p) {
     if (k <= 0) continue;
     var border = hot ? (ks > .5 ? COL.teal : ka > .3 ? COL.coral : "#cdbf9c") : "#cdbf9c", ang = Math.min(1, mins / Math.max(60, p.items[mi].value * 1.1)) * 2 * Math.PI;
     out += '<g opacity="' + k + '" transform="translate(0 ' + ((1 - k) * 40) + ')">' + paperCard(x, 280, cw, 560, hot && ka > .3 && ks < .5 ? "#fde6df" : "#fffdf7", border) +
-      '<text x="' + cx + '" y="350" font-size="' + fit(it.label, cw - 40, 38, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.ink + '">' + esc(it.label) + '</text>' +
+      '<text x="' + cx + '" y="350" font-size="' + fit(it.label, cw - 40, 38, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.cardInk + '">' + esc(it.label) + '</text>' +
       '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" fill="#fff" stroke="#8c7f5f" stroke-width="8"/>' + '<path d="' + arcPath(cx, cy, r - 26, r - 8, 0, Math.max(.001, ang)) + '" fill="' + (hot && ka > .3 && ks < .5 ? COL.coral : COL.teal) + '" opacity=".85"/>' +
       '<line x1="' + cx + '" y1="' + cy + '" x2="' + (cx + (r - 30) * Math.sin(ang)) + '" y2="' + (cy - (r - 30) * Math.cos(ang)) + '" stroke="' + COL.ink + '" stroke-width="9" stroke-linecap="round"/><circle cx="' + cx + '" cy="' + cy + '" r="12" fill="' + COL.ink + '"/>' +
       '<text x="' + cx + '" y="' + (cy + r + 70) + '" font-size="54" font-weight="800" text-anchor="middle" fill="' + (hot && ka > .3 && ks < .5 ? COL.coral : COL.ink) + '">' + Math.round(mins) + '<tspan font-size="30" font-weight="600" fill="#5b7a82"> phút</tspan></text></g>';
@@ -974,7 +974,7 @@ function sceneRadar(t, p) {
     var bi = 0; p.items.forEach(function (it, i) { if (it.value > p.items[bi].value) bi = i; });
     out += '<g opacity="' + kh + '" transform="translate(' + ((1 - kh) * 50) + ' 0)">' + paperCard(1130, 360, 540, 300, "#fffdf7", COL.coral) +
       '<rect x="1130" y="360" width="540" height="64" rx="20" fill="' + COL.coral + '"/><rect x="1130" y="400" width="540" height="24" fill="' + COL.coral + '"/><text x="1400" y="404" font-size="32" font-weight="800" text-anchor="middle" fill="#fff">Ưu tiên cao nhất</text>' +
-      '<text x="1400" y="510" font-size="' + fit(p.items[bi].label, 480, 56, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.ink + '">' + esc(p.items[bi].label) + '</text>' +
+      '<text x="1400" y="510" font-size="' + fit(p.items[bi].label, 480, 56, 800) + '" font-weight="800" text-anchor="middle" fill="' + COL.cardInk + '">' + esc(p.items[bi].label) + '</text>' +
       '<text x="1400" y="590" font-size="60" font-weight="800" text-anchor="middle" fill="' + COL.coral + '">' + num(p.items[bi].value) + (p.unit ? '<tspan font-size="30" font-weight="600" fill="#5b7a82"> ' + esc(p.unit) + '</tspan>' : '') + '</text></g>';
   }
   return out;
@@ -1012,7 +1012,7 @@ function sceneTable(t, p) {
     if (k <= 0) continue;
     var tk = eo(seg(ly, cy - 12, cy + 24)) * (t >= a.scan ? 1 : 0);
     out += '<g opacity="' + k + '"><rect x="' + (G.X0 + 16) + '" y="' + (cy - G.rowH / 2 + 6) + '" width="' + (G.W - 32) + '" height="' + (G.rowH - 12) + '" rx="12" fill="' + (tint > .3 ? "#fde6df" : (i % 2 ? "#f6f0df" : "#fffdf7")) + '"/>' +
-      '<text x="' + (G.X0 + 40) + '" y="' + (cy + 14) + '" font-size="' + fit(it.label, 520, 40, 700) + '" font-weight="700" fill="' + COL.ink + '">' + esc(it.label) + '</text>' +
+      '<text x="' + (G.X0 + 40) + '" y="' + (cy + 14) + '" font-size="' + fit(it.label, 520, 40, 700) + '" font-weight="700" fill="' + COL.cardInk + '">' + esc(it.label) + '</text>' +
       '<text x="' + (G.X0 + G.W - 230) + '" y="' + (cy + 15) + '" font-size="44" font-weight="800" text-anchor="end" fill="' + (tint > .3 ? COL.coral : COL.ink) + '">' + num(it.value) + '</text>' +
       (bad ? (kf > 0 ? '<path d="M' + (G.X0 + G.W - 104) + ' ' + (cy - 22) + ' l48 44 m0 -44 l-48 44" stroke="' + COL.coral + '" stroke-width="9" stroke-linecap="round" fill="none" opacity="' + kf + '"/>' : '')
              : (tk > 0 ? '<path d="M' + (G.X0 + G.W - 104) + ' ' + cy + ' l20 22 l38 -44" stroke="' + COL.teal + '" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke-dasharray="110" stroke-dashoffset="' + (110 * (1 - tk)) + '"/>' : '')) + '</g>';
@@ -1076,7 +1076,7 @@ function sceneVersus(t, p) {
       '<text x="' + cx + '" y="' + (y0 + 136) + '" font-size="28" text-anchor="middle" fill="#5b7a82">' + esc(d.label) + '</text>';
     for (var j = 0; j < list.length; j++) {
       var kb = eo(seg(t, t0 + .5 + j * .4, t0 + .5 + j * .4 + .4)), y = rowY + j * (PORTRAIT ? 54 : 84);
-      if (kb > 0) out += '<g opacity="' + kb + '" transform="translate(' + ((1 - kb) * 24) + ' 0)"><circle cx="' + (x + 56) + '" cy="' + (y - 10) + '" r="15" fill="' + (si ? COL.teal : "#8c7f5f") + '"/><path class="paperCheck" d="M' + (x + 48) + ' ' + (y - 10) + ' l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="28" stroke-dashoffset="' + (28 * (1 - kb)) + '"/><text x="' + (x + 90) + '" y="' + (y + 4) + '" font-size="' + fit(list[j], 520, 42, 600) + '" font-weight="600" fill="' + COL.ink + '">' + esc(list[j]) + '</text><path d="M' + (x + 90) + ' ' + (y + 20) + ' H' + (x + 90 + 420 * kb) + '" stroke="' + (si ? COL.teal : "#cdbf9c") + '" stroke-width="3" opacity=".55"/></g>';
+      if (kb > 0) out += '<g opacity="' + kb + '" transform="translate(' + ((1 - kb) * 24) + ' 0)"><circle cx="' + (x + 56) + '" cy="' + (y - 10) + '" r="15" fill="' + (si ? COL.teal : "#8c7f5f") + '"/><path class="paperCheck" d="M' + (x + 48) + ' ' + (y - 10) + ' l6 6 l12 -14" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="28" stroke-dashoffset="' + (28 * (1 - kb)) + '"/><text x="' + (x + 90) + '" y="' + (y + 4) + '" font-size="' + fit(list[j], 520, 42, 600) + '" font-weight="600" fill="' + COL.cardInk + '">' + esc(list[j]) + '</text><path d="M' + (x + 90) + ' ' + (y + 20) + ' H' + (x + 90 + 420 * kb) + '" stroke="' + (si ? COL.teal : "#cdbf9c") + '" stroke-width="3" opacity=".55"/></g>';
     }
     var seal = eo(seg(t, t0 + .5 + list.length * .4, t0 + .5 + list.length * .4 + .55)), sealY = valueY;
     if (seal > 0) out += '<g class="valueSeal" opacity="' + seal + '" transform="translate(0 ' + ((1 - seal) * 28) + ')"><rect x="' + (x + 72) + '" y="' + (sealY - 39) + '" width="' + (pw - 144) + '" height="78" rx="18" fill="' + (si ? "#e1f2ec" : "#f3ead6") + '" stroke="' + (si ? COL.teal : "#b9ab86") + '" stroke-width="3"/><path d="M' + (x + pw - 126) + ' ' + (sealY - 39) + ' h54 v54z" fill="' + (si ? "#b9e1d3" : "#e8d8b4") + '"/><path d="M' + (x + pw - 126) + ' ' + (sealY - 39) + ' l54 54" stroke="' + (si ? COL.teal : "#b9ab86") + '" stroke-width="2"/><path d="M' + (x + 96) + ' ' + (sealY + 25) + ' H' + (x + 96 + (pw - 198) * seal) + '" stroke="' + (si ? COL.tealL : "#c5b58f") + '" stroke-width="3" stroke-dasharray="8 8" opacity=".7"/><text x="' + cx + '" y="' + (valueY + 14) + '" font-size="' + fit(d.value, pw - 200, 66, 800) + '" font-weight="800" text-anchor="middle" fill="' + (si ? COL.tealD : "#6c6a5c") + '">' + esc(d.value) + '</text></g>';
@@ -1092,7 +1092,7 @@ function sceneVersus(t, p) {
 function sceneSearch(t, p) {
   var a = p.t, n = p.steps.length, out = "", q = p.caption || "", shown = Math.floor(q.length * eio(seg(t, a.query, a.query + 1.5)) + .0001), kb = eo(seg(t, 0, .5)), kf = eo(seg(t, a.found, a.found + .6)), cw = Math.min(300, (1280 - 24 * (n - 1)) / n);
   out += '<g opacity="' + kb + '">' + paperCard(420, 220, 1080, 104, "#fff", COL.tealL) + '<circle cx="486" cy="270" r="20" fill="none" stroke="' + COL.tealD + '" stroke-width="7"/><line x1="500" y1="284" x2="520" y2="304" stroke="' + COL.tealD + '" stroke-width="8" stroke-linecap="round"/>' +
-    '<text x="552" y="287" font-size="' + fit(q, 880, 46, 600) + '" font-weight="600" fill="' + COL.ink + '">' + esc(q.slice(0, shown)) + (shown < q.length && t >= a.query ? '<tspan fill="' + COL.teal + '">|</tspan>' : '') + '</text></g>';
+    '<text x="552" y="287" font-size="' + fit(q, 880, 46, 600) + '" font-weight="600" fill="' + COL.cardInk + '">' + esc(q.slice(0, shown)) + (shown < q.length && t >= a.query ? '<tspan fill="' + COL.teal + '">|</tspan>' : '') + '</text></g>';
   var x0 = 960 - (n * cw + (n - 1) * 24) / 2;
   for (var i = 0; i < n; i++) {
     var k = eo(seg(t, .25 + i * .15, .7 + i * .15)), x = x0 + i * (cw + 24), pick = i === p.pick, lift = pick ? kf : 0, y = 430 - 24 * lift, tilt = ((i % 2) ? 1.6 : -1.6) * (1 - lift);
@@ -1100,11 +1100,11 @@ function sceneSearch(t, p) {
     var cx = x + cw / 2, cy = y + 150;
     out += '<g opacity="' + (k * (pick ? 1 : 1 - .6 * kf)) + '" transform="translate(0 ' + ((1 - k) * 40) + ') translate(' + cx + ' ' + cy + ') rotate(' + tilt + ') scale(' + (1 + .06 * lift) + ') translate(' + (-cx) + ' ' + (-cy) + ')">' +
       paperCard(x, y, cw, 300, "#fffdf7", pick && kf > .3 ? COL.teal : "#cdbf9c") +
-      '<text x="' + (x + 24) + '" y="' + (y + 56) + '" font-size="' + fit(p.steps[i], cw - 48, 34, 800) + '" font-weight="800" fill="' + COL.ink + '">' + esc(p.steps[i]) + '</text>' +
+      '<text x="' + (x + 24) + '" y="' + (y + 56) + '" font-size="' + fit(p.steps[i], cw - 48, 34, 800) + '" font-weight="800" fill="' + COL.cardInk + '">' + esc(p.steps[i]) + '</text>' +
       '<rect x="' + (x + 24) + '" y="' + (y + 100) + '" width="' + (cw - 90) + '" height="14" rx="7" fill="#dcd6c3"/>' +
       (pick && kf > 0 ? '<rect x="' + (x + 24) + '" y="' + (y + 142) + '" width="' + ((cw - 48) * kf) + '" height="30" rx="8" fill="' + COL.gold + '" opacity=".85"/>' : '') +
       '<rect x="' + (x + 24) + '" y="' + (y + 148) + '" width="' + (cw - 60) + '" height="14" rx="7" fill="#dcd6c3" opacity="' + (pick && kf > .4 ? .0 : 1) + '"/>' +
-      (pick && kf > .4 ? '<text x="' + (x + 36) + '" y="' + (y + 166) + '" font-size="' + fit(q, cw - 70, 26, 700) + '" font-weight="700" fill="' + COL.ink + '" opacity="' + kf + '">' + esc(q) + '</text>' : '') +
+      (pick && kf > .4 ? '<text x="' + (x + 36) + '" y="' + (y + 166) + '" font-size="' + fit(q, cw - 70, 26, 700) + '" font-weight="700" fill="' + COL.cardInk + '" opacity="' + kf + '">' + esc(q) + '</text>' : '') +
       '<rect x="' + (x + 24) + '" y="' + (y + 196) + '" width="' + (cw - 120) + '" height="14" rx="7" fill="#dcd6c3"/><rect x="' + (x + 24) + '" y="' + (y + 236) + '" width="' + (cw - 70) + '" height="14" rx="7" fill="#dcd6c3"/></g>';
   }
   if (kf > 0) {
