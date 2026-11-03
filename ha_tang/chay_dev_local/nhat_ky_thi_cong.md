@@ -33,3 +33,11 @@ Nhánh: dev/local-remote-video-tests. Nền ban đầu: b316d02.
 - Nhập video đầu ra hiện hữu từ NAS vào local để các liên kết đã có hoạt động; chỉ đọc NAS và xác minh hash.
 - Hoàn thiện dọn dữ liệu tạm theo tham chiếu, kiểm thử mất mạng và hủy job, rà soát cuối nhánh.
 - Quyết định: dùng native thay vì tạo thêm stack Compose chưa dùng; máy 8 GB và Docker daemon đang tắt. Đây là điều chỉnh triển khai từ plan, không thay mục tiêu chuyển môi trường.
+
+## E2E giọng sếp được Founder cho phép
+
+- Yêu cầu mới: xuất một video khoảng một phút, giọng sếp thật; render nặng trên Actions.
+- Đã lấy 120 giây đầu từ DJI gốc bằng stream copy, không encode local: `runtime/nguon_sep_120s.mp4`, 1.054.104.321 byte.
+- Script điều phối: `e2e_giong_sep.py`. Lần chạy đang sống qua exec session 46557, Actions run 41577008658. Stage EXTRACT_AUDIO đang RUNNING, task b391c60d-8e14-4a90-9901-0a938a6d6a25; đã xác nhận heartbeat còn mới, không restart chỉ vì quan sát timeout.
+- Script đang chạy được nạp trước khi thêm diễn họa. Sau khi lượt hiện tại xong, chạy lại cùng script để dùng transcript/plan cache và bổ sung HyperFrames theo LLM. Không dùng output video làm input. Source vẫn là đoạn nguyên gốc DJI.
+- Cache transcript/plan/visuals và output tại `runtime/e2e_giong_sep/`. Không ghi nhận có video hoàn chỉnh khi chưa kiểm tra file và QC.
