@@ -15,6 +15,8 @@ jobs:
         with:
           node-version: '22'
       - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
           npm ci --prefix sin_content_api/engines/hyperframes
           cp sin_content_api/engines/vendor/gsap.min.js sin_content_api/engines/hyperframes/mau_ba_chieu/
           cp sin_content_api/src/modules/tao_video_noi_dung/brand/utm_helvetins.ttf sin_content_api/engines/hyperframes/mau_ba_chieu/font.ttf
@@ -29,3 +31,4 @@ jobs:
           name: mau_hyperframes_ba_chieu
           path: sin_content_api/engines/hyperframes/mau_ba_chieu/mau_ba_chieu.mp4
           retention-days: 3
+
