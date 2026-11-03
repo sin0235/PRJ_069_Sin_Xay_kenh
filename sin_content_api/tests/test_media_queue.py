@@ -576,6 +576,7 @@ def test_flow_errors_are_retryable_only_when_submission_is_known_not_sent():
 @pytest.mark.parametrize("blocked_state,error_code", [
     ("BLOCKED_FLOW_LOGIN", "FLOW_LOGIN_REQUIRED"),
     ("BLOCKED_FLOW_QUOTA", "FLOW_QUOTA_LIMITED"),
+    ("FAILED", "FLOW_SUBMISSION_NOT_SENT"),
 ])
 @pytest.mark.parametrize("operation", ["generate_flow_job", "generate_music_track", "generate_video_scene"])
 def test_resume_blocked_generic_job_requeues_same_job_and_idempotency(media_db, monkeypatch, blocked_state, error_code, operation):
@@ -618,12 +619,13 @@ def test_resume_blocked_generic_job_requeues_same_job_and_idempotency(media_db, 
     assert request["profile_id"] == replacement_profile.id
 
 
-def test_resume_rejects_provider_submission_uncertainty(media_db, monkeypatch):
+@pytest.mark.parametrize('state,code', [('NEEDS_RECONCILIATION','NEEDS_RECONCILIATION'), ('FAILED','INVALID_JOB_PAYLOAD'), ('NEEDS_RECONCILIATION','FLOW_SUBMISSION_NOT_SENT')])
+def test_resume_rejects_provider_submission_uncertainty(media_db, monkeypatch,state,code):
     db, workspace_id, _session_factory = media_db
     media_router = _media_router_module(monkeypatch)
     job = _queued_generic_flow(db, workspace_id, "uncertain-generic-flow")
-    job.state = "NEEDS_RECONCILIATION"
-    job.error_code = "NEEDS_RECONCILIATION"
+    job.state = state
+    job.error_code = code
     db.commit()
 
     with pytest.raises(HTTPException) as error:
@@ -636,7 +638,7 @@ def test_resume_rejects_provider_submission_uncertainty(media_db, monkeypatch):
 
     db.refresh(job)
     assert error.value.status_code == 409
-    assert job.state == "NEEDS_RECONCILIATION"
+    assert job.state == state
 
 
 def test_worker_records_only_typed_pre_submit_provider_errors(media_db, monkeypatch):

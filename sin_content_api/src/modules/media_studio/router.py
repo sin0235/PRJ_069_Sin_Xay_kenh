@@ -438,12 +438,15 @@ def resume_ai_job(
         "FLOW_QUOTA_LIMITED",
         "FLOW_CREDITS_INSUFFICIENT",
     }
+    blocked_states = {"BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_QUOTA", "BLOCKED_FLOW_SETUP"}
+    before_submission = (
+        job.state in blocked_states and job.error_code in resumable_codes
+    ) or (job.state == "FAILED" and job.error_code == "FLOW_SUBMISSION_NOT_SENT")
     if (
         job.provider not in {"MEDIA_MUSIC", "MEDIA_VIDEO"}
         or request_payload.get("operation") not in {"generate_flow_job", "generate_music_track", "generate_video_scene"}
         or request_payload.get("backend_provider") not in FLOW_BACKEND_PROVIDERS
-        or job.state not in {"BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_QUOTA", "BLOCKED_FLOW_SETUP"}
-        or job.error_code not in resumable_codes
+        or not before_submission
     ):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -463,8 +466,8 @@ def resume_ai_job(
     result = db.execute(update(AIGenerationJob).where(
         AIGenerationJob.id == job.id,
         AIGenerationJob.workspace_id == tenant.workspace_id,
-        AIGenerationJob.state.in_(("BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_QUOTA", "BLOCKED_FLOW_SETUP")),
-        AIGenerationJob.error_code.in_(resumable_codes),
+        AIGenerationJob.state == job.state,
+        AIGenerationJob.error_code == job.error_code,
         AIGenerationJob.lease_token.is_(None),
     ).values(
         request_payload_json=json.dumps(request_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
