@@ -726,6 +726,8 @@ def _diagram_word_times(shots: list, steps: list[dict], index: int, per_clip: bo
     """Mốc bắt đầu từng từ lời đọc của shot, quy về giây trên clip hình (đã tính tốc độ co giãn toàn video).
     None khi chưa có giọng TTS từng shot hoặc nhận dạng lỗi; khi đó cảnh neo theo vị trí âm tiết."""
     import numpy as np
+    if 0 <= index < len(steps) and steps[index].get("word_times") is not None:
+        return steps[index]["word_times"]
     shot = shots[index]
     try:
         durations = [step.get("tts_audio", {}).get("duration_ms", 0) + step.get("tts_audio", {}).get("pause_after_ms", 0) for step in steps]
@@ -782,6 +784,9 @@ def _render_with_hyperframes(
     import shutil
     from . import hf_project
     from .planner import resolve_diagram_times
+
+    if sfx_cues:
+        sfx_cues = [{**cue, "path": Path(cue["path"])} for cue in sfx_cues if cue.get("path") and Path(cue["path"]).is_file()]
 
     shots = []
     for index, shot in enumerate(storyboard.shots):
@@ -943,7 +948,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
             karaoke_words = restore_display_words(script_text.split(), aligned)
             caption_cues = _karaoke_captions(karaoke_words, height, width, speed)
             word_aligned = True
-        except VietsubError:
+        except (VietsubError, ValueError, RuntimeError):
             logger.warning("Karaoke alignment unavailable for run %s; using per-shot captions", run.id)
     elif voice_input and include_subtitles:
         audio_sha256 = voice_asset.sha256 or _file_sha256(voice_input[1])
@@ -1027,6 +1032,8 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         ))
     elif not use_hf and len(clips) > 1:
         sfx_cues.extend(transition_sfx_cues([clip.start_ms / 1000 for clip in clips[1:]]))
+    if sfx_cues:
+        sfx_cues = [{**cue, "path": Path(cue["path"])} for cue in sfx_cues if cue.get("path") and Path(cue["path"]).is_file()]
     music_path = None
     if getattr(run, "music_asset_id", None):
         music_asset = db.query(MediaAsset).filter(
@@ -1322,6 +1329,13 @@ def process_run(run_id: str, token: str | None = None) -> None:
                     _check_voice_fits(audio, sample_rate, storyboard.shots)
                 _save_tts_voice(db, run, audio, sample_rate)
             _voice_input(db, run, plan)
+            steps = json.loads(run.steps_json or "[]")
+            for s_idx, (s_step, s_shot) in enumerate(zip(steps, storyboard.shots, strict=True)):
+                if s_step.get("word_times") is None and getattr(s_shot, "ui_scene", None) and s_shot.ui_scene.layout in DIAGRAM_LAYOUTS:
+                    computed = _diagram_word_times(storyboard.shots, steps, s_idx, per_clip=bool(s_step.get("clip_seconds")))
+                    if computed is not None:
+                        s_step["word_times"] = computed
+            _save_run(db, run, steps)
             steps = json.loads(run.steps_json or "[]")
             pending_profile = next((step.get("flow_profile_id") for step in steps if step.get("state") == "READY"), None)
             flow_project_url = next((step.get("flow_project_url") for step in steps

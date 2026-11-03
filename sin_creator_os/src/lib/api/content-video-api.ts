@@ -3,8 +3,9 @@ import { getApiBaseUrl } from "@/lib/api/base-url";
 
 const API_BASE_URL = getApiBaseUrl();
 
+// Mỗi clip Flow dài đúng 10 giây và tổng thời lượng cảnh Flow không quá 60% video; phần còn lại là sơ đồ dựng bằng mã.
 export function estimateFlowShotCount(durationSeconds: number): number {
-  return Math.ceil(durationSeconds / 6);
+  return Math.ceil((durationSeconds * 0.6) / 10);
 }
 
 export class ContentVideoApiError extends Error {
@@ -35,6 +36,32 @@ export interface ContentBrief {
   needs_ui_demo: boolean;
 }
 
+export type UiLayout =
+  | "CHAT" | "AI_PANEL" | "DASHBOARD"
+  | "CHART_TARGET" | "CHART_GROWTH" | "COMPARE_DOCS" | "PROCESS_RAIL" | "COST_SLICE" | "CASH_FLOW" | "STACK_HEIGHT" | "DOC_LAYERS"
+  | "END_CARD" | "OPEN_NUMBER" | "OPEN_DRAIN" | "OPEN_QUESTION" | "OPEN_HOOK"
+  | "FUNNEL" | "TIMELINE" | "BEFORE_AFTER" | "DONUT_SHARE" | "GAUGE" | "CHECKLIST"
+  | "HUB_SPOKE" | "MATRIX_2X2" | "RANK_BARS" | "KPI_CARDS" | "ASSIGN_CARDS" | "WAIT_CLOCK" | "RADAR_SCAN"
+  | "RACE_LANES" | "TABLE_AUDIT" | "ALERT_STACK" | "PYRAMID_LEVELS" | "VERSUS_LIST" | "DOC_SEARCH";
+
+export interface UiDiagram {
+  title: string;
+  unit?: string | null;
+  simulated?: boolean;
+  steps?: string[];
+  labels?: string[];
+  values?: string[];
+  layers?: string[];
+  docs?: { title: string; label: string; value: string }[];
+  cards?: { title: string; label: string; value: string }[];
+  items?: { label: string; value: number | string }[];
+  caption?: string | null;
+  cta?: string | null;
+  diff_label?: string | null;
+  stamp?: string | null;
+  on?: Record<string, string>;
+}
+
 export interface StoryboardShot {
   shot_id: string;
   scene: string;
@@ -49,9 +76,10 @@ export interface StoryboardShot {
   shot_kind?: "FLOW_ORIGAMI" | "UI_SIM";
   action_beats?: { start_s: number; end_s: number; action: string }[];
   ui_scene?: {
-    layout: "CHAT" | "AI_PANEL" | "DASHBOARD";
+    layout: UiLayout;
     messages: { role: "customer" | "ai" | "staff" | "system"; text: string; at_s: number }[];
     highlight: string | null;
+    diagram?: UiDiagram | null;
   } | null;
 }
 

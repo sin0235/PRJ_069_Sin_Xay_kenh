@@ -771,6 +771,8 @@ def test_hyperframes_child_dang_ky_asset_da_probe_trong_workspace(monkeypatch, t
         "width": 1080, "height": 1920, "frame_rate": 30, "duration_seconds": 10, "has_alpha": False,
     })
     monkeypatch.setattr(editor, "run_media_command", lambda *_args, **_kwargs: SimpleNamespace(returncode=0, stderr=""))
+    # Bước giải mã đầy đủ nằm ở tac_vu_tu_xa.stages và gọi ffmpeg thật; tệp giả của test không giải mã được.
+    monkeypatch.setattr("src.modules.tac_vu_tu_xa.stages.verify_decode", lambda _path: {"decode_ok": True})
 
     rendered = {}
     def render(_scene, _style, _duration, _ratio, out_path, **kwargs):
@@ -2474,3 +2476,54 @@ def test_planner_reconsiders_empty_plan_after_flow_is_unavailable():
 
     assert len(visuals) == 1 and visuals[0]["renderer"] == "HYPERFRAMES"
     assert len(client.messages) == 3
+
+
+@pytest.mark.parametrize("transparent, accepted", [(False, True), (True, False)])
+def test_render_auto_edit_diagram_nhan_clip_playwright_khi_hyperframes_chua_cai(monkeypatch, tmp_path, transparent, accepted):
+    """Cảnh thường mà HyperFrames chưa cài: render_scene lùi sang Playwright, clip hợp lệ phải được nhận; nền trong suốt thì vẫn cần HyperFrames."""
+    from src.modules.dieu_phoi_dung import dung_video_dai as editor
+    from src.modules.tao_video_noi_dung import render_engines
+    from src.modules.tao_video_noi_dung.service import _PILOT_STYLE_SNAPSHOT
+
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    Base.metadata.create_all(engine)
+    db = sessionmaker(bind=engine, expire_on_commit=False)()
+    workspace_id = "ws-hyperframes-fallback"
+    media_root = tmp_path / "media"
+    output_dir = media_root / "workspaces" / workspace_id / "media"
+    output_dir.mkdir(parents=True)
+    monkeypatch.setattr(editor, "MEDIA_ROOT_DIR", media_root)
+    monkeypatch.setattr(editor, "get_workspace_storage_dir", lambda _workspace: output_dir)
+    monkeypatch.setattr(editor.video_processor, "probe_video", lambda _path: {
+        "width": 1080, "height": 1920, "frame_rate": 25, "duration_seconds": 5.9, "has_alpha": transparent,
+    })
+    monkeypatch.setattr("src.modules.tac_vu_tu_xa.stages.verify_decode", lambda _path: {"decode_ok": True})
+
+    def render(_scene, _style, _duration, _ratio, out_path, **_kwargs):
+        out_path.write_bytes(b"p" * 4_000)
+        return {"render_engine": "playwright"}
+
+    monkeypatch.setattr(render_engines, "render_scene", render)
+    style = _PILOT_STYLE_SNAPSHOT.model_dump(mode="json")
+    style_hash = hashlib.sha256(json.dumps(style, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    request = {"operation": "render_auto_edit_diagram", "backend_provider": "BAHA_AUTO_EDIT", "parameters": {
+        "target_clip_id": "part1_01", "duration_seconds": 6, "narration": "trước và sau", "transparent_background": transparent,
+        "ui_scene": {"layout": "BEFORE_AFTER", "diagram": {
+            "title": "Đơn hàng", "docs": [{"title": "Trước", "label": "Đơn", "value": "100"}, {"title": "Sau", "label": "Đơn", "value": "60"}],
+            "diff_label": "Giảm 40", "on": {"before": "trước", "after": "sau", "delta": "giảm"}}},
+        "style_snapshot": style, "style_snapshot_hash": style_hash,
+    }}
+    job = SimpleNamespace(provider="MEDIA_VIDEO", workspace_id=workspace_id, project_id=None, created_by="user-fallback")
+    try:
+        db.add(Workspace(id=workspace_id, name="HyperFrames fallback", slug=workspace_id))
+        db.commit()
+        if accepted:
+            asset = editor.render_auto_edit_diagram(db, job, request)
+            assert asset.byte_size == 4_000 and (media_root / asset.storage_key).is_file()
+        else:
+            with pytest.raises(ValueError, match="HYPERFRAMES_ENGINE_NOT_USED"):
+                editor.render_auto_edit_diagram(db, job, request)
+    finally:
+        db.close()
+        Base.metadata.drop_all(engine)
+        engine.dispose()

@@ -1,0 +1,671 @@
+{
+  "title": "Đơn giao trễ: tìm lỗi trong quy trình, không vội quy trách nhiệm",
+  "narration": "Khách báo chưa nhận hàng. Bán hàng nói đã chuyển đơn. Cần kiểm tra lại từng bước, rồi báo khách sớm. Kho nói đã bàn giao. Tài xế nhận địa chỉ không đúng. Cần xác minh lại địa chỉ trước khi giao. Khách chỉ thấy đơn hàng có vấn đề. Khi lỗi lặp lại, niềm tin giảm, chi phí xử lý tăng, khách có thể rời đi. Nhưng nguyên nhân có thể nằm ở nhiều khâu phối hợp, không riêng tài xế hay kho. Cùng kiểm tra lại. Trước khi xuất kho, đối chiếu mã hàng, số lượng và người nhận, để tránh nhầm khi chuẩn bị giao hàng. Khi bàn giao, ghi thời điểm và bên nhận trách nhiệm, để xác nhận trách nhiệm và tránh nhầm về sau. Có nguy cơ trễ, phân công người báo khách và đề xuất cách xử lý trước khi khách phải chờ lâu. Theo dõi đơn phải giao lại, thời gian xử lý khiếu nại và nguyên nhân lặp lại, để sửa đúng gốc. Phân tích đơn lỗi gần nhất để tìm thông tin sai hoặc bị bỏ sót ở đâu, rồi sửa quy trình. Quy trình rõ và dữ liệu theo dõi giúp các bộ phận phối hợp, nhận diện lỗi tái diễn. Ba-ha có thể cùng doanh nghiệp khảo sát luồng đơn hàng, trách nhiệm và điểm cần cảnh báo. Công cụ theo dõi chỉ hữu ích khi quy trình đã rõ, nếu từng bước, người phụ trách đã rõ ràng. Bắt đầu bằng hai mươi đơn lỗi gần nhất. Ghi lại lỗi, bước phát sinh, thông tin sai hoặc bị thiếu. Tìm bước thông tin sai hoặc bị bỏ sót trước khi quy trách nhiệm cá nhân, rồi sửa quy trình trước. Tìm đúng điểm trong luồng, để các bộ phận cùng xử lý thay vì đổ lỗi, để cùng sửa tận gốc. Khi thấy rõ điểm sai, doanh nghiệp có cơ sở phối hợp xử lý và giảm lỗi lặp lại. Rà hai mươi đơn lỗi. Tìm thông tin sai hoặc bỏ sót trước khi quy trách nhiệm cá nhân.",
+  "continuity_anchor": "Phong cách hoạt họa biên tập B2B cao cấp; nền midnight #0B0F17, ánh sáng điện ảnh, ba lớp chiều sâu và đường dẫn mắt. Dùng bảng kính xám xanh, viền champagne #D9B26A, chữ sáng #F2EEE6; xanh BAHA #0562AF và #5FA8FF cho thao tác đúng, đỏ #ED1B24 chỉ cho lỗi, vàng #FABC11 cho CTA. Đạo cụ vận hành thực tế như phiếu đơn không chữ, thùng hàng, máy quét, kệ kho, xe giao hàng và điện thoại không thương hiệu. Khi có nhân viên, giữ trang phục công sở hoặc đồng phục kho xanh đậm ổn định, tỷ lệ cơ thể tự nhiên. Không tự tạo logo, chữ, số, phụ đề hay watermark trong Flow.",
+  "shots": [
+    {
+      "shot_id": "s01",
+      "scene": "Hook: một đơn hàng đi qua nhiều bàn tay; khách đứng ngoài chuỗi, chờ nhận.",
+      "narration": "Khách báo chưa nhận hàng. Bán hàng nói đã chuyển đơn. Cần kiểm tra lại từng bước, rồi báo khách sớm.",
+      "prompt": "FLOW_ORIGAMI. Khung dọc 9:16, không chữ. Cận cảnh một kiện hàng tối màu nằm ở tiền cảnh trên băng chuyền dừng; ở trung cảnh, nhân viên bán hàng vừa đẩy một phiếu trơn về phía cửa kho, nhưng phiếu trượt khỏi khay và mắc ở khe bàn giao. Hậu cảnh là cửa kho khép hờ, xa hơn là bóng khách chờ cạnh cửa nhà. Mở bằng góc thấp sát phiếu; máy quay dolly tiến chậm theo phiếu. Nhân viên nhìn theo, kéo khay nhưng phiếu đã mắc; băng chuyền khựng, kiện hàng không đi tiếp. Ánh sáng midnight lạnh, một dải đỏ chỉ xuất hiện tại khe tắc; vật liệu kim loại sơn mờ, kính và giấy nhám. Kết ở phiếu kẹt giữa hai khu vực.",
+      "negative_prompt": "Không chữ, số, logo, watermark; không biến hình, nhân đôi đạo cụ, giật hình, động tác vô lý hoặc giữ tư thế tĩnh.",
+      "duration_seconds": 6,
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "beat": "HOOK",
+      "message_ids": [
+        "pain-1"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "action_beats": [
+        {
+          "start_s": 0.0,
+          "end_s": 2.4,
+          "action": "Khách ở hậu cảnh nghiêng người nhìn lối vào; kiện hàng nằm im trên băng chuyền tiền cảnh."
+        },
+        {
+          "start_s": 2.4,
+          "end_s": 6.0,
+          "action": "Nhân viên đẩy phiếu trơn qua bàn; phiếu trượt vào khe, khay khựng và kiện hàng không được chuyển tiếp."
+        }
+      ],
+      "ui_scene": null
+    },
+    {
+      "shot_id": "s02",
+      "scene": "Các bộ phận lần lượt chỉ về phía sau, còn khách chỉ thấy kiện hàng chưa đến.",
+      "narration": "Kho nói đã bàn giao. Tài xế nhận địa chỉ không đúng. Cần xác minh lại địa chỉ trước khi giao.",
+      "prompt": "FLOW_ORIGAMI. Khung dọc 9:16, bối cảnh cửa kho nối với bãi giao hàng. Tiền cảnh là kiện hàng đứng giữa hai vạch sàn; trung cảnh nhân viên kho mở bàn tay về phía tài xế, tài xế cầm thiết bị trống và xoay nó cho thấy không có nội dung đọc được; hậu cảnh là lối đi tới cửa nhà khách bị lệch hướng. Cả hai lần lượt dịch kiện hàng qua lại nhưng dừng ở vạch, mỗi lần kiện chạm sàn phát tiếng va nhẹ và trượt lại. Máy quay track ngang theo đường kiện hàng rồi rack focus sang khách chờ xa phía sau kính. Đèn xanh lạnh ở khu kho, ánh đỏ nhỏ đánh dấu điểm bàn giao không rõ; chất liệu bê tông, kim loại và kính.",
+      "negative_prompt": "Không chữ, số, logo, watermark; không ném hàng, không trượt phi lý, không nhân đôi người hoặc kiện hàng.",
+      "duration_seconds": 6,
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "beat": "PAIN",
+      "message_ids": [
+        "pain-1",
+        "pain-2"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "action_beats": [
+        {
+          "start_s": 0.0,
+          "end_s": 3.0,
+          "action": "Nhân viên kho đẩy kiện tới vạch bàn giao; tài xế đỡ kiện nhưng khựng lại vì thiết bị không cho thấy thông tin nhận."
+        },
+        {
+          "start_s": 3.0,
+          "end_s": 6.0,
+          "action": "Tài xế đặt kiện xuống và xoay thiết bị về phía kho; cả hai lùi tay khỏi kiện, khách vẫn đứng chờ sau lớp kính."
+        }
+      ],
+      "ui_scene": null
+    },
+    {
+      "shot_id": "s03",
+      "scene": "Khách chờ, khiếu nại; phía sau là chuỗi bàn giao chưa xác định được điểm sai.",
+      "narration": "Khách chỉ thấy đơn hàng có vấn đề. Khi lỗi lặp lại, niềm tin giảm, chi phí xử lý tăng, khách có thể rời đi.",
+      "prompt": "FLOW_ORIGAMI. Khung dọc 9:16. Tiền cảnh là điện thoại tối màn hình trên quầy, khách đặt xuống rồi kéo kiện hàng lỗi về phía mình; trung cảnh nhân viên chăm sóc khách nhận điện thoại, mở sổ trơn và lần theo một đường dây đỏ mảnh tới các bàn giao phía sau; hậu cảnh hiện các kiện quay lại chồng cạnh cửa kho. Máy quay dolly lùi để lộ khoảng cách giữa khách và quầy, sau đó chuyển nét sang kiện quay lại. Khách rời khỏi quầy, cửa kính khép; nhân viên phải bê kiện về phía kho. Ánh sáng lạnh, đỏ chỉ ở vòng quay lại, vàng nhạt ở vùng khách vừa rời.",
+      "negative_prompt": "Không chữ, số, logo, watermark; không biểu cảm cường điệu, không vật thể bay, không dựng như slide.",
+      "duration_seconds": 6,
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "beat": "AGITATE",
+      "message_ids": [
+        "pain-1",
+        "pain-2",
+        "pain-3",
+        "consequence-1",
+        "consequence-2"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "action_beats": [
+        {
+          "start_s": 0.0,
+          "end_s": 2.0,
+          "action": "Khách đặt điện thoại xuống quầy rồi kéo kiện hàng về phía mình, không nhận được phản hồi trực tiếp."
+        },
+        {
+          "start_s": 2.0,
+          "end_s": 4.0,
+          "action": "Nhân viên lần theo đường dây đỏ qua các bàn; dây dừng ở nhiều điểm bàn giao, không chỉ một vị trí."
+        },
+        {
+          "start_s": 4.0,
+          "end_s": 6.0,
+          "action": "Khách rời khỏi quầy; nhân viên đưa kiện quay lại kho, chồng hàng hoàn trả cao thêm một kiện."
+        }
+      ],
+      "ui_scene": null
+    },
+    {
+      "shot_id": "s04",
+      "scene": "Nguyên nhân được truy từ luồng dữ liệu, không mặc định quy cho một vai trò.",
+      "narration": "Nhưng nguyên nhân có thể nằm ở nhiều khâu phối hợp, không riêng tài xế hay kho. Cùng kiểm tra lại.",
+      "prompt": "FLOW_ORIGAMI. Khung dọc 9:16, không chữ. Trên bàn dài là năm khay nối tiếp, lần lượt có đạo cụ đặc trưng: phiếu nhận đơn trơn, thước địa chỉ, mã hàng không ký tự, kiện hàng, biên nhận bàn giao; cuối bàn là điện thoại chăm sóc khách. Một dải xanh mảnh chạy dưới các khay. Bàn tay từ các vị trí khác nhau chuyển một thẻ dữ liệu trơn; thẻ tới khay thứ hai nhưng thiếu một góc đánh dấu hình học, khiến khay sau không khớp. Máy quay trượt dọc bàn, dừng ở khoảng lệch giữa các khay. Ánh sáng xiên làm rõ lớp bụi và dấu chạm; lỗi hiện bằng đỏ nhỏ tại khớp nối, không gắn với một người cụ thể.",
+      "negative_prompt": "Không chữ, số, logo, watermark; không biến thẻ thành vật thể bay, không làm các khay tự dịch chuyển.",
+      "duration_seconds": 6,
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "beat": "INSIGHT",
+      "message_ids": [
+        "insight-1",
+        "insight-2",
+        "insight-3"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "action_beats": [
+        {
+          "start_s": 0.0,
+          "end_s": 2.0,
+          "action": "Máy quay trượt qua các khay từ nhận đơn tới chăm sóc khách, mỗi khay giữ một đạo cụ riêng."
+        },
+        {
+          "start_s": 2.0,
+          "end_s": 4.0,
+          "action": "Bàn tay chuyển thẻ trơn qua khay; thẻ thiếu góc hình học, khớp ở bước kế tiếp lệch ra."
+        },
+        {
+          "start_s": 4.0,
+          "end_s": 6.0,
+          "action": "Một bàn tay định đẩy thẻ trở lại, nhưng máy quay dừng ở toàn chuỗi để cho thấy nhiều điểm cần kiểm tra."
+        }
+      ],
+      "ui_scene": null
+    },
+    {
+      "shot_id": "s05",
+      "scene": "Điểm kiểm soát đầu tiên: đối chiếu hàng và thông tin người nhận trước khi xuất kho.",
+      "narration": "Trước khi xuất kho, đối chiếu mã hàng, số lượng và người nhận, để tránh nhầm khi chuẩn bị giao hàng.",
+      "prompt": "FLOW_ORIGAMI. Khung dọc 9:16, cận cảnh bàn kiểm hàng trong kho. Tiền cảnh là máy quét cầm tay không nhãn; trung cảnh có kiện hàng mở, ba vật mẫu khác hình dạng và một phiếu trơn với ô hình học không chữ; hậu cảnh là cửa xuất kho đang đóng. Nhân viên quét từng mã giả lập không ký tự, đặt vật mẫu tương ứng vào ba vị trí trên khay, rồi so phiếu người nhận với vòng nhận diện trơn trên kiện. Khi khớp, chốt cơ khí xanh mở và cửa trượt lên; khi thử vật sai hình, chốt dừng lại. Máy quay dolly tiến ngắn, ánh sáng xanh chỉ phủ chốt đã xác nhận, vật liệu nhựa cứng và thép xước.",
+      "negative_prompt": "Không chữ, số, logo, watermark; không sinh ký tự giả, không vật thể xuyên nhau, không mở cửa trước khi chốt xác nhận.",
+      "duration_seconds": 6,
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "beat": "SOLUTION",
+      "message_ids": [
+        "solution-1"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "action_beats": [
+        {
+          "start_s": 0.0,
+          "end_s": 2.0,
+          "action": "Nhân viên đưa vật mẫu và mã giả lập qua máy quét; một vật sai hình bị chốt giữ lại."
+        },
+        {
+          "start_s": 2.0,
+          "end_s": 4.0,
+          "action": "Nhân viên đặt đúng vật vào khay, đối chiếu lượng hàng và dấu người nhận trên phiếu trơn."
+        },
+        {
+          "start_s": 4.0,
+          "end_s": 6.0,
+          "action": "Chốt xanh mở sau khi các vị trí khớp; cửa xuất kho trượt lên và kiện được đẩy qua."
+        }
+      ],
+      "ui_scene": null
+    },
+    {
+      "shot_id": "s06",
+      "scene": "Bàn giao có thời điểm và bên nhận được ghi nhận bằng thao tác xác nhận hữu hình.",
+      "narration": "Khi bàn giao, ghi thời điểm và bên nhận trách nhiệm, để xác nhận trách nhiệm và tránh nhầm về sau.",
+      "prompt": "FLOW_ORIGAMI. Khung dọc 9:16. Tiền cảnh là đồng hồ kim không có chữ số đọc được và thiết bị ghi nhận trống; trung cảnh kiện hàng đặt trên bàn giao, nhân viên kho giữ một tay trên quai, tài xế nắm quai đối diện; hậu cảnh là xe giao hàng chờ. Tài xế nhận kiện, đặt lên cân bàn; nhân viên bấm nút cơ học trên thiết bị đúng lúc kim đồng hồ vượt qua vạch mốc. Hai người lần lượt chạm vào hai đầu tay cầm xác nhận chuyển giao, rồi tài xế đưa kiện lên xe. Máy quay track theo kiện từ bàn sang xe; một đèn xanh nhỏ trên thiết bị bật sau thao tác. Ánh sáng thép xanh, không chữ hay màn hình có nội dung.",
+      "negative_prompt": "Không chữ, số, logo, watermark; không tự mọc biên nhận, không chuyển kiện khi tay chưa nắm chắc.",
+      "duration_seconds": 6,
+      "continues_previous": true,
+      "prompt_contract_version": 4,
+      "beat": "SOLUTION",
+      "message_ids": [
+        "solution-2"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "action_beats": [
+        {
+          "start_s": 0.0,
+          "end_s": 2.0,
+          "action": "Tài xế đỡ kiện từ phía đối diện; nhân viên kho giữ quai, hai người cùng đặt kiện lên cân."
+        },
+        {
+          "start_s": 2.0,
+          "end_s": 4.0,
+          "action": "Nhân viên bấm nút ghi nhận khi kim chạm vạch; đèn xác nhận bật sau khi thao tác hoàn tất."
+        },
+        {
+          "start_s": 4.0,
+          "end_s": 6.0,
+          "action": "Hai người đổi tay giữ kiện, tài xế chuyển kiện lên xe và nhân viên buông quai sau khi bên nhận đã giữ chắc."
+        }
+      ],
+      "ui_scene": null
+    },
+    {
+      "shot_id": "s07",
+      "scene": "Khi có nguy cơ trễ, người phụ trách chủ động báo khách và đưa phương án xử lý.",
+      "narration": "Có nguy cơ trễ, phân công người báo khách và đề xuất cách xử lý trước khi khách phải chờ lâu.",
+      "prompt": "FLOW_ORIGAMI. Khung dọc 9:16. Tiền cảnh là xe giao hàng bị chặn bởi cổng đóng; trung cảnh nhân viên điều phối nhìn tuyến đường ngoài cửa kính, quay vào bàn và trao một thẻ việc trơn cho nhân viên chăm sóc khách; hậu cảnh là khách cầm điện thoại trong nhà. Nhân viên chăm sóc gọi khách bằng điện thoại không hiện chữ, đồng thời đặt cạnh đó hai phương án vật lý: kiện giữ lại an toàn hoặc đổi sang chuyến xe kế tiếp. Khách nhận thông tin, chọn phương án bằng cách gật đầu và đặt điện thoại xuống; nhân viên điều phối chuyển kiện sang khu chờ chuyến sau. Máy quay lia ngắn từ cổng tới bàn, ánh xanh đánh dấu hành động đã giao, vàng ấm nhẹ ở vùng khách.",
+      "negative_prompt": "Không chữ, số, logo, watermark; không tạo màn hình hội thoại, không gọi điện thoại tự phát, không biến dạng nhân vật.",
+      "duration_seconds": 6,
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "beat": "SOLUTION",
+      "message_ids": [
+        "solution-3",
+        "consequence-1"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "action_beats": [
+        {
+          "start_s": 0.0,
+          "end_s": 2.0,
+          "action": "Xe dừng trước cổng đóng; điều phối viên quan sát lối bị chặn rồi quay vào bàn."
+        },
+        {
+          "start_s": 2.0,
+          "end_s": 4.0,
+          "action": "Điều phối viên trao thẻ việc trơn cho nhân viên chăm sóc; nhân viên gọi khách và bày hai phương án xử lý."
+        },
+        {
+          "start_s": 4.0,
+          "end_s": 6.0,
+          "action": "Khách xác nhận lựa chọn; nhân viên chuyển kiện vào khu chờ chuyến sau thay vì để khách phải gọi hỏi."
+        }
+      ],
+      "ui_scene": null
+    },
+    {
+      "shot_id": "s08",
+      "scene": "Theo dõi ba loại tín hiệu vận hành để nhìn thấy lỗi quay lại và thời gian xử lý.",
+      "narration": "Theo dõi đơn phải giao lại, thời gian xử lý khiếu nại và nguyên nhân lặp lại, để sửa đúng gốc.",
+      "prompt": "FLOW_ORIGAMI. Khung dọc 9:16, không giao diện chữ. Cận cảnh một bàn vận hành có ba khay vật lý: kiện quay lại, đồng hồ cát cơ học tượng trưng thời gian xử lý, và các vòng kim loại phân loại nguyên nhân. Nhân viên đặt một kiện hoàn vào khay đầu; lật đồng hồ cát khiếu nại được tiếp nhận; sau đó gom các vòng cùng hình dạng vào một rãnh. Một nhóm vòng lặp lại làm thanh cơ học bên cạnh hạ xuống, lộ rõ nguyên nhân thường gặp đang cần xem xét. Máy quay dolly ngang qua ba khay, đèn xanh nhấn thao tác ghi nhận, đỏ chỉ ở nhóm lặp. Chất liệu kính mờ, kim loại và giấy trơn; không có chữ hoặc số.",
+      "negative_prompt": "Không chữ, số, logo, watermark; không hiển thị chỉ số bịa, không để đồng hồ cát tự chạy ngược.",
+      "duration_seconds": 6,
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "beat": "DEMO",
+      "message_ids": [
+        "solution-4",
+        "pain-3"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "action_beats": [
+        {
+          "start_s": 0.0,
+          "end_s": 2.0,
+          "action": "Nhân viên đặt kiện giao lại vào khay riêng, tách khỏi các kiện đang đi đúng luồng."
+        },
+        {
+          "start_s": 2.0,
+          "end_s": 4.0,
+          "action": "Nhân viên lật đồng hồ cát khiếu nại và chuyển một vòng nguyên nhân vào rãnh phân loại."
+        },
+        {
+          "start_s": 4.0,
+          "end_s": 6.0,
+          "action": "Các vòng cùng hình được gom cạnh nhau; thanh cơ học hạ xuống để bộc lộ nhóm nguyên nhân lặp."
+        }
+      ],
+      "ui_scene": null
+    },
+    {
+      "shot_id": "s09",
+      "scene": "Đọc lại các đơn lỗi gần nhất để tìm điểm thông tin sai hoặc thiếu, thay vì đoán người gây lỗi.",
+      "narration": "Phân tích đơn lỗi gần nhất để tìm thông tin sai hoặc bị bỏ sót ở đâu, rồi sửa quy trình.",
+      "prompt": "FLOW_ORIGAMI. Khung dọc 9:16. Trên bàn kính là chồng phiếu trơn cùng các kiện mẫu nhỏ xếp theo đường nhận đơn, xác nhận địa chỉ, chuẩn bị hàng, bàn giao. Một chuyên viên vận hành không mặc đồng phục kho đặt các phiếu cạnh nhau, dùng kính lúp rà các ô hình học; một ô lệch ở giữa chồng được ghim vào đúng khâu bàn giao, không ghim vào nhân vật. Những phiếu còn lại được xếp thành hai nhóm: đủ thông tin và cần kiểm tra. Máy quay từ trên cao hạ chéo xuống cận cảnh điểm lệch, ánh champagne nhẹ trên kính lúp, đỏ chỉ ở ô sai, hậu cảnh tối midnight.",
+      "negative_prompt": "Không chữ, số, logo, watermark; không tạo văn bản giả, không kết luận lỗi thuộc cá nhân, không chồng phiếu xuyên vật thể.",
+      "duration_seconds": 6,
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "beat": "DEMO",
+      "message_ids": [
+        "outcome-1",
+        "cta-1"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "action_beats": [
+        {
+          "start_s": 0.0,
+          "end_s": 2.0,
+          "action": "Chuyên viên trải các phiếu trơn thành một hàng theo thứ tự các khâu, đặt cạnh từng phiếu một đạo cụ tương ứng."
+        },
+        {
+          "start_s": 2.0,
+          "end_s": 4.0,
+          "action": "Kính lúp rà từng ô hình học; chuyên viên dừng ở một ô lệch và đưa phiếu tương ứng về khâu phát sinh."
+        },
+        {
+          "start_s": 4.0,
+          "end_s": 6.0,
+          "action": "Chuyên viên tách phiếu đủ thông tin khỏi nhóm cần kiểm tra, giữ vị trí sai rõ ràng thay vì chỉ vào một người."
+        }
+      ],
+      "ui_scene": null
+    },
+    {
+      "shot_id": "s10",
+      "scene": "Khi có trách nhiệm và dữ liệu theo dõi, nhóm vận hành xử lý theo cùng một luồng.",
+      "narration": "Quy trình rõ và dữ liệu theo dõi giúp các bộ phận phối hợp, nhận diện lỗi tái diễn.",
+      "prompt": "FLOW_ORIGAMI. Khung dọc 9:16. Một tuyến bàn giao vật lý chạy từ bàn bán hàng qua bàn kho tới cửa xe; nhân viên mỗi bộ phận đứng đúng trạm của mình. Tiền cảnh là khay kiểm tra, trung cảnh là kiện đi qua từng cặp tay có tiếp xúc rõ, hậu cảnh là khu xử lý khiếu nại với đồng hồ cát và vòng nguyên nhân. Lần đầu, một kiện bị giữ tại trạm thiếu xác nhận; nhân viên bổ sung thao tác xác nhận và chuyển kiện tiếp. Một vòng nguyên nhân đã gặp trước được đặt vào rãnh đánh dấu để nhóm cùng thấy. Máy quay track tiến theo kiện qua các trạm; ánh xanh nối các thao tác hoàn tất, không có hiệu ứng trang trí.",
+      "negative_prompt": "Không chữ, số, logo, watermark; không làm người hoặc kiện hàng biến mất, không chuyển hàng khi chưa có tiếp xúc.",
+      "duration_seconds": 6,
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "beat": "OUTCOME",
+      "message_ids": [
+        "outcome-2",
+        "insight-4"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "action_beats": [
+        {
+          "start_s": 0.0,
+          "end_s": 2.0,
+          "action": "Kiện đi từ bàn bán hàng tới trạm kho rồi bị giữ lại ở điểm thiếu xác nhận."
+        },
+        {
+          "start_s": 2.0,
+          "end_s": 4.0,
+          "action": "Nhân viên kho bổ sung thao tác xác nhận; người nhận ở trạm kế tiếp đỡ kiện khi nó được chuyển."
+        },
+        {
+          "start_s": 4.0,
+          "end_s": 6.0,
+          "action": "Nhân viên đặt vòng nguyên nhân lặp vào rãnh chung; kiện tiếp tục tới khu xử lý khiếu nại theo luồng."
+        }
+      ],
+      "ui_scene": null
+    },
+    {
+      "shot_id": "s11",
+      "scene": "Ba-ha đồng hành ở bước khảo sát luồng, vai trò và điểm cần cảnh báo; không mặc định công cụ.",
+      "narration": "Ba-ha có thể cùng doanh nghiệp khảo sát luồng đơn hàng, trách nhiệm và điểm cần cảnh báo.",
+      "prompt": "FLOW_ORIGAMI. Khung dọc 9:16, không logo. Một cuộc khảo sát tại khu vận hành thật: tiền cảnh là sơ đồ luồng vẽ bằng dây và thẻ trơn trên bàn, trung cảnh một chuyên gia tư vấn B2B và quản lý vận hành cùng lần theo tuyến từ nhận đơn tới hậu mãi, hậu cảnh nhân viên kho làm việc bình thường. Chuyên gia đặt từng thẻ vai trò ở đúng bàn; quản lý chuyển một thẻ cảnh báo tới điểm bàn giao thiếu xác nhận. Nhóm kiểm tra bằng cách diễn thử một kiện đi qua luồng; kiện dừng đúng điểm cần cảnh báo. Máy quay vòng cung nhẹ quanh bàn, chất liệu kính xám xanh và kim loại, champagne chỉ trên ánh bàn, xanh ở điểm luồng đã thống nhất.",
+      "negative_prompt": "Không chữ, số, logo, watermark; không mô tả phần mềm hay năng lực cụ thể, không bắt nhân vật nhìn máy quay.",
+      "duration_seconds": 6,
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "beat": "SOLUTION",
+      "message_ids": [
+        "solution-5"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "action_beats": [
+        {
+          "start_s": 0.0,
+          "end_s": 2.0,
+          "action": "Chuyên gia và quản lý cùng trải tuyến thẻ trơn trên bàn, lần theo thứ tự các khâu."
+        },
+        {
+          "start_s": 2.0,
+          "end_s": 4.0,
+          "action": "Quản lý đặt thẻ vai trò tại các trạm; chuyên gia chuyển thẻ cảnh báo tới điểm thiếu xác nhận."
+        },
+        {
+          "start_s": 4.0,
+          "end_s": 6.0,
+          "action": "Hai người diễn thử đường đi của kiện; kiện dừng tại đúng điểm đã khoanh để cùng xem xét."
+        }
+      ],
+      "ui_scene": null
+    },
+    {
+      "shot_id": "s12",
+      "scene": "Công cụ theo dõi đến sau khi quy trình và trách nhiệm đã được xác định.",
+      "narration": "Công cụ theo dõi chỉ hữu ích khi quy trình đã rõ, nếu từng bước, người phụ trách đã rõ ràng.",
+      "prompt": "FLOW_ORIGAMI. Khung dọc 9:16. Tiền cảnh là một màn hình trống tắt, không có giao diện; trung cảnh là các trạm bàn giao đã nối bằng đường ray cơ khí rõ ràng; hậu cảnh nhân viên vận hành chuyển kiện trơn tru qua từng trạm. Quản lý quan sát, lần lượt gài chốt phân công tại các điểm; chỉ khi chốt cuối vào vị trí, quản lý bật màn hình trống sáng nền xanh dịu để biểu đạt công cụ đi sau quy trình, không hiện chữ hay số. Máy quay dolly từ màn hình tối lùi ra toàn tuyến; ánh xanh chỉ phủ đường ray đã lắp, nền midnight.",
+      "negative_prompt": "Không chữ, số, logo, watermark; không giao diện giả, không màn hình chiếm toàn khung, không đường ray tự mọc.",
+      "duration_seconds": 6,
+      "continues_previous": true,
+      "prompt_contract_version": 4,
+      "beat": "INSIGHT",
+      "message_ids": [
+        "insight-4",
+        "solution-5"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "action_beats": [
+        {
+          "start_s": 0.0,
+          "end_s": 2.0,
+          "action": "Màn hình trống vẫn tắt trong khi quản lý kiểm tra các trạm và gài chốt trách nhiệm."
+        },
+        {
+          "start_s": 2.0,
+          "end_s": 4.0,
+          "action": "Nhân viên chuyển kiện qua tuyến đã nối; kiện đi tiếp khi mỗi chốt bàn giao được xác nhận."
+        },
+        {
+          "start_s": 4.0,
+          "end_s": 6.0,
+          "action": "Quản lý bật màn hình nền trống sau khi tuyến vận hành rõ; máy quay lùi để thấy công cụ đứng sau quy trình."
+        }
+      ],
+      "ui_scene": null
+    },
+    {
+      "shot_id": "s13",
+      "scene": "Lời mời hành động: chọn hai mươi đơn lỗi gần nhất để rà từng điểm bàn giao.",
+      "narration": "Bắt đầu bằng hai mươi đơn lỗi gần nhất. Ghi lại lỗi, bước phát sinh, thông tin sai hoặc bị thiếu.",
+      "prompt": "FLOW_ORIGAMI. Khung dọc 9:16, không chữ hay số. Trên bàn vận hành, hai mươi phiếu trơn được xếp thành hai hàng đều nhau, mỗi phiếu có một dấu hình học khác nhau nhưng lặp mẫu theo khâu; cạnh bàn là kính lúp và các khay phân loại. Chuyên viên kéo cả hai hàng vào vùng rà soát, nhấc phiếu trên cùng, đối chiếu với tuyến bàn giao dựng bằng mô hình đạo cụ ở hậu cảnh. Các phiếu được chuyển từng chiếc vào khay phù hợp, để lại một khay riêng cho điểm cần kiểm tra. Máy quay từ trên cao tiến gần rồi dừng ở bàn tay đang bắt đầu rà, vàng CTA chỉ trên mép khay, ánh midnight.",
+      "negative_prompt": "Không chữ, số, logo, watermark; không hiển thị số lượng bằng ký tự, không làm phiếu tự bay hoặc nhân đôi.",
+      "duration_seconds": 6,
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "beat": "CTA",
+      "message_ids": [
+        "cta-1"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "action_beats": [
+        {
+          "start_s": 0.0,
+          "end_s": 2.0,
+          "action": "Chuyên viên kéo hai hàng phiếu trơn vào vùng rà soát, giữ chúng thành một nhóm có giới hạn."
+        },
+        {
+          "start_s": 2.0,
+          "end_s": 4.0,
+          "action": "Chuyên viên nhấc phiếu đầu, đối chiếu dấu hình học với các trạm bàn giao ở hậu cảnh."
+        },
+        {
+          "start_s": 4.0,
+          "end_s": 6.0,
+          "action": "Phiếu được đặt vào khay phù hợp; chuyên viên tiếp tục rà phiếu kế tiếp, chưa kết luận lỗi thuộc ai."
+        }
+      ],
+      "ui_scene": null
+    },
+    {
+      "shot_id": "s14",
+      "scene": "Truy dấu nơi thông tin sai hoặc bị bỏ sót trước khi quy trách nhiệm cá nhân.",
+      "narration": "Tìm bước thông tin sai hoặc bị bỏ sót trước khi quy trách nhiệm cá nhân, rồi sửa quy trình trước.",
+      "prompt": "FLOW_ORIGAMI. Khung dọc 9:16, cận bàn tay và tuyến khay. Một thẻ trơn đi qua năm khay cơ học; ở khay thứ hai, một rãnh thông tin còn trống khiến chốt ở khay kế tiếp không khóa. Chuyên viên quan sát đường đi, rút thẻ ra, đặt dấu hình học đúng vào rãnh còn thiếu rồi thử lại. Thẻ đi qua các khay và chốt cuối khóa; người vận hành đứng ở hậu cảnh vẫn ở vị trí, không bị chỉ mặt hay đổ lỗi. Máy quay theo thẻ qua tuyến, dừng ở chốt đã khớp; màu đỏ chỉ vùng trống ban đầu, xanh đánh dấu thao tác kiểm tra hoàn tất.",
+      "negative_prompt": "Không chữ, số, logo, watermark; không nhân vật biến hình, không chốt tự khóa trước khi thẻ được sửa.",
+      "duration_seconds": 6,
+      "continues_previous": true,
+      "prompt_contract_version": 4,
+      "beat": "CTA",
+      "message_ids": [
+        "cta-1",
+        "outcome-1"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "action_beats": [
+        {
+          "start_s": 0.0,
+          "end_s": 2.0,
+          "action": "Thẻ trơn đi qua khay đầu, mắc tại rãnh trống ở khay kế tiếp; chốt phía sau không khóa."
+        },
+        {
+          "start_s": 2.0,
+          "end_s": 4.0,
+          "action": "Chuyên viên rút thẻ, bổ sung dấu hình học còn thiếu rồi đưa thẻ trở lại đúng tuyến."
+        },
+        {
+          "start_s": 4.0,
+          "end_s": 6.0,
+          "action": "Thẻ đi tiếp và chốt cuối khóa; người vận hành vẫn ở vị trí, điểm phát sinh được xác định bằng thao tác."
+        }
+      ],
+      "ui_scene": null
+    },
+    {
+      "shot_id": "s15",
+      "scene": "Khép lại bằng luồng đơn có thể truy vết từ nhận đến xử lý phản hồi.",
+      "narration": "Tìm đúng điểm trong luồng, để các bộ phận cùng xử lý thay vì đổ lỗi, để cùng sửa tận gốc.",
+      "prompt": "FLOW_ORIGAMI. Khung dọc 9:16, toàn cảnh dọc khu vận hành có chiều sâu. Tiền cảnh một kiện vừa qua khâu kiểm; trung cảnh nhân viên kho và giao nhận chuyển kiện với điểm tiếp xúc rõ; hậu cảnh nhân viên chăm sóc khách nhận thông tin và đánh dấu vòng nguyên nhân trên bảng vật lý trống. Đường xanh liên tục chạy sát sàn nối các trạm, không có chữ hay biểu tượng đọc được. Khi kiện qua trạm cuối, nhân viên cùng nhìn về khay nguyên nhân đã được gom và chuyển một dụng cụ sửa quy trình tới điểm cần xử lý. Máy quay crane nâng nhẹ để lộ toàn tuyến; ánh champagne dịu trên kính, xanh trên đường vận hành, midnight giữ nền.",
+      "negative_prompt": "Không chữ, số, logo, watermark; không biến cảnh thành infographic, không mọi người đứng tạo dáng.",
+      "duration_seconds": 6,
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "beat": "OUTCOME",
+      "message_ids": [
+        "outcome-2",
+        "insight-2"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "action_beats": [
+        {
+          "start_s": 0.0,
+          "end_s": 2.0,
+          "action": "Kiện rời bàn kiểm, được nhân viên kho chuyển cho người giao nhận đang đỡ ở đầu kia."
+        },
+        {
+          "start_s": 2.0,
+          "end_s": 4.0,
+          "action": "Nhân viên giao nhận đưa kiện qua tuyến; nhân viên chăm sóc nhận tín hiệu và đặt vòng nguyên nhân vào khay."
+        },
+        {
+          "start_s": 4.0,
+          "end_s": 6.0,
+          "action": "Nhóm chuyển dụng cụ sửa tới trạm được xác định; máy quay nâng lên để thấy toàn bộ luồng liên kết."
+        }
+      ],
+      "ui_scene": null
+    },
+    {
+      "shot_id": "s16",
+      "scene": "Kết quả là vị trí sai được nhìn thấy trong quy trình, thay vì phỏng đoán từ chức danh.",
+      "narration": "Khi thấy rõ điểm sai, doanh nghiệp có cơ sở phối hợp xử lý và giảm lỗi lặp lại.",
+      "prompt": "FLOW_ORIGAMI. Khung dọc 9:16. Tiền cảnh là khay lỗi ban đầu nay được tách thành khay thông tin sai và khay bàn giao hoàn tất; trung cảnh một nhân viên cập nhật chốt tại trạm gây lệch, đồng nghiệp kế tiếp thử chuyển kiện; hậu cảnh khách nhận kiện tại cửa và khép cửa nhẹ nhàng. Kiện thử qua đúng trạm, chốt mới giữ thông tin đúng vị trí, vòng nguyên nhân lặp được chuyển khỏi đường vận hành sang khu rà soát. Máy quay dolly theo kiện từ điểm sửa tới cửa nhận, kết bằng khung sâu thấy khay theo dõi còn mở để tiếp tục kiểm tra, không hàm ý cam kết kết quả tuyệt đối.",
+      "negative_prompt": "Không chữ, số, logo, watermark; không thể hiện cam kết hết lỗi, không nụ cười quảng cáo, không vật thể xuyên nhau.",
+      "duration_seconds": 5,
+      "continues_previous": true,
+      "prompt_contract_version": 4,
+      "beat": "OUTCOME",
+      "message_ids": [
+        "outcome-1",
+        "outcome-2"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "action_beats": [
+        {
+          "start_s": 0.0,
+          "end_s": 1.6666666666666667,
+          "action": "Nhân viên đặt phiếu sai vào khay đúng nguyên nhân, giữ khay theo dõi mở để tiếp tục ghi nhận."
+        },
+        {
+          "start_s": 1.6666666666666667,
+          "end_s": 3.3333333333333335,
+          "action": "Nhân viên sửa chốt tại trạm; đồng nghiệp thử chuyển kiện và xác nhận kiện qua được điểm đó."
+        },
+        {
+          "start_s": 3.3333333333333335,
+          "end_s": 5.0,
+          "action": "Khách nhận kiện ở cửa; vòng nguyên nhân lặp được đưa sang khu rà soát thay vì quay lại luồng."
+        }
+      ],
+      "ui_scene": null
+    },
+    {
+      "shot_id": "s17",
+      "scene": "Kết CTA: bắt đầu bằng việc rà đơn lỗi và tìm điểm thông tin lệch trong quy trình.",
+      "narration": "Rà hai mươi đơn lỗi. Tìm thông tin sai hoặc bỏ sót trước khi quy trách nhiệm cá nhân.",
+      "prompt": "FLOW_ORIGAMI. Khung dọc 9:16, kết bằng cảnh vật và đạo cụ, không logo. Trên bàn midnight là hai hàng phiếu trơn, kính lúp, các khay theo từng chặng và một đường vàng CTA mảnh chạy từ đầu bàn tới điểm bàn giao. Chuyên viên mở khay đầu, lần lượt đặt phiếu lên tuyến, dừng tại phiếu có dấu hình học lệch; người quản lý đứng bên cạnh kéo khay trách nhiệm cá nhân ra khỏi bàn và đặt khay rà soát quy trình vào vị trí trước. Ánh vàng chỉ trên đường rà soát và mép khay cuối, xanh nhẹ trên các bước đã kiểm; máy quay dolly tiến tới phiếu lệch rồi dừng ở khoảng trống cần được xác minh. Chốt hình mang ý mời kiểm tra, không biểu đạt kết quả bảo đảm.",
+      "negative_prompt": "Không chữ, số, logo, watermark; không tự sinh kết luận, không đếm bằng chữ hiện hình, không đứng yên để lấp thời lượng.",
+      "duration_seconds": 5,
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "beat": "CTA",
+      "message_ids": [
+        "cta-1"
+      ],
+      "shot_kind": "FLOW_ORIGAMI",
+      "action_beats": [
+        {
+          "start_s": 0.0,
+          "end_s": 1.6666666666666667,
+          "action": "Chuyên viên mở khay rà soát và đưa các phiếu trơn lên tuyến khâu vận hành."
+        },
+        {
+          "start_s": 1.6666666666666667,
+          "end_s": 3.3333333333333335,
+          "action": "Chuyên viên rà từng phiếu, dừng ở dấu hình học lệch; quản lý đưa khay quy trình lên trước khay quy trách nhiệm."
+        },
+        {
+          "start_s": 3.3333333333333335,
+          "end_s": 5.0,
+          "action": "Kính lúp đặt sát điểm lệch, đường vàng dẫn tới vị trí cần xác minh; cảnh kết khi việc rà soát đang bắt đầu."
+        }
+      ],
+      "ui_scene": null
+    }
+  ],
+  "brief": {
+    "pains": [
+      {
+        "id": "pain-1",
+        "text": "Đơn giao trễ hoặc sai khiến khách khiếu nại; thông tin có thể sai hoặc bị bỏ sót ở nhiều bước bàn giao.",
+        "source": "content"
+      },
+      {
+        "id": "pain-2",
+        "text": "Các bộ phận đổ lỗi cho nhau, khó xác định bước phát sinh lỗi và người chịu trách nhiệm.",
+        "source": "content"
+      },
+      {
+        "id": "pain-3",
+        "text": "Thiếu dữ liệu về đơn giao lại, thời gian xử lý khiếu nại và nguyên nhân lặp lại có thể khiến lỗi tiếp tục phát sinh.",
+        "source": "content"
+      }
+    ],
+    "consequences": [
+      {
+        "id": "consequence-1",
+        "text": "Khách hàng mất niềm tin khi đơn gặp vấn đề mà doanh nghiệp không chủ động thông báo hoặc xử lý.",
+        "source": "content"
+      },
+      {
+        "id": "consequence-2",
+        "text": "Lỗi lặp lại làm doanh nghiệp tốn thêm chi phí xử lý và có nguy cơ mất khách.",
+        "source": "content"
+      }
+    ],
+    "insights": [
+      {
+        "id": "insight-1",
+        "text": "Đơn giao trễ hoặc sai có thể bắt nguồn từ nhiều khâu phối hợp, không chỉ từ tài xế hay nhân viên kho.",
+        "source": "content"
+      },
+      {
+        "id": "insight-2",
+        "text": "Cần truy vết luồng dữ liệu từ nhận đơn, xác nhận địa chỉ, chuẩn bị hàng, bàn giao đến xử lý khiếu nại.",
+        "source": "content"
+      },
+      {
+        "id": "insight-3",
+        "text": "Số liệu khiếu nại được nêu phản ánh vụ việc gửi đến cơ quan, không phải tỷ lệ đơn giao lỗi của toàn thị trường.",
+        "source": "content"
+      },
+      {
+        "id": "insight-4",
+        "text": "Công cụ theo dõi chỉ có khả năng tạo giá trị khi quy trình và trách nhiệm giữa các bộ phận đã rõ.",
+        "source": "content"
+      }
+    ],
+    "solutions": [
+      {
+        "id": "solution-1",
+        "text": "Thiết lập đối chiếu mã hàng, số lượng và thông tin người nhận trước khi xuất kho.",
+        "source": "content"
+      },
+      {
+        "id": "solution-2",
+        "text": "Ghi nhận thời điểm bàn giao và bên nhận trách nhiệm.",
+        "source": "content"
+      },
+      {
+        "id": "solution-3",
+        "text": "Phân công người chủ động báo khách và đề xuất xử lý khi có nguy cơ trễ.",
+        "source": "content"
+      },
+      {
+        "id": "solution-4",
+        "text": "Theo dõi số đơn phải giao lại, thời gian xử lý khiếu nại và nguyên nhân lặp lại.",
+        "source": "content"
+      },
+      {
+        "id": "solution-5",
+        "text": "BAHA có thể cùng doanh nghiệp khảo sát luồng xử lý đơn hàng, trách nhiệm giữa các bộ phận và điểm cần cảnh báo; bài không xác định sẵn công cụ cụ thể.",
+        "source": "content"
+      }
+    ],
+    "outcomes": [
+      {
+        "id": "outcome-1",
+        "text": "Phân tích các đơn lỗi gần nhất giúp xác định thông tin sai hoặc bị bỏ sót ở bước nào.",
+        "source": "content"
+      },
+      {
+        "id": "outcome-2",
+        "text": "Quy trình rõ và có dữ liệu theo dõi giúp doanh nghiệp nhận diện lỗi lặp lại, xử lý khiếu nại và phối hợp giữa các bộ phận tốt hơn.",
+        "source": "content"
+      }
+    ],
+    "cta": {
+      "id": "cta-1",
+      "text": "Phân tích 20 đơn lỗi gần nhất; tìm bước thông tin sai hoặc bị bỏ sót trước khi quy trách nhiệm cá nhân.",
+      "source": "content"
+    },
+    "needs_ui_demo": false
+  }
+}

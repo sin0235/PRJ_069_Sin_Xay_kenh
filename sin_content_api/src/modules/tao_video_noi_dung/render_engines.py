@@ -156,6 +156,52 @@ def render_remotion(scene: UiScene, duration_seconds: int, out_path: Path, narra
         return _normalize(raw, out_path, duration_seconds)
 
 
+PORTRAIT_SIZE = (1080, 1920)
+_LANDSCAPE_IN_PORTRAIT_HEIGHT = 608   # 1080 * 9 / 16, làm tròn chẵn
+_REFLECTION_ALPHA = 0.34
+
+
+def expand_landscape_to_portrait(src: Path, dst: Path) -> None:
+    """Đặt clip 16:9 ở giữa khung 9:16, phần trên và dưới được mở rộng bằng bản phản chiếu mờ dần trên nền nhòe cùng hình."""
+    width, height = PORTRAIT_SIZE
+    inner = _LANDSCAPE_IN_PORTRAIT_HEIGHT
+    top = (height - inner) // 2
+    seconds = max(0.1, float(video_processor.probe_video(src).get("duration_seconds") or 6))
+    level = f"0x{round(255 * _REFLECTION_ALPHA):02x}{round(255 * _REFLECTION_ALPHA):02x}{round(255 * _REFLECTION_ALPHA):02x}"
+
+    def fade(first: str, second: str) -> str:   # mặt nạ độ mờ dựng sẵn một lần, nhanh hơn tính từng điểm ảnh
+        return f"gradients=s={width}x{inner}:r=30:d={seconds:.3f}:c0={first}:c1={second}:x0=0:y0=0:x1=0:y1={inner}:speed=0:n=2,format=gray"
+
+    mirror = f"scale={width // 2}:{inner // 2},vflip,gblur=sigma=2.5,scale={width}:{inner},format=rgba"   # nhòe ở nửa độ phân giải cho nhanh
+    graph = (
+        "[0:v]split=4[a][b][c][d];"
+        f"[a]scale={width // 4}:{height // 4}:force_original_aspect_ratio=increase,crop={width // 4}:{height // 4},gblur=sigma=7,scale={width}:{height},eq=brightness=-0.10:saturation=0.85[bg];"
+        f"[b]scale={width}:{inner}:flags=lanczos[fg];"
+        f"[c]{mirror}[cr];[1:v][cr]scale2ref=flags=bicubic[m1][cr2];[cr2][m1]alphamerge[below];"
+        f"[d]{mirror}[dr];[2:v][dr]scale2ref=flags=bicubic[m2][dr2];[dr2][m2]alphamerge[above];"
+        f"[bg][above]overlay=0:{top - inner}[t1];[t1][below]overlay=0:{top + inner}[t2];[t2][fg]overlay=0:{top},format=yuv420p[out]"
+    )
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    run_media_command([
+        video_processor.ffmpeg_bin, "-y", "-v", "error", "-i", str(src),
+        "-f", "lavfi", "-i", fade(level, "0x000000"),   # dưới clip: đậm sát mép rồi mờ dần
+        "-f", "lavfi", "-i", fade("0x000000", level),   # trên clip: mờ dần rồi đậm sát mép
+        "-filter_complex", graph, "-map", "[out]",
+        "-an", "-r", "30", "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p",
+        "-movflags", "+faststart", "-t", f"{seconds:.3f}", str(dst),
+    ], check=True, capture_output=True, timeout=600)
+
+
+def _landscape_scene_in_portrait(scene, style_snapshot, duration_seconds, out_path, narration, word_times) -> dict:
+    """Sơ đồ chỉ có bản 16:9: dựng khung ngang rồi mở rộng thành khung dọc, để video 9:16 dùng được mọi loại sơ đồ."""
+    with tempfile.TemporaryDirectory(prefix="ngang_", dir=out_path.parent, ignore_cleanup_errors=True) as tmp:
+        landscape = Path(tmp) / "ngang.mp4"
+        meta = render_scene(scene, {**style_snapshot, "aspect_ratio": "16:9"}, duration_seconds, "16:9", landscape,
+                            narration=narration, word_times=word_times)
+        expand_landscape_to_portrait(landscape, out_path)
+    return {**video_processor.probe_video(out_path), "render_engine": meta.get("render_engine"), "expanded_from": "16:9"}
+
+
 BACKENDS = {"hyperframes": render_hyperframes, "remotion": render_remotion}
 
 
@@ -163,6 +209,9 @@ BACKENDS = {"hyperframes": render_hyperframes, "remotion": render_remotion}
 def render_scene(scene: UiScene, style_snapshot: dict, duration_seconds: int, aspect_ratio: str, out_path: Path,
                  narration: str = "", word_times: list[float] | None = None, transparent_background: bool = False) -> dict:
     """Dựng clip cảnh bằng engine đã chọn; trả về meta của clip kèm `render_engine` là engine đã thật sự dùng."""
+    if (aspect_ratio == "9:16" and scene.layout in DIAGRAM_LAYOUTS and scene.layout not in PORTRAIT_DIAGRAM_LAYOUTS
+            and not transparent_background):
+        return _landscape_scene_in_portrait(scene, style_snapshot, duration_seconds, out_path, narration, word_times)
     engine = selected_engine(style_snapshot)
     portrait_diagram = engine in ("hyperframes", "remotion") and aspect_ratio == "9:16" and scene.layout in PORTRAIT_DIAGRAM_LAYOUTS
     if engine != "playwright" and scene.layout in DIAGRAM_LAYOUTS and (aspect_ratio == "16:9" or portrait_diagram) and 1 <= duration_seconds <= 20:
@@ -170,7 +219,7 @@ def render_scene(scene: UiScene, style_snapshot: dict, duration_seconds: int, as
             backend = BACKENDS[engine]
             meta = backend(scene, duration_seconds, out_path, narration, word_times, aspect_ratio, transparent_background) if engine == "hyperframes" else backend(scene, duration_seconds, out_path, narration, word_times, aspect_ratio=aspect_ratio)
             return {**meta, "render_engine": engine}
-        except (EngineUnavailable, RuntimeError, subprocess.SubprocessError, OSError) as exc:
+        except Exception as exc:   # mọi lỗi dựng của engine (kể cả ValueError, KeyError, hết giờ) đều lùi sang Playwright để vẫn ra clip
             if transparent_background or os.environ.get("CONTENT_VIDEO_RENDER_FALLBACK", "1") == "0":
                 raise
             logger.warning("RENDER_ENGINE_FALLBACK: %s không dựng được (%s); dùng playwright", engine, str(exc)[:300])
@@ -196,6 +245,7 @@ def render_placeholder(out_path: Path, seconds: int, aspect_ratio: str = "16:9")
     out_path.parent.mkdir(parents=True, exist_ok=True)
     run_media_command([
         video_processor.ffmpeg_bin, "-y", "-v", "error", "-f", "lavfi", "-i", f"color=c=black:s={width}x{height}:r=30:d={seconds}",
+        "-metadata", f"title=placeholder_{out_path.stem}",
         "-an", "-c:v", "libx264", "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-t", str(seconds), "-movflags", "+faststart", str(out_path),
     ], check=True, capture_output=True, timeout=120)
     return {**video_processor.probe_video(out_path), "render_engine": "hyperframes_assembly"}
