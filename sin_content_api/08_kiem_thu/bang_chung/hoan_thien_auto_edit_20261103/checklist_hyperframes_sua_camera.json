@@ -1,0 +1,25 @@
+{
+  "source_job_id": "3dbeb4f7-c9cd-4d88-9d02-96da45daa5de",
+  "metadata": {
+    "aspect_ratio": "9:16",
+    "bitrate_bps": 47634011,
+    "codec_name": "prores",
+    "duration_seconds": 5.0,
+    "frame_rate": 30.0,
+    "has_alpha": true,
+    "height": 1920,
+    "is_vertical_9_16": true,
+    "pixel_format": "yuva444p12le",
+    "render_engine": "hyperframes",
+    "safe_zone_tiktok": {
+      "bottom_margin_px": 320,
+      "is_compliant": true,
+      "right_margin_px": 120,
+      "top_margin_px": 150
+    },
+    "video_stream_duration_seconds": 5.0,
+    "width": 1080
+  },
+  "sha256": "7be930738dc5776e4eb7934c237359d028cd016c91996563879a709b5f351f92",
+  "output_bytes": 29771257
+}

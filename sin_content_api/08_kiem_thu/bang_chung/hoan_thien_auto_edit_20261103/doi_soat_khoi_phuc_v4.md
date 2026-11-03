@@ -51,3 +51,10 @@ Chạy `python -m pytest tests/test_checklist_doc_ro.py -q`: 3 test đạt trong
 - Thêm test `test_the_checklist_alpha_khong_bi_camera_day_ra_khoi_canvas`: thất bại trước sửa, cho thấy cả cam và rig có transform dịch/phóng. Sửa riêng checklist alpha dọc để giữ cam/rig ổn định; hàm sceneChecklist vẫn tạo animation vào thẻ, nét kiểm và gạch nhấn.
 - Sau sửa: `python -m pytest tests/test_checklist_doc_ro.py tests/test_khoi_hyperframes.py -q`: 33 test đạt trong 2,48 giây. Chưa render MOV bằng bản sửa camera này; MOV và ba ảnh ở trên là bằng chứng lỗi trước sửa.
 - Đo âm lượng v4 trên Actions, `am_luong_v4.json`: integrated -14,67 LUFS, true peak -2,65 dBTP, LRA 3,9 LU. Đạt ngưỡng đo đã đặt; chưa thay cho việc nghe kiểm toàn clip.
+
+## Xác minh MOV sau sửa camera
+
+- Actions run `41658240950` dùng commit `4598ded`, task `535a3cd2-b521-4f32-af49-7f32250da3d0` thành công. Kết quả tại `checklist_hyperframes_sua_camera.json`, SHA-256 `7be930738dc5776e4eb7934c237359d028cd016c91996563879a709b5f351f92`.
+- MOV 5 giây, 1080×1920, 30 fps, ProRes alpha. Đối chiếu ảnh `checklist_sua_camera_dau.png`, `checklist_sua_camera_giua.png`, `checklist_sua_camera_cuoi.png`: thẻ giữ trong khung ở 0,8 / 2,5 / 4,3 giây, nhãn đổi từ giá bán qua giá vốn tới đóng gói. Không còn cắt mép như ảnh cuối trước sửa.
+- Kiểm tra pixel RGBA ở frame 2,5 giây sau thu nhỏ 360×640: ngoài thẻ alpha 0, mặt giấy alpha 254. Chi tiết `checklist_sua_camera_alpha.json`. Màu đen ngoài thẻ trong trình xem PNG là vùng trong suốt, không phải nền đen đã burn.
+- Chỉ trích ba khung và một frame RGBA trên local; render MOV thực hiện trên Actions. Chưa ghép MOV đã sửa vào video nghiệm thu mới hoặc kiểm tra chuyển động toàn clip liên tục.
