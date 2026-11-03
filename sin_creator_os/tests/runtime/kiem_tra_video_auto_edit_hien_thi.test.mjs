@@ -102,6 +102,12 @@ test("clip Auto Edit đã lưu vẫn hiện sau khi mở lại trang và chưa c
       created_at: "2026-11-01T00:01:00Z",
     },
   ];
+  for (const sourceProduct of ["AUTO_EDIT_HYPERFRAMES", "GOOGLE_FLOW"]) {
+    assets.push({ ...assets[0], id: sourceProduct, source_product: sourceProduct,
+      original_filename: `canh_${sourceProduct}.mp4` });
+  }
+  assets.push({ ...assets[0], id: "derived-upload", parent_asset_id: "source-video",
+    original_filename: "ban_dan_xuat.mp4" });
   const html = renderToStaticMarkup(React.createElement(exports.TuDongDungVideoDai, {
     projectId: "project-1",
     assets,
@@ -112,4 +118,6 @@ test("clip Auto Edit đã lưu vẫn hiện sau khi mở lại trang và chưa c
   assert.doesNotMatch(html, /phu_de\.srt|am_thanh\.mp3|manifest\.json/);
   assert.doesNotMatch(html, /Chỉnh trong Studio|video-studio/);
   assert.match(html, /Chờ nhân viên rà soát/);
+  assert.doesNotMatch(html, /canh_AUTO_EDIT_HYPERFRAMES|canh_GOOGLE_FLOW|ban_dan_xuat/);
+  assert.match(html, /value="source-video"/);
 });

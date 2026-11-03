@@ -110,6 +110,11 @@ def tu_dong_dung_video_dai(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy video nguồn trong workspace.")
     if source.project_id and source.project_id != project_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video nguồn không thuộc dự án này.")
+    if source.source_product != "UPLOAD" or source.parent_asset_id:
+        raise HTTPException(status_code=409, detail={
+            "error_code": "AUTO_EDIT_ORIGINAL_SOURCE_REQUIRED",
+            "message": "Chọn video gốc tải lên; không dùng thành phẩm hoặc cảnh AI để dựng lại.",
+        })
 
     llm = LLMClient.from_db(db)
     if not llm.is_enabled:

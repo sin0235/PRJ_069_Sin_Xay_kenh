@@ -28,7 +28,7 @@ const nhanTrangThaiDienHoa = (state: string) => {
 
 export function TuDongDungVideoDai({ projectId, assets, onAssetsChanged, initialOutputAssetId }: TuDongDungVideoDaiProps) {
   const videos = assets.filter(
-    (asset) => asset.mime_detected.startsWith("video/") && asset.source_product !== "AUTO_EDIT",
+    (asset) => asset.mime_detected.startsWith("video/") && asset.source_product === "UPLOAD" && !asset.parent_asset_id,
   );
   const [sourceAssetId, setSourceAssetId] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);

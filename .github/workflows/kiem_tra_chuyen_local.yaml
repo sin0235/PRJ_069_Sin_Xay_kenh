@@ -21,7 +21,7 @@ jobs:
           python-version: '3.11'
       - run: python -m pip install -r sin_content_api/requirements.txt python-multipart soundfile numpy
       - name: Kiểm tra transfer, fencing, upload và worker
-        run: python -m pytest sin_content_api/tests/test_tac_vu_tu_xa.py sin_content_api/tests/test_media_studio_upload_stream.py sin_content_api/tests/test_worker_dien_hoa_hyperframes.py sin_content_api/tests/test_phan_tich_am_thanh_tu_xa.py -q
+        run: python -m pytest sin_content_api/tests/test_tac_vu_tu_xa.py sin_content_api/tests/test_media_studio_upload_stream.py sin_content_api/tests/test_worker_dien_hoa_hyperframes.py sin_content_api/tests/test_phan_tich_am_thanh_tu_xa.py sin_content_api/tests/test_nguon_auto_edit_goc.py -q
       - name: Kiểm tra overlay động và chữ checklist
         run: |
           sudo apt-get update -qq

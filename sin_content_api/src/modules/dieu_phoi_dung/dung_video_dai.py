@@ -1694,6 +1694,8 @@ def dung_video_dai(
     ).first()
     if not source or not (source.mime_detected or "").startswith("video/"):
         raise ValueError("VIDEO_SOURCE_NOT_FOUND")
+    if source.source_product != "UPLOAD" or source.parent_asset_id:
+        raise ValueError("AUTO_EDIT_ORIGINAL_SOURCE_REQUIRED")
 
     source_path = (MEDIA_ROOT_DIR / source.storage_key).resolve()
     if not source_path.is_relative_to(MEDIA_ROOT_DIR.resolve()) or not source_path.is_file():
