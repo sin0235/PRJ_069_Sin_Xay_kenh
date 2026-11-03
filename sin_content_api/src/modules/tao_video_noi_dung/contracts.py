@@ -72,12 +72,17 @@ class CreateRunRequest(BaseModel):
     tts_reference_asset_id: str | None = Field(default=None, min_length=1, max_length=36)
     tts_reference_text: str | None = Field(default=None, max_length=3000)
     voice_clone_consent: bool = False
+    voice_profile_id: str | None = Field(default=None, min_length=1, max_length=36)   # giọng đã lưu trong thư viện clone giọng
     include_subtitles: bool = True
     idempotency_key: str = Field(min_length=8, max_length=128)
 
     @model_validator(mode="after")
     def validate_voice_choice(self):
         tts = self.tts_provider is not None
+        if self.voice_profile_id:   # service đổi thành cấu hình TTS đầy đủ từ hồ sơ giọng; không trộn với chọn giọng thủ công
+            if self.voice_asset_id or tts or self.tts_voice_id or self.tts_reference_asset_id or self.tts_reference_text or self.voice_clone_consent                     or self.voice_source in {"NONE", "UPLOAD"}:
+                raise ValueError("Giọng đã lưu không dùng cùng voiceover tải lên hoặc cấu hình TTS thủ công.")
+            return self
         if self.voice_asset_id and self.voice_asset_id == self.music_asset_id:
             raise ValueError("Giọng đọc và nhạc nền phải là hai tệp khác nhau.")
         if self.voice_asset_id and tts:

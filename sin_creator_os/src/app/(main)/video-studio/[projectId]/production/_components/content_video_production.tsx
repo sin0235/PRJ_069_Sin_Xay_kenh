@@ -55,6 +55,9 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
   const [ttsReferenceAssetId, setTtsReferenceAssetId] = React.useState("");
   const [ttsReferenceText, setTtsReferenceText] = React.useState("");
   const [voiceCloneConsent, setVoiceCloneConsent] = React.useState(false);
+  const [voiceProfiles, setVoiceProfiles] = React.useState<{ id: string; name: string }[]>([]);
+  const [voiceProfileId, setVoiceProfileId] = React.useState("");
+  React.useEffect(() => { voiceStudioApi.listVoices().then((rows) => setVoiceProfiles(rows.map((row) => ({ id: row.id, name: row.name })))).catch(() => setVoiceProfiles([])); }, []);
   const [reconcileAssetId, setReconcileAssetId] = React.useState("");
   const [reconcileReason, setReconcileReason] = React.useState("");
   const [confirmedClipMatch, setConfirmedClipMatch] = React.useState(false);
@@ -225,6 +228,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
         referenceAssetId: ttsReferenceAssetId || undefined,
         referenceText: ttsReferenceText.trim() || undefined,
         consent: voiceCloneConsent,
+        voiceProfileId: voiceProfileId || undefined,
         includeSubtitles,
       }, idempotencyKey.current, flowProfileId);
       idempotencyKey.current = null;
@@ -535,6 +539,13 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
           </>}
           {voiceSource === "TTS" && <>
             {!ttsReady && <p className="text-sm text-muted-foreground" role="status">TTS chưa sẵn sàng. Cần chuẩn bị model và khởi động worker trước khi tạo video.</p>}
+            {voiceProfiles.length > 0 && <>
+              <label htmlFor="voice-profile" className="text-sm">Giọng đã lưu (thư viện clone giọng)</label>
+              <select id="voice-profile" value={voiceProfileId} onChange={(event) => { setVoiceProfileId(event.target.value); idempotencyKey.current = null; }} className="h-10 rounded-md border bg-background px-3 text-sm">
+                <option value="">Không dùng giọng đã lưu</option>{voiceProfiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
+              </select>
+            </>}
+            {!voiceProfileId && <>
             <label htmlFor="tts-provider" className="text-sm">Nhà cung cấp TTS</label>
             <select id="tts-provider" value={ttsProvider} onChange={(event) => { setTtsProvider(event.target.value as typeof ttsProvider); idempotencyKey.current = null; }} className="h-10 rounded-md border bg-background px-3 text-sm">
               <option value="VIE_NEU_V3_TURBO">VieNeu v3 Turbo</option><option value="GWEN_TTS" disabled>Gwen-TTS — chưa sẵn sàng</option>
@@ -551,6 +562,7 @@ export default function ContentVideoProduction({ projectId, planId, runId, start
               <textarea value={ttsReferenceText} onChange={(event) => { setTtsReferenceText(event.target.value); idempotencyKey.current = null; }} maxLength={3000} required className="min-h-20 rounded-md border bg-background p-3 text-sm" />
             </label>}
             {ttsReferenceAssetId && <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={voiceCloneConsent} onChange={(event) => { setVoiceCloneConsent(event.target.checked); idempotencyKey.current = null; }} className="mt-1" />Tôi có quyền sử dụng audio tham chiếu để tạo giọng đọc.</label>}
+            </>}
           </>}
           <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={includeSubtitles} onChange={(event) => { setIncludeSubtitles(event.target.checked); idempotencyKey.current = null; }} className="mt-1" /><span><span className="font-medium">Thêm phụ đề khi ghép video</span><span className="block text-xs text-muted-foreground">Phụ đề karaoke tô từ theo giọng đọc thật (nhận dạng giọng nói để lấy mốc thời gian). Có thể ghép lại có/không phụ đề sau khi video hoàn tất.</span></span></label>
           <p className="text-xs text-muted-foreground">Mỗi run chỉ dùng một nguồn lời đọc. Nếu TTS lỗi, hệ thống dừng run và không tự đổi nhà cung cấp.</p>
