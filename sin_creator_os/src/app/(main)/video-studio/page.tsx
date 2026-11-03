@@ -153,7 +153,7 @@ export default function VideoStudioIndexPage() {
         <aside className="grid content-start gap-5 border-t pt-5 lg:border-l lg:border-t-0 lg:pl-7 lg:pt-0" aria-label="Cấu hình sản xuất">
           <div>
             <h2 className="font-semibold">Phong cách đã khóa</h2>
-            <p className="mt-1 text-sm text-muted-foreground">BAHA Editorial Motion B2B: hoạt họa biên tập cao cấp, nền midnight, viền champagne, xanh BAHA; cảnh Flow xen kẽ sơ đồ dựng bằng mã.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Origami giấy gấp: nhân vật, đạo cụ và bối cảnh đều là mô hình giấy hoàn chỉnh, không dùng người thật; cảnh Flow xen kẽ sơ đồ dựng bằng mã.</p>
           </div>
           <dl className="grid gap-3 text-sm">
             <div className="flex justify-between gap-4 border-b pb-2"><dt className="text-muted-foreground">Bảng màu</dt><dd className="text-right">Xanh navy · trắng ngà · xanh teal</dd></div>

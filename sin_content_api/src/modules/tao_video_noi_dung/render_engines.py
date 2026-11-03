@@ -38,7 +38,7 @@ def engines_dir() -> Path:
 def selected_engine(style_snapshot: dict | None) -> str:
     style = style_snapshot or {}
     configured = style.get("render_engine") or os.environ.get("CONTENT_VIDEO_RENDER_ENGINE")
-    name = str(configured or ("hyperframes" if "baha editorial motion" in str(style.get("style_name", "")).casefold() else "playwright")).lower()
+    name = str(configured or ("hyperframes" if "editorial motion" in str(style.get("style_name", "")).casefold() else "playwright")).lower()
     if name not in ENGINES:
         raise ValueError("RENDER_ENGINE_INVALID")
     return name
@@ -252,7 +252,7 @@ def assembly_mode(style_snapshot: dict | None) -> str:
     """Cách ghép cả video: classic (từng cảnh thành MP4 rồi video_processor ghép) hoặc hyperframes (cả video là một dự án HyperFrames:
     cảnh viết bằng GSAP, chuyển cảnh, phụ đề động, giọng). Chọn bằng style_snapshot["assembly"] hoặc CONTENT_VIDEO_ASSEMBLY."""
     style = style_snapshot or {}
-    default = "hyperframes" if "baha editorial motion" in str(style.get("style_name", "")).casefold() else "classic"
+    default = "hyperframes" if "editorial motion" in str(style.get("style_name", "")).casefold() else "classic"
     name = str(style.get("assembly") or os.environ.get("CONTENT_VIDEO_ASSEMBLY") or default).lower()
     if name not in ("classic", "hyperframes"):
         raise ValueError("ASSEMBLY_MODE_INVALID")

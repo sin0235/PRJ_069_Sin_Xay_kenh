@@ -26,18 +26,18 @@ from .cong_harness import approval_receipt_hash, build_shot_receipt, canonical_h
 from .planner import Storyboard, fixed_shot_target, generate_storyboard
 
 _CONTENT_VIDEO_STYLE_SNAPSHOT = StyleSnapshot(
-    style_name="BAHA Editorial Motion B2B v1",
+    style_name="Origami Editorial Motion B2B v1",
     visual_rules=(
-        "Phong cách hoạt họa biên tập cao cấp cho nội dung B2B: kể bằng đạo cụ, không gian và hành động có nguyên nhân-kết quả; "
-        "chất liệu sành điệu, ánh sáng điện ảnh, có chiều sâu tiền-trung-hậu cảnh và bố cục động. "
-        "Không dàn dựng như slide hoặc bài thuyết trình, không để dashboard chiếm toàn màn hình; chọn chất liệu theo câu chuyện. "
-        "Theo nhận diện BAHA Midnight Champagne: nền midnight #0B0F17, bảng kính xám xanh nhiều lớp, viền sáng champagne #D9B26A và chữ #F2EEE6; "
-        "xanh BAHA #0562AF và #5FA8FF là tuyến hành động chính/xử lý đúng, đỏ BAHA #ED1B24 chỉ đánh dấu vấn đề, vàng #FABC11 là CTA hoặc mốc quan trọng. "
-        "Không phát sáng champagne và xanh trên cùng một vật thể. Dùng 3 lớp tiền-trung-hậu cảnh; lớp gần camera chuyển nhanh hơn nền, đường neo dẫn mắt và dolly chuyển cảnh; "
-        "xếp lớp, rọi sáng màu, parallax và chuyển động có nguyên nhân; không thêm hiệu ứng trang trí làm đổi nghĩa. "
-        "Flow không sinh chữ, số, logo hoặc watermark; giao diện cần đọc được dùng cảnh UI_SIM hoặc HyperFrames, thẻ cuối ghép logo BAHA chính thức."
+        "Phong cách hoạt họa giấy origami cao cấp cho nội dung B2B: đạo cụ, tài liệu, hộp hàng, bản đồ quy trình và bối cảnh đều là mô hình giấy gấp "
+        "nếp rõ, thớ giấy thủ công, đổ bóng mềm, ánh sáng ấm dịu, có chiều sâu tiền-trung-hậu cảnh và bố cục động. "
+        "KHÔNG DÙNG NGƯỜI THẬT: không quay người thật, không bàn tay hay ngón tay thật, không ảnh chân dung thật; mọi nhân vật đều là người giấy origami "
+        "dáng gấp rõ, mặt cách điệu hai mắt cân đối, được dùng bình thường khi câu chuyện cần. "
+        "Mỗi cảnh một hành động liền mạch có nguyên nhân-kết quả, camera mượt, lớp gần camera chuyển nhanh hơn nền, không biến hình, không rung giật. "
+        "Không dàn dựng như slide hoặc bài thuyết trình. Chỉ mô tả các mô hình origami đã gấp hoàn chỉnh, không thể hiện thao tác gấp giấy. "
+        "Màu chủ đạo xanh navy, trắng ngà, xanh teal với điểm nhấn vàng kim; màu đỏ chỉ đánh dấu điểm có vấn đề. "
+        "Flow không sinh chữ, số, logo, tên thương hiệu hay watermark; thông tin cần đọc được dùng cảnh sơ đồ dựng bằng mã, thẻ cuối ghép logo chính thức bằng mã."
     ),
-    palette=["midnight #0B0F17", "champagne #D9B26A", "chữ sáng #F2EEE6", "xanh BAHA #0562AF", "xanh sáng #5FA8FF", "đỏ BAHA #ED1B24", "vàng CTA #FABC11"],
+    palette=["xanh navy #12355B", "trắng ngà #F4EFE4", "xanh teal #1F8A8A", "vàng kim #D9B26A", "đỏ điểm nhấn vấn đề #ED1B24"],
 )
 
 
