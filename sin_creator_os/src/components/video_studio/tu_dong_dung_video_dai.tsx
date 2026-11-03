@@ -515,7 +515,7 @@ export function TuDongDungVideoDai({ projectId, assets, onAssetsChanged, initial
               aria-label="Xem trước clip dựng tự động"
             >
               {previewCaptionUrl && (
-                <track kind="captions" srcLang="vi" label="Tiếng Việt" src={previewCaptionUrl} default />
+                <track kind="captions" srcLang="vi" label="Tiếng Việt" src={previewCaptionUrl} />
               )}
             </video>
           )}
