@@ -97,9 +97,17 @@ def execute_isolated(spec, inputs, output, root, heartbeat_errors):
 def oidc(origin):
     endpoint = os.environ['ACTIONS_ID_TOKEN_REQUEST_URL']
     headers = {'Authorization': 'Bearer ' + os.environ['ACTIONS_ID_TOKEN_REQUEST_TOKEN']}
-    response = httpx.get(endpoint, params={'audience': origin}, headers=headers, timeout=20)
-    response.raise_for_status()
-    return response.json()['value']
+    for attempt in range(4):
+        try:
+            response = httpx.get(endpoint, params={'audience': origin}, headers=headers, timeout=20)
+            if response.status_code in {429, 502, 503, 504}:
+                raise httpx.ReadTimeout('OIDC temporarily unavailable')
+            response.raise_for_status()
+            return response.json()['value']
+        except httpx.TransportError:
+            if attempt == 3:
+                raise
+            time.sleep(2 ** attempt)
 
 
 def request(client, method, url, **kwargs):
@@ -187,8 +195,13 @@ def main():
     last_task = time.monotonic()
     with httpx.Client(timeout=httpx.Timeout(180, connect=20), follow_redirects=False) as client:
         while time.monotonic() < deadline and time.monotonic() - last_task < 300:
-            response = request(client, 'POST', base + '/claim', params={'session_id': args.session_id},
-                               headers={'Authorization': 'Bearer ' + oidc(origin)})
+            try:
+                response = request(client, 'POST', base + '/claim', params={'session_id': args.session_id},
+                                   headers={'Authorization': 'Bearer ' + oidc(origin)})
+            except httpx.TransportError:
+                print(json.dumps({'state': 'RECONNECTING', 'error': 'REMOTE_CONTROL_TIMEOUT'}), flush=True)
+                time.sleep(10)
+                continue
             data = response.json()
             if data.get('task'):
                 last_task = time.monotonic()

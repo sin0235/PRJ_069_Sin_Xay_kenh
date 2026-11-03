@@ -4,6 +4,35 @@ import pytest
 from src.modules.tac_vu_tu_xa.service import TaskStore, RemoteTaskError
 
 
+def test_oidc_temporary_timeout_retries_without_losing_completed_jobs(monkeypatch):
+    import importlib.util
+    import httpx
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[1] / 'scripts/chay_tac_vu_tu_xa.py'
+    spec = importlib.util.spec_from_file_location('remote_runner_retry_test', path)
+    module = importlib.util.module_from_spec(spec)
+    # Nạp script worker không được thay môi trường của bộ test cha.
+    import os
+    before = dict(os.environ)
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        os.environ.clear()
+        os.environ.update(before)
+    monkeypatch.setenv('ACTIONS_ID_TOKEN_REQUEST_URL', 'https://test.example/oidc')
+    monkeypatch.setenv('ACTIONS_ID_TOKEN_REQUEST_TOKEN', 'test-only')
+    calls = []
+    def get(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise httpx.ReadTimeout('temporary')
+        return httpx.Response(200, request=httpx.Request('GET', args[0]), json={'value': 'token'})
+    monkeypatch.setattr(module.httpx, 'get', get)
+    monkeypatch.setattr(module.time, 'sleep', lambda _: None)
+    assert module.oidc('https://origin.example') == 'token'
+    assert len(calls) == 2
+
+
 @pytest.mark.parametrize('supports_range', [True, False])
 def test_download_resumes_partial_file_or_restarts_when_range_ignored(tmp_path, supports_range):
     import httpx

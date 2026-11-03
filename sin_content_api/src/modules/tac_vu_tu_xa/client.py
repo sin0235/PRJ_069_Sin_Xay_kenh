@@ -44,8 +44,7 @@ def ensure_runner(store):
         if _runner_probe[2]:
             with store.connect() as db:
                 db.execute('DELETE FROM runner_session WHERE session_id=?', (session['session_id'],))
-            if not session['ready']:
-                raise RemoteTaskError('REMOTE_RUNNER_START_FAILED')
+            # Phiên cũ đã kết thúc phải nhường chỗ cho phiên mới, kể cả DB nhập trước khi có cờ ready.
     with store.connect() as db:
         row = db.execute('SELECT * FROM runner_session WHERE id=1').fetchone()
         if row and row['updated'] > now - (240 if row['ready'] else 1800):
