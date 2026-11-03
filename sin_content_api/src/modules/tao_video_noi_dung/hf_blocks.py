@@ -11,6 +11,7 @@ Hai cách dùng:
 Danh sách khối đã kiểm bằng ảnh chụp nằm trong blocks/catalog.json (xem tools_catalog)."""
 from __future__ import annotations
 
+import html
 import json
 import re
 import zlib
@@ -51,7 +52,7 @@ def block_path(name: str) -> Path:
     return path
 
 
-def prepare_block(name: str, cid: str, duration: float | None = None) -> str:
+def prepare_block(name: str, cid: str, duration: float | None = None, literals: dict[str, str] | None = None) -> str:
     """Mã khối cho MỘT lần dùng: bỏ CDN, đổi định danh `name` thành `cid`. Khối đọc độ dài D từ `data-duration` của chính nó
     (không lấy từ thẻ host) nên phải ghi D thật vào đó, nếu không khối thoát cảnh theo độ dài mặc định."""
     text = block_path(name).read_text(encoding="utf-8")
@@ -63,6 +64,10 @@ def prepare_block(name: str, cid: str, duration: float | None = None) -> str:
         text = re.sub(r'(dataset\.duration\s*\|\|\s*")[\d.]+(")', lambda m: f"{m.group(1)}{duration:.3f}{m.group(2)}", text)
     for english, vietnamese in _VIETNAMESE_TEXT.get(name, {}).items():
         text = text.replace(f'"{english}"', f'"{vietnamese}"')
+    for old, new in (literals or {}).items():   # chữ cố định trong mã khối mà khối không có biến: thay bằng nội dung của cảnh
+        if old not in text:
+            raise ValueError(f"HYPERFRAMES_BLOCK_LITERAL_MISSING:{name}:{old[:30]}")
+        text = text.replace(old, new)   # new do hàm dựng literals tự escape phần nội dung
     return re.sub(rf"(?<![A-Za-z0-9]){re.escape(name)}(?![A-Za-z0-9_])", cid, text)
 
 
@@ -100,6 +105,7 @@ class Variant:
     block: str
     variables: Callable[[dict], dict]
     max_chars: int = 999   # khối cỡ chữ cố định chỉ hợp tiêu đề ngắn
+    literals: Callable[[dict], dict] | None = None   # chữ cố định trong mã khối cần thay theo nội dung cảnh
 
 
 def _num(value, default: float) -> float:
@@ -111,6 +117,10 @@ def _num(value, default: float) -> float:
 
 def _headline(d):
     return {"text": d["title"], "accent_word_index": _accent_index(d["title"], d.get("tag")), "accent": "green", "shadow": True}
+
+
+def _plain(d):
+    return {"text": d["title"], "accent": "green", "spread": "tight"}
 
 
 def _shutter(d):
@@ -162,6 +172,41 @@ def _center_build(d):
     return {"text": d["title"], "font_size": 96, "color": "#f6efe0", "font_weight": "700"}
 
 
+def _rank(d):
+    steps = list(d.get("steps") or [])
+    return {"prompt": d["title"], "lead": d.get("caption") or "Đây là các gợi ý hàng đầu:", "rowA": steps[0], "rowB": steps[1], "rowC": steps[2],
+            "brand": d.get("tag") or "Doanh nghiệp bạn", "brandRank": str(int(d.get("pick") or 0) + 1), "accent": "#e8a50a", "ink": "#16283d", "ground": "#fbf3df"}
+
+
+def _drag(d):
+    return {"card_label": d["steps"][0], "accent": "#e8a50a", "tone": "dark"}
+
+
+def _e(value) -> str:
+    return html.escape(str(value), quote=False)
+
+
+def _drag_literals(d):
+    steps, days = [_e(s) for s in d["steps"]], ("T2", "T3", "T4")
+    chip = "Việc"
+    return {
+        "To do <span": f"{_e(d['title'])} <span", "In progress <span": f"{_e(d.get('caption') or 'Đang làm')} <span",
+        '--chip: #d9480f">Marketing<': f'--chip: #d9480f">{chip}<', '--chip: #2b8a3e">Video<': f'--chip: #2b8a3e">{chip}<',
+        '--chip: #1971c2">Docs<': f'--chip: #1971c2">{chip}<', '--chip: #c2255c">Bug<': '--chip: #c2255c">Gấp<',
+        "Draft onboarding email": steps[1], "Record product walkthrough": steps[2], "Update pricing FAQ": steps[3],
+        "Thu <span": f"{days[0]} <span", "Mon <span": f"{days[1]} <span", "Tue <span": f"{days[2]} <span", "Today <span": "Nay <span",
+    }
+
+
+def _shift(d):
+    steps = list(d["steps"])
+    return {"label_a": steps[0], "label_b": steps[1], "accent": "green"}
+
+
+def _shift_literals(d):
+    return {"</span>Workspace</span>": f"</span>{_e(d['title'])}</span>"}
+
+
 def _match_cut(d):
     words = d["title"].split()
     half = max(1, len(words) // 2)
@@ -170,18 +215,22 @@ def _match_cut(d):
 
 # layout -> các biến thể khối (chọn một theo nội dung). Chỉ liệt kê khối đã dựng và xem bằng ảnh chụp (xem blocks/catalog.json).
 BLOCK_SCENES: dict[str, list[Variant]] = {
-    "KINETIC_TITLE": [Variant("headline-slam", _headline, 14), Variant("shutter-slam", _shutter, 22), Variant("titlecard-calm", _titlecard),
+    "KINETIC_TITLE": [Variant("headline-slam", _headline, 14), Variant("char-slam-explode", _plain, 16), Variant("shutter-slam", _shutter, 22), Variant("titlecard-calm", _titlecard),
                       Variant("kinetic-center-build", _center_build), Variant("text-match-cut", _match_cut)],
     "MARK_PHRASE": [Variant("marker-highlight", _mark("highlight")), Variant("marker-highlight", _mark("circle")), Variant("vox-annotate", _vox), Variant("marker-highlight", _mark("underline"))],
     "WORD_SWAP": [Variant("kinetic-type-swap", _swap)],
     "PILE_UP": [Variant("overwhelm-surround", _overwhelm)],
     "STAT_RING": [Variant("conic-progress-ring", _ring)],
     "CHART_STORY": [Variant("chart-story", _chart("bars")), Variant("chart-story", _chart("line"))],
+    "AI_RANK": [Variant("ai-answer-rank", _rank)],
+    "DRAG_TASKS": [Variant("cursor-drag-drop", _drag, literals=_drag_literals)],
+    "CARD_SHIFT": [Variant("focus-rack", _shift, literals=_shift_literals)],
 }
 
 
 # hệ số phóng cảnh khối ở khung 9:16 (đã xem bằng ảnh chụp)
 PORTRAIT_SCALE = {"MARK_PHRASE": 1.5, "WORD_SWAP": 1.5, "CHART_STORY": 1.25}
+SQUARE_BLOCKS = ("AI_RANK",)   # ai-answer-rank vẽ trong khung vuông 1080x1080
 
 
 def pick_variant(layout: str, data: dict) -> Variant:
@@ -195,4 +244,6 @@ def scene_composition(layout: str, cid: str, data: dict, duration: float | None 
     variant = pick_variant(layout, data)
     scale = PORTRAIT_SCALE.get(layout, 1.0) if data.get("portrait") else 1.0   # khung 9:16 hẹp hơn nên khối cỡ chữ theo chiều ngang trông nhỏ
     style = THEME_STYLE + (f";transform:scale({scale});transform-origin:50% 50%" if scale != 1.0 else "")
-    return prepare_block(variant.block, cid, duration), host_attrs(variant.variables(data)), style
+    if layout in SQUARE_BLOCKS:   # khối vuông 1080x1080 đặt giữa khung
+        style += ";transform:translate(0,420px)" if data.get("portrait") else ";transform:translate(420px,0)"
+    return prepare_block(variant.block, cid, duration, variant.literals(data) if variant.literals else None), host_attrs(variant.variables(data)), style

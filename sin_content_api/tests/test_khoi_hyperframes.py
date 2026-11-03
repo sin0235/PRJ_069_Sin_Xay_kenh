@@ -13,6 +13,9 @@ VALID = {
     "WORD_SWAP": {"title": "Báo cáo", "steps": ["chậm", "lệch", "muộn"], "caption": "mỗi tuần"},
     "PILE_UP": {"title": "Chủ shop", "value": "16"},
     "STAT_RING": {"title": "Đơn đúng hạn", "to_value": 86, "caption": "Đơn đúng hạn"},
+    "AI_RANK": {"title": "Khách hỏi AI nên mua phần mềm nào", "steps": ["Nhà cung cấp A", "Nhà cung cấp B", "Nhà cung cấp C"], "tag": "Baha", "pick": 0, "caption": "Gợi ý hàng đầu:"},
+    "DRAG_TASKS": {"title": "Cần làm", "caption": "Đang xử lý", "steps": ["Báo khách đơn trễ", "Đối chiếu mã hàng", "Ghi giờ bàn giao", "Duyệt hoàn tiền"]},
+    "CARD_SHIFT": {"title": "Đơn hàng", "steps": ["Nhập tay", "Tự đồng bộ"]},
     "CHART_STORY": {"title": "Doanh thu", "labels": ["Q1", "Q2", "Q3", "Q4"], "series": [{"name": "dt", "values": [12, 28, 45, 64]}], "unit": "%"},
 }
 
@@ -40,6 +43,13 @@ def test_cau_truc_hop_le_va_khong_can_moc_su_kien(layout):
     ("STAT_RING", {"to_value": 130}),
     ("CHART_STORY", {"series": [{"name": "dt", "values": [5, 5, 5, 5]}]}),
     ("CHART_STORY", {"labels": ["Q1", "Q2"]}),
+    ("AI_RANK", {"steps": ["A", "A", "B"]}),
+    ("AI_RANK", {"tag": "Nhà cung cấp A"}),
+    ("AI_RANK", {"pick": 3}),
+    ("DRAG_TASKS", {"steps": ["a", "b", "c"]}),
+    ("DRAG_TASKS", {"caption": None}),
+    ("CARD_SHIFT", {"steps": ["Cũ", "cũ"]}),
+    ("CARD_SHIFT", {"steps": ["Cũ", "Mới", "Mới hơn"]}),
 ])
 def test_du_lieu_sai_bi_tu_choi(layout, override):
     with pytest.raises(ValueError, match=f"DIAGRAM_{layout}_FIELDS"):
@@ -170,3 +180,14 @@ def test_canh_bao_mem_khi_video_khong_dung_canh_khoi():
     assert not any(p.startswith("DIAGRAM_BLOCK_LAYOUT_MISSING") for p in planner._soft_problems(du))
     it_shot_ui = _storyboard_nhieu_canh_ui(["PROCESS_RAIL"] * 4)
     assert not any(p.startswith("DIAGRAM_BLOCK_LAYOUT_MISSING") for p in planner._soft_problems(it_shot_ui))
+
+
+def test_chu_co_dinh_duoc_thay_bang_noi_dung_canh():
+    drag = hf_blocks.prepare_block("cursor-drag-drop", "s04", 5, hf_blocks._drag_literals(VALID["DRAG_TASKS"]))
+    for english in ("To do <span", "Draft onboarding email", "Marketing", "Fix checkout", "Update pricing FAQ"):
+        assert english not in drag.replace('"Fix checkout validation"', "")
+    assert "Cần làm <span" in drag and "Đối chiếu mã hàng" in drag and "Duyệt hoàn tiền" in drag
+    shift = hf_blocks.prepare_block("focus-rack", "s05", 5, hf_blocks._shift_literals(VALID["CARD_SHIFT"]))
+    assert "Workspace" not in shift and "</span>Đơn hàng</span>" in shift
+    with pytest.raises(ValueError, match="HYPERFRAMES_BLOCK_LITERAL_MISSING"):
+        hf_blocks.prepare_block("focus-rack", "s06", 5, {"không có trong khối": "x"})

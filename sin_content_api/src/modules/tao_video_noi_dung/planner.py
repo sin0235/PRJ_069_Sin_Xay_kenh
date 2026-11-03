@@ -106,9 +106,9 @@ DIAGRAM_LAYOUTS = ("CHART_TARGET", "CHART_GROWTH", "COMPARE_DOCS", "PROCESS_RAIL
                   "FUNNEL", "TIMELINE", "BEFORE_AFTER", "DONUT_SHARE", "GAUGE", "CHECKLIST",
                   "HUB_SPOKE", "MATRIX_2X2", "RANK_BARS", "KPI_CARDS", "ASSIGN_CARDS", "WAIT_CLOCK", "RADAR_SCAN",
                   "RACE_LANES", "TABLE_AUDIT", "ALERT_STACK", "PYRAMID_LEVELS", "VERSUS_LIST", "DOC_SEARCH",
-                  "KINETIC_TITLE", "MARK_PHRASE", "WORD_SWAP", "PILE_UP", "STAT_RING", "CHART_STORY")
+                  "KINETIC_TITLE", "MARK_PHRASE", "WORD_SWAP", "PILE_UP", "STAT_RING", "CHART_STORY", "AI_RANK", "DRAG_TASKS", "CARD_SHIFT")
 # Cảnh dựng từ khối HyperFrames dựng sẵn (hf_blocks.py): chuyển động nằm trong khối nên không có mốc sự kiện bám lời đọc (diagram.on rỗng).
-BLOCK_LAYOUTS = ("KINETIC_TITLE", "MARK_PHRASE", "WORD_SWAP", "PILE_UP", "STAT_RING", "CHART_STORY")
+BLOCK_LAYOUTS = ("KINETIC_TITLE", "MARK_PHRASE", "WORD_SWAP", "PILE_UP", "STAT_RING", "CHART_STORY", "AI_RANK", "DRAG_TASKS", "CARD_SHIFT")
 PORTRAIT_DIAGRAM_LAYOUTS = ("BEFORE_AFTER", "KPI_CARDS", "VERSUS_LIST", "CHECKLIST", *BLOCK_LAYOUTS)
 
 
@@ -414,6 +414,16 @@ def validate_diagram(layout: str, spec: DiagramSpec) -> None:
     elif layout == "CHART_STORY":
         if len(spec.series) != 1 or not 3 <= n <= 6 or len(spec.series[0].values) != n or any(not label.strip() or len(label) > 10 for label in spec.labels)                 or len(set(spec.series[0].values)) < 2:
             raise ValueError("DIAGRAM_CHART_STORY_FIELDS")
+    elif layout == "AI_RANK":
+        names = [step.strip().casefold() for step in spec.steps]
+        if len(spec.steps) != 3 or len(set(names)) != 3 or any(not n or len(n) > 18 for n in names) or not spec.tag or len(spec.tag) > 18                 or spec.tag.strip().casefold() in names or spec.pick is None or spec.pick > 2 or len(spec.title.split()) < 3 or len(spec.title) > 60                 or (spec.caption and len(spec.caption) > 40):
+            raise ValueError("DIAGRAM_AI_RANK_FIELDS")
+    elif layout == "DRAG_TASKS":
+        if len(spec.steps) != 4 or any(not step.strip() or len(step) > 26 for step in spec.steps) or len(spec.title) > 14                 or not spec.caption or len(spec.caption) > 14:
+            raise ValueError("DIAGRAM_DRAG_TASKS_FIELDS")
+    elif layout == "CARD_SHIFT":
+        if len(spec.steps) != 2 or any(not step.strip() or len(step) > 14 for step in spec.steps) or spec.steps[0].strip().casefold() == spec.steps[1].strip().casefold()                 or len(spec.title) > 16:
+            raise ValueError("DIAGRAM_CARD_SHIFT_FIELDS")
     need = diagram_required_events(layout, spec)
     optional = {"doc0"} if layout == "COMPARE_DOCS" else set()
     ignored = {"rail", "count"} if layout == "PROCESS_RAIL" else {"block"} if layout == "COST_SLICE" else set()
@@ -428,7 +438,7 @@ class UiScene(BaseModel):
                     "FUNNEL", "TIMELINE", "BEFORE_AFTER", "DONUT_SHARE", "GAUGE", "CHECKLIST",
                     "HUB_SPOKE", "MATRIX_2X2", "RANK_BARS", "KPI_CARDS", "ASSIGN_CARDS", "WAIT_CLOCK", "RADAR_SCAN",
                     "RACE_LANES", "TABLE_AUDIT", "ALERT_STACK", "PYRAMID_LEVELS", "VERSUS_LIST", "DOC_SEARCH",
-                    "KINETIC_TITLE", "MARK_PHRASE", "WORD_SWAP", "PILE_UP", "STAT_RING", "CHART_STORY"]
+                    "KINETIC_TITLE", "MARK_PHRASE", "WORD_SWAP", "PILE_UP", "STAT_RING", "CHART_STORY", "AI_RANK", "DRAG_TASKS", "CARD_SHIFT"]
     messages: list[UiMessage] = Field(default_factory=list, max_length=60)
     highlight: str | None = Field(default=None, max_length=1000)
     diagram: DiagramSpec | None = None
@@ -543,6 +553,9 @@ _DIAGRAM_HINTS = {
     "WORD_SWAP_FIELDS": "title là vế đầu (tối đa 24 ký tự), steps 3 đến 4 phương án khác nhau (tối đa 14 ký tự), caption tùy chọn là vế sau; on để rỗng",
     "PILE_UP_FIELDS": "title là người đang bị dồn việc (tối đa 14 ký tự), value là số lượng việc dạng chữ số từ 8 đến 24; on để rỗng",
     "STAT_RING_FIELDS": "to_value là phần trăm lớn hơn 0 và tối đa 100, caption là nhãn (tối đa 30 ký tự); on để rỗng",
+    "AI_RANK_FIELDS": "title là câu hỏi khách gõ cho AI (3 đến 10 từ), steps đúng 3 tên phương án KHÁC nhau tối đa 18 ký tự (dùng tên chung như Nhà cung cấp A, không nêu thương hiệu thật), tag là tên doanh nghiệp mình (tối đa 18 ký tự, khác steps), pick là vị trí (0 đến 2) tag chen vào, caption tùy chọn; on để rỗng",
+    "DRAG_TASKS_FIELDS": "title là tên cột đầu (tối đa 14 ký tự), caption là tên cột sau (bắt buộc, tối đa 14 ký tự), steps đúng 4 việc tối đa 26 ký tự, việc đầu tiên là việc được kéo sang cột sau; on để rỗng",
+    "CARD_SHIFT_FIELDS": "title là nhãn nhỏ phía trên thẻ (tối đa 16 ký tự), steps đúng 2 nhãn khác nhau tối đa 14 ký tự: thẻ lúc đầu rồi thẻ lúc sau; on để rỗng",
     "CHART_STORY_FIELDS": "series đúng 1 chuỗi, labels 3 đến 6 mục (tối đa 10 ký tự), values cùng số lượng và không phẳng, unit tùy chọn; on để rỗng",
 }
 
@@ -1064,7 +1077,7 @@ def _repair_block_layout(layout: str, diagram: dict) -> None:
     title = diagram.get("title")
     if not isinstance(title, str):
         return
-    limits = {"KINETIC_TITLE": 40, "MARK_PHRASE": 60, "WORD_SWAP": 24, "PILE_UP": 14, "STAT_RING": 40, "CHART_STORY": 40}
+    limits = {"KINETIC_TITLE": 40, "MARK_PHRASE": 60, "WORD_SWAP": 24, "PILE_UP": 14, "STAT_RING": 40, "CHART_STORY": 40, "AI_RANK": 60, "DRAG_TASKS": 14, "CARD_SHIFT": 16}
     if len(title) > limits[layout]:
         diagram["title"] = title = title[:limits[layout]].rstrip().rsplit(" ", 1)[0] or title[:limits[layout]].rstrip()
     tag = diagram.get("tag")
@@ -1082,6 +1095,11 @@ def _repair_block_layout(layout: str, diagram: dict) -> None:
             if isinstance(step, str) and step.strip() and step.strip().casefold() not in {s.casefold() for s in unique}:
                 unique.append(step.strip()[:14].rstrip())
         diagram["steps"] = unique[:4]
+    if layout in ("AI_RANK", "DRAG_TASKS", "CARD_SHIFT") and isinstance(steps, list):
+        cap = {"AI_RANK": 18, "DRAG_TASKS": 26, "CARD_SHIFT": 14}[layout]
+        diagram["steps"] = [step.strip()[:cap].rstrip() for step in steps if isinstance(step, str) and step.strip()][:{"AI_RANK": 3, "DRAG_TASKS": 4, "CARD_SHIFT": 2}[layout]]
+    if layout == "AI_RANK" and isinstance(diagram.get("pick"), int) and not isinstance(diagram.get("pick"), bool):
+        diagram["pick"] = min(2, max(0, diagram["pick"]))
     if layout == "PILE_UP":
         digits = re.sub(r"\D", "", str(diagram.get("value") or ""))
         diagram["value"] = str(min(24, max(8, int(digits)))) if digits else "12"
@@ -1412,6 +1430,9 @@ def generate_storyboard(
             "PILE_UP (việc, tin nhắn, thông báo dồn dập quanh một người: title là người đó tối đa 14 ký tự, value là số lượng dạng chữ số từ 8 đến 24), "
             "STAT_RING (vòng tròn đầy tới một phần trăm: to_value lớn hơn 0 và tối đa 100, caption là nhãn tối đa 30 ký tự), "
             "CHART_STORY (biểu đồ cột hoặc đường tự kể: series đúng 1 chuỗi {name,values}, labels 3 đến 6 mục tối đa 10 ký tự, values cùng số lượng và không phẳng, unit tùy chọn). "
+            "Ba loại chuyển động dựng sẵn nữa, cùng quy tắc: AI_RANK (khách hỏi AI và danh sách gợi ý đổi chỗ khi doanh nghiệp xuất hiện: title là câu hỏi 3 đến 10 từ, steps đúng 3 tên phương án khác nhau tối đa 18 ký tự dùng tên chung như Nhà cung cấp A, tag là tên doanh nghiệp mình tối đa 18 ký tự, pick là vị trí 0 đến 2 mà tag chen vào, caption tùy chọn là câu dẫn tối đa 40 ký tự), "
+            "DRAG_TASKS (bảng việc kéo một thẻ sang cột kế: title là tên cột đầu tối đa 14 ký tự, caption là tên cột sau tối đa 14 ký tự, steps đúng 4 việc tối đa 26 ký tự, việc đầu tiên là việc được kéo), "
+            "CARD_SHIFT (hai thẻ, tiêu điểm chuyển từ thẻ cũ sang thẻ mới: title là nhãn nhỏ tối đa 16 ký tự, steps đúng 2 nhãn khác nhau tối đa 14 ký tự: lúc đầu rồi lúc sau). "
             "Các loại này hợp với khung 9:16 và không tốn thời gian dựng như clip Flow; dùng chúng cho các shot nhấn ý ngắn. "
             "BẮT BUỘC: video có từ 5 shot UI_SIM trở lên phải dùng ít nhất 3 shot thuộc sáu loại này, mỗi loại tối đa 2 shot: PILE_UP hoặc WORD_SWAP cho nỗi đau, "
             "KINETIC_TITLE để mở chương hoặc chuyển ý, MARK_PHRASE cho câu insight then chốt, STAT_RING hoặc CHART_STORY cho kết quả hoặc bằng chứng; "
@@ -1447,7 +1468,7 @@ def generate_storyboard(
             " CHẾ ĐỘ CHỈ CẢNH GIẤY DỰNG BẰNG MÃ (style_snapshot.diagram_only): MỌI shot phải là shot_kind=UI_SIM với ui_scene.layout thuộc "
             "CHART_TARGET, CHART_GROWTH, COMPARE_DOCS, PROCESS_RAIL, COST_SLICE, CASH_FLOW, STACK_HEIGHT, DOC_LAYERS, END_CARD, OPEN_NUMBER, OPEN_DRAIN, OPEN_QUESTION, OPEN_HOOK, "
             "FUNNEL, TIMELINE, BEFORE_AFTER, DONUT_SHARE, GAUGE, CHECKLIST, HUB_SPOKE, MATRIX_2X2, RANK_BARS, KPI_CARDS, ASSIGN_CARDS, WAIT_CLOCK, RADAR_SCAN, "
-            "RACE_LANES, TABLE_AUDIT, ALERT_STACK, PYRAMID_LEVELS, VERSUS_LIST, DOC_SEARCH, KINETIC_TITLE, MARK_PHRASE, WORD_SWAP, PILE_UP, STAT_RING, CHART_STORY; "
+            "RACE_LANES, TABLE_AUDIT, ALERT_STACK, PYRAMID_LEVELS, VERSUS_LIST, DOC_SEARCH, KINETIC_TITLE, MARK_PHRASE, WORD_SWAP, PILE_UP, STAT_RING, CHART_STORY, AI_RANK, DRAG_TASKS, CARD_SHIFT; "
             "không dùng FLOW_ORIGAMI, CHAT, AI_PANEL, DASHBOARD. Shot đầu là một kiểu OPEN_*, shot cuối là END_CARD, các shot giữa chọn loại cảnh khớp đúng ý lời đọc "
             "và tuyệt đối không dùng cùng một loại cho hai shot liền nhau, mỗi loại tối đa hai shot trong cả video. Mỗi shot vẫn phải đủ lời đọc theo ngân sách âm tiết và đủ cụm neo trong diagram.on. "
             "Với shot UI_SIM, prompt chỉ là mô tả ngắn bằng tiếng Việt cảnh giấy sẽ dựng (tối thiểu 8 ký tự), action_beats để trống.")

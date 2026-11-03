@@ -17,7 +17,11 @@
    "loai": "co_bien",
    "dung_duoc": true,
    "loi_chay": 0,
-   "thoi_luong_mac_dinh": 9.0
+   "thoi_luong_mac_dinh": 9.0,
+   "dang_dung_cho": [
+    "AI_RANK"
+   ],
+   "trang_thai": "đã nối vào pipeline"
   },
   "animated-bar-chart": {
    "loai": "snippet",
@@ -137,7 +141,11 @@
    "loai": "co_bien",
    "dung_duoc": true,
    "loi_chay": 0,
-   "thoi_luong_mac_dinh": 3.5
+   "thoi_luong_mac_dinh": 3.5,
+   "dang_dung_cho": [
+    "KINETIC_TITLE"
+   ],
+   "trang_thai": "đã nối vào pipeline"
   },
   "chart-story": {
    "loai": "co_bien",
@@ -208,7 +216,11 @@
    "loai": "co_bien",
    "dung_duoc": true,
    "loi_chay": 0,
-   "thoi_luong_mac_dinh": 3.6
+   "thoi_luong_mac_dinh": 3.6,
+   "dang_dung_cho": [
+    "DRAG_TASKS"
+   ],
+   "trang_thai": "đã nối vào pipeline"
   },
   "cursor-marquee-select": {
    "loai": "co_bien",
@@ -304,7 +316,11 @@
    "loai": "co_bien",
    "dung_duoc": true,
    "loi_chay": 0,
-   "thoi_luong_mac_dinh": 3.5
+   "thoi_luong_mac_dinh": 3.5,
+   "dang_dung_cho": [
+    "CARD_SHIFT"
+   ],
+   "trang_thai": "đã nối vào pipeline"
   },
   "grain-field": {
    "loai": "co_bien",

@@ -5,7 +5,7 @@ Nguồn: kho khối chính thức của HyperFrames (`registry`, lấy bằng `h
 ## Đang dùng trong pipeline (thư mục này)
 `paper-collage-reveal.html`: chuyển cảnh mảnh giấy xé, cách quãng giữa các shot (`hf_project.collage_block`).
 
-Các khối còn lại là nguồn của 6 loại cảnh mới (`hf_blocks.BLOCK_SCENES`, planner gọi là KINETIC_TITLE, MARK_PHRASE, WORD_SWAP, PILE_UP, STAT_RING, CHART_STORY):
+Các khối còn lại là nguồn của 9 loại cảnh mới (`hf_blocks.BLOCK_SCENES`, planner gọi là KINETIC_TITLE, MARK_PHRASE, WORD_SWAP, PILE_UP, STAT_RING, CHART_STORY, AI_RANK, DRAG_TASKS, CARD_SHIFT):
 
 | Khối | Loại cảnh |
 |---|---|
@@ -13,6 +13,10 @@ Các khối còn lại là nguồn của 6 loại cảnh mới (`hf_blocks.BLOCK
 | `conic-progress-ring` | STAT_RING |
 | `headline-slam` | KINETIC_TITLE |
 | `kinetic-center-build` | KINETIC_TITLE |
+| `char-slam-explode` | KINETIC_TITLE |
+| `ai-answer-rank` | AI_RANK |
+| `cursor-drag-drop` | DRAG_TASKS |
+| `focus-rack` | CARD_SHIFT |
 | `kinetic-type-swap` | WORD_SWAP |
 | `marker-highlight` | MARK_PHRASE, MARK_PHRASE, MARK_PHRASE |
 | `overwhelm-surround` | PILE_UP |

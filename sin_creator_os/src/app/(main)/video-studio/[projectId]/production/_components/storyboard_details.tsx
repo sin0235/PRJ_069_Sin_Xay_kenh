@@ -56,7 +56,7 @@ const layoutLabels: Record<string, string> = {
   MATRIX_2X2: "Ma trận ưu tiên", RANK_BARS: "Xếp hạng", KPI_CARDS: "Thẻ chỉ số", ASSIGN_CARDS: "Giao việc cho người",
   WAIT_CLOCK: "Khách đang chờ", RADAR_SCAN: "Quét khách tiềm năng", RACE_LANES: "So tốc độ hai cách làm", TABLE_AUDIT: "Rà bảng tìm dòng lệch",
   ALERT_STACK: "Chồng cảnh báo", PYRAMID_LEVELS: "Bậc trưởng thành", VERSUS_LIST: "So hai phương án", DOC_SEARCH: "Tìm đúng tài liệu",
-  KINETIC_TITLE: "Chữ lớn chuyển động", MARK_PHRASE: "Khoanh cụm then chốt", WORD_SWAP: "Từ đổi liên tục", PILE_UP: "Việc dồn dập", STAT_RING: "Vòng phần trăm", CHART_STORY: "Biểu đồ tự kể",
+  KINETIC_TITLE: "Chữ lớn chuyển động", MARK_PHRASE: "Khoanh cụm then chốt", WORD_SWAP: "Từ đổi liên tục", PILE_UP: "Việc dồn dập", STAT_RING: "Vòng phần trăm", CHART_STORY: "Biểu đồ tự kể", AI_RANK: "AI xếp hạng gợi ý", DRAG_TASKS: "Kéo việc sang cột", CARD_SHIFT: "Chuyển tiêu điểm thẻ",
 };
 
 function diagramLines(diagram: UiDiagram): string[] {
