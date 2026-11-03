@@ -21,9 +21,10 @@ jobs:
       - name: Cài dependency và build FE
         working-directory: sin_creator_os
         run: |
-          npm install --global pnpm@10.24.0
-          pnpm install --frozen-lockfile
-          pnpm build
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Copy-Item -Recurse public .next/standalone/public
           Copy-Item -Recurse .next/static .next/standalone/.next/static
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
