@@ -111,8 +111,9 @@ export function TuDongDungVideoDai({ projectId, assets, onAssetsChanged, initial
     return () => window.clearInterval(timer);
   }, [jobId, jobState, onAssetsChanged]);
 
-  const start = async () => {
-    if (!sourceAssetId || starting) return;
+  const start = async (manifestAssetId?: string, originalSourceId = sourceAssetId) => {
+    if (!originalSourceId || starting || (jobId !== null && !TERMINAL_STATES.has(jobState))) return;
+    setSourceAssetId(originalSourceId);
     setStarting(true);
     setError(null);
     setOutputs([]);
@@ -122,7 +123,7 @@ export function TuDongDungVideoDai({ projectId, assets, onAssetsChanged, initial
     setJobId(null);
     setJobState("");
     try {
-      const job = await mediaStudioApi.startAutoEditVideo(projectId, sourceAssetId);
+      const job = await mediaStudioApi.startAutoEditVideo(projectId, originalSourceId, manifestAssetId);
       setJobId(job.job_id);
       setJobState(job.state);
     } catch (cause) {
@@ -361,6 +362,19 @@ export function TuDongDungVideoDai({ projectId, assets, onAssetsChanged, initial
               <p className="mt-1 text-sm text-muted-foreground">Xem, duyệt hoặc yêu cầu chỉnh sửa từng clip ngay tại đây.</p>
             </div>
           </div>
+          {manifestAsset && manifest?.replay_source_asset_id && videos.some((video) => video.id === manifest.replay_source_asset_id) && (
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => { if (manifest.replay_source_asset_id) void start(manifestAsset.id, manifest.replay_source_asset_id); }}
+                disabled={starting || (!!jobId && !TERMINAL_STATES.has(jobState))}
+                className="inline-flex min-h-10 items-center justify-center rounded-md border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+              >
+                Dựng lại bố cục
+              </button>
+              <p className="text-sm text-muted-foreground">Giữ kịch bản và các cảnh đã tạo; AI sắp xếp lại cách trình bày.</p>
+            </div>
+          )}
           {manifest && (
             <div className="space-y-3 rounded-lg border bg-card p-4">
               <div className="space-y-2">

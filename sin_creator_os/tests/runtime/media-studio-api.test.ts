@@ -39,6 +39,18 @@ type MediaJobFailure = Error & {
   resumeUrl?: string;
 };
 
+test("dựng lại bố cục gửi biên bản và nguồn gốc tới cùng pipeline Auto Edit", async () => {
+  let payload: Record<string, unknown> = {};
+  const api = loadApi((async (_url, init) => {
+    payload = JSON.parse(String(init?.body));
+    return json({ job_id: "replay-job", state: "QUEUED" }, 202);
+  }) as typeof fetch);
+  await api.startAutoEditVideo("project", "original-source", "manifest");
+  assert.equal(payload.source_asset_id, "original-source");
+  assert.equal(payload.manifest_asset_id, "manifest");
+  assert.equal(payload.idempotency_key, "auto-edit-test-request-id");
+});
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status });
 }

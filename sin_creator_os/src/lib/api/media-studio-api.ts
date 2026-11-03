@@ -721,11 +721,12 @@ export const mediaStudioApi = {
     return formatAsset(await res.json());
   },
 
-  async startAutoEditVideo(projectId: string, sourceAssetId: string): Promise<{ job_id: string; state: string }> {
+  async startAutoEditVideo(projectId: string, sourceAssetId: string, manifestAssetId?: string): Promise<{ job_id: string; state: string }> {
     const res = await apiFetch(`${API_BASE_URL}/v1/media/projects/${encodeURIComponent(projectId)}/dung/tu-dong-dung-video-dai`, {
       method: "POST",
       headers: mediaAuthHeaders(undefined, undefined, "application/json"),
-      body: JSON.stringify({ source_asset_id: sourceAssetId, idempotency_key: `auto-edit-${randomUuid()}` }),
+      body: JSON.stringify({ source_asset_id: sourceAssetId, idempotency_key: `auto-edit-${randomUuid()}`,
+        ...(manifestAssetId ? { manifest_asset_id: manifestAssetId } : {}) }),
     });
     if (!res.ok) throw new Error(await responseErrorMessage(res, `Không thể tạo yêu cầu dựng video (${res.status}).`));
     return res.json();

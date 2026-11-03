@@ -31,6 +31,7 @@ export interface VisualAction {
 }
 
 export interface ManifestDungTuDong {
+  replay_source_asset_id: string | null;
   clips: ClipDungTuDong[];
   waveform_peaks: number[];
   pause_candidates: [number, number][];
@@ -132,7 +133,7 @@ export function docManifestDungTuDong(value: string): ManifestDungTuDong {
       !Array.isArray(raw.waveform_peaks) ||
       !Array.isArray(raw.pause_candidates) ||
       (raw.flow_generated_visuals !== undefined && !Array.isArray(raw.flow_generated_visuals)) ||
-      (raw.flow_generated_visuals?.length ?? 0) > 3
+      (raw.flow_generated_visuals?.length ?? 0) > 2000
     ) {
       throw new Error();
     }
@@ -242,7 +243,11 @@ export function docManifestDungTuDong(value: string): ManifestDungTuDong {
         throw new Error();
       return [Number(pause[0]), Number(pause[1])];
     });
-    return { clips, waveform_peaks, pause_candidates, flow_generated_visuals };
+    const replay_source_asset_id = typeof raw.source_asset_id === "string" && raw.source_asset_id.length <= 36
+      && Array.isArray(raw.words) && raw.words.length > 0 && raw.plan && typeof raw.plan === "object"
+      && Array.isArray(raw.visual_briefs) && Array.isArray(raw.visual_generation)
+      ? raw.source_asset_id : null;
+    return { clips, waveform_peaks, pause_candidates, flow_generated_visuals, replay_source_asset_id };
   } catch {
     throw new Error("AUTO_EDIT_MANIFEST_INVALID");
   }

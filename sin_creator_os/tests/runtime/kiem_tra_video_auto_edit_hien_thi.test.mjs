@@ -13,6 +13,21 @@ const ts = require("typescript");
 const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 
+test("biên bản nhiều cảnh vẫn đọc được, chỉ bản đủ dữ liệu mới có thể dựng lại", () => {
+  const source=readFileSync(resolve(packageRoot,"src/lib/video_studio/phan_tich_manifest_dung_tu_dong.ts"),"utf8");
+  const exports={};
+  runInNewContext(ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText,{exports});
+  const raw={clips:[],waveform_peaks:[],pause_candidates:[],source_asset_id:"original",
+    flow_generated_visuals:Array.from({length:4},(_,i)=>({job_id:`job-${i}`,state:"SUCCEEDED"}))};
+  const parse=()=>exports.docManifestDungTuDong(JSON.stringify(raw));
+  assert.equal(parse().flow_generated_visuals.length,4);
+  assert.equal(parse().replay_source_asset_id,null);
+  Object.assign(raw,{words:[{id:"w1"}],plan:{clips:[]},visual_briefs:[],visual_generation:[]});
+  assert.equal(parse().replay_source_asset_id,"original");
+  raw.flow_generated_visuals=Array.from({length:2001},()=>({state:"SUCCEEDED"}));
+  assert.throws(parse,/AUTO_EDIT_MANIFEST_INVALID/);
+});
+
 test("clip Auto Edit đã lưu vẫn hiện sau khi mở lại trang và chưa chọn video nguồn", () => {
   const componentPath = process.env.AUTO_EDIT_COMPONENT_PATH
     ?? resolve(packageRoot, "src/components/video_studio/tu_dong_dung_video_dai.tsx");
