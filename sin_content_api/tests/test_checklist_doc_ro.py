@@ -5,6 +5,27 @@ import subprocess
 from src.modules.tao_video_noi_dung.ui_sim import DIAGRAM_TEMPLATE
 
 
+def test_the_checklist_alpha_khong_bi_camera_day_ra_khoi_canvas():
+    source = DIAGRAM_TEMPLATE.read_text(encoding='utf-8')
+    function = source.split('function setT(t)', 1)[1].split('window.setT =', 1)[0]
+    script = '''
+const PORTRAIT=true, TRANSPARENT_BG=true, W=1080,H=1920;
+const P={kind:'CHECKLIST',dur:5,t:{},focus:{from:0,to:5,k:1.1,x:540,y:300},camera_motion:'AUTO'};
+const eo=x=>x,eio=x=>x,seg=(t,a,b)=>Math.min(1,Math.max(0,(t-a)/(b-a))),clamp=x=>Math.max(0,Math.min(1,x));
+const elements={},document={getElementById:id=>elements[id]||(elements[id]={style:{},setAttribute(k,v){this[k]=v},getAttribute(k){return this[k]}})};
+const rig={style:{}},stage={style:{}},backSvg={style:{}},svg={style:{}},frontSvg={style:{}};
+const pose={z:0,blur_px:0};
+const window={__bahaCamera:{isLayered:()=>false,transform:()=>({origin:'50% 50%',transform:'scale(1.2)',perspective:1200,planes:{back:pose,middle:pose,front:pose}})}};
+const SCENES={CHECKLIST:()=>''},caption=()=>'';
+''' + 'function setT(t)' + function + '''
+setT(4.3);
+console.log(JSON.stringify({camera:elements.cam.transform,rig:rig.style.transform}));
+'''
+    result = subprocess.run(['node','-e',script],capture_output=True,text=True,check=True)
+    transforms=json.loads(result.stdout)
+    assert transforms == {'camera':'translate(0 0)','rig':'none'}
+
+
 def test_checklist_alpha_doc_ro_khi_thu_xuong_405_px():
     source = DIAGRAM_TEMPLATE.read_text(encoding='utf-8')
     function = source.split('function sceneChecklist', 1)[1].split('/* ----------', 1)[0]

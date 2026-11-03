@@ -1237,14 +1237,15 @@ function caption(t) {
 }
 
 function setT(t) {
+  var fixedOverlay = PORTRAIT && TRANSPARENT_BG && P.kind === "CHECKLIST";
   var a = P.t, intro = eo(seg(t, 0, .35)), f = P.focus, cs = eio(seg(t, f.from, f.to)), movingCamera = P.camera_motion !== "STATIC", ck = 1 + (f.k - 1) * (movingCamera ? .5 : 1) * cs;
   var dur = P.dur || 10, drift = t / dur * (movingCamera ? .25 : 1), ex = (P.kind === "END_CARD" || dur < 3) ? 0 : eio(seg(t, dur - .4, dur - .05)), slide = (1 - intro) * 170 - ex * 190;
   document.getElementById("content").setAttribute("opacity", clamp(intro * 3) * (1 - .6 * ex));
   var mode = P.camera_motion || "AUTO", layered = window.__bahaCamera.isLayered(P.kind, mode);
-  document.getElementById("cam").setAttribute("transform", layered ? "translate(" + ((1 - intro) * 170) + " 0)" : "translate(" + slide + " 0) translate(" + f.x + " " + f.y + ") scale(" + (ck * (1 + .02 * drift)) + ") translate(" + (-f.x - 12 * drift) + " " + (-f.y) + ")");
+  document.getElementById("cam").setAttribute("transform", fixedOverlay ? "translate(0 0)" : layered ? "translate(" + ((1 - intro) * 170) + " 0)" : "translate(" + slide + " 0) translate(" + f.x + " " + f.y + ") scale(" + (ck * (1 + .02 * drift)) + ") translate(" + (-f.x - 12 * drift) + " " + (-f.y) + ")");
   var camera = window.__bahaCamera.transform(P.kind, P.camera_motion || "AUTO", t, dur, f, W, H);
   rig.style.transformOrigin = camera.origin;
-  rig.style.transform = camera.transform;
+  rig.style.transform = fixedOverlay ? "none" : camera.transform;
   document.getElementById("backContent").setAttribute("transform", layered ? "translate(0 0)" : document.getElementById("cam").getAttribute("transform"));
   stage.style.perspective = camera.perspective + "px";
   stage.style.perspectiveOrigin = camera.origin;

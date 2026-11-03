@@ -1,0 +1,20 @@
+{
+  "asset_id": "169a64e3-baba-45f2-a2d7-dbdb8199be36",
+  "result": {
+    "measured_i_lufs": -14.67,
+    "measured_lra_lu": 3.9,
+    "measured_tp_dbtp": -2.65,
+    "raw": {
+      "input_i": "-14.67",
+      "input_lra": "3.90",
+      "input_thresh": "-25.69",
+      "input_tp": "-2.65",
+      "normalization_type": "dynamic",
+      "output_i": "-23.85",
+      "output_lra": "3.70",
+      "output_thresh": "-34.88",
+      "output_tp": "-11.14",
+      "target_offset": "-0.15"
+    }
+  }
+}

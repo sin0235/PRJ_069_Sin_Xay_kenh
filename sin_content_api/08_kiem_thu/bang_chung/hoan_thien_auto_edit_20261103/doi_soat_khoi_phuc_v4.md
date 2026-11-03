@@ -43,3 +43,11 @@ Chưa nghiệm thu chất lượng v4, chưa chạy xử lý toàn bộ nguồn 
 Quan sát: template hiện tại cho thẻ giấy sáng, nhãn “giá vốn” rõ và chỉ một mục đang hiện, gạch vàng cùng dấu kiểm. Khác ảnh trích từ MOV cũ. Không sửa template chỉ dựa vào MOV cũ. Mốc 2,0 giây trước đó có thể nằm trong pha vào của một mục; ảnh tĩnh riêng lẻ không chứng minh opacity sai trong cả cảnh.
 
 Chạy `python -m pytest tests/test_checklist_doc_ro.py -q`: 3 test đạt trong 1,02 giây. Đây là kiểm tra template, font và hợp đồng planner; chưa phải kiểm tra MOV mới qua HyperFrames hoặc video E2E. Canvas alpha vẫn có nhiều vùng trống bên dưới thẻ; cần xem bố cục chèn thực tế do LLM chọn trước khi nghiệm thu.
+
+## Render HyperFrames thật và lỗi camera được tái hiện
+
+- Actions run `41656504477`, task `6dd7aa09-393a-4f81-b503-d7fff8b95d5f`: trả MOV 5 giây, 1080×1920, 30 fps, ProRes `yuva444p12le`, có alpha. Chi tiết tại `checklist_hyperframes_moi.json`.
+- Ba khung 0,8 / 2,5 / 4,3 giây: `checklist_moi_dau.png`, `checklist_moi_giua.png`, `checklist_moi_cuoi.png`. Nhãn thay từ giá bán sang giá vốn và đóng gói. Thẻ sáng nhưng khung cuối bị camera đẩy ra mép trái.
+- Thêm test `test_the_checklist_alpha_khong_bi_camera_day_ra_khoi_canvas`: thất bại trước sửa, cho thấy cả cam và rig có transform dịch/phóng. Sửa riêng checklist alpha dọc để giữ cam/rig ổn định; hàm sceneChecklist vẫn tạo animation vào thẻ, nét kiểm và gạch nhấn.
+- Sau sửa: `python -m pytest tests/test_checklist_doc_ro.py tests/test_khoi_hyperframes.py -q`: 33 test đạt trong 2,48 giây. Chưa render MOV bằng bản sửa camera này; MOV và ba ảnh ở trên là bằng chứng lỗi trước sửa.
+- Đo âm lượng v4 trên Actions, `am_luong_v4.json`: integrated -14,67 LUFS, true peak -2,65 dBTP, LRA 3,9 LU. Đạt ngưỡng đo đã đặt; chưa thay cho việc nghe kiểm toàn clip.
