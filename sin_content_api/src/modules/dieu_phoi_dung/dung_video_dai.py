@@ -912,10 +912,11 @@ def tao_y_tuong_dien_hoa_flow(
     clips_by_id = {clip.clip_id: clip for clip in clips}
     for attempt in range(4):
         raw_visuals = None
+        partial_schema_error = None
         diagram_windows = {}
         visual_words = {}
         payload = request if feedback is None else {**request, "validator_feedback": feedback}
-        if feedback and feedback.startswith("VISUAL_GAP_ABOVE_TARGET") and fallback_validated:
+        if feedback and fallback_validated:
             payload["visuals_hop_le_can_giu"] = [{
                 "clip_id": visual.clip_id, "start_word_id": visual.start_word_id,
                 "end_word_id": visual.end_word_id, "scene": visual.scene,
@@ -950,11 +951,7 @@ def tao_y_tuong_dien_hoa_flow(
                     partial_plan = True
                 elif not valid_visuals or len(valid_visuals) == len(raw_visuals) and len(raw_visuals) <= 3:
                     raise schema_error
-                if partial_plan and attempt < 2:
-                    for clip in chosen:
-                        clip.needs_review = True
-                        clip.selection_reason += " LLM trả diễn họa sai schema; cần rà soát."
-                    raise schema_error
+                partial_schema_error = schema_error
                 plan = KeHoachDienHoaFlow(visuals=valid_visuals)
                 for clip in chosen:
                     clip.needs_review = True
@@ -1000,7 +997,7 @@ def tao_y_tuong_dien_hoa_flow(
                     continue
                 ranges_by_clip[visual.clip_id] = last
                 validated.append((visual, selected_words, window))
-            if feedback and feedback.startswith("VISUAL_GAP_ABOVE_TARGET") and fallback_validated:
+            if feedback and fallback_validated:
                 merged = list(fallback_validated)
                 seen = {(item[0].clip_id, item[0].start_word_id, item[0].end_word_id) for item in merged}
                 for candidate in validated:
@@ -1023,6 +1020,8 @@ def tao_y_tuong_dien_hoa_flow(
                 validated = sorted(merged, key=lambda item: (item[0].clip_id, item[1][0]["start_ms"]))
             if validated:
                 fallback_validated = validated
+            if partial_schema_error and attempt < 3:
+                raise partial_schema_error
             if invalid_visuals:
                 for clip_id, _ in invalid_visuals:
                     clip = clips_by_id[clip_id]

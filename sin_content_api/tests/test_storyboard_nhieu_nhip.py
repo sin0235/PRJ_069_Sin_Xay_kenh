@@ -132,15 +132,19 @@ def test_giu_tron_kich_ban_hai_phut_khi_llm_chon_cung_mot_noi_dung():
     assert (plan.clips[0].start_ms,plan.clips[0].end_ms) == (0,125000)
 
 
-def test_khong_khoi_phuc_canh_chua_kiem_moc_sau_loi_schema():
+@pytest.mark.parametrize('word_id,expected_count',[('w1',1),('khong_ton_tai',0)])
+def test_giu_canh_dung_va_loai_canh_sai_moc_sau_loi_schema(word_id,expected_count):
     clip=ClipTuDong(clip_id='sua',start_ms=0,end_ms=20000,title='Nội dung',reason='Đủ ý')
     words=[{'id':'w1','text':'nội dung','start_ms':1000,'end_ms':5000}]
-    valid={'clip_id':'sua','renderer':'FLOW','start_word_id':'w1','end_word_id':'w1',
+    valid={'clip_id':'sua','renderer':'FLOW','start_word_id':word_id,'end_word_id':word_id,
            'scene':'Vật thể giấy minh họa','action':'Giấy mở ra giải thích ý đang nói'}
     class Client:
         max_output_tokens=4000
-        replies=iter([{'visuals':[valid,{'renderer':'SAI'}]},{'visuals':[]}])
+        replies=iter([{'visuals':[valid,{'renderer':'SAI'}]}]+[{'visuals':[]}]*3)
         def complete(self,*args,**kwargs):
             return SimpleNamespace(content=json.dumps(next(self.replies),ensure_ascii=False))
-    assert tao_y_tuong_dien_hoa_flow([clip],words,[],Client())==[]
+    result=tao_y_tuong_dien_hoa_flow([clip],words,[],Client())
+    assert len(result)==expected_count
+    if result:
+        assert result[0]['narration']==words[0]['text']
     assert clip.needs_review

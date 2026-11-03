@@ -1,0 +1,8 @@
+# Đối soát Flow và giữ cảnh hợp lệ, 03/11/2026
+
+- Founder xác nhận Claude/agent khác đang cập nhật hệ thống, yêu cầu chờ lần build cuối. Không chủ động restart worker hoặc gửi thêm Flow trong lượt kiểm tra này.
+- DB: parent `666a7727-3e03-4812-ad88-8451cda61e0a` đang WAITING_FOR_FLOW. Cảnh HyperFrames `611bf8fe-8c30-4380-b5df-0f00605b291a` SUCCEEDED; Flow `e8696e28-7c0b-45db-8453-2e8f831731bb` NEEDS_RECONCILIATION sau khi lease hết; chưa gửi lại cảnh này. HyperFrames thứ hai SUBMITTING, Flow thứ hai QUEUED.
+- Hàng đợi trước đây chưa truyền callback lưu URL dự án sang provider. Đã nối callback, lưu URL trước khi gửi prompt, kiểm tra workspace, trạng thái, token và hạn lease; worker mất lease bị chặn trước gửi. Truyền đúng include_audio. `tests/test_media_queue.py`: 51/51 đạt, gồm trường hợp callback thành công và mất lease.
+- Planner trước đây bỏ toàn bộ phản hồi có một cảnh sai schema ở hai lượt đầu. Test tái hiện: cảnh Flow có word ID đúng vẫn bị mất, kết quả rỗng thay vì một cảnh. Sửa để kiểm tra mốc từng cảnh trước, giữ cảnh hợp lệ và gửi phản hồi sửa cho LLM; gộp cảnh hợp lệ qua các lượt sửa, không chỉ lượt bổ sung khoảng trống. Cảnh sai word ID vẫn bị loại. `tests/test_storyboard_nhieu_nhip.py`: 9/9 đạt sau sửa cuối.
+- Actions build giao diện `41615111671` thành công ở commit e7addd7. Log chay_he_thong_cap_nhat lúc 16:59 còn báo giao diện cổng 3000 chưa nghe; agent khác đang triển khai, chưa kết luận đã phục hồi.
+- Chưa có MP4 mới hoàn chỉnh, chưa nghiệm thu hình ảnh/âm thanh hoặc toàn nguồn 8 GB. Cảnh Flow bị ngắt chưa được đối soát trên provider. Các mốc M3/M4/M5 giữ mở.

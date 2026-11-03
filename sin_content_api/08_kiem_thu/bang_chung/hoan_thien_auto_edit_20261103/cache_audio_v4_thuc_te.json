@@ -1,0 +1,11 @@
+{
+  "job_id": "666a7727-3e03-4812-ad88-8451cda61e0a",
+  "state": "SUBMITTING",
+  "first_task": "dd446830-19b4-4542-bfa3-60b30de5ab4d",
+  "first_operation": "analyze_source_audio",
+  "audio_input_bytes": 3840078,
+  "full_source_extraction_skipped": true,
+  "operations_since_job_created": [
+    "analyze_source_audio"
+  ]
+}

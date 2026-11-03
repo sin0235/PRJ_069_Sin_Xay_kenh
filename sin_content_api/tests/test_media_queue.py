@@ -1014,6 +1014,38 @@ def test_worker_dispatches_auto_edit_hyperframes_scene_to_existing_renderer(medi
     assert calls == [(db, job, request)]
 
 
+@pytest.mark.parametrize('lease_lost',[False,True])
+def test_worker_luu_project_flow_truoc_gui_va_chan_worker_mat_lease(media_db,monkeypatch,lease_lost):
+    from src.modules.media_queue import worker
+    from src.modules.media_studio.video_provider import video_orchestrator
+    db,workspace_id,_=media_db
+    job=enqueue_media_job(db,workspace_id=workspace_id,user_id='user-queue',provider='MEDIA_VIDEO',
+        operation='generate_video_scene',backend_provider='GOOGLE_FLOW',provider_mode='FLOW_BROWSER_PILOT',
+        model_id='google-flow',prompt_text='Cảnh giấy',parameters={'include_audio':False},
+        idempotency_key='flow-project-before-submit',project_id='project-01')
+    job.state='SUBMITTING';job.lease_token='owned'
+    job.lease_expires_at=datetime.now(timezone.utc)+timedelta(minutes=5)
+    db.commit()
+    request=json.loads(job.request_payload_json)
+    expected=object()
+    def generate(**kwargs):
+        assert kwargs['include_audio'] is False
+        assert kwargs['flow_project_url'] is None
+        if lease_lost:
+            db.query(AIGenerationJob).filter(AIGenerationJob.id==job.id).update({'lease_token':'other'})
+            db.commit()
+        kwargs['on_flow_project_created']('https://flow.google.com/project/doi-soat')
+        db.expire_all()
+        assert json.loads(db.get(AIGenerationJob,job.id).request_payload_json)['flow_project_url']=='https://flow.google.com/project/doi-soat'
+        return expected
+    monkeypatch.setattr(video_orchestrator,'generate_video_scene',generate)
+    if lease_lost:
+        with pytest.raises(RuntimeError,match='MEDIA_JOB_LEASE_LOST_BEFORE_FLOW_SUBMISSION'):
+            worker._execute_job(db,job,request)
+    else:
+        assert worker._execute_job(db,job,request) is expected
+
+
 @pytest.mark.parametrize("child_count", [2, 4, 20, 21])
 def test_auto_edit_waits_for_flow_children_then_resumes_once(media_db, child_count):
     from src.modules.media_queue import worker

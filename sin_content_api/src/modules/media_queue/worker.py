@@ -271,17 +271,39 @@ def _execute_job(db: Session, job: AIGenerationJob, request: dict) -> MediaAsset
             if not path.is_relative_to(MEDIA_ROOT_DIR.resolve()) or not path.is_file():
                 raise ValueError("IMAGE_NOT_FOUND: Không tìm thấy tệp ảnh tham chiếu.")
             start_image_path = path
+        expected_lease = getattr(job, "lease_token", None)
+        def remember_flow_project(project_url):
+            from src.modules.flow_sessions.context import validate_flow_project_url
+            project_url = validate_flow_project_url(project_url)
+            if not project_url:
+                raise ValueError("FLOW_PROJECT_URL_INVALID")
+            payload = {**request, "flow_project_url": project_url}
+            saved = db.execute(update(AIGenerationJob).where(
+                AIGenerationJob.id == job.id,
+                AIGenerationJob.workspace_id == job.workspace_id,
+                AIGenerationJob.state == "SUBMITTING",
+                AIGenerationJob.lease_token == expected_lease,
+                AIGenerationJob.lease_expires_at > _now(),
+            ).values(request_payload_json=json.dumps(payload, ensure_ascii=False)))
+            if not expected_lease or saved.rowcount != 1:
+                db.rollback()
+                raise RuntimeError("MEDIA_JOB_LEASE_LOST_BEFORE_FLOW_SUBMISSION")
+            db.commit()
+            request["flow_project_url"] = project_url
         return video_orchestrator.generate_video_scene(
             db=db,
             workspace_id=job.workspace_id,
             user_id=job.created_by,
             prompt=request["prompt_text"],
             aspect_ratio=parameters.get("aspect_ratio", "9:16"),
+            include_audio=bool(parameters.get("include_audio", True)),
             use_official_omni=bool(parameters.get("use_official_omni", False)),
             start_image_path=start_image_path,
             start_image_asset_id=start_image_id,
             project_id=job.project_id,
             remove_watermark=bool(parameters.get("remove_watermark", False)),
+            flow_project_url=request.get("flow_project_url"),
+            on_flow_project_created=remember_flow_project,
         )
 
     if operation == "generate_flow_job":
