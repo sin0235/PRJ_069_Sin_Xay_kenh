@@ -306,7 +306,7 @@ def build_project(
                   f'width:{layer_width}px;height:{layer_height}px;object-fit:{fit};z-index:{100 + index}"></video>\n')
         videos.append(media_name)
     total = start
-    ambient_enabled = os.getenv("CONTENT_VIDEO_HF_AMBIENT", "1") != "0"
+    ambient_enabled = os.getenv("CONTENT_VIDEO_HF_AMBIENT", "0") == "1"   # mặc định TẮT: lớp sao/hạt quá mờ để thấy mà làm dựng chậm; đặt =1 để bật
     ambient_layers_count = 0
     if ambient_enabled:
         effective_seed = ambient_seed if ambient_seed is not None else f"{aspect_ratio}:{round(total)}"

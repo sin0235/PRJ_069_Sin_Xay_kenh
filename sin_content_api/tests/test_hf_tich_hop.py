@@ -121,7 +121,7 @@ def test_camera_bat_tat_bang_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 
 
 def test_ambient_bat_tat_va_khong_che_canh(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    """Cờ CONTENT_VIDEO_HF_AMBIENT bật/tắt: flag 0 ra 0 lớp, mặc định >= 1 lớp có opacity <= 0.35 và pointer-events:none."""
+    """Cờ CONTENT_VIDEO_HF_AMBIENT bật/tắt: flag 0 ra 0 lớp, mặc định (không đặt cờ) 0 lớp, cờ 1 thì >= 1 lớp có opacity <= 0.35 và pointer-events:none."""
     shots = [{
         "seconds": 5.0,
         "scene": _tao_canh_mau("KINETIC_TITLE"),
@@ -136,8 +136,13 @@ def test_ambient_bat_tat_va_khong_che_canh(tmp_path: Path, monkeypatch: pytest.M
     assert info_off["ambient_layers"] == 0
     assert not list((tmp_path / "p_amb_off" / "compositions").glob("amb_*.html"))
 
-    # 2. Mặc định (bật)
+    # 2. Mặc định (không đặt cờ): tắt
     monkeypatch.delenv("CONTENT_VIDEO_HF_AMBIENT", raising=False)
+    info_none = hf_project.build_project(tmp_path / "p_amb_none", shots, None, None)
+    assert info_none["ambient_layers"] == 0
+
+    # 3. Bật bằng cờ 1
+    monkeypatch.setenv("CONTENT_VIDEO_HF_AMBIENT", "1")
     info_def = hf_project.build_project(tmp_path / "p_amb_def", shots, None, None)
     assert info_def["ambient_layers"] >= 1
     index_def = (tmp_path / "p_amb_def" / "index.html").read_text(encoding="utf-8")
