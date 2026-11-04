@@ -1,0 +1,121 @@
+{
+  "project_id": "61340dab-a666-4fa2-9bed-ac92520d125b",
+  "source_asset_id": "f28532a9-3e88-536d-9e4a-d3d8d4acb0fc",
+  "source_audio_sha256": "df4d41d9ba94450208d8d007d7cdd89803c4933abcb2c3a679f181d5ee4381e1",
+  "model": "cx/gpt-6-luna",
+  "scripts": [
+    {
+      "tieu_de": "Đơn nhiều nhưng tiền thực nhận đâu?",
+      "start_word_id": "w000000",
+      "end_word_id": "w000293",
+      "hoan_chinh": true,
+      "cau_mo_dau": "Đơn 23 nghìn về chưa tới bảy.",
+      "cau_ket": "Cái khó của kinh doanh không chỉ là bán được hàng mà còn là biết là sau mỗi đơn, tiền có thực sự ở lại với mình hay không.",
+      "ly_do": "Mạch hoàn chỉnh: phân biệt tiền khách trả, tiền sàn quyết toán và tiền còn lại; kết bằng lời nhắc tính lãi theo đơn.",
+      "clip_id": "kb_01",
+      "start_ms": 0,
+      "end_ms": 96440
+    },
+    {
+      "tieu_de": "Tăng giá rồi, sao tiền lời lại giảm?",
+      "start_word_id": "stt_part1_01_0000",
+      "end_word_id": "w000586",
+      "hoan_chinh": true,
+      "cau_mo_dau": "Tăng giá rồi, sao tiền lời lại giảm?",
+      "cau_ket": "Tăng giá là một quyết định, nhưng giữ được lợi nhuận sau khi tăng giá mới là kết quả mà chúng ta cần.",
+      "ly_do": "Ví dụ số đơn giảm sau tăng giá, cách thử giá ở phạm vi nhỏ và kết luận giữ lợi nhuận mới là mục tiêu.",
+      "clip_id": "kb_02",
+      "start_ms": 100360,
+      "end_ms": 203460
+    },
+    {
+      "tieu_de": "Đơn càng rẻ, tiền lời càng dễ biến mất",
+      "start_word_id": "w000587",
+      "end_word_id": "w000913",
+      "hoan_chinh": true,
+      "cau_mo_dau": "Đơn càng rẻ, tiền lời càng dễ biến mất.",
+      "cau_ket": "Bán được một món nhỏ rất là đáng quý, nhưng đừng vì giữ một cái đơn nhỏ mà quên tính xem là nó đang là tốn bao nhiêu công và bao nhiêu cái code quảng cáo ra đơn, tiền ra đơn, cuối cùng là sao vẫn thiếu tiền.",
+      "ly_do": "Phần combo là giải pháp trong cùng mạch đơn hàng nhỏ, không phải kịch bản mới.",
+      "clip_id": "kb_03",
+      "start_ms": 205350,
+      "end_ms": 315550
+    },
+    {
+      "tieu_de": "Có đơn quảng cáo không có nghĩa có lời",
+      "start_word_id": "stt_part1_02_0000",
+      "end_word_id": "w001231",
+      "hoan_chinh": true,
+      "cau_mo_dau": "Chuyện này người bán online là rất là dễ gặp.",
+      "cau_ket": "Quảng cáo tốt không chỉ kéo người đến cửa hàng, nó phải góp phần tạo ra kết quả kinh doanh mà mình chịu được về lâu dài.",
+      "ly_do": "Mở bằng đơn quảng cáo nhưng lỗ, rồi chỉ cách đo chi tiêu, đơn quy về chiến dịch và tiền đóng góp.",
+      "clip_id": "kb_04",
+      "start_ms": 316950,
+      "end_ms": 411770
+    },
+    {
+      "tieu_de": "Có doanh thu mà không có tiền nhập hàng",
+      "start_word_id": "w001232",
+      "end_word_id": "stt_part1_03_0285",
+      "hoan_chinh": true,
+      "cau_mo_dau": "Có doanh thu mà không có tiền nhập hàng, thử tưởng tượng một chủ shop như sau:",
+      "cau_ket": "Thật ra bán hàng là tạo ra doanh thu, còn giữ cho cửa hàng sống được qua từng kỳ thanh toán, đó là quản trị dòng tiền.",
+      "ly_do": "Giải thích khác biệt giữa doanh thu, lợi nhuận và dòng tiền; đưa cách lập bảng dự kiến thu chi bảy ngày.",
+      "clip_id": "kb_05",
+      "start_ms": 413510,
+      "end_ms": 516950
+    },
+    {
+      "tieu_de": "Rời sàn tránh phí, khách có theo không?",
+      "start_word_id": "w001539",
+      "end_word_id": "w001863",
+      "hoan_chinh": true,
+      "cau_mo_dau": "Rời sàn tránh phí khách có theo không?",
+      "cau_ket": "Giữ được khách không chỉ ở cái chỗ nào giá thấp đâu. Nhiều khi vì người ta thấy mua ở đó là họ yên tâm, giống như bán niềm tin.",
+      "ly_do": "Cân nhắc chi phí và niềm tin giữa sàn với kênh riêng; nhắc tuân thủ quy định sàn.",
+      "clip_id": "kb_06",
+      "start_ms": 521240,
+      "end_ms": 626030
+    },
+    {
+      "tieu_de": "Giảm mười nghìn có khi mất nửa lãi",
+      "start_word_id": "stt_part1_04_0000",
+      "end_word_id": "w002225",
+      "hoan_chinh": true,
+      "cau_mo_dau": "Giảm mười nghìn có khi mất nửa lãi.",
+      "cau_ket": "Bán được đơn thì rất là quan trọng, nhưng giữ giá trị của mỗi đơn cũng quan trọng không kém.",
+      "ly_do": "Tính tác động giảm giá lên tiền đóng góp, nêu trường hợp nên giảm và cách kiểm tra trước sau.",
+      "clip_id": "kb_07",
+      "start_ms": 627750,
+      "end_ms": 753990
+    },
+    {
+      "tieu_de": "Món bán chạy nhất có khi lại đang kéo shop lỗ",
+      "start_word_id": "w002226",
+      "end_word_id": "stt_part1_05_0103",
+      "hoan_chinh": true,
+      "cau_mo_dau": "Món bán đang chạy nhất có khi lại đang kéo shop lỗ đấy.",
+      "cau_ket": "Cái điều đáng hỏi không phải là món nào được mua nhiều nhất, mà là cái món nào đang thực sự nuôi cửa hàng.",
+      "ly_do": "So sánh doanh thu với tiền đóng góp, rồi gợi ý xếp hạng sản phẩm theo hiệu quả.",
+      "clip_id": "kb_08",
+      "start_ms": 755530,
+      "end_ms": 884900
+    },
+    {
+      "tieu_de": "Một đơn hàng hoàn có khi mất lãi đến tận ba đơn",
+      "start_word_id": "w002553",
+      "end_word_id": "w002621",
+      "hoan_chinh": false,
+      "cau_mo_dau": "Một đơn hàng hoàn á, một đơn hàng hoàn á, có khi là mất lãi đến tận ba đơn.",
+      "cau_ket": "Nhưng đó là câu chuyện của...",
+      "ly_do": "Câu cuối bị ngắt giữa chừng; chưa có kết luận nên không tính là video hoàn chỉnh.",
+      "clip_id": "kb_09",
+      "start_ms": 886200,
+      "end_ms": 917900
+    }
+  ],
+  "complete_count": 8,
+  "incomplete_count": 1,
+  "remarks": "Có 8 kịch bản độc lập: 7 hoàn chỉnh, 1 bị ngắt giữa câu. Chỗ chồng lấn tệp không tính là lời nói lại.",
+  "render_submitted": false,
+  "audio_tail_review_required": true
+}

@@ -1,5 +1,7 @@
 # Chuẩn bị xử lý toàn bộ video gốc 8 GB
 
+Cập nhật sau khi đối chiếu tiếng toàn nguồn bằng 9Router: **8 nội dung hoàn chỉnh và 1 phần nội dung tiếp theo bị ngắt ở cuối**. Bản 10 nhóm ở lượt rà đầu bên dưới là lịch sử dự thảo, đã được thay thế trong lô dự án mới. Cần căn lại mốc hook/câu kết trước render, không lấy nguyên word ID dự thảo.
+
 ## Đầu vào và phạm vi
 
 - Dự án Auto Edit: `685d269c-def5-4e35-9038-a75d2119dd80`.

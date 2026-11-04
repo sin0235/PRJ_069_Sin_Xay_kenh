@@ -20,7 +20,7 @@
 - Nguồn: `f28532a9-3e88-536d-9e4a-d3d8d4acb0fc`, loại `UPLOAD`, không có parent, 8.428.283.732 byte.
 - Tạo hard link riêng trong kho local, không sao chép thêm 8 GB; xác minh cùng tệp, cùng SHA-256 nguồn và số liên kết là 2. Dự án cũ vẫn giữ nguyên tư liệu và kết quả.
 - Kiểm tra API danh sách tư liệu của dự án mới có nguồn đúng loại. URL được lưu trong `du_an_8gb_hyperframes_moi_20261104.json`.
-- Bản chuẩn bị lô của dự án mới: `lo_du_an_moi_8gb_20261104.json`. Có 10 nhóm sơ bộ, chưa phải 10 clip đã nghiệm thu. Cần đối chiếu tiếng, chốt take/ràng giới và xử lý từ cuối chưa được phân loại trước khi dựng toàn lô.
+- Bản chuẩn bị lô của dự án mới: `lo_du_an_moi_8gb_20261104.json`. Sau đối chiếu tiếng toàn nguồn đã sửa 10 nhóm sơ bộ thành 8 nội dung đầy đủ và 1 phần cuối bị ngắt. Cần căn lại mốc hook/câu kết trước khi dựng toàn lô; xem `dem_lai_kich_ban_tu_tieng_8gb_20261104.md`.
 
 ## Giới hạn
 

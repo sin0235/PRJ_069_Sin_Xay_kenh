@@ -13,113 +13,99 @@
   "draft_clips": [
     {
       "clip_id": "kb_01",
-      "title": "Tính chi phí và tiền lời thực nhận trên mỗi đơn",
+      "title": "Đơn nhiều nhưng tiền thực nhận đâu?",
       "start_ms": 0,
       "end_ms": 96440,
       "start_word_id": "w000000",
       "end_word_id": "w000293",
-      "needs_review": true,
-      "selection_reason": "Mở bằng ví dụ đơn hàng, phân biệt tiền khách trả với tiền sàn quyết toán, rồi chỉ cách ghi doanh thu và chi phí để biết tiền thực còn lại.",
-      "notes": "Nhiều cụm ASR mơ hồ, nhất là phần mở đầu và chi phí."
+      "opening_quote": "Đơn 23 nghìn về chưa tới bảy.",
+      "closing_quote": "Cái khó của kinh doanh không chỉ là bán được hàng mà còn là biết là sau mỗi đơn, tiền có thực sự ở lại với mình hay không.",
+      "selection_reason": "Mạch hoàn chỉnh: phân biệt tiền khách trả, tiền sàn quyết toán và tiền còn lại; kết bằng lời nhắc tính lãi theo đơn.",
+      "needs_review": true
     },
     {
       "clip_id": "kb_02",
-      "title": "Tăng giá chưa chắc tăng tổng lợi nhuận",
-      "start_ms": 97480,
+      "title": "Tăng giá rồi, sao tiền lời lại giảm?",
+      "start_ms": 100360,
       "end_ms": 203460,
-      "start_word_id": "w000294",
+      "start_word_id": "stt_part1_01_0000",
       "end_word_id": "w000586",
-      "needs_review": true,
-      "selection_reason": "Giải thích và tính ví dụ tăng giá nhưng giảm số đơn; kết luận cần theo dõi kết quả sau thay đổi giá.",
-      "notes": "ASR mơ hồ ở một số số liệu và cụm từ."
+      "opening_quote": "Tăng giá rồi, sao tiền lời lại giảm?",
+      "closing_quote": "Tăng giá là một quyết định, nhưng giữ được lợi nhuận sau khi tăng giá mới là kết quả mà chúng ta cần.",
+      "selection_reason": "Ví dụ số đơn giảm sau tăng giá, cách thử giá ở phạm vi nhỏ và kết luận giữ lợi nhuận mới là mục tiêu.",
+      "needs_review": true
     },
     {
       "clip_id": "kb_03",
-      "title": "Đơn hàng rẻ vẫn tốn công và chi phí",
+      "title": "Đơn càng rẻ, tiền lời càng dễ biến mất",
       "start_ms": 205350,
-      "end_ms": 238990,
+      "end_ms": 315550,
       "start_word_id": "w000587",
-      "end_word_id": "w000685",
-      "needs_review": true,
-      "selection_reason": "Nêu các thao tác tốn công với đơn giá thấp, rồi giải thích khoản phí cố định ảnh hưởng mạnh hơn đến món rẻ.",
-      "notes": "Một số từ trong ví dụ đóng gói và phép tính chưa rõ."
+      "end_word_id": "w000913",
+      "opening_quote": "Đơn càng rẻ, tiền lời càng dễ biến mất.",
+      "closing_quote": "Bán được một món nhỏ rất là đáng quý, nhưng đừng vì giữ một cái đơn nhỏ mà quên tính xem là nó đang là tốn bao nhiêu công và bao nhiêu cái code quảng cáo ra đơn, tiền ra đơn, cuối cùng là sao vẫn thiếu tiền.",
+      "selection_reason": "Phần combo là giải pháp trong cùng mạch đơn hàng nhỏ, không phải kịch bản mới.",
+      "needs_review": true
     },
     {
       "clip_id": "kb_04",
-      "title": "Đánh giá combo theo nhu cầu và chi phí",
-      "start_ms": 241060,
-      "end_ms": 281900,
-      "start_word_id": "w000686",
-      "end_word_id": "w000812",
-      "needs_review": true,
-      "selection_reason": "Cân nhắc combo, nhu cầu thực của khách, phí mỗi đơn và phần tiền còn lại; đưa cách so sánh ba phương án.",
-      "notes": "ASR có lỗi ở phần hướng dẫn tính và một số cụm cuối."
+      "title": "Có đơn quảng cáo không có nghĩa có lời",
+      "start_ms": 316950,
+      "end_ms": 411770,
+      "start_word_id": "stt_part1_02_0000",
+      "end_word_id": "w001231",
+      "opening_quote": "Chuyện này người bán online là rất là dễ gặp.",
+      "closing_quote": "Quảng cáo tốt không chỉ kéo người đến cửa hàng, nó phải góp phần tạo ra kết quả kinh doanh mà mình chịu được về lâu dài.",
+      "selection_reason": "Mở bằng đơn quảng cáo nhưng lỗ, rồi chỉ cách đo chi tiêu, đơn quy về chiến dịch và tiền đóng góp.",
+      "needs_review": true
     },
     {
       "clip_id": "kb_05",
-      "title": "Đừng tăng quảng cáo chỉ vì thấy nhiều đơn",
-      "start_ms": 282520,
-      "end_ms": 415390,
-      "start_word_id": "w000813",
-      "end_word_id": "w001240",
-      "needs_review": true,
-      "selection_reason": "Khuyên tính tiền còn lại sau giá vốn, phí và quảng cáo; phân biệt doanh thu quảng cáo với lợi nhuận, rồi nêu ví dụ đơn có thể lỗ.",
-      "notes": "Có nhiều lỗi ASR; các số liệu và một số câu cần nghe lại."
+      "title": "Có doanh thu mà không có tiền nhập hàng",
+      "start_ms": 413510,
+      "end_ms": 516950,
+      "start_word_id": "w001232",
+      "end_word_id": "stt_part1_03_0285",
+      "opening_quote": "Có doanh thu mà không có tiền nhập hàng, thử tưởng tượng một chủ shop như sau:",
+      "closing_quote": "Thật ra bán hàng là tạo ra doanh thu, còn giữ cho cửa hàng sống được qua từng kỳ thanh toán, đó là quản trị dòng tiền.",
+      "selection_reason": "Giải thích khác biệt giữa doanh thu, lợi nhuận và dòng tiền; đưa cách lập bảng dự kiến thu chi bảy ngày.",
+      "needs_review": true
     },
     {
       "clip_id": "kb_06",
-      "title": "Quản trị dòng tiền và khoản tiền sắp đến hạn",
-      "start_ms": 417090,
-      "end_ms": 516950,
-      "start_word_id": "stt_part1_03_0000",
-      "end_word_id": "stt_part1_03_0285",
-      "needs_review": true,
-      "selection_reason": "Nêu các khoản tiền đang chờ về và chi phí phải trả, phân biệt doanh thu, lợi nhuận với dòng tiền; hướng dẫn lập bảng dự kiến bảy ngày.",
-      "notes": "Một số từ ở phần mở đầu và bảng dự báo bị ASR sai."
-    },
-    {
-      "clip_id": "kb_07",
-      "title": "Cân nhắc chi phí trước khi rời sàn",
+      "title": "Rời sàn tránh phí, khách có theo không?",
       "start_ms": 521240,
       "end_ms": 626030,
       "start_word_id": "w001539",
       "end_word_id": "w001863",
-      "needs_review": true,
-      "selection_reason": "Phân tích phí, khách hàng, thanh toán và việc xây kênh riêng; nhấn mạnh cần so sánh chi phí và trải nghiệm khách thay vì chỉ rời sàn để tránh phí.",
-      "notes": "ASR mơ hồ ở nhiều thuật ngữ và cụm từ về nền tảng, thanh toán, chăm sóc khách."
+      "opening_quote": "Rời sàn tránh phí khách có theo không?",
+      "closing_quote": "Giữ được khách không chỉ ở cái chỗ nào giá thấp đâu. Nhiều khi vì người ta thấy mua ở đó là họ yên tâm, giống như bán niềm tin.",
+      "selection_reason": "Cân nhắc chi phí và niềm tin giữa sàn với kênh riêng; nhắc tuân thủ quy định sàn.",
+      "needs_review": true
+    },
+    {
+      "clip_id": "kb_07",
+      "title": "Giảm mười nghìn có khi mất nửa lãi",
+      "start_ms": 627750,
+      "end_ms": 753990,
+      "start_word_id": "stt_part1_04_0000",
+      "end_word_id": "w002225",
+      "opening_quote": "Giảm mười nghìn có khi mất nửa lãi.",
+      "closing_quote": "Bán được đơn thì rất là quan trọng, nhưng giữ giá trị của mỗi đơn cũng quan trọng không kém.",
+      "selection_reason": "Tính tác động giảm giá lên tiền đóng góp, nêu trường hợp nên giảm và cách kiểm tra trước sau.",
+      "needs_review": true
     },
     {
       "clip_id": "kb_08",
-      "title": "Giảm giá có thể làm mất nửa lợi nhuận",
-      "start_ms": 627750,
-      "end_ms": 670170,
-      "start_word_id": "stt_part1_04_0000",
-      "end_word_id": "stt_part1_04_0116",
-      "needs_review": true,
-      "selection_reason": "Dùng ví dụ giảm 10.000 đồng trên món hàng để cho thấy khoản giảm có thể làm mất nửa tiền lời; giải thích cách nhìn của khách và người bán.",
-      "notes": "Hai take cùng kịch bản; take đầu đủ ví dụ và kết luận hơn. Phần lặp có lỗi ASR."
-    },
-    {
-      "clip_id": "kb_09",
-      "title": "Giảm giá cần đổi lấy điều gì",
-      "start_ms": 704110,
-      "end_ms": 750610,
-      "start_word_id": "stt_part1_04_0211",
-      "end_word_id": "w002215",
-      "needs_review": true,
-      "selection_reason": "Nêu các lý do giảm giá và yêu cầu xác định điều người bán đổi lấy; hướng dẫn kiểm tra đơn gần đây và tiền còn lại trước, sau giảm giá.",
-      "notes": "ASR mơ hồ ở cụm kiểm tra đơn và phần phép tính."
-    },
-    {
-      "clip_id": "kb_10",
-      "title": "Đừng quyết định nhập hàng chỉ theo số đơn",
-      "start_ms": 750610,
-      "end_ms": 916160,
-      "start_word_id": "w002216",
-      "end_word_id": "w002620",
-      "needs_review": true,
-      "selection_reason": "Giải thích rằng sản phẩm bán chạy chưa chắc nuôi cửa hàng; khuyên xếp sản phẩm theo tiền đóng góp sau chi phí, tỷ lệ hoàn và tồn kho, rồi xem sản phẩm nào thực sự tạo lợi nhuận.",
-      "notes": "Phần cuối có lỗi ASR nặng và câu bị ngắt ở chỉ số 2595."
+      "title": "Món bán chạy nhất có khi lại đang kéo shop lỗ",
+      "start_ms": 755530,
+      "end_ms": 884900,
+      "start_word_id": "w002226",
+      "end_word_id": "stt_part1_05_0103",
+      "opening_quote": "Món bán đang chạy nhất có khi lại đang kéo shop lỗ đấy.",
+      "closing_quote": "Cái điều đáng hỏi không phải là món nào được mua nhiều nhất, mà là cái món nào đang thực sự nuôi cửa hàng.",
+      "selection_reason": "So sánh doanh thu với tiền đóng góp, rồi gợi ý xếp hạng sản phẩm theo hiệu quả.",
+      "needs_review": true
     }
   ],
   "uncovered_word_indices": [
@@ -148,5 +134,23 @@
     "NOTE_TYPING",
     "CTA_CLOSE",
     "NOTIFY_STACK"
-  ]
+  ],
+  "complete_script_count": 8,
+  "incomplete_scripts": [
+    {
+      "tieu_de": "Một đơn hàng hoàn có khi mất lãi đến tận ba đơn",
+      "start_word_id": "w002553",
+      "end_word_id": "w002621",
+      "hoan_chinh": false,
+      "cau_mo_dau": "Một đơn hàng hoàn á, một đơn hàng hoàn á, có khi là mất lãi đến tận ba đơn.",
+      "cau_ket": "Nhưng đó là câu chuyện của...",
+      "ly_do": "Câu cuối bị ngắt giữa chừng; chưa có kết luận nên không tính là video hoàn chỉnh.",
+      "clip_id": "kb_09",
+      "start_ms": 886200,
+      "end_ms": 917900
+    }
+  ],
+  "count_rechecked_with_full_audio": true,
+  "boundaries_confirmed": false,
+  "previous_draft_count": 10
 }

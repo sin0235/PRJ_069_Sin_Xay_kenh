@@ -1,0 +1,67 @@
+{
+  "source_asset_id": "c15a3ad0-811a-4f96-861b-630549dab417",
+  "source_audio_sha256": "df4d41d9ba94450208d8d007d7cdd89803c4933abcb2c3a679f181d5ee4381e1",
+  "provider": "9router_cx_transcribe",
+  "segments": [
+    {
+      "index": 0,
+      "start_ms": 0,
+      "end_ms": 120000,
+      "transcript": "Đơn 23 nghìn về chưa tới bảy. Có một người bán xà bông kể trên báo như vậy. Mà chưa tới bảy nghìn đó là chưa trừ cái tiền hộp, tiền băng dính, rồi cả công mà làm ra cái sản phẩm đó. Thử đặt mình vào người bán mà xem. Sáng mở điện thoại, thấy đơn nhảy liên tục. Đương nhiên là phải mừng chứ, đúng không nào. Nhưng mà đến cuối tháng, tiền bán hàng là đi đâu hết rồi? mất tiêu. Đấy, có một cái chỗ rất dễ nhầm lẫn ở đây. Tiền khách trả là một chuyện, tiền sàn quyết toán lại là cái chuyện thứ hai. Còn cái tiền thực sự giữ lại sau giá vốn, quảng cáo, đóng gói mới là cái chuyện thứ ba. Mà nói công bằng, không phải đơn nào ngành nào cũng chịu mức phí giống cái câu chuyện nêu trên. Sàn vẫn đem đến khách hàng và cái sự tiện lợi nhất định. Vấn đề là mình có biết cái giá phải trả cho từng đơn hay không. Ví dụ nha, lấy 20 đơn đã được quyết toán, mở một bảng trên máy tính, ghi giá bán, tiền thực nhận, giá vốn, chi phí quảng cáo phân bổ và đóng gói. Có món nhìn doanh thu có vẻ rất đẹp, nhưng tính xong mới biết là gần như chẳng còn gì cả. Nếu chưa có bảng ấy, đừng vội tăng quảng cáo chỉ vì thấy đơn nha. Mình cần biết bán thêm một đơn thì có thêm tiền hay là chỉ thêm việc mà thôi. Cái khó của kinh doanh không chỉ là bán được hàng mà còn là biết là sau mỗi đơn, tiền có thực sự ở lại với mình hay không. tăng giá rồi, sao tiền lời lại giảm? Nghe có vẻ vô lý đúng không nào? Bán đắt hơn thì phải lời hơn chứ. Nhưng thử tính một ví dụ rất đơn giản như sau. Giả sử trước đây một shop bán được 100 đơn, mỗi đơn còn 10 nghìn."
+    },
+    {
+      "index": 1,
+      "start_ms": 115000,
+      "end_ms": 235000,
+      "transcript": "Một shop bán được 100 đơn, mỗi đơn còn 10 nghìn. Sau các chi phí trực tiếp tổng cộng là còn 1 triệu đi. Shop tăng giá và giả sử sau khi tính lại các khoản phí mỗi đơn giờ còn lại 15 nghìn. Nghe khá nhiều đúng không? nhưng số đơn lại giảm xuống còn 60. Vậy là cuối cùng chỉ còn là 900 nghìn doanh thu. Kết quả là giá mỗi đơn cao hơn mà tổng tiền để lại lại thấp hơn. Tất nhiên đây là con số giả định nha, chưa kể nhiều lời phí còn thay đổi theo giá bán nữa nha. Mà đứng ở phía khách hàng cũng dễ hiểu thôi, người ta có một mức tiền thấy hợp lý, vượt qua mức đó, họ sẽ cân nhắc, so sánh hoặc chọn một món khác. Cho nên câu hỏi không chỉ là tăng giá bao nhiêu, mà là tăng giá rồi còn bao nhiêu khách mua và tiền còn lại cuối cùng thay đổi như thế nào. Nếu muốn thử lấy một nhóm sản phẩm, ghi số đơn và số tiền còn lại là trước khi thay đổi giá. Thử ở phạm vi nhỏ thôi nha, theo dõi đủ thời gian rồi mới scale mở rộng. Đừng đổi cả gian hàng cùng một lúc mà sau đó chẳng biết điều gì nó gây ra kết quả giảm. Tăng giá là một quyết định, nhưng giữ được lợi nhuận sau khi tăng giá mới là kết quả mà chúng ta cần. Đơn càng rẻ, tiền lời càng dễ biến mất. Ví dụ nha, một món phụ kiện giá hai mươi mấy ngàn đi, khách mua một cái, shop vẫn phải nhập hàng, in đơn, đóng hộp, dán băng keo rồi giao cho đơn vị shipper vận chuyển đấy. Mấy việc đó đâu có tự biến mất chỉ vì món hàng rẻ đâu. Bởi vậy thế mới thấy là cùng một khoản đóng gói vài nghìn đồng đặt vào một cái món 100 nghìn thì nó khác nhau."
+    },
+    {
+      "index": 2,
+      "start_ms": 230000,
+      "end_ms": 350000,
+      "transcript": "Đặt vào một cái món 100 nghìn thì nó khác nhau. Đặt vào món 22 nghìn thì nó có thể ăn phần lớn khoản một lãi. Mà đương nhiên ở đây sẽ có người sẽ nói là vậy cứ gom khách mua ba cái một lần, nó như combo á, thật ra cũng có lý. Nhưng cái quan trọng là khách có cần ba cái hay không? Hay mình làm combo xong khách lại bỏ đi vì phải mua cái thứ họ không cần. Thành ra trước khi ghép cái combo là phải nhìn từ hai phía: shop cần giảm chi phí trên mỗi đơn, khách thì cần mua nhiều thực sự có lợi chứ không phải là bị ép mua. Thử mở cái bảng tính nha, đặt ba trường hợp cạnh nhau: mua một món, mua hai món và một bộ sản phẩm thật sự dùng chung với nhau, đó là combo á. nhập cả phí này, giá vốn, đóng gói và xem mỗi phương án còn bao nhiêu. Nếu cái bộ sản phẩm có ích cho khách và cái phần tiền còn lại tốt hơn thì lúc ấy mới là đáng thử. Còn không, có khi phải thay chính cái sản phẩm hoặc là mức giá tối thiểu. Bán được một món nhỏ rất là đáng quý, nhưng đừng vì giữ một cái đơn nhỏ mà quên tính xem là nó đang là tốn bao nhiêu công và bao nhiêu cái code quảng cáo ra đơn, tiền ra đơn, cuối cùng là sao vẫn thiếu tiền. Chuyện này người bán online là rất là dễ gặp. Mở báo cáo quảng cáo thấy đơn, thấy doanh thu tự nhiên là an tâm. À chiến dịch có hiệu quả rồi. Nhưng mà khoan khoan nha, có đơn không có nghĩa là mỗi đơn đều mang lại tiền lời. Ví dụ, giả sử 10 đơn hàng, sau giá vốn, phí sàn và đóng gói mỗi đơn còn 25 nghìn trước quảng cáo, cộng lại được 250 nghìn, trong khi chiến dịch đã tiêu 300 nghìn để tạo ra 10 đơn đó. Ở đây là ít thôi nha, có lúc còn 100 nghìn mét, ví dụ thế."
+    },
+    {
+      "index": 3,
+      "start_ms": 345000,
+      "end_ms": 465000,
+      "transcript": "ở đây là ít đấy nha, có lúc còn một trăm nghìn mét ví dụ thế. Việc riêng nhóm đơn này đang ăn gọi là âm năm mươi nghìn trước các chi phí khác á. Nghe hơi phũ nhưng rõ ràng quảng cáo có thể đang mua về cái doanh thu chứ chưa mua về lợi nhuận đâu nha. Mà cũng phải công bằng, có khách mua lại lần sau, có khách biết đến thương hiệu rồi mua ở một lần khác nhưng giá trị đó cần được theo dõi và định lượng, không thể kết luận từ một ngày duy nhất đâu. Chỗ đáng ngại là mình không đo gì ngoài số đơn. Cứ thấy ít đơn là lại tăng tiền quảng cáo, thấy nhiều đơn thì lại nghĩ là đã đúng. Vòng lặp ấy là dễ khiến mình chỉ thêm mà không hiểu là tại sao mà vẫn cứ thiếu tiền. Thử chọn một chiến dịch lấy cái tiền quảng cáo thực chi, số đơn có thể quy về chiến dịch và số tiền đóng góp của những đơn đó, tính rõ ra cái phần mà chưa đo được. Đừng tự nhận tất cả các đơn đến đều nhờ quảng cáo, không phải như thế đâu. Quảng cáo tốt không chỉ kéo người đến cửa hàng, nó phải góp phần tạo ra kết quả kinh doanh mà mình chịu được về lâu dài. Có doanh thu mà không có tiền nhập hàng, thử tưởng tượng một chủ shop như sau: cả tuần đơn đều, điện thoại thông báo suốt ngày, nhưng đúng hôm phải trả nhà cung cấp thì tài khoản lại thiếu. Lúc đó nhiều người nghĩ mình bán chưa đủ nhưng có khi không phải đâu. Một phần tiền còn đang chờ sàn quyết toán, một phần nằm trong hàng tồn kho, một phần đã trả cho quảng cáo, cho vận chuyển, cho những đơn khách trả lại. Mà ngày trả tiền thuê mặt bằng hay nhập hàng thì đâu có chờ mình đâu. Có một cái chỗ cần tách ra, đó là doanh thu, lợi nhuận và dòng tiền là ba chuyện hoàn toàn khác nhau. Có lãi trên sổ chưa chắc hôm nay đã có đủ tiền mặt để thanh toán đâu, đó là sự thật. Mà đứng ở..."
+    },
+    {
+      "index": 4,
+      "start_ms": 460000,
+      "end_ms": 580000,
+      "transcript": "Chắc hôm nay đã có đủ cái tiền mặt để thanh toán đâu. Đó là sự thật. Mà đứng ở vị trí của chủ shop thì rất áp lực. Không phải họ không biết bán hàng. Nhiều khi họ chỉ không nhìn được cái tuần tới là tiền nào nó sẽ về, tiền nào bắt buộc phải ra. Thử làm một cái bảng khoảng bảy ngày thôi. một cột là cái tiền dự kiến về từ các kênh bán, chỉ ghi cái khoản nó có căn cứ đối soát thôi nha. một cột là tiền nó chắc chắn chúng ta phải trả, và một cột là cái số dư dự kiến từng ngày. ngày nào thiếu mình sẽ thấy trước để cân nhắc cái lịch nhập hàng, ngân sách quảng cáo hay trao đổi lại thời hạn thanh toán. Thay vì mới đến hạn mới cuống lên. Thật ra bán hàng là tạo ra doanh thu, còn giữ cho cửa hàng sống được qua từng kỳ thanh toán, đó là quản trị dòng tiền. Rời sàn tránh phí khách có theo không? Nghe thì hợp lý đúng không? Không qua sàn tưởng như đỡ được một khoản phí nào đó. Nhưng thử đứng ở phía người mua xem, người ta quen đặt hàng ở đó rồi, có cách thanh toán này, theo dõi giao hàng này, đổi trả và những cơ chế bảo vệ người mua nhất định. Đúng không nào? Tự nhiên mình bảo khách đổi sang một kênh khác, họ sẽ nghĩ gì? Có được đảm bảo như cũ không? Có tiện không? shop có đáng tin tưởng không? Mà bên ngoài sàn đâu phải là miễn phí đâu. Muốn có người biết tới mình thì còn phải quảng cáo, làm nội dung, chăm tin nhắn, vận hành giao hàng rồi đủ các thứ khác. Có khi phần tiết kiệm được ở một chỗ lại phát sinh ở chỗ khác, nếu không tính toán. Cho nên đừng nhìn chuyện này như một cuộc bỏ sàn, ở lại sàn. Nên nhìn xem là từng kênh có lợi cho nhóm khách, nhóm khách hàng và cái loại sản phẩm nào. Ví dụ có khách tự..."
+    },
+    {
+      "index": 5,
+      "start_ms": 575000,
+      "end_ms": 695000,
+      "transcript": "Ví dụ có khách tự tìm đến fanpage hoặc là website và đồng ý nhận thông tin, điền vào form đó, shop có thể chăm sóc đúng nhu cầu, xây lòng tin và theo dõi cái tỷ lệ mua lại ở cái kênh đó. Còn các cái đơn trên sàn thì vẫn phải tuân thủ quy định của sàn, không lách được chính sách để mà kéo đơn. Mình thử so sánh cái chi phí, cái chi phí giữa sàn và mình xây dựng lại. Ví dụ như một khách mua thật ở từng kênh, cộng cả cái xử lý đơn và hoàn, rồi sau đó là mới quyết định đầu tư. Giữ được khách không chỉ ở cái chỗ nào giá thấp đâu. Nhiều khi vì người ta thấy mua ở đó là họ yên tâm, giống như bán niềm tin. giảm mười nghìn có khi mất nửa lãi. Ví dụ nha, một món hàng bán một trăm nghìn, sau giá vốn và các khoản chi phí trực tiếp còn có hai mươi nghìn, chưa chi phí cố định. Khách thường hỏi là có bớt không? Câu rất quen thuộc đúng không? thì nhắc lại là sau giá vốn và các khoản chi phí trực tiếp còn có là một số các khoản chi phí cố định. Khách hỏi có bớt được không? Mình thương lượng là giảm mười nghìn để chốt. Nếu mà tạm giữ cái chi phí như cũ thì khoản còn lại chỉ là mười nghìn thôi. Nghĩa là giảm 10% giá bán nhưng cái phần tiền đóng góp lại giảm 5%, một nửa. chỗ này phải đáng để để ý nha. Cùng một số mười nghìn, người mua nhìn thấy một ưu đãi, còn người bán đôi khi lại vừa nhường đi một phần rất lớn về cái lợi. giảm một nửa, nó vậy đó. nhắc lại giảm một nửa cái chỗ này mới đáng để ý này. Cùng một con số mười nghìn, người mua nhìn thấy một ưu đãi."
+    },
+    {
+      "index": 6,
+      "start_ms": 690000,
+      "end_ms": 810000,
+      "transcript": "Một con số mười nghìn, người mua nhìn thấy một ưu đãi, còn người bán đôi khi lại vừa nhường đi một phần rất lớn tiền lời. Mà không có nghĩa là tuyệt đối không được giảm giá nha. Có những đơn là cần xả tồn, có những chương trình là nhằm tìm khách mới, có những trường hợp là bán theo bộ sẽ giảm chi phí. Nhưng đã giảm thì nên biết mình đang đổi, đánh đổi lấy cái điều gì ở đây. Thử mở năm đơn gần nhất có cái chiết khấu nha, tính cái phần tiền còn lại trước và sau khi giảm. Nếu chưa tính, thì ít nhất là đừng mặc định là giảm 10% giá chỉ làm lợi nhuận, giảm 10% không phải. Và trước khi bớt tiền, có khi nên hỏi khách đang cần cái điều gì nhất, đơn giản hơn, giao nhanh hơn, hay một bộ sản phẩm nó vừa túi tiền hơn. Bán được đơn thì rất là quan trọng, nhưng giữ giá trị của mỗi đơn cũng quan trọng không kém. Món bán đang chạy nhất có khi lại đang kéo xốp lỗ đấy. Nói vậy nghe khó tin đúng không? Vì ngày nào cũng thấy món ấy nhảy đơn cả, ngày nào cũng như ngày nào. nhân viên cũng khoái bán vì dễ tư vấn và dễ ra số, dễ đạt KPI. Nhưng mà thử mở báo cáo kỹ hơn mà xem nha. Một món có thể mang về doanh thu lớn, trong khi phí quảng cáo, đóng gói và hàng hóa nó cũng lớn theo. Còn một món có thể nó bán ít hơn, nhưng mỗi đơn lại để một khoản tiền tốt hơn. Có khi mình đang dành hầu hết thời gian, tiền quảng cáo và hàng tồn cho một món đầu tiên, chỉ vì nó tạo cho mình cái cảm giác bận rộn. Mà tôi nghĩ còn một cái chuyện nữa, nhiều người khó..."
+    },
+    {
+      "index": 7,
+      "start_ms": 805000,
+      "end_ms": 925000,
+      "transcript": "Mà tôi nghĩ còn một cái chuyện nữa, nhiều người khó bỏ một sản phẩm đã gắn bao lâu. Nhắc lại nhé, nó tạo cái cảm giác bận rộn. Ví dụ đã chụp ảnh, chạy nội dung, nhập hàng, xây cả bộ nhận diện. Bây giờ bảo xem lại thì tiếc công, tiếc tiền. Tâm lý thật ra là rất dễ hiểu, tâm lý cực kỳ dễ hiểu, đúng không? Nhưng tiền đó bảo ra rồi không tự làm cho những đơn hàng bán tiếp theo trở nên có lãi. Thử nha, thử lấy 20 mã hàng, đừng sếp theo doanh thu trước, sếp theo tổng tiền đóng góp sau, các chi phí trực tiếp, rồi nhìn thêm tỷ lệ hoàn và cái lượng tồn. Món nào tạo tiền, món nào cần sửa, món nào nên giảm nhập, lúc đó sẽ rõ hơn. Không phải cái món bán chạy là xấu, nhưng nếu chỉ nhìn cái số lượng đơn mà để quyết định mình có nhập thêm á, mình có thể đang nuôi nhầm sản phẩm. Cái điều đáng hỏi không phải là món nào được mua nhiều nhất, mà là cái món nào đang thực sự nuôi cửa hàng. Một đơn hàng hoàn á, một đơn hàng hoàn á, có khi là mất lãi đến tận ba đơn. Có thể đấy, bạn nào mà làm thời trang chắc là các bạn nắm khá rõ cái việc này, đúng không? Có người bán trên hội nhóm từng kể á, bán trên sàn á, từng kể một đơn bị hoàn có khiến họ mất gần bốn mấy nghìn tiền vận chuyển, đúng không? Nhưng đó là câu chuyện của..."
+    },
+    {
+      "index": 8,
+      "start_ms": 920000,
+      "end_ms": 926827,
+      "transcript": "",
+      "transcription_status": "EMPTY_TRANSCRIPTION",
+      "requires_review": true,
+      "rms_pcm16": 544,
+      "peak_pcm16": 17535
+    }
+  ],
+  "complete": true,
+  "all_segments_have_text": false
+}
