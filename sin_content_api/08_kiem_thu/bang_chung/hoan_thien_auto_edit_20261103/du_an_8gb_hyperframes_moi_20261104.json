@@ -1,0 +1,27 @@
+{
+  "project_id": "61340dab-a666-4fa2-9bed-ac92520d125b",
+  "project_created": true,
+  "source_asset_id": "f28532a9-3e88-536d-9e4a-d3d8d4acb0fc",
+  "source_sha256": "8b520dc243dfa602d09fee1f24c3d1f9ff89f56833b234eb6d317fc272a542df",
+  "byte_size": 8428283732,
+  "source_shared_without_copy": true,
+  "source_link_count": 2,
+  "url": "https://nhap-xaykenh-prj069.bahagroup.vn/auto-edit?project_id=61340dab-a666-4fa2-9bed-ac92520d125b",
+  "hyperframes_layouts": [
+    "KINETIC_TITLE",
+    "MARK_PHRASE",
+    "WORD_SWAP",
+    "PILE_UP",
+    "STAT_RING",
+    "CHART_STORY",
+    "AI_RANK",
+    "DRAG_TASKS",
+    "CARD_SHIFT",
+    "CHAT_THREAD",
+    "NOTE_TYPING",
+    "CTA_CLOSE",
+    "NOTIFY_STACK"
+  ],
+  "source_list_verified": true,
+  "render_submitted": false
+}

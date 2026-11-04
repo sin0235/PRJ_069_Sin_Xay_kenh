@@ -6,6 +6,32 @@ from types import SimpleNamespace
 from src.modules.dieu_phoi_dung.dung_video_dai import ClipTuDong, tao_y_tuong_dien_hoa_flow
 
 
+@pytest.mark.parametrize('layout,diagram', [
+    ('CHAT_THREAD', {'title':'Tư vấn', 'steps':['Khách cần hỗ trợ','Nhân viên trả lời'], 'values':['khách','nhân viên']}),
+    ('NOTE_TYPING', {'title':'Chi phí', 'steps':['Tính giá vốn','Tính tiền đóng gói']}),
+    ('CTA_CLOSE', {'title':'Baha Group', 'caption':'Kiểm tra tiền lời mỗi đơn'}),
+    ('NOTIFY_STACK', {'title':'Đơn hàng', 'steps':['Có đơn mới','Đã thanh toán','Đã giao hàng']}),
+])
+def test_auto_edit_llm_nhan_danh_muc_moi_va_dung_duoc_layout(layout, diagram):
+    from src.modules.tao_video_noi_dung.hf_prompt import LAYOUT_PROMPTS
+    class Client:
+        max_input_bytes, max_output_tokens = 200000, 4000
+        def complete(self, messages, **kwargs):
+            request = json.loads(messages[1]['content'])
+            assert request['cac_khoi_hyperframes'] == LAYOUT_PROMPTS
+            return SimpleNamespace(content=json.dumps({'visuals':[{
+                'clip_id':'clip','renderer':'HYPERFRAMES','start_word_id':'w0','end_word_id':'w1',
+                'scene':'Cảnh giấy minh họa lời nói','action':'Các thành phần hiện theo lời',
+                'ui_scene':{'layout':layout,'diagram':diagram},
+            }]}))
+    clip = ClipTuDong(clip_id='clip',start_ms=0,end_ms=6000,title='Nội dung',reason='Đủ ý')
+    words = [{'id':'w0','text':'Tính chi phí mỗi đơn','start_ms':0,'end_ms':2000},
+             {'id':'w1','text':'để biết còn tiền lời','start_ms':2000,'end_ms':5000}]
+    result = tao_y_tuong_dien_hoa_flow([clip], words, [], Client(), flow_available=False)
+    assert len(result) == 1 and result[0]['ui_scene']['layout'] == layout
+    assert result[0]['duration_seconds'] == 5
+
+
 @pytest.mark.parametrize('repair', [True, False])
 def test_llm_sua_overlay_chu_qua_nho_truoc_render(repair):
     from src.modules.dieu_phoi_dung.dung_video_dai import chon_dien_hoa
