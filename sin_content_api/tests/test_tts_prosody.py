@@ -28,6 +28,7 @@ def test_flow_snapshots_no_denoising():
 @pytest.mark.parametrize("edge_samples,expected_padding", [(0, 4000), (2400, 0)])
 def test_shot_join_preserves_audio_and_resume_does_not_duplicate_pause(monkeypatch, tmp_path, edge_samples, expected_padding):
     # Hai mép 0,3s đã đủ nghỉ; hai mép không im lặng thì cần bù 0,5s.
+    monkeypatch.setenv("CONTENT_VIDEO_TTS_MOT_LAN", "0")   # test của chế độ sinh từng shot
     first = np.concatenate([np.full(800, .1, dtype=np.float32), np.zeros(edge_samples, dtype=np.float32)])
     second = np.concatenate([np.zeros(edge_samples, dtype=np.float32), np.full(800, -.1, dtype=np.float32)])
     queue = iter([first, second])
