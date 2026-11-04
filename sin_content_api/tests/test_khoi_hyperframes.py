@@ -4,7 +4,7 @@ import re
 
 import pytest
 
-from src.modules.tao_video_noi_dung import hf_blocks, hf_project, hf_scenes, planner
+from src.modules.tao_video_noi_dung import hf_blocks, hf_manifest, hf_project, hf_scenes, hf_transitions, planner
 from src.modules.tao_video_noi_dung.planner import BLOCK_LAYOUTS, DiagramSpec, UiScene
 
 VALID = {
@@ -17,6 +17,10 @@ VALID = {
     "DRAG_TASKS": {"title": "Cần làm", "caption": "Đang xử lý", "steps": ["Báo khách đơn trễ", "Đối chiếu mã hàng", "Ghi giờ bàn giao", "Duyệt hoàn tiền"]},
     "CARD_SHIFT": {"title": "Đơn hàng", "steps": ["Nhập tay", "Tự đồng bộ"]},
     "CHART_STORY": {"title": "Doanh thu", "labels": ["Q1", "Q2", "Q3", "Q4"], "series": [{"name": "dt", "values": [12, 28, 45, 64]}], "unit": "%"},
+    "CHAT_THREAD": {"title": "Tư vấn khách hàng", "steps": ["Chào bạn, mình cần hỗ trợ", "Dạ Baha có thể giúp gì ạ?"], "values": ["khách", "AI"]},
+    "NOTE_TYPING": {"title": "Kế hoạch tuần", "steps": ["Họp giao ban đầu tuần", "Triển khai tính năng mới", "Kiểm thử toàn diện"]},
+    "CTA_CLOSE": {"title": "Baha Group", "caption": "Liên hệ ngay để chuyển đổi số", "tag": "Giải pháp DN", "value": "baha.vn"},
+    "NOTIFY_STACK": {"title": "Hệ thống", "steps": ["Đơn hàng mới #1024", "Thanh toán thành công", "Đã xuất kho"]},
 }
 
 
@@ -50,6 +54,16 @@ def test_cau_truc_hop_le_va_khong_can_moc_su_kien(layout):
     ("DRAG_TASKS", {"caption": None}),
     ("CARD_SHIFT", {"steps": ["Cũ", "cũ"]}),
     ("CARD_SHIFT", {"steps": ["Cũ", "Mới", "Mới hơn"]}),
+    ("CHAT_THREAD", {"title": "Tiêu đề hội thoại này quá dài vượt hai mươi tư ký tự"}),
+    ("CHAT_THREAD", {"steps": ["Chỉ một tin"]}),
+    ("CHAT_THREAD", {"values": ["khách", "vai_tro_khong_hop_le"]}),
+    ("NOTE_TYPING", {"title": "Tiêu đề ghi chú quá dài vượt hai mươi tư ký tự"}),
+    ("NOTE_TYPING", {"steps": ["Dòng này vượt quá bốn mươi ký tự quy định của ghi chú đang gõ chữ"]}),
+    ("CTA_CLOSE", {"title": "Tên thương hiệu quá dài vượt hai mươi ký tự"}),
+    ("CTA_CLOSE", {"caption": None}),
+    ("CTA_CLOSE", {"caption": "Đội Ngũ Tiên Phong - Nâng Tầm Giá Trị"}),
+    ("NOTIFY_STACK", {"title": "Tên ứng dụng quá dài vượt hai mươi ký tự"}),
+    ("NOTIFY_STACK", {"steps": ["Chỉ một thông báo", "Chỉ hai thông báo"]}),
 ])
 def test_du_lieu_sai_bi_tu_choi(layout, override):
     with pytest.raises(ValueError, match=f"DIAGRAM_{layout}_FIELDS"):
@@ -98,6 +112,48 @@ def test_chu_mau_tieng_anh_duoc_viet_hoa():
     assert "Hộp thư" in text and '"Inbox"' not in text
 
 
+def test_chu_mau_tieng_anh_khoi_moi_duoc_thay_the():
+    # chat-thread
+    m_chat = hf_blocks._LOADED_MANIFESTS["CHAT_THREAD"][0]
+    lits_chat = hf_manifest.render_literals(m_chat, VALID["CHAT_THREAD"])
+    text_chat = hf_blocks.prepare_block("chat-thread", "s_chat", 5, lits_chat)
+    assert 'receipt.textContent = "Delivered";' not in text_chat
+    assert '<div class="cht-ph">Message</div>' not in text_chat
+    assert '<div class="cht-name" id="cht-name">Rachel' not in text_chat
+
+    # notes-typing
+    m_notes = hf_blocks._LOADED_MANIFESTS["NOTE_TYPING"][0]
+    lits_notes = hf_manifest.render_literals(m_notes, VALID["NOTE_TYPING"])
+    text_notes = hf_blocks.prepare_block("notes-typing", "s_notes", 5, lits_notes)
+    assert "Things nobody told me<br />about video." not in text_notes
+    assert "my videos sucked|my tools cost $$$|and re-edits never end." not in text_notes
+
+    # cta-lockup
+    m_cta = hf_blocks._LOADED_MANIFESTS["CTA_CLOSE"][0]
+    lits_cta = hf_manifest.render_literals(m_cta, VALID["CTA_CLOSE"])
+    text_cta = hf_blocks.prepare_block("cta-lockup", "s_cta", 5, lits_cta)
+    assert '"Start building today"' not in text_cta
+    assert '"Get HyperFrames"' not in text_cta
+    assert '"Free while in beta"' not in text_cta
+
+    # notification-stack
+    m_notif = hf_blocks._LOADED_MANIFESTS["NOTIFY_STACK"][0]
+    lits_notif = hf_manifest.render_literals(m_notif, VALID["NOTIFY_STACK"])
+    text_notif = hf_blocks.prepare_block("notification-stack", "s_notif", 5, lits_notif)
+    assert '"Build queued,Checks passed,Deploy live"' not in text_notif
+    assert '"Pipeline started for main,All 42 checks green,Now serving version 2.4"' not in text_notif
+
+
+@pytest.mark.browser
+@pytest.mark.parametrize("block_name", ["chat-thread", "notes-typing", "cta-lockup", "notification-stack"])
+@pytest.mark.parametrize("aspect", ["16:9", "9:16"])
+def test_kiem_thu_khoi_khoi_moi(tmp_path, block_name, aspect):
+    from ha_tang.hyperframes.kiem_thu_khoi import smoke_block
+    res = smoke_block(block_name, tmp_path / f"smoke_{block_name}_{aspect.replace(':', '_')}", aspect=aspect)
+    assert res.renders is True
+    assert res.runtime_errors == 0
+
+
 def test_chon_bien_the_on_dinh_va_theo_do_dai_tieu_de():
     short = {"title": "Một nguồn"}
     assert hf_blocks.pick_variant("KINETIC_TITLE", short) == hf_blocks.pick_variant("KINETIC_TITLE", short)
@@ -128,7 +184,7 @@ def test_ban_do_native_co_du_loai_canh_khoi():
 
 
 def test_chuyen_canh_luan_phien_va_deu_dinh_thoi():
-    assert hf_project.BOUNDARY_TRANSITIONS == ("iris", "whip", "flash")
+    assert hf_project.BOUNDARY_TRANSITIONS == (*hf_transitions.TRANSITION_KINDS, "flash")
     iris = hf_project.boundary_transition("iris", "#s03", 10.0)
     assert "circle(0% at 50% 50%)" in iris and iris.count("tl.") == 2 and '9.850' in iris
     assert "xPercent: 100" in hf_project.boundary_transition("whip", "#s05", 20.0)
@@ -138,7 +194,8 @@ def test_chuyen_canh_luan_phien_va_deu_dinh_thoi():
 
 def test_ghep_nhieu_canh_dung_du_kieu_chuyen_canh(tmp_path):
     shots, start = [], 0.0
-    for layout in list(BLOCK_LAYOUTS) + list(BLOCK_LAYOUTS):
+    valid_layouts = list(VALID.keys())
+    for layout in (valid_layouts * 3)[:20]:
         shots.append({"seconds": 5.0, "scene": scene(layout), "events": {}, "narration": "lời đọc", "start_seconds": start})
         start += 5.0
     hf_project.build_project(tmp_path / "p", shots, None, None, transitions=True, aspect_ratio="16:9")
@@ -213,6 +270,7 @@ def test_prompt_flow_khong_co_ma_mau_hex_va_ten_style_tieng_anh():
     prompt = planner.build_shot_prompt(style, flow_shot, "neo nhận diện")
     assert "#" not in prompt and "Editorial" not in prompt and "Motion" not in prompt
     assert "xanh navy" in prompt and "origami" in prompt.casefold()
+
 
 def test_prompt_flow_loc_ma_hex_trong_neo_lien_tuc_va_mo_ta_canh():
     """LLM chép bảng màu kèm mã hex vào continuity_anchor và mô tả cảnh: Flow vẽ chúng thành chữ, nên lọc trên toàn bộ prompt."""

@@ -91,6 +91,9 @@ def test_build_project_chep_thu_vien_can_dung(tmp_path, monkeypatch):
         '</template>\n'
     )
     (tmp_blocks / "chart-story.html").write_text(d3_block_html, encoding="utf-8")
+    starfield_src = hf_blocks.BLOCKS_DIR / "starfield.html"
+    if starfield_src.is_file():
+        (tmp_blocks / "starfield.html").write_text(starfield_src.read_text(encoding="utf-8"), encoding="utf-8")
     monkeypatch.setattr(hf_blocks, "BLOCKS_DIR", tmp_blocks)
 
     chart_scene = UiScene(

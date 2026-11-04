@@ -42,6 +42,21 @@ LAYOUT_PROMPTS: dict[str, str] = {
         "hai thẻ, tiêu điểm chuyển từ thẻ cũ sang thẻ mới: title là nhãn nhỏ tối đa 16 ký tự, "
         "steps đúng 2 nhãn khác nhau tối đa 14 ký tự: lúc đầu rồi lúc sau"
     ),
+    "CHAT_THREAD": (
+        "hội thoại ngắn giữa khách và trợ lý hiện từng tin nhắn: title là tiêu đề hội thoại tối đa 24 ký tự, "
+        "steps 2 đến 5 tin nhắn mỗi tin tối đa 48 ký tự, values cùng số lượng là vai trò từng tin gồm khách, AI hoặc nhân viên"
+    ),
+    "NOTE_TYPING": (
+        "ứng dụng ghi chú đang gõ chữ: title tối đa 24 ký tự, steps 2 đến 5 dòng mỗi dòng tối đa 40 ký tự"
+    ),
+    "CTA_CLOSE": (
+        "thẻ kêu gọi hành động kết video thay cho END_CARD và phải là shot cuối cùng: title là tên thương hiệu tối đa 20 ký tự, "
+        "caption là câu mời tối đa 40 ký tự, tag tùy chọn là nhãn phụ tối đa 20 ký tự, value tùy chọn là liên hệ hoặc web tối đa 30 ký tự"
+    ),
+    "NOTIFY_STACK": (
+        "các thông báo dồn chồng lên nhau: title là tên ứng dụng hoặc nguồn phát tối đa 20 ký tự, "
+        "steps 3 đến 5 thông báo mỗi thông báo tối đa 40 ký tự"
+    ),
 }
 
 BLOCK_LAYOUTS: tuple[str, ...] = tuple(LAYOUT_PROMPTS.keys())
@@ -78,7 +93,9 @@ def layout_prompt(layouts: Iterable[str] | None = None) -> str:
     )
     p2 = ""
     if rest:
-        p2 = "Ba loại chuyển động dựng sẵn nữa, cùng quy tắc: " + ", ".join(_fmt(k) for k in rest) + ". "
+        _viet_nums = {1: "Một", 2: "Hai", 3: "Ba", 4: "Bốn", 5: "Năm", 6: "Sáu", 7: "Bảy", 8: "Tám", 9: "Chín", 10: "Mười"}
+        prefix = f"{_viet_nums.get(len(rest), str(len(rest)))} loại chuyển động dựng sẵn nữa, cùng quy tắc: "
+        p2 = prefix + ", ".join(_fmt(k) for k in rest) + ". "
 
     suffix = (
         "Các loại này hợp với khung 9:16 và không tốn thời gian dựng như clip Flow; dùng chúng cho các shot nhấn ý ngắn. "

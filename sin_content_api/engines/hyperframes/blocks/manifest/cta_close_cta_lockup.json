@@ -1,0 +1,42 @@
+{
+  "order": 0,
+  "layout": "CTA_CLOSE",
+  "variant_key": "cta_close",
+  "block": "cta-lockup",
+  "max_chars": 20,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "action_line": {
+      "field": "caption"
+    },
+    "button_label": {
+      "field": "title"
+    },
+    "microcopy": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "value"
+        },
+        {
+          "fn": "default",
+          "args": [
+            {
+              "field": "tag"
+            },
+            ""
+          ]
+        }
+      ]
+    },
+    "accent": "green"
+  },
+  "literals": {
+    "\"Start building today\"": "\"Bắt đầu ngay hôm nay\"",
+    "\"Get HyperFrames\"": "\"Liên hệ ngay\"",
+    "\"Free while in beta\"": "\"\""
+  }
+}

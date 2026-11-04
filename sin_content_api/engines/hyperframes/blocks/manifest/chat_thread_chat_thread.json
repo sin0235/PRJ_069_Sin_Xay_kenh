@@ -1,0 +1,147 @@
+{
+  "order": 0,
+  "layout": "CHAT_THREAD",
+  "variant_key": "chat_thread",
+  "block": "chat-thread",
+  "max_chars": 24,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "contact": {
+      "field": "title"
+    },
+    "unread": 0,
+    "messages": {
+      "fn": "concat",
+      "args": [
+        {
+          "fn": "nth",
+          "args": [
+            {
+              "field": "values"
+            },
+            0
+          ]
+        },
+        ":",
+        {
+          "fn": "nth",
+          "args": [
+            {
+              "field": "steps"
+            },
+            0
+          ]
+        },
+        "|",
+        {
+          "fn": "nth",
+          "args": [
+            {
+              "field": "values"
+            },
+            1
+          ]
+        },
+        ":",
+        {
+          "fn": "nth",
+          "args": [
+            {
+              "field": "steps"
+            },
+            1
+          ]
+        },
+        "|",
+        {
+          "fn": "nth",
+          "args": [
+            {
+              "field": "values"
+            },
+            2
+          ]
+        },
+        ":",
+        {
+          "fn": "nth",
+          "args": [
+            {
+              "field": "steps"
+            },
+            2
+          ]
+        },
+        "|",
+        {
+          "fn": "nth",
+          "args": [
+            {
+              "field": "values"
+            },
+            3
+          ]
+        },
+        ":",
+        {
+          "fn": "nth",
+          "args": [
+            {
+              "field": "steps"
+            },
+            3
+          ]
+        },
+        "|",
+        {
+          "fn": "nth",
+          "args": [
+            {
+              "field": "values"
+            },
+            4
+          ]
+        },
+        ":",
+        {
+          "fn": "nth",
+          "args": [
+            {
+              "field": "steps"
+            },
+            4
+          ]
+        }
+      ]
+    },
+    "beat": 1.7,
+    "dots": "on",
+    "receipt": "off"
+  },
+  "literals": {
+    "<div class=\"cht-name\" id=\"cht-name\">Rachel<span class=\"chev\">&#8250;</span></div>": {
+      "fn": "concat",
+      "args": [
+        "<div class=\"cht-name\" id=\"cht-name\">",
+        {
+          "fn": "html_escape",
+          "args": [
+            {
+              "field": "title"
+            }
+          ]
+        },
+        "<span class=\"chev\">&#8250;</span></div>"
+      ]
+    },
+    "<div class=\"cht-ph\">Message</div>": "<div class=\"cht-ph\">Tin nhắn</div>",
+    "receipt.textContent = \"Delivered\";": "receipt.textContent = \"Đã nhận\";",
+    "var contact = text(vars.contact, \"Rachel\", 16);": "var contact = text(vars.contact, \"Khách hàng\", 24);",
+    ".filter(Boolean)": ".filter(function(t) { return Boolean(t) && t !== \":\" && !t.endsWith(\":\") && !t.startsWith(\":\"); })",
+    "if (entry.indexOf(\"recv:\") === 0) {": "if (entry.indexOf(\"recv:\") === 0 || entry.indexOf(\"khách:\") === 0) { if (entry.indexOf(\"khách:\") === 0) body = entry.slice(6);",
+    "} else if (entry.indexOf(\"sent:\") === 0) {": "} else if (entry.indexOf(\"sent:\") === 0 || entry.indexOf(\"AI:\") === 0 || entry.indexOf(\"nhân viên:\") === 0) { if (entry.indexOf(\"AI:\") === 0) body = entry.slice(3); else if (entry.indexOf(\"nhân viên:\") === 0) body = entry.slice(10);"
+  }
+}

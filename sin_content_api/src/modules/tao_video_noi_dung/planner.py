@@ -425,6 +425,33 @@ def validate_diagram(layout: str, spec: DiagramSpec) -> None:
     elif layout == "CARD_SHIFT":
         if len(spec.steps) != 2 or any(not step.strip() or len(step) > 14 for step in spec.steps) or spec.steps[0].strip().casefold() == spec.steps[1].strip().casefold()                 or len(spec.title) > 16:
             raise ValueError("DIAGRAM_CARD_SHIFT_FIELDS")
+    elif layout == "CHAT_THREAD":
+        allowed_roles = {"khách", "ai", "nhân viên"}
+        if (not spec.title or len(spec.title) > 24 or
+                not 2 <= len(spec.steps) <= 5 or
+                any(not step.strip() or len(step) > 48 for step in spec.steps) or
+                len(spec.values) != len(spec.steps) or
+                any(not v.strip() or v.strip().casefold() not in allowed_roles for v in spec.values)):
+            raise ValueError("DIAGRAM_CHAT_THREAD_FIELDS")
+    elif layout == "NOTE_TYPING":
+        if (not spec.title or len(spec.title) > 24 or
+                not 2 <= len(spec.steps) <= 5 or
+                any(not step.strip() or len(step) > 40 for step in spec.steps)):
+            raise ValueError("DIAGRAM_NOTE_TYPING_FIELDS")
+    elif layout == "CTA_CLOSE":
+        banned = "đội ngũ tiên phong - nâng tầm giá trị"
+        combined = f"{spec.title or ''} {spec.caption or ''} {spec.tag or ''} {spec.value or ''}".casefold()
+        if (not spec.title or len(spec.title) > 20 or
+                not spec.caption or len(spec.caption) > 40 or
+                (spec.tag and len(spec.tag) > 20) or
+                (spec.value and len(spec.value) > 30) or
+                banned in combined):
+            raise ValueError("DIAGRAM_CTA_CLOSE_FIELDS")
+    elif layout == "NOTIFY_STACK":
+        if (not spec.title or len(spec.title) > 20 or
+                not 3 <= len(spec.steps) <= 5 or
+                any(not step.strip() or len(step) > 40 for step in spec.steps)):
+            raise ValueError("DIAGRAM_NOTIFY_STACK_FIELDS")
     need = diagram_required_events(layout, spec)
     optional = {"doc0"} if layout == "COMPARE_DOCS" else set()
     ignored = {"rail", "count"} if layout == "PROCESS_RAIL" else {"block"} if layout == "COST_SLICE" else set()
@@ -439,7 +466,8 @@ class UiScene(BaseModel):
                     "FUNNEL", "TIMELINE", "BEFORE_AFTER", "DONUT_SHARE", "GAUGE", "CHECKLIST",
                     "HUB_SPOKE", "MATRIX_2X2", "RANK_BARS", "KPI_CARDS", "ASSIGN_CARDS", "WAIT_CLOCK", "RADAR_SCAN",
                     "RACE_LANES", "TABLE_AUDIT", "ALERT_STACK", "PYRAMID_LEVELS", "VERSUS_LIST", "DOC_SEARCH",
-                    "KINETIC_TITLE", "MARK_PHRASE", "WORD_SWAP", "PILE_UP", "STAT_RING", "CHART_STORY", "AI_RANK", "DRAG_TASKS", "CARD_SHIFT"]
+                    "KINETIC_TITLE", "MARK_PHRASE", "WORD_SWAP", "PILE_UP", "STAT_RING", "CHART_STORY", "AI_RANK", "DRAG_TASKS", "CARD_SHIFT",
+                    "CHAT_THREAD", "NOTE_TYPING", "CTA_CLOSE", "NOTIFY_STACK"]
     messages: list[UiMessage] = Field(default_factory=list, max_length=60)
     highlight: str | None = Field(default=None, max_length=1000)
     diagram: DiagramSpec | None = None
@@ -558,6 +586,10 @@ _DIAGRAM_HINTS = {
     "DRAG_TASKS_FIELDS": "title là tên cột đầu (tối đa 14 ký tự), caption là tên cột sau (bắt buộc, tối đa 14 ký tự), steps đúng 4 việc tối đa 26 ký tự, việc đầu tiên là việc được kéo sang cột sau; on để rỗng",
     "CARD_SHIFT_FIELDS": "title là nhãn nhỏ phía trên thẻ (tối đa 16 ký tự), steps đúng 2 nhãn khác nhau tối đa 14 ký tự: thẻ lúc đầu rồi thẻ lúc sau; on để rỗng",
     "CHART_STORY_FIELDS": "series đúng 1 chuỗi, labels 3 đến 6 mục (tối đa 10 ký tự), values cùng số lượng và không phẳng, unit tùy chọn; on để rỗng",
+    "CHAT_THREAD_FIELDS": "title là tiêu đề hội thoại (tối đa 24 ký tự), steps 2 đến 5 tin nhắn (mỗi tin tối đa 48 ký tự), values cùng số lượng là vai trò từng tin (khách, AI, nhân viên); on để rỗng",
+    "NOTE_TYPING_FIELDS": "title tối đa 24 ký tự, steps 2 đến 5 dòng (mỗi dòng tối đa 40 ký tự); on để rỗng",
+    "CTA_CLOSE_FIELDS": "title là tên thương hiệu (tối đa 20 ký tự), caption là câu mời (tối đa 40 ký tự), tag tùy chọn (tối đa 20 ký tự), value tùy chọn (tối đa 30 ký tự); on để rỗng",
+    "NOTIFY_STACK_FIELDS": "title là tên ứng dụng hoặc nguồn phát (tối đa 20 ký tự), steps 3 đến 5 thông báo (mỗi thông báo tối đa 40 ký tự); on để rỗng",
 }
 
 
@@ -1104,7 +1136,7 @@ def _repair_block_layout(layout: str, diagram: dict) -> None:
     title = diagram.get("title")
     if not isinstance(title, str):
         return
-    limits = {"KINETIC_TITLE": 40, "MARK_PHRASE": 60, "WORD_SWAP": 24, "PILE_UP": 14, "STAT_RING": 40, "CHART_STORY": 40, "AI_RANK": 60, "DRAG_TASKS": 14, "CARD_SHIFT": 16}
+    limits = {"KINETIC_TITLE": 40, "MARK_PHRASE": 60, "WORD_SWAP": 24, "PILE_UP": 14, "STAT_RING": 40, "CHART_STORY": 40, "AI_RANK": 60, "DRAG_TASKS": 14, "CARD_SHIFT": 16, "CHAT_THREAD": 24, "NOTE_TYPING": 24, "CTA_CLOSE": 20, "NOTIFY_STACK": 20}
     if len(title) > limits[layout]:
         diagram["title"] = title = title[:limits[layout]].rstrip().rsplit(" ", 1)[0] or title[:limits[layout]].rstrip()
     tag = diagram.get("tag")
@@ -1125,6 +1157,43 @@ def _repair_block_layout(layout: str, diagram: dict) -> None:
     if layout in ("AI_RANK", "DRAG_TASKS", "CARD_SHIFT") and isinstance(steps, list):
         cap = {"AI_RANK": 18, "DRAG_TASKS": 26, "CARD_SHIFT": 14}[layout]
         diagram["steps"] = [step.strip()[:cap].rstrip() for step in steps if isinstance(step, str) and step.strip()][:{"AI_RANK": 3, "DRAG_TASKS": 4, "CARD_SHIFT": 2}[layout]]
+    if layout == "CHAT_THREAD":
+        if isinstance(steps, list):
+            valid_steps = [s.strip()[:48].rstrip() for s in steps if isinstance(s, str) and s.strip()][:5]
+            if len(valid_steps) < 2:
+                valid_steps = (valid_steps + ["Tin nhắn", "Phản hồi"])[:2]
+            diagram["steps"] = valid_steps
+            values = diagram.get("values")
+            allowed = {"khách", "ai", "nhân viên"}
+            clean_vals = []
+            if isinstance(values, list):
+                for v in values[:len(valid_steps)]:
+                    val_s = str(v).strip().casefold() if v else "khách"
+                    clean_vals.append(val_s if val_s in allowed else "khách")
+            while len(clean_vals) < len(valid_steps):
+                clean_vals.append("ai" if len(clean_vals) % 2 == 1 else "khách")
+            diagram["values"] = clean_vals[:len(valid_steps)]
+    if layout == "NOTE_TYPING" and isinstance(steps, list):
+        valid_steps = [s.strip()[:40].rstrip() for s in steps if isinstance(s, str) and s.strip()][:5]
+        if len(valid_steps) < 2:
+            valid_steps = (valid_steps + ["Ghi chú một", "Ghi chú hai"])[:2]
+        diagram["steps"] = valid_steps
+    if layout == "CTA_CLOSE":
+        if isinstance(diagram.get("caption"), str):
+            diagram["caption"] = diagram["caption"][:40].rstrip()
+        if isinstance(diagram.get("tag"), str):
+            diagram["tag"] = diagram["tag"][:20].rstrip()
+        if isinstance(diagram.get("value"), str):
+            diagram["value"] = diagram["value"][:30].rstrip()
+        banned = "đội ngũ tiên phong - nâng tầm giá trị"
+        for k in ("title", "caption", "tag", "value"):
+            if isinstance(diagram.get(k), str) and banned in diagram[k].casefold():
+                diagram[k] = diagram[k].casefold().replace(banned, "").strip()
+    if layout == "NOTIFY_STACK" and isinstance(steps, list):
+        valid_steps = [s.strip()[:40].rstrip() for s in steps if isinstance(s, str) and s.strip()][:5]
+        if len(valid_steps) < 3:
+            valid_steps = (valid_steps + ["Thông báo 1", "Thông báo 2", "Thông báo 3"])[:3]
+        diagram["steps"] = valid_steps
     if layout == "AI_RANK" and isinstance(diagram.get("pick"), int) and not isinstance(diagram.get("pick"), bool):
         diagram["pick"] = min(2, max(0, diagram["pick"]))
     if layout == "PILE_UP":

@@ -1,0 +1,32 @@
+{
+  "order": 0,
+  "layout": "NOTIFY_STACK",
+  "variant_key": "notify_stack",
+  "block": "notification-stack",
+  "max_chars": 20,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "titles": {
+      "field": "title"
+    },
+    "bodies": {
+      "fn": "join",
+      "args": [
+        {
+          "field": "steps"
+        },
+        ","
+      ]
+    },
+    "accent": "green",
+    "exit": "none"
+  },
+  "literals": {
+    "\"Build queued,Checks passed,Deploy live\"": "\"Thông báo,Thông báo,Thông báo\"",
+    "\"Pipeline started for main,All 42 checks green,Now serving version 2.4\"": "\"Nhiệm vụ mới,Cập nhật tiến độ,Hoàn thành công việc\"",
+    "var count = titles.length;": "if (titles.length === 1 && bodies.length > 1) { var _st = titles[0]; titles = bodies.map(function() { return _st; }); } var count = Math.min(titles.length, bodies.length);"
+  }
+}

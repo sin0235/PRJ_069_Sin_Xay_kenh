@@ -44,7 +44,8 @@ export type UiLayout =
   | "HUB_SPOKE" | "MATRIX_2X2" | "RANK_BARS" | "KPI_CARDS" | "ASSIGN_CARDS" | "WAIT_CLOCK" | "RADAR_SCAN"
   | "RACE_LANES" | "TABLE_AUDIT" | "ALERT_STACK" | "PYRAMID_LEVELS" | "VERSUS_LIST" | "DOC_SEARCH"
   | "KINETIC_TITLE" | "MARK_PHRASE" | "WORD_SWAP" | "PILE_UP" | "STAT_RING" | "CHART_STORY"
-  | "AI_RANK" | "DRAG_TASKS" | "CARD_SHIFT";
+  | "AI_RANK" | "DRAG_TASKS" | "CARD_SHIFT"
+  | "CHAT_THREAD" | "NOTE_TYPING" | "CTA_CLOSE" | "NOTIFY_STACK";
 
 export interface UiDiagram {
   title: string;

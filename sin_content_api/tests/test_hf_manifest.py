@@ -32,7 +32,9 @@ def test_khop_golden_cho_moi_bien_the() -> None:
     for layout, golden_entries in golden.items():
         assert layout in manifests_by_layout, f"Layout {layout} thiếu trong manifests"
         m_list = manifests_by_layout[layout]
-        assert len(m_list) == len(golden_entries), f"Số biến thể {layout} không khớp golden"
+        # Biến thể mới chỉ được thêm vào SAU các biến thể gốc, không đổi thứ tự hay nội dung gốc.
+        assert len(m_list) >= len(golden_entries), f"Layout {layout} mất biến thể so với golden"
+        m_list = m_list[: len(golden_entries)]
 
         data = VALID[layout]
         data_portrait = {**data, "portrait": True}
@@ -154,14 +156,16 @@ def test_thu_tu_bien_the_giu_nguyen() -> None:
     golden: dict[str, list[dict]] = json.loads(GOLDEN_PATH.read_text(encoding="utf-8"))
 
     # Kiểm tra thứ tự các layout
-    assert list(hf_blocks.BLOCK_SCENES.keys()) == list(golden.keys()), (
-        f"Thứ tự layout khác biệt:\n{list(hf_blocks.BLOCK_SCENES.keys())}\n!=\n{list(golden.keys())}"
+    # Layout mới (CHAT_THREAD...) chỉ được nối vào cuối, các layout gốc giữ nguyên thứ tự.
+    layout_goc = list(hf_blocks.BLOCK_SCENES.keys())[: len(golden)]
+    assert layout_goc == list(golden.keys()), (
+        f"Thứ tự layout khác biệt: {layout_goc} != {list(golden.keys())}"
     )
 
     # Kiểm tra thứ tự biến thể của từng layout
     for layout in golden:
-        scenes_blocks = [v.block for v in hf_blocks.BLOCK_SCENES[layout]]
         golden_blocks = [item["block"] for item in golden[layout]]
+        scenes_blocks = [v.block for v in hf_blocks.BLOCK_SCENES[layout]][: len(golden_blocks)]
         assert scenes_blocks == golden_blocks, (
             f"Thứ tự khối tại layout {layout} khác biệt:\n{scenes_blocks}\n!=\n{golden_blocks}"
         )

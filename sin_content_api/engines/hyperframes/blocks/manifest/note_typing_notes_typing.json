@@ -1,0 +1,38 @@
+{
+  "order": 0,
+  "layout": "NOTE_TYPING",
+  "variant_key": "notes_typing",
+  "block": "notes-typing",
+  "max_chars": 24,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "title": {
+      "field": "title"
+    },
+    "lines": {
+      "fn": "join",
+      "args": [
+        {
+          "field": "steps"
+        },
+        "|"
+      ]
+    },
+    "speed": 1
+  },
+  "literals": {
+    "Things nobody told me<br />about video.": {
+      "fn": "html_escape",
+      "args": [
+        {
+          "field": "title"
+        }
+      ]
+    },
+    "Things nobody told me|about video.": "Ghi chú công việc",
+    "my videos sucked|my tools cost $$$|and re-edits never end.": "Ghi chú công việc|Kiểm tra tiến độ|Hoàn thành đúng hạn"
+  }
+}
