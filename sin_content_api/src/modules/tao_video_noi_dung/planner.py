@@ -12,6 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from src.modules.llm.client import LLMClient
 from .brief import ContentBrief, LLMJsonError, first_json_object, generate_brief
 from .danh_gia import score_storyboard
+from . import hf_prompt
 
 Beat = Literal["HOOK", "PAIN", "AGITATE", "INSIGHT", "SOLUTION", "DEMO", "OUTCOME", "CTA"]
 ShotKind = Literal["FLOW_ORIGAMI", "UI_SIM"]
@@ -102,13 +103,13 @@ class UiMessage(BaseModel):
     at_s: float = Field(ge=0, allow_inf_nan=False)
 
 
+# Cảnh dựng từ khối HyperFrames dựng sẵn (hf_blocks.py): chuyển động nằm trong khối nên không có mốc sự kiện bám lời đọc (diagram.on rỗng).
+BLOCK_LAYOUTS = hf_prompt.BLOCK_LAYOUTS
 DIAGRAM_LAYOUTS = ("CHART_TARGET", "CHART_GROWTH", "COMPARE_DOCS", "PROCESS_RAIL", "COST_SLICE", "CASH_FLOW", "STACK_HEIGHT", "DOC_LAYERS", "END_CARD", "OPEN_NUMBER", "OPEN_DRAIN", "OPEN_QUESTION", "OPEN_HOOK",
                   "FUNNEL", "TIMELINE", "BEFORE_AFTER", "DONUT_SHARE", "GAUGE", "CHECKLIST",
                   "HUB_SPOKE", "MATRIX_2X2", "RANK_BARS", "KPI_CARDS", "ASSIGN_CARDS", "WAIT_CLOCK", "RADAR_SCAN",
                   "RACE_LANES", "TABLE_AUDIT", "ALERT_STACK", "PYRAMID_LEVELS", "VERSUS_LIST", "DOC_SEARCH",
-                  "KINETIC_TITLE", "MARK_PHRASE", "WORD_SWAP", "PILE_UP", "STAT_RING", "CHART_STORY", "AI_RANK", "DRAG_TASKS", "CARD_SHIFT")
-# Cảnh dựng từ khối HyperFrames dựng sẵn (hf_blocks.py): chuyển động nằm trong khối nên không có mốc sự kiện bám lời đọc (diagram.on rỗng).
-BLOCK_LAYOUTS = ("KINETIC_TITLE", "MARK_PHRASE", "WORD_SWAP", "PILE_UP", "STAT_RING", "CHART_STORY", "AI_RANK", "DRAG_TASKS", "CARD_SHIFT")
+                  *BLOCK_LAYOUTS)
 PORTRAIT_DIAGRAM_LAYOUTS = ("BEFORE_AFTER", "KPI_CARDS", "VERSUS_LIST", "CHECKLIST", *BLOCK_LAYOUTS)
 
 
@@ -806,12 +807,27 @@ def parse_storyboard(raw: str, target_duration_seconds: int) -> Storyboard:
     return storyboard
 
 
+_HEX_COLOR = re.compile(r"\s*#[0-9A-Fa-f]{3,8}")
+
+
+def _flow_text(text: str) -> str:
+    """Prompt gửi Flow không được chứa mã màu hex hay tên style tiếng Anh: Flow vẽ chúng thành chữ lên hình (đã thấy #ED1B24, "Editorial Motion" trong clip)."""
+    return _HEX_COLOR.sub("", text).strip()
+
+
+def _flow_style_label(style_snapshot: dict[str, Any]) -> str:
+    name = str(style_snapshot["style_name"])
+    return "giấy origami dựng cảnh biên tập" if "origami" in name.casefold() else _flow_text(name)
+
+
 def build_shot_prompt(
     style_snapshot: dict[str, Any], shot: StoryboardShot, continuity_anchor: str,
     include_narration_audio: bool = True,
 ) -> str:
     aspect_ratio = style_snapshot.get("aspect_ratio", "9:16")
-    palette = ", ".join(style_snapshot["palette"])
+    palette = ", ".join(_flow_text(color) for color in style_snapshot["palette"])
+    style_label = _flow_style_label(style_snapshot)
+    visual_rules = _flow_text(str(style_snapshot["visual_rules"]))
     origami_style = "origami" in f"{style_snapshot['style_name']} {style_snapshot['visual_rules']}".casefold()
     negative = f" Tránh: {shot.negative_prompt}." if shot.negative_prompt else ""
     scene_continuity = (
@@ -853,8 +869,8 @@ def build_shot_prompt(
     )
     if shot.prompt_contract_version == 4:
         return (
-            f"Bố cục {aspect_ratio}. Phong cách {style_snapshot['style_name']}. "
-            f"Quy tắc hình ảnh: {style_snapshot['visual_rules']}. Bảng màu: {palette}. "
+            f"Bố cục {aspect_ratio}. Phong cách {style_label}. "
+            f"Quy tắc hình ảnh: {visual_rules}. Bảng màu: {palette}. "
             f"Neo nhận diện và chất liệu: {continuity_anchor}. {scene_continuity}"
             f"Cảnh: {shot.scene}. {shot.prompt}.{negative} {motion_rules}"
             "Hành động và kết quả phải nhìn thấy rõ khi tắt tiếng, thể hiện đúng cơ chế được mô tả. "
@@ -869,8 +885,8 @@ def build_shot_prompt(
             + audio_rules + "Không hiển thị chữ, phụ đề, logo hoặc watermark trong hình ảnh."
         )
     return (
-        f"Bố cục {aspect_ratio}. Phong cách {style_snapshot['style_name']}, dùng mô hình nhân vật, đạo cụ và bối cảnh làm từ giấy origami gấp nếp rõ. " +
-        f"Quy tắc hình ảnh: {style_snapshot['visual_rules']}. " +
+        f"Bố cục {aspect_ratio}. Phong cách {style_label}, dùng mô hình nhân vật, đạo cụ và bối cảnh làm từ giấy origami gấp nếp rõ. " +
+        f"Quy tắc hình ảnh: {visual_rules}. " +
         f"Bảng màu: {palette}. Cảnh: {shot.scene}. {shot.prompt}.{negative} " +
         f"Neo liên tục bắt buộc cho toàn bộ video: {continuity_anchor}. " + scene_continuity +
         "Chỉ mô tả và hoạt họa các mô hình origami đã gấp thành hình hoàn chỉnh; nhân vật, đạo cụ và bối cảnh đều giữ nguyên chất liệu giấy gấp. " +
@@ -965,9 +981,11 @@ def _soft_problems(storyboard: Storyboard, aspect_ratio: str | None = None, diag
                         f"({', '.join(DIAGRAM_LAYOUTS)}) và có ui_scene.diagram, không dùng CHAT, AI_PANEL, DASHBOARD"
                         for shot in storyboard.shots if not (shot.shot_kind == "UI_SIM" and shot.ui_scene and shot.ui_scene.layout in DIAGRAM_LAYOUTS))
     ui_layouts = [shot.ui_scene.layout for shot in storyboard.shots if shot.shot_kind == "UI_SIM" and shot.ui_scene]
-    if len(ui_layouts) >= 5 and sum(layout in BLOCK_LAYOUTS for layout in ui_layouts) < 3:
-        problems.insert(0, f"DIAGRAM_BLOCK_LAYOUT_MISSING: video có {len(ui_layouts)} shot UI_SIM nhưng chỉ {sum(layout in BLOCK_LAYOUTS for layout in ui_layouts)} shot dùng loại chuyển động dựng sẵn; "
-                        f"đổi ít nhất 3 shot sang {', '.join(BLOCK_LAYOUTS)} (nỗi đau: PILE_UP/WORD_SWAP, chuyển ý: KINETIC_TITLE, insight: MARK_PHRASE, kết quả: STAT_RING/CHART_STORY)")
+    min_blocks, _ = hf_prompt.block_quota(len(ui_layouts))
+    block_count = sum(layout in BLOCK_LAYOUTS for layout in ui_layouts)
+    if block_count < min_blocks:
+        problems.insert(0, f"DIAGRAM_BLOCK_LAYOUT_MISSING: video có {len(ui_layouts)} shot UI_SIM nhưng chỉ {block_count} shot dùng loại chuyển động dựng sẵn; "
+                        f"đổi ít nhất {min_blocks} shot sang {', '.join(BLOCK_LAYOUTS)} (nỗi đau: PILE_UP/WORD_SWAP, chuyển ý: KINETIC_TITLE, insight: MARK_PHRASE, kết quả: STAT_RING/CHART_STORY)")
     if storyboard.brief and storyboard.brief.needs_ui_demo and not any(shot.shot_kind == "UI_SIM" for shot in storyboard.shots):
         problems.append("UI_DEMO_REQUIRED")
     words = sorted({word for shot in storyboard.shots for word in unresolved_pronunciations(shot.narration)})
@@ -1423,20 +1441,7 @@ def generate_storyboard(
             "PYRAMID_LEVELS (bậc trưởng thành: steps 3 đến 5 bậc từ dưới lên, pick là bậc hiện tại; on cần levels, here), "
             "VERSUS_LIST (so hai phương án: docs đúng 2 {title,label,value}, layers là 2 đến 4 ý của phương án đầu, values là 2 đến 4 ý của phương án sau, diff_label là kết luận; on cần left, right, verdict), "
             "DOC_SEARCH (tìm đúng tài liệu: steps 3 đến 5 tên tài liệu, pick là tài liệu khớp, caption là từ khóa tìm; on cần query, found). "
-            "Sáu loại chuyển động dựng sẵn, KHÔNG có mốc bám lời nên diagram.on luôn là {} và không cần cụm neo; dùng cho nhịp nhấn, chuyển ý, mở chương: "
-            "KINETIC_TITLE (câu chốt hoặc tên chương hiện thành chữ lớn: title 2 đến 7 từ tối đa 40 ký tự, tag tùy chọn là cụm nhấn màu nằm nguyên văn trong title), "
-            "MARK_PHRASE (một câu quan trọng được khoanh hoặc gạch dưới đúng cụm then chốt: title là câu 3 đến 10 từ, tag là cụm ngắn hơn nằm nguyên văn trong title, caption tùy chọn là ghi chú tối đa 30 ký tự), "
-            "WORD_SWAP (một từ đổi liên tục rồi dừng ở từ cuối, hợp để liệt kê các cách gọi hoặc kết quả: title là vế đầu tối đa 24 ký tự, steps 3 đến 4 từ khác nhau tối đa 14 ký tự, caption tùy chọn là vế sau), "
-            "PILE_UP (việc, tin nhắn, thông báo dồn dập quanh một người: title là người đó tối đa 14 ký tự, value là số lượng dạng chữ số từ 8 đến 24), "
-            "STAT_RING (vòng tròn đầy tới một phần trăm: to_value lớn hơn 0 và tối đa 100, caption là nhãn tối đa 30 ký tự), "
-            "CHART_STORY (biểu đồ cột hoặc đường tự kể: series đúng 1 chuỗi {name,values}, labels 3 đến 6 mục tối đa 10 ký tự, values cùng số lượng và không phẳng, unit tùy chọn). "
-            "Ba loại chuyển động dựng sẵn nữa, cùng quy tắc: AI_RANK (khách hỏi AI và danh sách gợi ý đổi chỗ khi doanh nghiệp xuất hiện: title là câu hỏi 3 đến 10 từ, steps đúng 3 tên phương án khác nhau tối đa 18 ký tự dùng tên chung như Nhà cung cấp A, tag là tên doanh nghiệp mình tối đa 18 ký tự, pick là vị trí 0 đến 2 mà tag chen vào, caption tùy chọn là câu dẫn tối đa 40 ký tự), "
-            "DRAG_TASKS (bảng việc kéo một thẻ sang cột kế: title là tên cột đầu tối đa 14 ký tự, caption là tên cột sau tối đa 14 ký tự, steps đúng 4 việc tối đa 26 ký tự, việc đầu tiên là việc được kéo), "
-            "CARD_SHIFT (hai thẻ, tiêu điểm chuyển từ thẻ cũ sang thẻ mới: title là nhãn nhỏ tối đa 16 ký tự, steps đúng 2 nhãn khác nhau tối đa 14 ký tự: lúc đầu rồi lúc sau). "
-            "Các loại này hợp với khung 9:16 và không tốn thời gian dựng như clip Flow; dùng chúng cho các shot nhấn ý ngắn. "
-            "BẮT BUỘC: video có từ 5 shot UI_SIM trở lên phải dùng ít nhất 3 shot thuộc sáu loại này, mỗi loại tối đa 2 shot: PILE_UP hoặc WORD_SWAP cho nỗi đau, "
-            "KINETIC_TITLE để mở chương hoặc chuyển ý, MARK_PHRASE cho câu insight then chốt, STAT_RING hoặc CHART_STORY cho kết quả hoặc bằng chứng; "
-            "đặt chúng xen giữa các sơ đồ thông tin, không đặt hai shot liền nhau cùng loại. "
+            + hf_prompt.layout_prompt() +
             "Kịch bản mẫu để chọn nhịp: (1) vấn đề - nguyên nhân - cơ chế - kết quả: mở OPEN_*, bằng chứng CHART_TARGET hoặc COMPARE_DOCS hoặc GAUGE, nguyên nhân DOC_LAYERS hoặc FUNNEL hoặc DONUT_SHARE, "
             "cơ chế PROCESS_RAIL hoặc CHECKLIST hoặc TIMELINE, kết quả BEFORE_AFTER hoặc CHART_GROWTH, kết END_CARD; "
             "(2) tiền và chi phí: mở OPEN_DRAIN hoặc OPEN_NUMBER, CASH_FLOW, DONUT_SHARE, COST_SLICE, BEFORE_AFTER, END_CARD; "
@@ -1466,9 +1471,7 @@ def generate_storyboard(
     if style_snapshot.get("diagram_only"):
         messages[0]["content"] += (
             " CHẾ ĐỘ CHỈ CẢNH GIẤY DỰNG BẰNG MÃ (style_snapshot.diagram_only): MỌI shot phải là shot_kind=UI_SIM với ui_scene.layout thuộc "
-            "CHART_TARGET, CHART_GROWTH, COMPARE_DOCS, PROCESS_RAIL, COST_SLICE, CASH_FLOW, STACK_HEIGHT, DOC_LAYERS, END_CARD, OPEN_NUMBER, OPEN_DRAIN, OPEN_QUESTION, OPEN_HOOK, "
-            "FUNNEL, TIMELINE, BEFORE_AFTER, DONUT_SHARE, GAUGE, CHECKLIST, HUB_SPOKE, MATRIX_2X2, RANK_BARS, KPI_CARDS, ASSIGN_CARDS, WAIT_CLOCK, RADAR_SCAN, "
-            "RACE_LANES, TABLE_AUDIT, ALERT_STACK, PYRAMID_LEVELS, VERSUS_LIST, DOC_SEARCH, KINETIC_TITLE, MARK_PHRASE, WORD_SWAP, PILE_UP, STAT_RING, CHART_STORY, AI_RANK, DRAG_TASKS, CARD_SHIFT; "
+            f"{', '.join(DIAGRAM_LAYOUTS)}; "
             "không dùng FLOW_ORIGAMI, CHAT, AI_PANEL, DASHBOARD. Shot đầu là một kiểu OPEN_*, shot cuối là END_CARD, các shot giữa chọn loại cảnh khớp đúng ý lời đọc "
             "và tuyệt đối không dùng cùng một loại cho hai shot liền nhau, mỗi loại tối đa hai shot trong cả video. Mỗi shot vẫn phải đủ lời đọc theo ngân sách âm tiết và đủ cụm neo trong diagram.on. "
             "Với shot UI_SIM, prompt chỉ là mô tả ngắn bằng tiếng Việt cảnh giấy sẽ dựng (tối thiểu 8 ký tự), action_beats để trống.")
@@ -1566,7 +1569,7 @@ def generate_storyboard(
                 return storyboard, completion.model
         messages.extend([
             {"role": "assistant", "content": completion.content},
-            {"role": "user", "content": "Sửa storyboard theo các lỗi: " + "; ".join(problems)[:1400]
+            {"role": "user", "content": "Sửa storyboard theo các lỗi: " + hf_prompt.join_problems(problems)
                 + ". Với từ tiếng Anh chưa phiên âm, viết cách đọc tiếng Việt. Giữ nguyên phần không liên quan. Trả lại toàn bộ JSON."},
         ])
     raise ValueError("STORYBOARD_QUALITY_FAILED")

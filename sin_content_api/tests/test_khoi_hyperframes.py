@@ -199,3 +199,17 @@ def test_chu_co_dinh_duoc_thay_bang_noi_dung_canh():
     assert "Workspace" not in shift and "</span>Đơn hàng</span>" in shift
     with pytest.raises(ValueError, match="HYPERFRAMES_BLOCK_LITERAL_MISSING"):
         hf_blocks.prepare_block("focus-rack", "s06", 5, {"không có trong khối": "x"})
+
+
+def test_prompt_flow_khong_co_ma_mau_hex_va_ten_style_tieng_anh():
+    """Flow vẽ mã màu và tên style tiếng Anh thành chữ lên hình; prompt gửi Flow không được chứa chúng."""
+    import json
+    from pathlib import Path
+    from src.modules.tao_video_noi_dung.service import _CONTENT_VIDEO_STYLE_SNAPSHOT
+    data = json.loads((Path(__file__).parent / "fixtures/storyboard_llm_17shots_valid.json").read_text(encoding="utf-8"))
+    storyboard = planner.Storyboard.model_validate(data)
+    flow_shot = next(s for s in storyboard.shots if s.shot_kind != "UI_SIM")
+    style = _CONTENT_VIDEO_STYLE_SNAPSHOT.model_dump(mode="json")
+    prompt = planner.build_shot_prompt(style, flow_shot, "neo nhận diện")
+    assert "#" not in prompt and "Editorial" not in prompt and "Motion" not in prompt
+    assert "xanh navy" in prompt and "origami" in prompt.casefold()
