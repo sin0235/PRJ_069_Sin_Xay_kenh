@@ -457,7 +457,9 @@ def check_project(project: Path) -> dict:
     return {"returncode": result.returncode, "data": data, "text": (stdout_text + stderr_text)[-4000:]}
 
 
-def render_project(project: Path, output: Path, workers: str = "1", quality: str = "looks") -> None:
+def render_project(project: Path, output: Path, workers: str | None = None, quality: str = "looks") -> None:
+    # Runner GitHub riêng tư chỉ có 2 vCPU và 7 GB RAM nên mặc định 2 worker; đặt CONTENT_VIDEO_HF_WORKERS=1 nếu hết bộ nhớ.
+    workers = str(workers or os.getenv("CONTENT_VIDEO_HF_WORKERS") or "2")
     command = [_node(), str(hyperframes_cli()), "render", "-q", quality, "-w", workers, "-o", str(output)]
     with _RENDER_LOCK:
         result = subprocess.run(command, cwd=project, env=_env(), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=ENGINE_TIMEOUT_SECONDS * 4)
