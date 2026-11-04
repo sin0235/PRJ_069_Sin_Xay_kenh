@@ -2,7 +2,7 @@
 
 Giọng VieNeu đo được (video bài 10): 99,9% năng lượng dưới 4,5 kHz, dải 3 đến 6 kHz thấp hơn dải giọng chính khoảng 27 dB, dải trên 12 kHz gần như trống
 (nguồn 24 kHz nâng lên 48 kHz) nên nghe nghẹt và dính chữ. Chuỗi lọc dưới đây giữ nguyên độ dài (mốc từ, mốc shot không lệch) và chỉ đổi âm sắc,
-độ nén và âm lượng. Tắt bằng biến môi trường CONTENT_VIDEO_VOICE_POLISH=0; ffmpeg lỗi thì trả giọng gốc (không làm hỏng lượt dựng)."""
+độ nén và âm lượng. MẶC ĐỊNH TẮT: giọng clone từ model được giữ nguyên, không áp bất kỳ phép sửa nào. Chỉ bật khi đặt CONTENT_VIDEO_VOICE_POLISH=1; ffmpeg lỗi thì trả giọng gốc (không làm hỏng lượt dựng)."""
 from __future__ import annotations
 
 import logging
@@ -28,7 +28,7 @@ VOICE_POLISH_FILTER = (
 
 
 def polish_enabled() -> bool:
-    return os.getenv("CONTENT_VIDEO_VOICE_POLISH", "1") != "0"
+    return os.getenv("CONTENT_VIDEO_VOICE_POLISH", "0") == "1"
 
 
 def polish_voice(audio, sample_rate: int, ffmpeg_bin: str | None = None) -> np.ndarray:

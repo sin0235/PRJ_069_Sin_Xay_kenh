@@ -25,36 +25,48 @@ def _dai_ty_le(x: np.ndarray, lo: float, hi: float) -> float:
     return float(10 * np.log10(spectrum[(freqs >= lo) & (freqs < hi)].sum() / spectrum.sum() + 1e-12))
 
 
-def test_giu_nguyen_do_dai_va_kieu():
+def test_giu_nguyen_do_dai_va_kieu(monkeypatch):
+    monkeypatch.setenv("CONTENT_VIDEO_VOICE_POLISH", "1")
     audio = _giong_nghet()
     out = am_thanh_giong.polish_voice(audio, RATE)
     assert out.dtype == np.float32 and out.shape == audio.shape and np.isfinite(out).all()
 
 
-def test_tang_do_ro_dai_3_den_6k_va_khong_cham_tran():
+def test_tang_do_ro_dai_3_den_6k_va_khong_cham_tran(monkeypatch):
+    monkeypatch.setenv("CONTENT_VIDEO_VOICE_POLISH", "1")
     audio = _giong_nghet()
     out = am_thanh_giong.polish_voice(audio, RATE)
     assert _dai_ty_le(out, 1500, 6000) > _dai_ty_le(audio, 1500, 6000) + 4.0
     assert float(np.abs(out).max()) <= 0.95
 
 
-def test_dua_am_luong_len_gan_muc_phat():
+def test_dua_am_luong_len_gan_muc_phat(monkeypatch):
+    monkeypatch.setenv("CONTENT_VIDEO_VOICE_POLISH", "1")
     audio = _giong_nghet() * 0.2
     out = am_thanh_giong.polish_voice(audio, RATE)
     assert np.sqrt(np.mean(out ** 2)) > np.sqrt(np.mean(audio ** 2))
 
 
-def test_tat_bang_bien_moi_truong(monkeypatch):
+def test_mac_dinh_giu_nguyen_giong_model(monkeypatch):
+    """Không đặt biến môi trường: giọng model trả về nguyên vẹn, không phép sửa nào."""
+    monkeypatch.delenv("CONTENT_VIDEO_VOICE_POLISH", raising=False)
+    audio = _giong_nghet()
+    assert np.array_equal(am_thanh_giong.polish_voice(audio, RATE), audio)
+
+
+def test_bien_moi_truong_khac_1_van_giu_nguyen(monkeypatch):
     monkeypatch.setenv("CONTENT_VIDEO_VOICE_POLISH", "0")
     audio = _giong_nghet()
     assert np.array_equal(am_thanh_giong.polish_voice(audio, RATE), audio)
 
 
-def test_ffmpeg_loi_tra_giong_goc():
+def test_ffmpeg_loi_tra_giong_goc(monkeypatch):
+    monkeypatch.setenv("CONTENT_VIDEO_VOICE_POLISH", "1")
     audio = _giong_nghet()
     out = am_thanh_giong.polish_voice(audio, RATE, ffmpeg_bin="khong-co-ffmpeg-nay")
     assert np.array_equal(out, audio)
 
 
-def test_ngu_im_va_mang_rong():
+def test_ngu_im_va_mang_rong(monkeypatch):
+    monkeypatch.setenv("CONTENT_VIDEO_VOICE_POLISH", "1")
     assert am_thanh_giong.polish_voice(np.zeros(0, dtype=np.float32), RATE).size == 0
