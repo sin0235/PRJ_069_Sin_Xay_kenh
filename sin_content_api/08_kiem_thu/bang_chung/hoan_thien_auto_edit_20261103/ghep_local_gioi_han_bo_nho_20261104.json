@@ -1,0 +1,33 @@
+{
+  "tac_vu": "d1d4482a-995c-485e-bc64-c1ac7350cf97",
+  "github_run": "41755437111",
+  "nguyen_nhan_github": "HTTP 502 khi tải inputs/4; gửi trạng thái thất bại cũng lỗi REMOTE_NETWORK_UNAVAILABLE, database còn RUNNING.",
+  "thu_local_dau": "Đã dựng đủ 12 đoạn; chốt bảo vệ dừng khi RAM khả dụng dưới 350 MiB trong bước xfade mở đồng thời 12 đầu vào.",
+  "khac_phuc": "Chuyển cảnh từng cặp; bỏ phần đầu đã dùng trong chuyển cảnh trước, nối các đoạn bằng stream copy. Giới hạn hai đầu vào mỗi lượt.",
+  "kiem_thu": [
+    {
+      "lenh": "python -m pytest tests/test_ghep_chuyen_canh_bo_nho.py -q --disable-warnings --tb=short",
+      "truoc_sua": "FAILED: chưa có phương thức _ghep_chuyen_canh_tuan_tu",
+      "sau_sua": "1 passed in 6.68s",
+      "xac_nhan": "Tối đa hai đầu vào, đủ 120 khung hình, đoạn cuối còn màu vàng."
+    },
+    {
+      "lenh": "python -m pytest tests/test_content_video_pipeline.py -q -k crossfade_keeps --disable-warnings --tb=short",
+      "ket_qua": "1 passed, 176 deselected in 63.47s",
+      "xac_nhan": "Ca hồi quy sáu đoạn 299 khung hình vẫn giữ đủ các cảnh."
+    }
+  ],
+  "render_full": "GitHub đã SUCCEEDED. MP4 dài 42,233333 giây, 1080x1920, 30 fps, 8.639.334 byte; có H.264 và AAC. Local đã dừng an toàn ba lần vì RAM khả dụng dưới 350 MiB nên phần nặng được chuyển về GitHub.",
+  "ket_qua_web": "video_full_8gb_tren_web_20261104.json",
+  "kiem_tra_web": "Danh sách dự án Auto Edit có dự án đích; danh sách tư liệu có video mới; tải Range đầu và cuối đều HTTP 206.",
+  "gioi_han": "Chưa nghiệm thu thẩm mỹ. Chưa sửa tổng thể retry HTTP 502 hoặc trạng thái job cũ bị kẹt; video mới được đăng vào cùng dự án với trạng thái UNREVIEWED.",
+  "tac_vu_tu_xa_moi": "97ebcf5d-6ffc-44c1-98e9-bd938f304008",
+  "github_run_moi": "41766279398",
+  "nguon_ngan": {
+    "byte_size": 527173436,
+    "offset_ms": 829824,
+    "phuong_phap": "Stream copy 60 giây; SHA256 gói hình đầu trùng nguồn gốc; dịch trim hình và tiếng cùng một offset.",
+    "duong_truyen": "Cả sáu yêu cầu inputs/0 đến inputs/5 trả HTTP 200 trong api.log."
+  },
+  "nghiem_thu_tham_my": "Để người dùng duyệt theo yêu cầu."
+}

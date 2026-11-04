@@ -482,7 +482,7 @@ function sceneOpenQuestion(t, p) {
     var x = 950 - widths[li] / 2;
     ln.forEach(function (it) {
       var o = eo(seg(t, a.ask + wi * .16, a.ask + wi * .16 + .35)), isKey = ks >= 0 && wi >= ks && wi < ks + key.length;
-      out += '<text x="' + x + '" y="' + (y0 + li * 112 + (1 - o) * 16) + '" font-size="' + fs + '" font-weight="800" fill="' + (isKey && kp > 0 ? COL.coral : COL.ink) + '" opacity="' + o + '">' + esc(it[0]) + '</text>';
+      out += '<text x="' + x + '" y="' + (y0 + li * 112 + (1 - o) * 16) + '" font-size="' + fs + '" font-weight="800" fill="' + (isKey && kp > 0 ? COL.coral : '#163344') + '" opacity="' + o + '">' + esc(it[0]) + '</text>';
       if (isKey) out += '<rect x="' + x + '" y="' + (y0 + li * 112 + 16) + '" width="' + (it[1] * kp) + '" height="9" rx="4" fill="' + COL.coral + '" opacity="' + kp + '"/>';
       x += it[1] + gap; wi++;
     });

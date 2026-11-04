@@ -2300,7 +2300,8 @@ def test_dung_video_dai_render_luu_nhieu_clip_va_giu_nguyen_nguon(monkeypatch, t
         engine.dispose()
 
 
-def test_auto_edit_enqueue_hyperframes_diagram_child(monkeypatch, tmp_path):
+@pytest.mark.parametrize('diagram_layout', ['BEFORE_AFTER', 'CHECKLIST'])
+def test_auto_edit_enqueue_hyperframes_diagram_child(monkeypatch, tmp_path, diagram_layout):
     from src.modules.dieu_phoi_dung import dung_video_dai as editor
     from src.modules.tao_video_noi_dung.service import _PILOT_STYLE_SNAPSHOT
 
@@ -2375,6 +2376,10 @@ def test_auto_edit_enqueue_hyperframes_diagram_child(monkeypatch, tmp_path):
             "scene": "M?t t?a nh? gi?y g?i h?ng", "action": "C?a s? m? v? l?e l?n",
             "prompt": "M?t t?a nh? gi?y g?i h?ng, c?a s? m? v? l?e l?n.",
         }
+        if diagram_layout == 'CHECKLIST':
+            diagram_brief['ui_scene'] = {'layout': 'CHECKLIST', 'diagram': {
+                'title': 'Các bước', 'steps': ['Trước', 'Sau'], 'on': {'c0': 'trước', 'c1': 'sau'},
+            }}
         monkeypatch.setattr(editor, "tao_y_tuong_dien_hoa_flow", lambda *_args: [diagram_brief, flow_brief])
 
         deferred = editor.dung_video_dai(
@@ -2394,6 +2399,7 @@ def test_auto_edit_enqueue_hyperframes_diagram_child(monkeypatch, tmp_path):
         assert child_request["parameters"]["style_snapshot_hash"] == style_hash
         assert child_request["parameters"]["target_start_word_id"] == "w000000"
         assert child_request["parameters"]["target_end_word_id"] == "w000007"
+        assert child_request['parameters']['transparent_background'] is (diagram_layout != 'CHECKLIST')
         assert parent_request["parameters"]["phase"] == "render"
         assert "HyperFrames" in deferred.status_message
         brief = json.loads((media_root / parent_request["parameters"]["plan_storage_key"]).read_text(encoding="utf-8"))["flow_briefs"][0]

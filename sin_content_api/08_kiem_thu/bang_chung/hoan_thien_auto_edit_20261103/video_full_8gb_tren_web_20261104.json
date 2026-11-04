@@ -1,0 +1,32 @@
+{
+  "url": "https://nhap-xaykenh-prj069.bahagroup.vn/auto-edit?project_id=685d269c-def5-4e35-9038-a75d2119dd80&asset_id=8eeb47ac-995c-50b6-b3c0-9c0f269e62ec",
+  "asset_id": "8eeb47ac-995c-50b6-b3c0-9c0f269e62ec",
+  "bytes": 8639334,
+  "range_status": 206,
+  "render_task_spec": "97ebcf5d-6ffc-44c1-98e9-bd938f304008",
+  "render_location": "github",
+  "approval_state": "UNREVIEWED",
+  "metadata": {
+    "aspect_ratio": "9:16",
+    "bitrate_bps": 1636495,
+    "codec_name": "h264",
+    "duration_seconds": 42.233333,
+    "flow_native_audio": true,
+    "frame_rate": 30.0,
+    "has_alpha": false,
+    "height": 1920,
+    "is_vertical_9_16": true,
+    "pixel_format": "yuv420p",
+    "safe_zone_tiktok": {
+      "bottom_margin_px": 320,
+      "is_compliant": true,
+      "right_margin_px": 120,
+      "top_margin_px": 150
+    },
+    "video_stream_duration_seconds": 42.233333,
+    "width": 1080
+  },
+  "project_list_verified": true,
+  "asset_list_verified": true,
+  "tail_range_status": 206
+}

@@ -1,0 +1,136 @@
+{
+  "source_asset_id": "c15a3ad0-811a-4f96-861b-630549dab417",
+  "source_byte_size": 8428283732,
+  "source_sha256": "8b520dc243dfa602d09fee1f24c3d1f9ff89f56833b234eb6d317fc272a542df",
+  "project_id": "685d269c-def5-4e35-9038-a75d2119dd80",
+  "pipeline": "AUTO_EDIT",
+  "diagram_revision": 4,
+  "heavy_compute": "github",
+  "heavy_concurrency": 1,
+  "provider_submission": false,
+  "render_submitted": false,
+  "ready_for_render": false,
+  "draft_clips": [
+    {
+      "clip_id": "kb_01",
+      "title": "Tính chi phí và tiền lời thực nhận trên mỗi đơn",
+      "start_ms": 0,
+      "end_ms": 96440,
+      "start_word_id": "w000000",
+      "end_word_id": "w000293",
+      "needs_review": true,
+      "selection_reason": "Mở bằng ví dụ đơn hàng, phân biệt tiền khách trả với tiền sàn quyết toán, rồi chỉ cách ghi doanh thu và chi phí để biết tiền thực còn lại.",
+      "notes": "Nhiều cụm ASR mơ hồ, nhất là phần mở đầu và chi phí."
+    },
+    {
+      "clip_id": "kb_02",
+      "title": "Tăng giá chưa chắc tăng tổng lợi nhuận",
+      "start_ms": 97480,
+      "end_ms": 203460,
+      "start_word_id": "w000294",
+      "end_word_id": "w000586",
+      "needs_review": true,
+      "selection_reason": "Giải thích và tính ví dụ tăng giá nhưng giảm số đơn; kết luận cần theo dõi kết quả sau thay đổi giá.",
+      "notes": "ASR mơ hồ ở một số số liệu và cụm từ."
+    },
+    {
+      "clip_id": "kb_03",
+      "title": "Đơn hàng rẻ vẫn tốn công và chi phí",
+      "start_ms": 205350,
+      "end_ms": 238990,
+      "start_word_id": "w000587",
+      "end_word_id": "w000685",
+      "needs_review": true,
+      "selection_reason": "Nêu các thao tác tốn công với đơn giá thấp, rồi giải thích khoản phí cố định ảnh hưởng mạnh hơn đến món rẻ.",
+      "notes": "Một số từ trong ví dụ đóng gói và phép tính chưa rõ."
+    },
+    {
+      "clip_id": "kb_04",
+      "title": "Đánh giá combo theo nhu cầu và chi phí",
+      "start_ms": 241060,
+      "end_ms": 281900,
+      "start_word_id": "w000686",
+      "end_word_id": "w000812",
+      "needs_review": true,
+      "selection_reason": "Cân nhắc combo, nhu cầu thực của khách, phí mỗi đơn và phần tiền còn lại; đưa cách so sánh ba phương án.",
+      "notes": "ASR có lỗi ở phần hướng dẫn tính và một số cụm cuối."
+    },
+    {
+      "clip_id": "kb_05",
+      "title": "Đừng tăng quảng cáo chỉ vì thấy nhiều đơn",
+      "start_ms": 282520,
+      "end_ms": 415390,
+      "start_word_id": "w000813",
+      "end_word_id": "w001240",
+      "needs_review": true,
+      "selection_reason": "Khuyên tính tiền còn lại sau giá vốn, phí và quảng cáo; phân biệt doanh thu quảng cáo với lợi nhuận, rồi nêu ví dụ đơn có thể lỗ.",
+      "notes": "Có nhiều lỗi ASR; các số liệu và một số câu cần nghe lại."
+    },
+    {
+      "clip_id": "kb_06",
+      "title": "Quản trị dòng tiền và khoản tiền sắp đến hạn",
+      "start_ms": 417090,
+      "end_ms": 516950,
+      "start_word_id": "stt_part1_03_0000",
+      "end_word_id": "stt_part1_03_0285",
+      "needs_review": true,
+      "selection_reason": "Nêu các khoản tiền đang chờ về và chi phí phải trả, phân biệt doanh thu, lợi nhuận với dòng tiền; hướng dẫn lập bảng dự kiến bảy ngày.",
+      "notes": "Một số từ ở phần mở đầu và bảng dự báo bị ASR sai."
+    },
+    {
+      "clip_id": "kb_07",
+      "title": "Cân nhắc chi phí trước khi rời sàn",
+      "start_ms": 521240,
+      "end_ms": 626030,
+      "start_word_id": "w001539",
+      "end_word_id": "w001863",
+      "needs_review": true,
+      "selection_reason": "Phân tích phí, khách hàng, thanh toán và việc xây kênh riêng; nhấn mạnh cần so sánh chi phí và trải nghiệm khách thay vì chỉ rời sàn để tránh phí.",
+      "notes": "ASR mơ hồ ở nhiều thuật ngữ và cụm từ về nền tảng, thanh toán, chăm sóc khách."
+    },
+    {
+      "clip_id": "kb_08",
+      "title": "Giảm giá có thể làm mất nửa lợi nhuận",
+      "start_ms": 627750,
+      "end_ms": 670170,
+      "start_word_id": "stt_part1_04_0000",
+      "end_word_id": "stt_part1_04_0116",
+      "needs_review": true,
+      "selection_reason": "Dùng ví dụ giảm 10.000 đồng trên món hàng để cho thấy khoản giảm có thể làm mất nửa tiền lời; giải thích cách nhìn của khách và người bán.",
+      "notes": "Hai take cùng kịch bản; take đầu đủ ví dụ và kết luận hơn. Phần lặp có lỗi ASR."
+    },
+    {
+      "clip_id": "kb_09",
+      "title": "Giảm giá cần đổi lấy điều gì",
+      "start_ms": 704110,
+      "end_ms": 750610,
+      "start_word_id": "stt_part1_04_0211",
+      "end_word_id": "w002215",
+      "needs_review": true,
+      "selection_reason": "Nêu các lý do giảm giá và yêu cầu xác định điều người bán đổi lấy; hướng dẫn kiểm tra đơn gần đây và tiền còn lại trước, sau giảm giá.",
+      "notes": "ASR mơ hồ ở cụm kiểm tra đơn và phần phép tính."
+    },
+    {
+      "clip_id": "kb_10",
+      "title": "Đừng quyết định nhập hàng chỉ theo số đơn",
+      "start_ms": 750610,
+      "end_ms": 916160,
+      "start_word_id": "w002216",
+      "end_word_id": "w002620",
+      "needs_review": true,
+      "selection_reason": "Giải thích rằng sản phẩm bán chạy chưa chắc nuôi cửa hàng; khuyên xếp sản phẩm theo tiền đóng góp sau chi phí, tỷ lệ hoàn và tồn kho, rồi xem sản phẩm nào thực sự tạo lợi nhuận.",
+      "notes": "Phần cuối có lỗi ASR nặng và câu bị ngắt ở chỉ số 2595."
+    }
+  ],
+  "uncovered_word_indices": [
+    2596
+  ],
+  "next_steps": [
+    "Đối chiếu tiếng các nhóm mới bằng 9Router thật",
+    "Kiểm tra ranh giới kịch bản và take, phân loại từ cuối còn thiếu",
+    "Lập storyboard từng kịch bản với checklist tích lũy toàn khung",
+    "Chuẩn bị cửa sổ nguồn stream copy và offset đã xác minh",
+    "Chạy lần lượt trên GitHub, lưu checkpoint và đăng MP4 lên Auto Edit"
+  ],
+  "review_required": true
+}

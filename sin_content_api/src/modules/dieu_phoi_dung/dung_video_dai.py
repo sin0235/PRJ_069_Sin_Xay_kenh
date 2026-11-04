@@ -634,7 +634,7 @@ def chon_dien_hoa(clips: list[ClipTuDong], words: list[dict], candidates: list[d
                 "CUTAWAY thay hình, giữ tiếng người nói. OVERLAY là panel động: asset alpha trong suốt ngoài thẻ giấy, asset đục chỉ khi nền có chủ ý. SPEAKER_PIP giữ người nói nhỏ trên asset đục; không đổi alpha thành PIP.",
                 "Chọn layout_position upper_left/upper_right/center_left/center_right và layout_size small/medium/large; giữ tỉ lệ, không crop, tránh mặt/tiêu đề/phụ đề; không ép mặc định một cỡ.",
                 "Chữ đạt 16px ở màn hình rộng 360, tức 48px ở output1080. Font sau scale = font gốc * chiều rộng chèn / width asset. Font64 canvas1080 chèn405 chỉ còn24px: không đạt. Checklist dày dùng CUTAWAY nếu overlay không đủ đọc; nếu không an toàn thì bỏ và rà soát.",
-                "overlay_presentation.kind=single_item_card là checklist thay mục theo lời: dùng min_font_size_px tính chữ, ưu tiên OVERLAY nếu rõ và tránh mặt. Tag ngắn dùng small/medium; asset 9:16 có chữ hoặc số liệu dùng large nếu vừa. Sơ đồ chính nền đục dùng CUTAWAY; chọn OVERLAY khi sơ đồ là panel bổ trợ; giữ biểu cảm với nền đục dùng SPEAKER_PIP.",
+                "overlay_presentation.kind=single_item_card là thẻ thay mục theo lời, chỉ dùng OVERLAY, không phóng thành CUTAWAY/SPEAKER_PIP. Checklist toàn khung phải là danh sách tích lũy: hiện từng dòng từ trên xuống, giữ các dòng trước. Tag ngắn dùng small/medium; asset 9:16 có chữ hoặc số liệu dùng large nếu vừa. Sơ đồ chính nền đục dùng CUTAWAY; chọn OVERLAY khi sơ đồ là panel bổ trợ; giữ biểu cảm với nền đục dùng SPEAKER_PIP.",
                 "start_word_id/end_word_id phải thuộc clip. Asset target_clip_id chỉ dùng đúng target. HyperFrames có target_start_word_id/target_end_word_id phải giữ cả hai để khớp mọi animation với lời.",
                 "Khi có lựa chọn khác, tránh lặp lại cùng một asset quá hai clip; hệ thống sẽ bỏ lựa chọn vượt giới hạn và đánh dấu rà soát. Trả JSON theo schema.",
             ],
@@ -691,13 +691,20 @@ def chon_dien_hoa(clips: list[ClipTuDong], words: list[dict], candidates: list[d
                 readability_feedback = []
                 for action in returned:
                     asset = next((item for item in candidates if item["asset_id"] == action.asset_id), {})
+                    if (asset.get('overlay_presentation') or {}).get('kind') == 'single_item_card' and action.mode != 'OVERLAY':
+                        readability_feedback.append(
+                            f"SINGLE_ITEM_CARD_REQUIRES_OVERLAY: {action.asset_id} chỉ là thẻ một mục; chọn OVERLAY, không dùng làm checklist toàn khung."
+                        )
+                        continue
                     font = (asset.get("overlay_presentation") or {}).get("min_font_size_px")
                     if action.mode == "OVERLAY" and asset.get("visual_kind") == "diagram" and font and asset.get("width"):
                         overlay_width = _DIAGRAM_OVERLAY_SIZES.get(asset.get("aspect_ratio"), _DIAGRAM_OVERLAY_SIZES["16:9"])[action.layout_size][0]
                         actual_font = font * overlay_width / asset["width"]
                         if actual_font < 48:
+                            alternatives = ('OVERLAY cỡ large hoặc bỏ thẻ này' if (asset.get('overlay_presentation') or {}).get('kind') == 'single_item_card'
+                                            else 'cỡ lớn hơn hoặc CUTAWAY/SPEAKER_PIP')
                             readability_feedback.append(
-                                f"VISUAL_TEXT_TOO_SMALL: {action.asset_id} chỉ còn {actual_font:.1f}px sau scale, cần ít nhất48px. Chọn cỡ hoặc mode đọc rõ (CUTAWAY/SPEAKER_PIP), không giữ overlay này."
+                                f"VISUAL_TEXT_TOO_SMALL: {action.asset_id} chỉ còn {actual_font:.1f}px sau scale, cần ít nhất48px. Chọn {alternatives}, không giữ overlay nhỏ này."
                             )
                             continue
                     readable.append(action)
@@ -1724,7 +1731,7 @@ def _visual_candidates_for_jobs(
                            "overlay_presentation": (
                                {"kind": "single_item_card", "min_font_size_px": 128}
                                if renderer == "HYPERFRAMES" and info["has_alpha"]
-                               and parameters.get("diagram_revision") == 2
+                               and parameters.get("diagram_revision", 0) >= 2
                                and isinstance(parameters.get("ui_scene"), dict)
                                and parameters.get("ui_scene", {}).get("layout") == "CHECKLIST"
                                else {"kind": "paper_card", "min_font_size_px": 84}
@@ -1963,8 +1970,8 @@ def dung_video_dai(
                                 "target_start_word_id": brief.get("start_word_id"),
                                 "target_end_word_id": brief.get("end_word_id"),
                                 "narration": brief["narration"], "narration_word_times": brief.get("word_times"),
-                                "transparent_background": True,
-                                "diagram_revision": 2,
+                                "transparent_background": brief["ui_scene"]["layout"] != "CHECKLIST",
+                                "diagram_revision": 4,
                                 "ui_scene": brief["ui_scene"],
                                 "style_snapshot": brief["style_snapshot"], "style_snapshot_hash": brief["style_snapshot_hash"],
                             }

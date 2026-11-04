@@ -1,0 +1,22 @@
+{
+  "yeu_cau": "Checklist không overlay hiện lần lượt từ trên xuống và giữ các dòng trước; chuẩn bị xử lý toàn bộ nguồn 8 GB.",
+  "nguyen_nhan": "Mọi diễn họa được tạo alpha, khiến CHECKLIST đi vào nhánh thẻ một mục. LLM sau đó có thể dùng thẻ này làm CUTAWAY. OPEN_QUESTION lấy màu chữ sáng của theme để vẽ lên giấy sáng.",
+  "sua": [
+    "CHECKLIST mới mặc định dùng nhánh danh sách toàn khung có nền; các diễn họa khác giữ alpha như trước.",
+    "Thẻ single_item_card chỉ được chọn OVERLAY, yêu cầu LLM sửa nếu chọn CUTAWAY/SPEAKER_PIP.",
+    "Cập nhật diagram_revision lên 4 và nhận diện metadata thẻ từ revision 2 trở lên.",
+    "Chữ thường của OPEN_QUESTION dùng mực đậm #163344, giữ màu nhấn."
+  ],
+  "kiem_thu_do": "3 failed, 1 passed trước sửa: sai màu chữ, thẻ một mục được phóng toàn khung, CHECKLIST mặc định alpha.",
+  "kiem_thu_xanh": [
+    {
+      "lenh": "python -m pytest tests/test_checklist_doc_ro.py tests/dung_video_dai_test.py tests/test_storyboard_nhieu_nhip.py -q --disable-warnings --tb=short",
+      "ket_qua": "126 passed in 72.28s"
+    },
+    {
+      "lenh": "python -m pytest tests/test_ghep_chuyen_canh_bo_nho.py -q --disable-warnings --tb=short",
+      "ket_qua": "1 passed in 1.75s"
+    }
+  ],
+  "gioi_han": "Chưa render lại MP4 sau sửa checklist. Chưa chạy lô toàn nguồn. Không chạy render nặng local."
+}

@@ -378,6 +378,44 @@ class VideoProcessor:
 
         return self.probe_video(output_path)
 
+    def _ghep_chuyen_canh_tuan_tu(self, segments, work_dir, transition_seconds, fps):
+        """Chỉ giải mã hai đoạn mỗi lượt, tránh giữ cả timeline trong bộ nhớ xfade."""
+        frames = [round(float(self.probe_video(path)["duration_seconds"]) * fps) for path in segments]
+        fade_frames = min(max(1, round(min(transition_seconds, 0.5) * fps)), min(frames) // 2)
+        if fade_frames < 1:
+            raise ValueError("VIDEO_TRANSITION_CLIP_TOO_SHORT")
+        fade = fade_frames / fps
+        pieces = []
+        for index, segment in enumerate(segments):
+            skip = fade_frames if index else 0
+            target = work_dir / f"chuyen_canh_{index:03d}.mp4"
+            command = [self.ffmpeg_bin, "-y", "-i", str(segment)]
+            if index + 1 < len(segments):
+                command += ["-i", str(segments[index + 1])]
+                filters = (
+                    f"[0:v]trim=start_frame={skip},setpts=PTS-STARTPTS,"
+                    f"tpad=stop_mode=clone:stop_duration={fade:.9f}[a];"
+                    f"[1:v]trim=end_frame={fade_frames},setpts=PTS-STARTPTS[b];"
+                    f"[a][b]xfade=transition=fade:duration={fade:.9f}:"
+                    f"offset={(frames[index] - skip) / fps:.9f}[v]"
+                )
+                command += ["-filter_complex", filters, "-map", "[v]"]
+            else:
+                command += ["-vf", f"trim=start_frame={skip},setpts=PTS-STARTPTS"]
+            command += ["-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(fps), str(target)]
+            result = run_media_command(command, capture_output=True, text=True)
+            if result.returncode:
+                raise RuntimeError(f"Lỗi chuyển cảnh đoạn {index}: {result.stderr}")
+            pieces.append(target)
+        listing = work_dir / "danh_sach_chuyen_canh.txt"
+        listing.write_text("".join("file '" + str(path.resolve()).replace("\\", "/") + "'\n" for path in pieces), encoding="utf-8")
+        output = work_dir / "concat_video.mp4"
+        result = run_media_command([self.ffmpeg_bin, "-y", "-f", "concat", "-safe", "0", "-i", str(listing),
+                                    "-c", "copy", str(output)], capture_output=True, text=True)
+        if result.returncode:
+            raise RuntimeError(f"Lỗi ghép các đoạn chuyển cảnh: {result.stderr}")
+        return output
+
     @offload("render_timeline", "RENDER_FINAL", output="output_path")
     def render_timeline_document(
         self,
@@ -541,38 +579,9 @@ class VideoProcessor:
                                                    audio_trim_ms / 1000.0, dur_s))
                         total_duration_sec += dur_s
 
-                # 2. Ghép các phân cảnh video. Mỗi đoạn (trừ đoạn cuối) được tpad ngay trên đầu vào để xfade
-                # còn đủ hình; tpad đặt sau xfade không kéo dài luồng nên các đoạn sau bị cắt mất.
+                # 2. Chuyển cảnh từng cặp để RAM không tăng theo số đoạn trên timeline.
                 if transition_seconds > 0 and len(seg_files) > 1:
-                    transition = min(transition_seconds, 0.5)
-                    # Offset phải theo độ dài thực của đoạn (có thể ngắn hơn danh nghĩa vài frame), nếu không xfade bị cắt.
-                    measured = [float(self.probe_video(seg)["duration_seconds"]) for seg in seg_files]
-                    last = len(seg_files) - 1
-                    filter_parts = [
-                        f"[{idx}:v]tpad=stop_mode=clone:stop_duration={transition:.3f}[p{idx}]"
-                        for idx in range(last)
-                    ]
-                    previous = "p0"
-                    offset = 0.0
-                    for idx, duration in enumerate(measured[:-1]):
-                        nxt = f"p{idx + 1}" if idx + 1 < last else f"{last}:v"
-                        output = f"x{idx}"
-                        filter_parts.append(
-                            f"[{previous}][{nxt}]xfade=transition=fade:duration={transition:.3f}:offset={offset + duration:.3f}[{output}]"
-                        )
-                        previous = output
-                        offset += duration
-                    concat_video = work_dir / "concat_video.mp4"
-                    cmd_transition = [self.ffmpeg_bin, "-y"]
-                    for seg_file in seg_files:
-                        cmd_transition.extend(["-i", str(seg_file)])
-                    cmd_transition.extend([
-                        "-filter_complex", ";".join(filter_parts), "-map", f"[{previous}]",
-                        "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(fps), str(concat_video),
-                    ])
-                    res_concat = run_media_command(cmd_transition, capture_output=True, text=True)
-                    if res_concat.returncode != 0:
-                        raise RuntimeError(f"Lỗi chuyển cảnh mềm: {res_concat.stderr}")
+                    concat_video = self._ghep_chuyen_canh_tuan_tu(seg_files, work_dir, transition_seconds, fps)
                 else:
                     concat_list = work_dir / "concat_list.txt"
                     with open(concat_list, "w", encoding="utf-8") as f:
