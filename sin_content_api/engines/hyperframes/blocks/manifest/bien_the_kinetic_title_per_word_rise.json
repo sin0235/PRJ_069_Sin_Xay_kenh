@@ -1,0 +1,21 @@
+{
+  "order": 6,
+  "layout": "KINETIC_TITLE",
+  "variant_key": "per_word_rise",
+  "block": "per-word-rise",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "text": {
+      "field": "title"
+    },
+    "split": "word",
+    "cues": "",
+    "accent": "green",
+    "exit": "none"
+  },
+  "literals": {}
+}

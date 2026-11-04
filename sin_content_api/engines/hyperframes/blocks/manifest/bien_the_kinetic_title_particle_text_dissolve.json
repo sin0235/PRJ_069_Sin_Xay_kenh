@@ -1,0 +1,21 @@
+{
+  "order": 8,
+  "layout": "KINETIC_TITLE",
+  "variant_key": "particle_text_dissolve",
+  "block": "particle-text-dissolve",
+  "max_chars": 35,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "text": {
+      "field": "title"
+    },
+    "direction": "in",
+    "density": "med",
+    "accent": "green",
+    "exit": "none"
+  },
+  "literals": {}
+}

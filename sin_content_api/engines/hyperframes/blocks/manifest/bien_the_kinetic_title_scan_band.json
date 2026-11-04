@@ -1,0 +1,23 @@
+{
+  "order": 9,
+  "layout": "KINETIC_TITLE",
+  "variant_key": "scan_band",
+  "block": "scan-band",
+  "max_chars": 16,
+  "portrait_scale": {
+    "base": 0.85
+  },
+  "square": false,
+  "variables": {
+    "wordmark": {
+      "fn": "upper",
+      "args": [
+        {
+          "field": "title"
+        }
+      ]
+    },
+    "band_angle": 12
+  },
+  "literals": {}
+}

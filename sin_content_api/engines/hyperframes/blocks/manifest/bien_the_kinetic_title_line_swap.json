@@ -1,0 +1,49 @@
+{
+  "order": 7,
+  "layout": "KINETIC_TITLE",
+  "variant_key": "line_swap",
+  "block": "line-swap",
+  "max_chars": 40,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "line_a": {
+      "fn": "join",
+      "args": [
+        {
+          "fn": "take",
+          "args": [
+            {
+              "fn": "words",
+              "args": [
+                {
+                  "field": "title"
+                }
+              ]
+            },
+            0.5
+          ]
+        },
+        " "
+      ]
+    },
+    "line_b": {
+      "field": "title"
+    },
+    "swap_at": 1.5,
+    "underline_word": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "tag"
+        },
+        ""
+      ]
+    },
+    "accent": "green",
+    "exit": "none"
+  },
+  "literals": {}
+}
