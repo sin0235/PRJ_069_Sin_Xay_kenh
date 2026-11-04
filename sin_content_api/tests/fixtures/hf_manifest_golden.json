@@ -1,0 +1,322 @@
+{
+ "KINETIC_TITLE": [
+  {
+   "layout": "KINETIC_TITLE",
+   "index": 0,
+   "block": "headline-slam",
+   "variables": {
+    "text": "Một nguồn sự thật",
+    "accent_word_index": 2,
+    "accent": "green",
+    "shadow": true
+   },
+   "literals": null,
+   "portrait_scale": 1.0,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace"
+  },
+  {
+   "layout": "KINETIC_TITLE",
+   "index": 1,
+   "block": "char-slam-explode",
+   "variables": {
+    "text": "Một nguồn sự thật",
+    "accent": "green",
+    "spread": "tight"
+   },
+   "literals": null,
+   "portrait_scale": 1.0,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace"
+  },
+  {
+   "layout": "KINETIC_TITLE",
+   "index": 2,
+   "block": "shutter-slam",
+   "variables": {
+    "text": "MỘT NGUỒN SỰ THẬT",
+    "accent": "green",
+    "blur": "shutter",
+    "exit": "none"
+   },
+   "literals": null,
+   "portrait_scale": 1.0,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace"
+  },
+  {
+   "layout": "KINETIC_TITLE",
+   "index": 3,
+   "block": "titlecard-calm",
+   "variables": {
+    "headline": "Một nguồn sự thật",
+    "kicker": "SỰ THẬT"
+   },
+   "literals": null,
+   "portrait_scale": 1.0,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace"
+  },
+  {
+   "layout": "KINETIC_TITLE",
+   "index": 4,
+   "block": "kinetic-center-build",
+   "variables": {
+    "text": "Một nguồn sự thật",
+    "font_size": 96,
+    "color": "#f6efe0",
+    "font_weight": "700"
+   },
+   "literals": null,
+   "portrait_scale": 1.0,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace"
+  },
+  {
+   "layout": "KINETIC_TITLE",
+   "index": 5,
+   "block": "text-match-cut",
+   "variables": {
+    "text_a": "Một nguồn",
+    "text_b": "Một nguồn sự thật",
+    "mode": "scale-down",
+    "sweep": "on",
+    "background": "transparent"
+   },
+   "literals": null,
+   "portrait_scale": 1.0,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace"
+  }
+ ],
+ "MARK_PHRASE": [
+  {
+   "layout": "MARK_PHRASE",
+   "index": 0,
+   "block": "marker-highlight",
+   "variables": {
+    "text": "Mỗi bộ phận giữ một con số khác nhau",
+    "emphasis_word": "một con số khác nhau",
+    "style": "highlight",
+    "draw_at": 0.9,
+    "accent": "violet",
+    "exit": "none"
+   },
+   "literals": null,
+   "portrait_scale": 1.0,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace"
+  },
+  {
+   "layout": "MARK_PHRASE",
+   "index": 1,
+   "block": "marker-highlight",
+   "variables": {
+    "text": "Mỗi bộ phận giữ một con số khác nhau",
+    "emphasis_word": "một con số khác nhau",
+    "style": "circle",
+    "draw_at": 0.9,
+    "accent": "violet",
+    "exit": "none"
+   },
+   "literals": null,
+   "portrait_scale": 1.0,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace"
+  },
+  {
+   "layout": "MARK_PHRASE",
+   "index": 2,
+   "block": "vox-annotate",
+   "variables": {
+    "text": "Mỗi bộ phận giữ một con số khác nhau",
+    "keyword": "một con số khác nhau",
+    "note": "Không ai sai",
+    "style": "highlight",
+    "draw_at": 0.9,
+    "accent": "violet",
+    "exit": "none"
+   },
+   "literals": null,
+   "portrait_scale": 1.0,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace"
+  },
+  {
+   "layout": "MARK_PHRASE",
+   "index": 3,
+   "block": "marker-highlight",
+   "variables": {
+    "text": "Mỗi bộ phận giữ một con số khác nhau",
+    "emphasis_word": "một con số khác nhau",
+    "style": "underline",
+    "draw_at": 0.9,
+    "accent": "violet",
+    "exit": "none"
+   },
+   "literals": null,
+   "portrait_scale": 1.0,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace"
+  }
+ ],
+ "WORD_SWAP": [
+  {
+   "layout": "WORD_SWAP",
+   "index": 0,
+   "block": "kinetic-type-swap",
+   "variables": {
+    "prefix": "Báo cáo",
+    "options": "chậm,lệch,muộn",
+    "suffix": "mỗi tuần",
+    "accent": "green",
+    "exit": "none"
+   },
+   "literals": null,
+   "portrait_scale": 1.5,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace;transform:scale(1.5);transform-origin:50% 50%",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace"
+  }
+ ],
+ "PILE_UP": [
+  {
+   "layout": "PILE_UP",
+   "index": 0,
+   "block": "overwhelm-surround",
+   "variables": {
+    "count": 16,
+    "centerLabel": "Chủ shop",
+    "intensity": 1
+   },
+   "literals": null,
+   "portrait_scale": 1.0,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace"
+  }
+ ],
+ "STAT_RING": [
+  {
+   "layout": "STAT_RING",
+   "index": 0,
+   "block": "conic-progress-ring",
+   "variables": {
+    "progress": 86,
+    "thickness": 14,
+    "label": "86%"
+   },
+   "literals": null,
+   "portrait_scale": 1.0,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace"
+  }
+ ],
+ "CHART_STORY": [
+  {
+   "layout": "CHART_STORY",
+   "index": 0,
+   "block": "chart-story",
+   "variables": {
+    "type": "bars",
+    "data": "12, 28, 45, 64",
+    "labels": "Q1, Q2, Q3, Q4",
+    "emphasize": 3,
+    "unit": "%",
+    "accent": "green",
+    "exit": "none"
+   },
+   "literals": null,
+   "portrait_scale": 1.25,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace;transform:scale(1.25);transform-origin:50% 50%",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace"
+  },
+  {
+   "layout": "CHART_STORY",
+   "index": 1,
+   "block": "chart-story",
+   "variables": {
+    "type": "line",
+    "data": "12, 28, 45, 64",
+    "labels": "Q1, Q2, Q3, Q4",
+    "emphasize": 3,
+    "unit": "%",
+    "accent": "green",
+    "exit": "none"
+   },
+   "literals": null,
+   "portrait_scale": 1.25,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace;transform:scale(1.25);transform-origin:50% 50%",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace"
+  }
+ ],
+ "AI_RANK": [
+  {
+   "layout": "AI_RANK",
+   "index": 0,
+   "block": "ai-answer-rank",
+   "variables": {
+    "prompt": "Khách hỏi AI nên mua phần mềm nào",
+    "lead": "Gợi ý hàng đầu:",
+    "rowA": "Nhà cung cấp A",
+    "rowB": "Nhà cung cấp B",
+    "rowC": "Nhà cung cấp C",
+    "brand": "Baha",
+    "brandRank": "1",
+    "accent": "#e8a50a",
+    "ink": "#16283d",
+    "ground": "#fbf3df"
+   },
+   "literals": null,
+   "portrait_scale": 1.0,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace;transform:translate(0,420px)",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace;transform:translate(420px,0)"
+  }
+ ],
+ "DRAG_TASKS": [
+  {
+   "layout": "DRAG_TASKS",
+   "index": 0,
+   "block": "cursor-drag-drop",
+   "variables": {
+    "card_label": "Báo khách đơn trễ",
+    "accent": "#e8a50a",
+    "tone": "dark"
+   },
+   "literals": {
+    "To do <span": "Cần làm <span",
+    "In progress <span": "Đang xử lý <span",
+    "--chip: #d9480f\">Marketing<": "--chip: #d9480f\">Việc<",
+    "--chip: #2b8a3e\">Video<": "--chip: #2b8a3e\">Việc<",
+    "--chip: #1971c2\">Docs<": "--chip: #1971c2\">Việc<",
+    "--chip: #c2255c\">Bug<": "--chip: #c2255c\">Gấp<",
+    "Draft onboarding email": "Đối chiếu mã hàng",
+    "Record product walkthrough": "Ghi giờ bàn giao",
+    "Update pricing FAQ": "Duyệt hoàn tiền",
+    "Thu <span": "T2 <span",
+    "Mon <span": "T3 <span",
+    "Tue <span": "T4 <span",
+    "Today <span": "Nay <span"
+   },
+   "portrait_scale": 1.0,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace"
+  }
+ ],
+ "CARD_SHIFT": [
+  {
+   "layout": "CARD_SHIFT",
+   "index": 0,
+   "block": "focus-rack",
+   "variables": {
+    "label_a": "Nhập tay",
+    "label_b": "Tự đồng bộ",
+    "accent": "green"
+   },
+   "literals": {
+    "</span>Workspace</span>": "</span>Đơn hàng</span>"
+   },
+   "portrait_scale": 1.0,
+   "style_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace",
+   "style_non_portrait": "--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace"
+  }
+ ]
+}

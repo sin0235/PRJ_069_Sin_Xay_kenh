@@ -1,0 +1,25 @@
+{
+  "order": 2,
+  "layout": "KINETIC_TITLE",
+  "variant_key": "shutter_slam",
+  "block": "shutter-slam",
+  "max_chars": 22,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "text": {
+      "fn": "upper",
+      "args": [
+        {
+          "field": "title"
+        }
+      ]
+    },
+    "accent": "green",
+    "blur": "shutter",
+    "exit": "none"
+  },
+  "literals": {}
+}

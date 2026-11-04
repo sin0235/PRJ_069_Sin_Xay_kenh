@@ -1,0 +1,40 @@
+{
+  "order": 5,
+  "layout": "KINETIC_TITLE",
+  "variant_key": "text_match_cut",
+  "block": "text-match-cut",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "text_a": {
+      "fn": "join",
+      "args": [
+        {
+          "fn": "take",
+          "args": [
+            {
+              "fn": "words",
+              "args": [
+                {
+                  "field": "title"
+                }
+              ]
+            },
+            0.5
+          ]
+        },
+        " "
+      ]
+    },
+    "text_b": {
+      "field": "title"
+    },
+    "mode": "scale-down",
+    "sweep": "on",
+    "background": "transparent"
+  },
+  "literals": {}
+}

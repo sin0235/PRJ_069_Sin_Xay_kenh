@@ -1,0 +1,54 @@
+{
+  "order": 2,
+  "layout": "MARK_PHRASE",
+  "variant_key": "vox_annotate",
+  "block": "vox-annotate",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.5,
+    "lte_22": 1.5,
+    "lte_30": 1.15,
+    "default": 1.0
+  },
+  "square": false,
+  "variables": {
+    "text": {
+      "field": "title"
+    },
+    "keyword": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "tag"
+        },
+        {
+          "fn": "last",
+          "args": [
+            {
+              "fn": "words",
+              "args": [
+                {
+                  "field": "title"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "note": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "caption"
+        },
+        ""
+      ]
+    },
+    "style": "highlight",
+    "draw_at": 0.9,
+    "accent": "violet",
+    "exit": "none"
+  },
+  "literals": {}
+}

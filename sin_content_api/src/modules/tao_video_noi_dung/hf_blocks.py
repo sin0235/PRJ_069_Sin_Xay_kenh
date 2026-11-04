@@ -11,7 +11,6 @@ Hai cách dùng:
 Danh sách khối đã kiểm bằng ảnh chụp nằm trong blocks/catalog.json (xem tools_catalog)."""
 from __future__ import annotations
 
-import html
 import json
 import re
 import zlib
@@ -20,6 +19,12 @@ from pathlib import Path
 from typing import Callable
 
 from . import hf_vendor
+from .hf_manifest import (
+    BlockManifest,
+    load_manifests,
+    render_literals,
+    render_variables,
+)
 
 BLOCKS_DIR = Path(__file__).resolve().parents[3] / "engines" / "hyperframes" / "blocks"
 CATALOG_FILE = BLOCKS_DIR / "catalog.json"
@@ -94,160 +99,68 @@ def load_catalog() -> dict:
         return {"blocks": {}}
 
 
-def _words(text: str) -> list[str]:
-    return text.split()
-
-
-def _accent_index(title: str, tag: str | None) -> int:
-    """Chỉ số chữ cần nhấn trong tiêu đề: chữ đầu tiên của `tag` nằm trong title; không có thì chữ cuối."""
-    words = _words(title)
-    if tag:
-        first = _words(tag)[0].casefold().strip(".,!?:;") if _words(tag) else ""
-        for index, word in enumerate(words):
-            if word.casefold().strip(".,!?:;") == first:
-                return index
-    return max(0, len(words) - 1)
-
-
 @dataclass(frozen=True)
 class Variant:
     block: str
     variables: Callable[[dict], dict]
     max_chars: int = 999   # khối cỡ chữ cố định chỉ hợp tiêu đề ngắn
     literals: Callable[[dict], dict] | None = None   # chữ cố định trong mã khối cần thay theo nội dung cảnh
+    manifest: BlockManifest | None = None
 
 
-def _num(value, default: float) -> float:
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return default
+# Đọc toàn bộ manifest từ blocks/manifest/*.json
+_LOADED_MANIFESTS = load_manifests()
 
 
-def _headline(d):
-    return {"text": d["title"], "accent_word_index": _accent_index(d["title"], d.get("tag")), "accent": "green", "shadow": True}
+def _build_block_scenes() -> dict[str, list[Variant]]:
+    scenes: dict[str, list[Variant]] = {}
+    for layout, m_list in _LOADED_MANIFESTS.items():
+        variants: list[Variant] = []
+        for m in m_list:
+            v_vars = (lambda mf: lambda d: render_variables(mf, d))(m)
+            v_lits = (lambda mf: (lambda d: render_literals(mf, d)) if mf.literals else None)(m)
+            variants.append(Variant(
+                block=m.block,
+                variables=v_vars,
+                max_chars=m.max_chars,
+                literals=v_lits,
+                manifest=m,
+            ))
+        scenes[layout] = variants
+    return scenes
 
 
-def _plain(d):
-    return {"text": d["title"], "accent": "green", "spread": "tight"}
+BLOCK_SCENES: dict[str, list[Variant]] = _build_block_scenes()
 
-
-def _shutter(d):
-    return {"text": d["title"].upper(), "accent": "green", "blur": "shutter", "exit": "none"}
-
-
-def _mark(style):
-    def build(d):
-        return {"text": d["title"], "emphasis_word": d.get("tag") or d["title"].split()[-1], "style": style, "draw_at": 0.9, "accent": "violet", "exit": "none"}
-    return build
-
-
-def _vox(d):
-    return {"text": d["title"], "keyword": d.get("tag") or d["title"].split()[-1], "note": d.get("caption") or "", "style": "highlight", "draw_at": 0.9, "accent": "violet", "exit": "none"}
-
-
-def _swap(d):
-    options = list(d.get("steps") or [])
-    return {"prefix": d["title"], "options": ",".join(options), "suffix": d.get("caption") or "", "accent": "green", "exit": "none"}
-
-
-def _overwhelm(d):
-    return {"count": int(min(24, max(8, _num(d.get("value"), 16)))), "centerLabel": d["title"][:14], "intensity": 1}
-
-
-def _notify(d):
-    return {"count": int(min(12, max(5, _num(d.get("value"), 8)))), "speed": 1, "showBadges": "yes"}
-
-
-def _ring(d):
-    value = _num(d.get("to_value"), _num(d.get("value"), 60))
-    return {"progress": int(min(100, max(0, value))), "thickness": 14, "label": f'{int(min(100, max(0, value)))}%'}
-
-
-def _chart(kind):
-    def build(d):
-        series = (d.get("series") or [{}])[0]
-        values = [str(round(v, 1)).rstrip("0").rstrip(".") for v in series.get("values", [])]
-        labels = list(d.get("labels") or [])
-        return {"type": kind, "data": ", ".join(values), "labels": ", ".join(labels), "emphasize": max(0, len(values) - 1), "unit": d.get("unit") or "", "accent": "green", "exit": "none"}
-    return build
-
-
-def _titlecard(d):
-    return {"headline": d["title"], "kicker": (d.get("caption") or d.get("tag") or "").upper()}
-
-
-def _center_build(d):
-    return {"text": d["title"], "font_size": 96, "color": "#f6efe0", "font_weight": "700"}
-
-
-def _rank(d):
-    steps = list(d.get("steps") or [])
-    return {"prompt": d["title"], "lead": d.get("caption") or "Đây là các gợi ý hàng đầu:", "rowA": steps[0], "rowB": steps[1], "rowC": steps[2],
-            "brand": d.get("tag") or "Doanh nghiệp bạn", "brandRank": str(int(d.get("pick") or 0) + 1), "accent": "#e8a50a", "ink": "#16283d", "ground": "#fbf3df"}
-
-
-def _drag(d):
-    return {"card_label": d["steps"][0], "accent": "#e8a50a", "tone": "dark"}
-
-
-def _e(value) -> str:
-    return html.escape(str(value), quote=False)
-
-
-def _drag_literals(d):
-    steps, days = [_e(s) for s in d["steps"]], ("T2", "T3", "T4")
-    chip = "Việc"
-    return {
-        "To do <span": f"{_e(d['title'])} <span", "In progress <span": f"{_e(d.get('caption') or 'Đang làm')} <span",
-        '--chip: #d9480f">Marketing<': f'--chip: #d9480f">{chip}<', '--chip: #2b8a3e">Video<': f'--chip: #2b8a3e">{chip}<',
-        '--chip: #1971c2">Docs<': f'--chip: #1971c2">{chip}<', '--chip: #c2255c">Bug<': '--chip: #c2255c">Gấp<',
-        "Draft onboarding email": steps[1], "Record product walkthrough": steps[2], "Update pricing FAQ": steps[3],
-        "Thu <span": f"{days[0]} <span", "Mon <span": f"{days[1]} <span", "Tue <span": f"{days[2]} <span", "Today <span": "Nay <span",
-    }
-
-
-def _shift(d):
-    steps = list(d["steps"])
-    return {"label_a": steps[0], "label_b": steps[1], "accent": "green"}
-
-
-def _shift_literals(d):
-    return {"</span>Workspace</span>": f"</span>{_e(d['title'])}</span>"}
-
-
-def _match_cut(d):
-    words = d["title"].split()
-    half = max(1, len(words) // 2)
-    return {"text_a": " ".join(words[:half]), "text_b": d["title"], "mode": "scale-down", "sweep": "on", "background": "transparent"}
-
-
-# layout -> các biến thể khối (chọn một theo nội dung). Chỉ liệt kê khối đã dựng và xem bằng ảnh chụp (xem blocks/catalog.json).
-BLOCK_SCENES: dict[str, list[Variant]] = {
-    "KINETIC_TITLE": [Variant("headline-slam", _headline, 14), Variant("char-slam-explode", _plain, 16), Variant("shutter-slam", _shutter, 22), Variant("titlecard-calm", _titlecard),
-                      Variant("kinetic-center-build", _center_build), Variant("text-match-cut", _match_cut)],
-    "MARK_PHRASE": [Variant("marker-highlight", _mark("highlight")), Variant("marker-highlight", _mark("circle")), Variant("vox-annotate", _vox), Variant("marker-highlight", _mark("underline"))],
-    "WORD_SWAP": [Variant("kinetic-type-swap", _swap)],
-    "PILE_UP": [Variant("overwhelm-surround", _overwhelm)],
-    "STAT_RING": [Variant("conic-progress-ring", _ring)],
-    "CHART_STORY": [Variant("chart-story", _chart("bars")), Variant("chart-story", _chart("line"))],
-    "AI_RANK": [Variant("ai-answer-rank", _rank)],
-    "DRAG_TASKS": [Variant("cursor-drag-drop", _drag, literals=_drag_literals)],
-    "CARD_SHIFT": [Variant("focus-rack", _shift, literals=_shift_literals)],
+# Hệ số phóng cảnh khối ở khung 9:16 (dựng từ manifest)
+PORTRAIT_SCALE: dict[str, float] = {
+    layout: m_list[0].portrait_scale.get("base", 1.0)
+    for layout, m_list in _LOADED_MANIFESTS.items()
+    if m_list and m_list[0].portrait_scale.get("base", 1.0) != 1.0
 }
-
-
-# hệ số phóng cảnh khối ở khung 9:16 (đã xem bằng ảnh chụp)
-PORTRAIT_SCALE = {"MARK_PHRASE": 1.5, "WORD_SWAP": 1.5, "CHART_STORY": 1.25}
-SQUARE_BLOCKS = ("AI_RANK",)   # ai-answer-rank vẽ trong khung vuông 1080x1080
+SQUARE_BLOCKS: tuple[str, ...] = tuple(
+    layout for layout, m_list in _LOADED_MANIFESTS.items()
+    if any(m.square for m in m_list)
+)
 
 
 def portrait_scale(layout: str, data: dict) -> float:
     """Hệ số phóng ở khung 9:16. Khối chữ một dòng đã tự co theo chiều rộng nên câu dài phóng thêm sẽ tràn mép: câu càng dài phóng càng ít."""
+    manifests = _LOADED_MANIFESTS.get(layout, [])
+    rules = manifests[0].portrait_scale if manifests else {}
     base = PORTRAIT_SCALE.get(layout, 1.0)
     if layout in ("MARK_PHRASE", "WORD_SWAP"):
-        size = len(str(data.get("title") or "")) + (sum(len(s) for s in data.get("steps") or []) // max(1, len(data.get("steps") or [1])) if layout == "WORD_SWAP" else 0)             + len(str(data.get("caption") or "")) * (layout == "WORD_SWAP")
-        return base if size <= 22 else 1.15 if size <= 30 else 1.0
+        size = len(str(data.get("title") or "")) + (
+            (sum(len(s) for s in data.get("steps") or []) // max(1, len(data.get("steps") or [1]))
+             + len(str(data.get("caption") or "")))
+            if layout == "WORD_SWAP" else 0
+        )
+        if size <= 22:
+            return rules.get("lte_22", base)
+        elif size <= 30:
+            return rules.get("lte_30", 1.15)
+        else:
+            return rules.get("default", 1.0)
     return base
 
 
@@ -264,4 +177,17 @@ def scene_composition(layout: str, cid: str, data: dict, duration: float | None 
     style = THEME_STYLE + (f";transform:scale({scale});transform-origin:50% 50%" if scale != 1.0 else "")
     if layout in SQUARE_BLOCKS:   # khối vuông 1080x1080 đặt giữa khung
         style += ";transform:translate(0,420px)" if data.get("portrait") else ";transform:translate(420px,0)"
-    return prepare_block(variant.block, cid, duration, variant.literals(data) if variant.literals else None), host_attrs(variant.variables(data)), style
+    literals = variant.literals(data) if variant.literals else None
+    return prepare_block(variant.block, cid, duration, literals), host_attrs(variant.variables(data)), style
+
+
+def _drag_literals(data: dict) -> dict[str, str]:
+    """Hàm tương thích ngược phỏng sinh literals cho DRAG_TASKS qua manifest."""
+    manifests = _LOADED_MANIFESTS.get("DRAG_TASKS", [])
+    return render_literals(manifests[0], data) if manifests else {}
+
+
+def _shift_literals(data: dict) -> dict[str, str]:
+    """Hàm tương thích ngược phỏng sinh literals cho CARD_SHIFT qua manifest."""
+    manifests = _LOADED_MANIFESTS.get("CARD_SHIFT", [])
+    return render_literals(manifests[0], data) if manifests else {}

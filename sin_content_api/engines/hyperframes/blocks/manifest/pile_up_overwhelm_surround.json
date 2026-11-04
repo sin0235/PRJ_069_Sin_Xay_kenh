@@ -1,0 +1,45 @@
+{
+  "order": 0,
+  "layout": "PILE_UP",
+  "variant_key": "pile_up",
+  "block": "overwhelm-surround",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "count": {
+      "fn": "to_int",
+      "args": [
+        {
+          "fn": "clamp",
+          "args": [
+            {
+              "fn": "digits_or",
+              "args": [
+                {
+                  "field": "value"
+                },
+                16
+              ]
+            },
+            8,
+            24
+          ]
+        }
+      ]
+    },
+    "centerLabel": {
+      "fn": "take",
+      "args": [
+        {
+          "field": "title"
+        },
+        14
+      ]
+    },
+    "intensity": 1
+  },
+  "literals": {}
+}

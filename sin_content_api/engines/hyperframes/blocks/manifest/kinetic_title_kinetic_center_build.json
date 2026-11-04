@@ -1,0 +1,20 @@
+{
+  "order": 4,
+  "layout": "KINETIC_TITLE",
+  "variant_key": "kinetic_center_build",
+  "block": "kinetic-center-build",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "text": {
+      "field": "title"
+    },
+    "font_size": 96,
+    "color": "#f6efe0",
+    "font_weight": "700"
+  },
+  "literals": {}
+}

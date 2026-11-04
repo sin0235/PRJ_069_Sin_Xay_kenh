@@ -1,0 +1,90 @@
+{
+  "order": 0,
+  "layout": "AI_RANK",
+  "variant_key": "ai_rank",
+  "block": "ai-answer-rank",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": true,
+  "variables": {
+    "prompt": {
+      "field": "title"
+    },
+    "lead": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "caption"
+        },
+        "Đây là các gợi ý hàng đầu:"
+      ]
+    },
+    "rowA": {
+      "fn": "nth",
+      "args": [
+        {
+          "field": "steps"
+        },
+        0
+      ]
+    },
+    "rowB": {
+      "fn": "nth",
+      "args": [
+        {
+          "field": "steps"
+        },
+        1
+      ]
+    },
+    "rowC": {
+      "fn": "nth",
+      "args": [
+        {
+          "field": "steps"
+        },
+        2
+      ]
+    },
+    "brand": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "tag"
+        },
+        "Doanh nghiệp bạn"
+      ]
+    },
+    "brandRank": {
+      "fn": "concat",
+      "args": [
+        {
+          "fn": "add",
+          "args": [
+            {
+              "fn": "to_int",
+              "args": [
+                {
+                  "fn": "default",
+                  "args": [
+                    {
+                      "field": "pick"
+                    },
+                    0
+                  ]
+                }
+              ]
+            },
+            1
+          ]
+        }
+      ]
+    },
+    "accent": "#e8a50a",
+    "ink": "#16283d",
+    "ground": "#fbf3df"
+  },
+  "literals": {}
+}

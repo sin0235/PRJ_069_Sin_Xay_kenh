@@ -1,0 +1,79 @@
+{
+  "order": 0,
+  "layout": "STAT_RING",
+  "variant_key": "stat_ring",
+  "block": "conic-progress-ring",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "progress": {
+      "fn": "to_int",
+      "args": [
+        {
+          "fn": "clamp",
+          "args": [
+            {
+              "fn": "digits_or",
+              "args": [
+                {
+                  "field": "to_value"
+                },
+                {
+                  "fn": "digits_or",
+                  "args": [
+                    {
+                      "field": "value"
+                    },
+                    60
+                  ]
+                }
+              ]
+            },
+            0,
+            100
+          ]
+        }
+      ]
+    },
+    "thickness": 14,
+    "label": {
+      "fn": "concat",
+      "args": [
+        {
+          "fn": "to_int",
+          "args": [
+            {
+              "fn": "clamp",
+              "args": [
+                {
+                  "fn": "digits_or",
+                  "args": [
+                    {
+                      "field": "to_value"
+                    },
+                    {
+                      "fn": "digits_or",
+                      "args": [
+                        {
+                          "field": "value"
+                        },
+                        60
+                      ]
+                    }
+                  ]
+                },
+                0,
+                100
+              ]
+            }
+          ]
+        },
+        "%"
+      ]
+    }
+  },
+  "literals": {}
+}

@@ -1,0 +1,45 @@
+{
+  "order": 0,
+  "layout": "MARK_PHRASE",
+  "variant_key": "mark_highlight",
+  "block": "marker-highlight",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.5,
+    "lte_22": 1.5,
+    "lte_30": 1.15,
+    "default": 1.0
+  },
+  "square": false,
+  "variables": {
+    "text": {
+      "field": "title"
+    },
+    "emphasis_word": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "tag"
+        },
+        {
+          "fn": "last",
+          "args": [
+            {
+              "fn": "words",
+              "args": [
+                {
+                  "field": "title"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "style": "highlight",
+    "draw_at": 0.9,
+    "accent": "violet",
+    "exit": "none"
+  },
+  "literals": {}
+}

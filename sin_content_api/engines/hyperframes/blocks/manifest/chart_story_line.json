@@ -1,0 +1,71 @@
+{
+  "order": 1,
+  "layout": "CHART_STORY",
+  "variant_key": "chart_line",
+  "block": "chart-story",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.25
+  },
+  "square": false,
+  "variables": {
+    "type": "line",
+    "data": {
+      "fn": "join",
+      "args": [
+        {
+          "field": "series.0.values"
+        },
+        ", "
+      ]
+    },
+    "labels": {
+      "fn": "join",
+      "args": [
+        {
+          "fn": "default",
+          "args": [
+            {
+              "field": "labels"
+            },
+            []
+          ]
+        },
+        ", "
+      ]
+    },
+    "emphasize": {
+      "fn": "clamp",
+      "args": [
+        {
+          "fn": "add",
+          "args": [
+            {
+              "fn": "len",
+              "args": [
+                {
+                  "field": "series.0.values"
+                }
+              ]
+            },
+            -1
+          ]
+        },
+        0,
+        999
+      ]
+    },
+    "unit": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "unit"
+        },
+        ""
+      ]
+    },
+    "accent": "green",
+    "exit": "none"
+  },
+  "literals": {}
+}

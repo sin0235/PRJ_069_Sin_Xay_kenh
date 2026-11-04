@@ -1,0 +1,48 @@
+{
+  "order": 0,
+  "layout": "CARD_SHIFT",
+  "variant_key": "card_shift",
+  "block": "focus-rack",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "label_a": {
+      "fn": "first",
+      "args": [
+        {
+          "field": "steps"
+        }
+      ]
+    },
+    "label_b": {
+      "fn": "nth",
+      "args": [
+        {
+          "field": "steps"
+        },
+        1
+      ]
+    },
+    "accent": "green"
+  },
+  "literals": {
+    "</span>Workspace</span>": {
+      "fn": "concat",
+      "args": [
+        "</span>",
+        {
+          "fn": "html_escape",
+          "args": [
+            {
+              "field": "title"
+            }
+          ]
+        },
+        "</span>"
+      ]
+    }
+  }
+}

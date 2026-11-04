@@ -1,0 +1,19 @@
+{
+  "order": 1,
+  "layout": "KINETIC_TITLE",
+  "variant_key": "char_slam_explode",
+  "block": "char-slam-explode",
+  "max_chars": 16,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "text": {
+      "field": "title"
+    },
+    "accent": "green",
+    "spread": "tight"
+  },
+  "literals": {}
+}

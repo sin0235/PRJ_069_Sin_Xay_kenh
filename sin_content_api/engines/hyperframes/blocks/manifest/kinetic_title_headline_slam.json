@@ -1,0 +1,30 @@
+{
+  "order": 0,
+  "layout": "KINETIC_TITLE",
+  "variant_key": "headline_slam",
+  "block": "headline-slam",
+  "max_chars": 14,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "text": {
+      "field": "title"
+    },
+    "accent_word_index": {
+      "fn": "accent_index",
+      "args": [
+        {
+          "field": "title"
+        },
+        {
+          "field": "tag"
+        }
+      ]
+    },
+    "accent": "green",
+    "shadow": true
+  },
+  "literals": {}
+}

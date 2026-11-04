@@ -1,0 +1,46 @@
+{
+  "order": 0,
+  "layout": "WORD_SWAP",
+  "variant_key": "word_swap",
+  "block": "kinetic-type-swap",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.5,
+    "lte_22": 1.5,
+    "lte_30": 1.15,
+    "default": 1.0
+  },
+  "square": false,
+  "variables": {
+    "prefix": {
+      "field": "title"
+    },
+    "options": {
+      "fn": "join",
+      "args": [
+        {
+          "fn": "default",
+          "args": [
+            {
+              "field": "steps"
+            },
+            []
+          ]
+        },
+        ","
+      ]
+    },
+    "suffix": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "caption"
+        },
+        ""
+      ]
+    },
+    "accent": "green",
+    "exit": "none"
+  },
+  "literals": {}
+}

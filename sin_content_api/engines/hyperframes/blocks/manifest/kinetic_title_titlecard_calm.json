@@ -1,0 +1,39 @@
+{
+  "order": 3,
+  "layout": "KINETIC_TITLE",
+  "variant_key": "titlecard_calm",
+  "block": "titlecard-calm",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "headline": {
+      "field": "title"
+    },
+    "kicker": {
+      "fn": "upper",
+      "args": [
+        {
+          "fn": "default",
+          "args": [
+            {
+              "field": "caption"
+            },
+            {
+              "fn": "default",
+              "args": [
+                {
+                  "field": "tag"
+                },
+                ""
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "literals": {}
+}
