@@ -73,6 +73,7 @@ def main() -> None:
     parser.add_argument("--khung", choices=["16:9", "9:16"], default="16:9", help="khung hình; mặc định ngang 16:9")
     parser.add_argument("--du-an-co-san", nargs="*", default=[], help="so=project_id: tạo bản storyboard mới trong dự án đã có thay vì dự án mới")
     parser.add_argument("--chay", action="store_true", help="tạo lượt dựng (tốn tín dụng Flow)")
+    parser.add_argument("--bo-qua-cong", action="store_true", help="bỏ qua cổng chất lượng trước khi tạo lượt dựng")
     args = parser.parse_args()
     existing = dict(item.split("=", 1) for item in args.du_an_co_san)
     state = load_state()
@@ -109,6 +110,14 @@ def main() -> None:
                     save_state(state)
                     log(f"bài {so}: đã duyệt storyboard (theo ủy quyền của Founder, Founder vẫn ký nghiệm thu cuối)")
                 if args.chay and not entry.get("run_id"):
+                    if not args.bo_qua_cong:
+                        from ha_tang.hyperframes.cong_chat_luong import gate_plan
+                        problems = gate_plan(entry["project_id"], entry["plan_id"])
+                        if problems:
+                            entry["cong_chat_luong"] = problems
+                            save_state(state)
+                            log(f"bài {so}: CỔNG CHẤT LƯỢNG KHÔNG ĐẠT ({len(problems)} lỗi):", problems)
+                            continue
                     request = ap_dung_ho_so_giong(db, workspace_id, entry["project_id"], CreateRunRequest(
                         plan_id=entry["plan_id"], flow_profile_id=FLOW_PROFILE, voice_source="TTS", voice_profile_id=id_giong(db, workspace_id),
                         include_subtitles=True, idempotency_key=f"lo15-{so}-{entry['plan_id'][:8]}"))
