@@ -1,0 +1,46 @@
+{
+  "source_asset_id": "c15a3ad0-811a-4f96-861b-630549dab417",
+  "transcribe_task_id": "5ccfd858-eb3e-427b-8f15-8097a1c71b80",
+  "word_count": 2622,
+  "llm_plan_complete": false,
+  "candidate_audio_recheck": false,
+  "clips": [
+    {
+      "id": "part1_01",
+      "title": "Bán giá cao hơn chưa chắc lời nhiều hơn",
+      "start_ms": 107860,
+      "end_ms": 203460,
+      "needs_review": false,
+      "selection_reason": "Kịch bản riêng về tăng giá; transcript đủ ý, dù có lỗi nhận dạng ASR."
+    },
+    {
+      "id": "part1_02",
+      "title": "Có doanh thu nhưng vẫn thiếu tiền nhập hàng",
+      "start_ms": 413510,
+      "end_ms": 516950,
+      "needs_review": false,
+      "selection_reason": "Kịch bản riêng về dòng tiền; thông điệp và hướng xử lý còn rõ dù ASR có lỗi."
+    },
+    {
+      "id": "part2_01",
+      "title": "Giảm giá không đồng nghĩa giảm lợi nhuận",
+      "start_ms": 700570,
+      "end_ms": 752910,
+      "needs_review": false,
+      "selection_reason": "Kịch bản riêng về giảm giá và lợi nhuận; transcript đủ ý."
+    },
+    {
+      "id": "part2_02",
+      "title": "Đừng quyết định nhập hàng chỉ theo số đơn",
+      "start_ms": 840650,
+      "end_ms": 872580,
+      "needs_review": true,
+      "selection_reason": "Kịch bản riêng về quyết định nhập hàng; câu cuối bị ngắt, chưa rõ phần kết luận. Cần rà soát."
+    }
+  ],
+  "observed_issues": [
+    "Ung vien thu ba mo dau bang tu noi, can doi chieu phan truoc",
+    "Ung vien thu tu ket thuc giua cau, chua du de xuat ban",
+    "Chua doi chieu audio va cac take tren toan nguon"
+  ]
+}
