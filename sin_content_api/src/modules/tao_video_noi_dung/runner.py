@@ -832,11 +832,19 @@ def _diagram_word_times(shots: list, steps: list[dict], index: int, per_clip: bo
         if not all(isinstance(item, (int, float)) and item > 0 for item in durations):
             return None
         checkpoint = steps[index]["tts_audio"]
-        path = (MEDIA_ROOT_DIR / checkpoint["storage_key"]).resolve()
-        if not path.is_relative_to(MEDIA_ROOT_DIR.resolve()) or _file_sha256(path) != checkpoint.get("sha256"):
+        cache_key = checkpoint.get("sha256")
+        one_pass = bool(checkpoint.get("mot_lan"))
+        base = steps[0]["tts_audio"] if one_pass else checkpoint   # giọng sinh một lần: điểm lưu nằm ở bước đầu
+        path = (MEDIA_ROOT_DIR / base["storage_key"]).resolve()
+        if not path.is_relative_to(MEDIA_ROOT_DIR.resolve()) or _file_sha256(path) != base.get("sha256"):
             return None
         with np.load(path, allow_pickle=False) as data:
             audio, rate = np.asarray(data["audio"], dtype=np.float32).reshape(-1), int(data["sample_rate"])
+        if one_pass:   # cắt đúng đoạn của shot theo độ dài đã chia (cộng dồn, đoạn cuối lấy đến hết)
+            start = round(sum(durations[:index]) * rate / 1000)
+            end = len(audio) if index == len(steps) - 1 else round(sum(durations[:index + 1]) * rate / 1000)
+            audio = audio[start:end]
+            cache_key = hashlib.sha256(f"{base.get('sha256')}:{start}:{end}".encode()).hexdigest()
         with tempfile.TemporaryDirectory(prefix="diagram_words_") as tmp:
             wav_path = Path(tmp) / "shot.wav"
             with wave.open(str(wav_path), "wb") as wav:
@@ -844,7 +852,7 @@ def _diagram_word_times(shots: list, steps: list[dict], index: int, per_clip: bo
                 wav.setsampwidth(2)
                 wav.setframerate(rate)
                 wav.writeframes((np.clip(audio, -1.0, 1.0) * 32767).astype("<i2").tobytes())
-            asr_words = transcribe_words_cached(wav_path, MEDIA_ROOT_DIR / ".cache" / "diagram_words" / f"{checkpoint['sha256']}.json")
+            asr_words = transcribe_words_cached(wav_path, MEDIA_ROOT_DIR / ".cache" / "diagram_words" / f"{cache_key}.json")
         words = to_spoken(shot.narration).split()
         aligned = align_script_words(words, asr_words)
         if per_clip:   # clip dài đúng bằng giọng của shot: giọng bắt đầu sau đệm đầu, không cần quy đổi tốc độ

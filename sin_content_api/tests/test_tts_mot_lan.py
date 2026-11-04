@@ -51,3 +51,36 @@ def test_mac_dinh_goi_che_do_mot_lan(monkeypatch):
     monkeypatch.delenv("CONTENT_VIDEO_TTS_MOT_LAN", raising=False)
     runner._prepare_run_tts(None, None, [], {}, "tok")
     assert goi == {"mot_lan": True}
+
+
+def test_mốc_từ_cắt_đúng_đoạn_của_shot_khi_giọng_sinh_một_lần(monkeypatch, tmp_path):
+    """Mỗi shot nhận đúng đoạn của mình từ bản giọng liền, không KeyError storage_key như trước."""
+    import hashlib
+    import wave
+
+    audio = _giong_co_khoang_lang(6, [])
+    path = tmp_path / "workspaces" / "w" / "media" / ".tts" / "mot_lan.npz"
+    path.parent.mkdir(parents=True)
+    np.savez(path, audio=audio, sample_rate=RATE)
+    sha = hashlib.sha256(path.read_bytes()).hexdigest()
+    steps = [
+        {"tts_audio": {"storage_key": "workspaces/w/media/.tts/mot_lan.npz", "sha256": sha, "duration_ms": 2000, "pause_after_ms": 0, "mot_lan": True}},
+        {"tts_audio": {"duration_ms": 1000, "pause_after_ms": 0, "mot_lan": True}},
+        {"tts_audio": {"duration_ms": 3000, "pause_after_ms": 0, "mot_lan": True}},
+    ]
+    shots = [SimpleNamespace(narration="một hai", shot_id="s1", duration_seconds=2),
+             SimpleNamespace(narration="ba bốn", shot_id="s2", duration_seconds=1),
+             SimpleNamespace(narration="năm sáu", shot_id="s3", duration_seconds=3)]
+    seen = []
+
+    def gia_asr(wav_path, cache):
+        with wave.open(str(wav_path)) as wav:
+            seen.append(wav.getnframes() / wav.getframerate())
+        return [{"text": "x", "start_ms": 100, "end_ms": 200}]
+
+    monkeypatch.setattr(runner, "MEDIA_ROOT_DIR", tmp_path)
+    monkeypatch.setattr(runner, "transcribe_words_cached", gia_asr)
+    monkeypatch.setattr(runner, "align_script_words", lambda words, asr: [{"start_ms": 100 * (i + 1)} for i, _ in enumerate(words)])
+    for index in range(3):
+        assert runner._diagram_word_times(shots, steps, index, per_clip=True) is not None
+    assert [round(x, 2) for x in seen] == [2.0, 1.0, 3.0]
