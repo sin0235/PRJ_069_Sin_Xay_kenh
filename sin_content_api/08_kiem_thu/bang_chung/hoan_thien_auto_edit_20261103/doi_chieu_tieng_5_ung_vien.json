@@ -1,0 +1,37 @@
+{
+  "source_asset_id": "c15a3ad0-811a-4f96-861b-630549dab417",
+  "candidate_audio_recheck": true,
+  "human_audio_review": false,
+  "clips": [
+    {
+      "id": "part1_01",
+      "provider": "9router_cx_transcribe",
+      "needs_review": true,
+      "reason": "Kịch bản riêng về tăng giá và tổng lợi nhuận; ví dụ còn hiểu được nhưng transcript có nhiều lỗi ASR. Cần rà soát. Đã nhận dạng bằng 9Router. Đã đối chiếu hai bản phiên âm bằng LLM."
+    },
+    {
+      "id": "part1_02",
+      "provider": "9router_cx_transcribe",
+      "needs_review": true,
+      "reason": "Kịch bản riêng về quảng cáo có đơn nhưng vẫn lỗ; thông điệp và phép tính chính còn rõ. Không có take trùng để so sánh. Đã nhận dạng bằng 9Router. Đã đối chiếu hai bản phiên âm bằng LLM."
+    },
+    {
+      "id": "part1_03",
+      "provider": "9router_cx_transcribe",
+      "needs_review": true,
+      "reason": "Kịch bản riêng về dòng tiền và bảng dự báo 7 ngày; nhiều cụm ASR mơ hồ. Cần rà soát. Đã nhận dạng bằng 9Router. Đã đối chiếu hai bản phiên âm bằng LLM."
+    },
+    {
+      "id": "part1_04",
+      "provider": "9router_cx_transcribe",
+      "needs_review": true,
+      "reason": "Kịch bản riêng về giảm giá và phần lợi nhuận đóng góp; transcript lặp nhiều, nhiều lỗi ASR. Cần rà soát. Đã nhận dạng bằng 9Router. Đã đối chiếu hai bản phiên âm bằng LLM."
+    },
+    {
+      "id": "part1_05",
+      "provider": "9router_cx_transcribe",
+      "needs_review": false,
+      "reason": "Kịch bản riêng về xếp hạng sản phẩm theo tiền đóng góp; thông điệp rõ, ASR tốt. Không có take trùng để so sánh. Đã nhận dạng bằng 9Router. Đã đối chiếu hai bản phiên âm bằng LLM."
+    }
+  ]
+}

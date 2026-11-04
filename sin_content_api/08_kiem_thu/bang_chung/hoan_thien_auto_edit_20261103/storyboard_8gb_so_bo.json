@@ -1,0 +1,100 @@
+{
+  "source_asset_id": "c15a3ad0-811a-4f96-861b-630549dab417",
+  "provider_submission": false,
+  "clips": [
+    {
+      "title": "Đừng xếp sản phẩm chỉ theo doanh thu",
+      "reason": "Đưa cách xem 20 mã hàng theo tiền đóng góp sau chi phí, tỷ lệ hoàn và tồn kho; kết luận số đơn nhiều chưa chắc sản phẩm nuôi cửa hàng.",
+      "cut_word_ids": [],
+      "callout_word_ids": [],
+      "effect": "none",
+      "transition": "cut",
+      "clip_id": "part1_05",
+      "start_ms": 840650,
+      "end_ms": 884900,
+      "selected_take_id": "part1_05",
+      "take_options": [
+        {
+          "take_id": "part1_05",
+          "start_ms": 840650,
+          "end_ms": 884900,
+          "title": "Đừng xếp sản phẩm chỉ theo doanh thu",
+          "reason": "Đưa cách xem 20 mã hàng theo tiền đóng góp sau chi phí, tỷ lệ hoàn và tồn kho; kết luận số đơn nhiều chưa chắc sản phẩm nuôi cửa hàng."
+        }
+      ],
+      "selection_reason": "Kịch bản riêng về xếp hạng sản phẩm theo tiền đóng góp; thông điệp rõ, ASR tốt. Không có take trùng để so sánh. Đã nhận dạng bằng 9Router. Đã đối chiếu hai bản phiên âm bằng LLM. Một số diễn họa sai schema đã được bỏ; cần rà soát. Một số diễn họa sai schema đã được bỏ; cần rà soát. Một số ý tưởng diễn họa sai mốc hoặc schema đã bị bỏ; cần rà soát. Storyboard còn khoảng trống minh họa trên 16 giây sau khi thử tự sửa; cần rà soát.",
+      "needs_review": true,
+      "transcription_provider": "9router_cx_transcribe"
+    }
+  ],
+  "visual_briefs": [
+    {
+      "renderer": "FLOW",
+      "scene": "Các món hàng bằng giấy xếp thành hàng theo doanh thu, rồi trượt khỏi hàng; một thẻ chi phí giấy lật lên.",
+      "action": "Trong 4 giây đầu asset 10 giây, giấy gấp tạo hàng sản phẩm, doanh thu đẩy món lên trước; thẻ chi phí lật lên khiến thứ tự đổi. Chuyển động lớp giấy có bóng mềm, không chữ hay số.",
+      "duration_seconds": 10,
+      "start_word_id": "stt_part1_05_0007",
+      "end_word_id": "stt_part1_05_0018",
+      "ui_scene": null
+    },
+    {
+      "renderer": "HYPERFRAMES",
+      "scene": "Ba thẻ giấy xếp tầng nêu câu hỏi đánh giá sản phẩm, không thêm số liệu.",
+      "action": "Thẻ lần lượt bật mở: món nào tạo tiền, món nào cần sửa, món nào nên giảm nhập; dấu gạch teal nối ba ý.",
+      "duration_seconds": 5,
+      "start_word_id": "stt_part1_05_0034",
+      "end_word_id": "stt_part1_05_0046",
+      "ui_scene": {
+        "layout": "CHECKLIST",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "Đánh giá từng mặt hàng",
+          "unit": "",
+          "simulated": false,
+          "labels": [],
+          "series": [],
+          "target": null,
+          "tag": null,
+          "docs": [],
+          "diff_label": null,
+          "stamp": null,
+          "steps": [
+            "Tạo tiền",
+            "Cần sửa",
+            "Giảm nhập"
+          ],
+          "block_step": null,
+          "total": null,
+          "total_label": null,
+          "slices": [],
+          "final_label": null,
+          "sources": [],
+          "uses": [],
+          "hub_label": null,
+          "drill_use": null,
+          "drill_rows": [],
+          "items": [],
+          "layers": [],
+          "values": [],
+          "cta": null,
+          "from_value": null,
+          "to_value": null,
+          "caption": null,
+          "variant": null,
+          "value": null,
+          "points": [],
+          "axis_x": null,
+          "axis_y": null,
+          "pick": null,
+          "cards": [],
+          "on": {
+            "c0": "Món nào tạo tiền",
+            "c1": "món nào cần sửa",
+            "c2": "món nào nên giảm nhập"
+          }
+        }
+      }
+    }
+  ]
+}
