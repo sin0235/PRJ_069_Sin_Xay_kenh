@@ -491,9 +491,77 @@ def _pause_pad_samples(previous, current, rate: int, pause_seconds: float) -> in
         return max(0, wanted - silent_edge(previous, True) - silent_edge(current, False))
 
 
+def _tach_giong_theo_shot(audio, rate: int, shots: list) -> list[int]:
+    """Chia một bản giọng liền thành độ dài (mẫu) cho từng shot. Điểm cắt lý thuyết theo tỉ lệ số ký tự lời,
+    rồi dịch tới chỗ im nhất trong cửa sổ ±0,8 giây (chỗ model nghỉ giữa các câu/cụm) để không cắt ngang chữ."""
+    import numpy as np
+    total = len(audio)
+    weights = [max(1, len(to_spoken(shot.narration))) for shot in shots]
+    frame = max(1, round(rate * 0.02))
+    energy = np.sqrt(np.convolve(np.asarray(audio, dtype=np.float32) ** 2, np.ones(frame) / frame, mode="same"))
+    window, minimum = round(rate * 0.8), round(rate * 0.5)
+    cuts, done = [], 0
+    for weight in weights[:-1]:
+        done += weight
+        guess = round(total * done / sum(weights))
+        lo, hi = max(guess - window, (cuts[-1] if cuts else 0) + minimum), min(guess + window, total - minimum)
+        cuts.append(int(lo + np.argmin(energy[lo:hi])) if hi > lo else min(max(guess, (cuts[-1] if cuts else 0) + 1), total - 1))
+    edges = [0, *cuts, total]
+    return [edges[i + 1] - edges[i] for i in range(len(shots))]
+
+
+def _prepare_run_tts_mot_lan(db, run: ContentVideoRun, shots: list, config: dict, token: str):
+    """Sinh giọng MỘT LẦN cho cả bài (model tự chia cụm 128 ký tự theo câu, ngữ điệu liền mạch), rồi chia độ dài theo shot.
+    Giữ nguyên âm thanh model trả về: không chèn khoảng nghỉ tay, không chỉnh âm."""
+    import numpy as np
+    config = {**config, "advanced": {"denoise_reference": False, "max_chars": 128, **(config.get("advanced") or {})}}
+    reference = _tts_reference_path(db, run)
+    reference_hash = _file_sha256(Path(reference)) if reference else None
+    text = " ".join(to_spoken(shot.narration).strip() for shot in shots)
+    fingerprint = hashlib.sha256(json.dumps([config, text, reference_hash, "mot_lan"], sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    directory = f"workspaces/{run.workspace_id}/media/.tts/"
+    steps = json.loads(run.steps_json or "[]")
+    checkpoint = steps[0].get("tts_audio", {})
+    cached = checkpoint.get("storage_key", "")
+    path = (MEDIA_ROOT_DIR / cached).resolve() if isinstance(cached, str) and cached.startswith(directory) else None
+    if path and checkpoint.get("input_hash") == fingerprint and path.is_file() and checkpoint.get("sha256") == _file_sha256(path):
+        with np.load(path, allow_pickle=False) as data:
+            audio, rate = data["audio"].copy(), int(data["sample_rate"])
+    else:
+        run.current_step = "TTS:cả bài"
+        db.commit()
+        audio, source_rate = tts_provider_manager.synthesize(config, text, reference)
+        audio = np.asarray(audio, dtype=np.float32).reshape(-1)
+        if not audio.size or source_rate <= 0 or not np.isfinite(audio).all():
+            raise TTSProviderError("TTS_AUDIO_INVALID")
+        rate = int(source_rate)
+        key = hashlib.sha256(f"{run.id}:mot_lan:{fingerprint}".encode()).hexdigest()[:32]
+        storage_key = f"{directory}{key}_{token[:8]}.npz"
+        path = (MEDIA_ROOT_DIR / storage_key).resolve()
+        if not path.is_relative_to((MEDIA_ROOT_DIR / directory).resolve()):
+            raise TTSProviderError("TTS_CHECKPOINT_PATH_INVALID")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_suffix(f".{token[:8]}.tmp")
+        try:
+            with temporary.open("wb") as stream:
+                np.savez(stream, audio=audio, sample_rate=rate)
+            temporary.replace(path)
+        finally:
+            temporary.unlink(missing_ok=True)
+        checkpoint = {"storage_key": storage_key, "sha256": _file_sha256(path), "input_hash": fingerprint, "sample_rate": rate}
+    lengths = _tach_giong_theo_shot(audio, rate, shots)
+    for index, length in enumerate(lengths):
+        steps[index]["tts_audio"] = {"duration_ms": round(length * 1000 / rate), "pause_after_ms": 0, "mot_lan": True}
+    steps[0]["tts_audio"].update({k: checkpoint[k] for k in ("storage_key", "sha256", "input_hash", "sample_rate")})
+    _save_run(db, run, steps)
+    return audio, rate
+
+
 def _prepare_run_tts(db, run: ContentVideoRun, shots: list, config: dict, token: str):
     """Lưu từng đoạn đã hoàn tất; restart không phải sinh lại toàn bộ giọng đọc."""
     import numpy as np
+    if os.getenv("CONTENT_VIDEO_TTS_MOT_LAN", "1") != "0":   # mặc định: một lần cho cả bài; đặt 0 để về chế độ từng shot
+        return _prepare_run_tts_mot_lan(db, run, shots, config, token)
     # Ghi rõ mặc định hiệu lực vào hash để không dùng lại cache khử nhiễu cũ.
     config = {**config, "advanced": {"denoise_reference": False, "max_chars": 128, **(config.get("advanced") or {})}}
     reference = _tts_reference_path(db, run)
@@ -662,7 +730,7 @@ def _karaoke_captions(words: list[dict], height: int, width: int, speed: float =
     return [
         TimelineCaption(
             caption_id=f"karaoke_{index:04d}", text=cue["text"], start_ms=cue["start_ms"], duration_ms=cue["duration_ms"],
-            font_size=52 if height > width else 60, safe_zone=True, words=cue["words"],
+            font_size=52 if height > width else 96, safe_zone=True, words=cue["words"],
         )
         for index, cue in enumerate(karaoke_cues(scaled), start=1)
     ]
@@ -684,7 +752,7 @@ def _tts_captions(shots: list, height: int = 1920, width: int = 1080, durations_
             text=shot.narration,
             start_ms=start_ms,
             duration_ms=duration_ms,
-            font_size=52 if height > width else 60,
+            font_size=52 if height > width else 96,
             safe_zone=True,
         ))
         start_ms += duration_ms
@@ -994,7 +1062,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
                     text=cue["text"],
                     start_ms=cue_start,
                     duration_ms=cue_end - cue_start,
-                    font_size=52 if height > width else 60,
+                    font_size=52 if height > width else 96,
                     safe_zone=True,
                 ))
     vietsub_status = (

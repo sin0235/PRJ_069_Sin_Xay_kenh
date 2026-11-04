@@ -42,7 +42,7 @@ def build_karaoke_ass(
     outline = round(size * 0.09, 1) if settings.outline else 0
     shadow = round(size * 0.04, 1) if settings.shadow else 0
     alignment = 1 if settings.layout == "left" else 2
-    limit = round((18 if portrait else 34) * 56 / settings.font_size)
+    limit = round(18 * 56 / settings.font_size) if portrait else 34   # khung ngang: số ký tự mỗi dòng cố định, không co theo cỡ chữ (cỡ chữ tính theo chiều cao 1080)
     primary_color = {
         "champagne": "&H006AB2D9",
         "baha_blue": "&H00D65724",
