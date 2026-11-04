@@ -824,6 +824,15 @@ def build_shot_prompt(
     style_snapshot: dict[str, Any], shot: StoryboardShot, continuity_anchor: str,
     include_narration_audio: bool = True,
 ) -> str:
+    """Prompt gửi Flow. Mã màu hex được lọc trên TOÀN BỘ prompt cuối: LLM hay chép bảng màu kèm mã hex vào continuity_anchor và mô tả cảnh,
+    và Flow vẽ các mã đó thành chữ lên hình (nhãn #12355B, #ED1B24 trên bảng tên và thẻ)."""
+    return _HEX_COLOR.sub("", _build_shot_prompt_raw(style_snapshot, shot, continuity_anchor, include_narration_audio))
+
+
+def _build_shot_prompt_raw(
+    style_snapshot: dict[str, Any], shot: StoryboardShot, continuity_anchor: str,
+    include_narration_audio: bool = True,
+) -> str:
     aspect_ratio = style_snapshot.get("aspect_ratio", "9:16")
     palette = ", ".join(_flow_text(color) for color in style_snapshot["palette"])
     style_label = _flow_style_label(style_snapshot)

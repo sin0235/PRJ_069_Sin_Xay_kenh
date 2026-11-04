@@ -213,3 +213,18 @@ def test_prompt_flow_khong_co_ma_mau_hex_va_ten_style_tieng_anh():
     prompt = planner.build_shot_prompt(style, flow_shot, "neo nhận diện")
     assert "#" not in prompt and "Editorial" not in prompt and "Motion" not in prompt
     assert "xanh navy" in prompt and "origami" in prompt.casefold()
+
+def test_prompt_flow_loc_ma_hex_trong_neo_lien_tuc_va_mo_ta_canh():
+    """LLM chép bảng màu kèm mã hex vào continuity_anchor và mô tả cảnh: Flow vẽ chúng thành chữ, nên lọc trên toàn bộ prompt."""
+    import json
+    from pathlib import Path
+    from src.modules.tao_video_noi_dung.service import _CONTENT_VIDEO_STYLE_SNAPSHOT
+    data = json.loads((Path(__file__).parent / "fixtures/storyboard_llm_17shots_valid.json").read_text(encoding="utf-8"))
+    storyboard = planner.Storyboard.model_validate(data)
+    flow_shot = next(s for s in storyboard.shots if s.shot_kind != "UI_SIM")
+    style = _CONTENT_VIDEO_STYLE_SNAPSHOT.model_dump(mode="json")
+    anchor = "Giấy gấp nếp. Bảng màu navy #12355B, trắng ngà #F4EFE4, teal #1F8A8A; đỏ #ED1B24 chỉ đánh dấu rủi ro."
+    shot = flow_shot.model_copy(update={"scene": "Cảnh nền #F4EFE4 và thẻ #ED1B24"})
+    prompt = planner.build_shot_prompt(style, shot, anchor)
+    assert "#" not in prompt and "12355B" not in prompt and "ED1B24" not in prompt
+    assert "navy" in prompt and "trắng ngà" in prompt
