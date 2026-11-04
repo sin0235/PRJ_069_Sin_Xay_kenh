@@ -37,6 +37,16 @@ def cho_canh_clip(clip_id, briefs, jobs, read_states, *, sleep=time.sleep):
     raise TimeoutError('Giữ nguyên receipt để tiếp tục kiểm tra, không gửi lại')
 
 
+def clip_san_sang(clips, briefs, jobs, read_states, completed):
+    for clip in clips:
+        if any(video['clip_id']==clip['clip_id'] for video in completed):continue
+        indices={i for i,brief in enumerate(briefs) if brief['target_clip_id']==clip['clip_id']}
+        ids=[job['job_id'] for job in jobs if job['index'] in indices]
+        if not ids or len(ids)!=len(indices):raise ValueError('Thiếu tác vụ cảnh')
+        if all(s=='SUCCEEDED' for s in read_states(ids)):return clip
+    return None
+
+
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--bundle',type=Path,default=Path(__file__).parent/'runtime/goi_duyet_8_video_20261104.json')
@@ -123,7 +133,13 @@ def main(argv=None):
         state.setdefault('videos',[])
         origin=os.environ['REMOTE_PUBLIC_ORIGIN'].rstrip('/')
         # Xuất độc lập để giữ các MP4 đã xong khi một nội dung phía sau gặp lỗi.
-        for clip in bundle['plan']['clips']:
+        deadline_ready=time.monotonic()+24*3600
+        while len(state['videos'])<8:
+            clip=clip_san_sang(bundle['plan']['clips'],bundle['visual_briefs'],state['jobs'],read_states,state['videos'])
+            if clip is None:
+                if time.monotonic()>deadline_ready:raise TimeoutError('Chưa có nội dung đủ cảnh; giữ nguyên receipt')
+                time.sleep(15)
+                continue
             clip_id=clip['clip_id']
             if any(video['clip_id']==clip_id for video in state['videos']):continue
             cho_canh_clip(clip_id,bundle['visual_briefs'],state['jobs'],read_states)

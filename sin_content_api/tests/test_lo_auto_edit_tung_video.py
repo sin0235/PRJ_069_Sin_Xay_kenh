@@ -12,3 +12,14 @@ def test_xuat_clip_dau_khong_cho_canh_clip_sau():
         assert ids==['done']
         return ['SUCCEEDED']
     module.cho_canh_clip('kb_01',briefs,jobs,read,sleep=lambda _: (_ for _ in ()).throw(AssertionError('Không được chờ clip sau')))
+
+
+def test_clip_sau_du_canh_duoc_xuat_truoc_clip_dau_dang_cho():
+    path=Path(__file__).resolve().parents[2]/'ha_tang/chay_dev_local/chay_lo_auto_edit_da_duyet.py'
+    spec=importlib.util.spec_from_file_location('lo8',path)
+    module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+    clips=[{'clip_id':'kb_01'},{'clip_id':'kb_02'}]
+    briefs=[{'target_clip_id':'kb_01'},{'target_clip_id':'kb_02'}]
+    jobs=[{'index':0,'job_id':'waiting'},{'index':1,'job_id':'done'}]
+    read=lambda ids: ['SUCCEEDED' if ident=='done' else 'QUEUED' for ident in ids]
+    assert module.clip_san_sang(clips,briefs,jobs,read,[])==clips[1]
