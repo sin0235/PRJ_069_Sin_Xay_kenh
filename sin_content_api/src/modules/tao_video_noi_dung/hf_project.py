@@ -17,6 +17,7 @@ import wave
 from pathlib import Path
 
 from . import hf_blocks
+from . import hf_captions
 from . import hf_scenes
 from .brand import display_json
 from .planner import BLOCK_LAYOUTS
@@ -94,38 +95,15 @@ def caption_groups(words: list[dict], max_words: int = 5, pause_ms: int = 220) -
 
 
 def captions_scene(words: list[dict], total: float, aspect_ratio: str = "16:9") -> str:
-    """Phụ đề đổi màu theo mốc từng từ; khung dọc giới hạn nhóm tối đa ba từ để vừa safe zone."""
-    portrait = aspect_ratio == "9:16"
-    width, height = (1080, 1920) if portrait else (1920, 1080)
-    groups = caption_groups(words, max_words=3 if portrait else 5)
-    markup, code = "", ""
-    for g, group in enumerate(groups):
-        start, end = max(.1, group[0]["start_ms"] / 1000 - .05), group[-1]["end_ms"] / 1000 + .1
-        if g:   # chỉ một nhóm hiện cùng lúc: nhóm trước thoát trước khi nhóm sau vào
-            start = max(start, groups[g - 1][-1]["end_ms"] / 1000 + .02)
-        if g + 1 < len(groups):
-            end = min(end, max(start + .3, groups[g + 1][0]["start_ms"] / 1000 - .08))
-        spans = "".join(f'<span class="w" id="cap-{g}-{i}">{html.escape(w["text"])}</span> ' for i, w in enumerate(group))
-        markup += f'<div class="g" id="cap-g{g}">{spans}</div>\n'
-        code += f'tl.set("#cap-g{g}", {{ opacity: 0, visibility: "hidden" }}, 0);\ntl.set("#cap-g{g}", {{ visibility: "visible" }}, {start:.3f});\n'
-        code += f'tl.fromTo("#cap-g{g}", {{ opacity: 0, y: 14 }}, {{ opacity: 1, y: 0, duration: .16, ease: "power3.out" }}, {start:.3f});\n'
-        for i, w in enumerate(group):
-            code += f'tl.to("#cap-{g}-{i}", {{ color: "#FFD54A", duration: .06, ease: "none" }}, {w["start_ms"] / 1000:.3f});\n'
-        code += f'tl.to("#cap-g{g}", {{ opacity: 0, duration: .12, ease: "power2.in" }}, {end - .12:.3f});\ntl.set("#cap-g{g}", {{ opacity: 0, visibility: "hidden" }}, {end:.3f});\n'
-    left, right, bottom, font_size = (120, 120, 340, 44) if portrait else (0, 0, 38, 54)
-    return (f'<template>\n<style>@font-face{{font-family:"Viet";src:url(\'assets/fonts/be_vietnam_pro_semibold.ttf\');font-weight:400 800}}\n'
-            '[data-composition-id="captions"]{position:absolute;inset:0;font-family:"Viet",sans-serif}\n'
-            f'[data-composition-id="captions"] .g{{position:absolute;left:{left}px;right:{right}px;bottom:{bottom}px;text-align:center;font-size:{font_size}px;font-weight:700;color:#fff;white-space:nowrap;opacity:0;visibility:hidden;'
-            '-webkit-text-stroke:9px #06131d;paint-order:stroke fill;overflow:visible}</style>\n'
-            f'<div id="root" data-composition-id="captions" data-width="{width}" data-height="{height}">\n{markup}</div>\n'
-            f'<script>\nconst tl = gsap.timeline({{ paused: true }});\n{code}window.__timelines["captions"] = tl;\n</script>\n</template>\n')
+    """Phụ đề đổi màu theo mốc từng từ (gọi hf_captions.caption_composition)."""
+    return hf_captions.caption_composition("karaoke", words, total, aspect_ratio)[0]
 
 
 def build_project(
     out: Path, shots: list[dict], voice_wav: Path | None, words: list[dict] | None,
     transitions: bool | None = None, music_path: Path | None = None, sfx_cues: list[dict] | None = None,
     aspect_ratio: str = "16:9", media_layers: list[dict] | None = None, link_media: bool = False,
-    transparent_background: bool = False,
+    transparent_background: bool = False, caption_style: str = "karaoke",
 ) -> dict:
     """shots có thể là cảnh UiScene hoặc video MP4 đã xác minh; Trả về thông tin project."""
     if aspect_ratio not in {"9:16", "16:9"}:
@@ -306,9 +284,10 @@ def build_project(
             f'data-duration="{min(duration_s, total - start_s):.3f}" data-volume="{volume:.3f}"></audio>'
         )
     if words:
-        (out / "compositions" / "captions.html").write_text(captions_scene(words, total, aspect_ratio), encoding="utf-8")
+        caption_html, host_extra = hf_captions.caption_composition(caption_style, words, total, aspect_ratio)
+        (out / "compositions" / "captions.html").write_text(caption_html, encoding="utf-8")
         hosts += (f'<div id="captions" data-composition-id="captions" data-composition-src="compositions/captions.html" data-start="0" data-duration="{total:.3f}" '
-                  f'data-track-index="90" data-track-kind="captions" data-width="{width}" data-height="{height}" style="z-index:100"></div>\n')
+                  f'data-track-index="90" data-track-kind="captions" data-width="{width}" data-height="{height}"{host_extra} style="z-index:100"></div>\n')
     if flashes:
         hosts += '<div id="flash" style="position:absolute;inset:0;background:#fff8e6;opacity:0;z-index:70;pointer-events:none"></div>\n'
     audio = "\n".join(audio_tracks).replace("__DURATION__", f"{total:.3f}")
