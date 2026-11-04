@@ -246,6 +246,12 @@
               var w = el.querySelector(".tmx-white").getBoundingClientRect().width;
               return w > 0 ? w : copy[i].length * FS * 0.47;
             });
+            var fitRatio = Math.min(1, W * 0.78 / Math.max.apply(null, natW));
+            if (fitRatio < 1) {
+              FS *= fitRatio;
+              texts.forEach(function (el) { el.style.fontSize = FS + "px"; });
+              natW = natW.map(function (width) { return width * fitRatio; });
+            }
             var CX = W / 2;
             var D_GRAD = (2316 / 1920) * W; // gradient bar travel
             var XG_CUT = CX - (12 / 1920) * W; // bar centre at the cut
