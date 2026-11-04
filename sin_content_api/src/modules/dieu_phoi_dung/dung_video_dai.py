@@ -49,6 +49,13 @@ class ClipDeXuat(NoiDungClip):
     end_word_id: str = Field(min_length=1, max_length=64)
 
 
+class KhoangNoiLai(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    start_ms: int = Field(ge=0)
+    end_ms: int = Field(gt=0)
+    reason: str = Field(min_length=1, max_length=500)
+
+
 class ClipTuDong(NoiDungClip):
     clip_id: str = Field(min_length=1, max_length=64)
     start_ms: int = Field(ge=0)
@@ -58,6 +65,13 @@ class ClipTuDong(NoiDungClip):
     selection_reason: str = ""
     needs_review: bool = False
     transcription_provider: Literal["faster_whisper", "9router_cx_transcribe"] = "faster_whisper"
+    retake_cuts: list[KhoangNoiLai] = Field(default_factory=list, max_length=30)
+
+    @model_validator(mode="after")
+    def validate_retake_bounds(self):
+        if any(not self.start_ms <= cut.start_ms < cut.end_ms <= self.end_ms for cut in self.retake_cuts):
+            raise ValueError("RETAKE_CUT_OUTSIDE_CLIP")
+        return self
 
 
 class TaoKeHoachDungVideo(BaseModel):
@@ -787,7 +801,8 @@ def _storyboard_visual_gaps(
 ) -> list[tuple[int, int]]:
     duration_ms = clip.end_ms - clip.start_ms
     word_by_id = {word["id"]: word for word in words}
-    intervals = []
+    intervals = [(max(0, cut.start_ms - clip.start_ms), min(duration_ms, cut.end_ms - clip.start_ms))
+                 for cut in clip.retake_cuts if cut.end_ms > clip.start_ms and cut.start_ms < clip.end_ms]
     for visual in visuals:
         if visual.clip_id != clip.clip_id:
             continue
@@ -1140,7 +1155,12 @@ def tao_y_tuong_dien_hoa_flow(
                 for clip in chosen:
                     clip.needs_review = True
                     clip.selection_reason += " Kế hoạch diễn họa chưa hợp lệ; cần rà soát."
-                return []
+                if not fallback_validated:
+                    return []
+                plan = KeHoachDienHoaFlow(visuals=[item[0] for item in fallback_validated])
+                visual_words = {index: item[1] for index, item in enumerate(fallback_validated)}
+                diagram_windows = {index: item[2] for index, item in enumerate(fallback_validated) if item[2]}
+                break
             if "EMPTY_AFTER_FLOW_UNAVAILABLE" in str(exc):
                 feedback = "Google Flow chưa sẵn sàng. Chỉ chọn HYPERFRAMES khi dữ liệu lời thoại phù hợp; nếu không, trả về visuals rỗng."
             elif "VISUAL_RENDERER_UNAVAILABLE" in str(exc):
@@ -1259,7 +1279,7 @@ def bo_sung_khoang_dien_hoa(clips, words, briefs, candidates, client, flow_avail
 def _cut_intervals(
     clip: ClipTuDong, words: list[dict], pause_intervals: list[tuple[int, int]] | None = None,
 ) -> list[tuple[int, int]]:
-    intervals = []
+    intervals = [(cut.start_ms, cut.end_ms) for cut in clip.retake_cuts]
     for word in words:
         if word["id"] not in clip.cut_word_ids:
             continue
@@ -1315,7 +1335,8 @@ def _caption_track(clip: ClipTuDong, words: list[dict], cuts: list[tuple[int, in
             })
     caption_words: list[dict] = []
     for word in words:
-        if word["id"] in clip.cut_word_ids or word["end_ms"] <= clip.start_ms or word["start_ms"] >= clip.end_ms:
+        if (word["id"] in clip.cut_word_ids or word["end_ms"] <= clip.start_ms or word["start_ms"] >= clip.end_ms
+                or any(word["start_ms"] < cut.end_ms and word["end_ms"] > cut.start_ms for cut in clip.retake_cuts)):
             continue
         mapped = {
             "text": word["text"].strip(),
@@ -1569,6 +1590,7 @@ def _build_clip_manifest(
         "source_start_ms": clip.start_ms,
         "source_end_ms": clip.end_ms,
         "removed_filler_word_ids": clip.cut_word_ids,
+        "removed_retake_intervals": [cut.model_dump() for cut in clip.retake_cuts],
         "effect": clip.effect,
         "callout_word_ids": clip.callout_word_ids,
         "selected_take_id": clip.selected_take_id,

@@ -28,8 +28,9 @@ def download_input(client, url, headers, path, size, sha256):
                         output.write(chunk)
             if path.stat().st_size == size:
                 break
-        except httpx.TransportError:
-            if attempt == 3:
+        except (httpx.TransportError, httpx.HTTPStatusError) as exc:
+            if (attempt == 3 or isinstance(exc, httpx.HTTPStatusError)
+                    and exc.response.status_code not in {408, 429, 500, 502, 503, 504}):
                 raise
         time.sleep(2 ** attempt)
     if not path.is_file() or path.stat().st_size != size or file_hash(path) != sha256:

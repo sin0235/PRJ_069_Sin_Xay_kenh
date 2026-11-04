@@ -67,13 +67,16 @@ def ensure_runner(store):
             db.execute('UPDATE runner_session SET run_id=? WHERE session_id=?', (match[1], session_id))
 
 
-def execute(stage, operation, arguments, inputs, output=None):
+def execute(stage, operation, arguments, inputs, output=None, *, input_windows=None):
     context = scope.get()
     if context is None:
         raise RemoteTaskError('REMOTE_WORKSPACE_CONTEXT_REQUIRED')
     store = get_store()
     suffix = Path(output).suffix.lower() if output is not None else None
-    task = store.create(stage, {'operation': operation, 'arguments': arguments, 'output_suffix': suffix}, inputs, context['workspace'], context['pipeline'])
+    parameters = {'operation': operation, 'arguments': arguments, 'output_suffix': suffix}
+    if input_windows:
+        parameters['input_windows'] = input_windows
+    task = store.create(stage, parameters, inputs, context['workspace'], context['pipeline'])
     deadline = time.monotonic() + 5 * 3600
     try:
         ensure_runner(store)
@@ -208,6 +211,15 @@ def offload(operation, stage, output=None):
                     import soundfile as sf
                     audio, rate = sf.read(wav, dtype='float32')
                     return audio, rate
+            if operation == 'render_timeline':
+                import tempfile
+                from .cua_so_nguon import chuan_bi_cua_so
+                encoded = encode(values)
+                with tempfile.TemporaryDirectory(prefix='cua_so_nguon_', dir=output_path.parent) as temporary:
+                    encoded, window_inputs, proof = chuan_bi_cua_so(encoded, inputs, Path(temporary))
+                    if proof:
+                        return execute(stage, operation, encoded, window_inputs, output_path, input_windows=proof)
+                    return execute(stage, operation, encoded, window_inputs, output_path)
             return execute(stage, operation, encode(values), inputs, output_path)
         return call
     return decorate

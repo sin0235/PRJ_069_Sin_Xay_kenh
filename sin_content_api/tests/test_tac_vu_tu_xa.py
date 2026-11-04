@@ -4,6 +4,28 @@ import pytest
 from src.modules.tac_vu_tu_xa.service import TaskStore, RemoteTaskError
 
 
+@pytest.mark.parametrize('status',[502,503,504,401])
+def test_tai_lai_gateway_loi_tam_thoi_nhung_khong_lap_loi_quyen(tmp_path,monkeypatch,status):
+    import httpx
+    from src.modules.tac_vu_tu_xa import transfer
+    calls=[]
+    def respond(request):
+        calls.append(request)
+        if len(calls)==1:return httpx.Response(status)
+        assert request.headers['Range']=='bytes=3-'
+        return httpx.Response(206,content=b'def',headers={'content-range':'bytes 3-5/6'})
+    path=tmp_path/'input.mp4';path.write_bytes(b'abc')
+    monkeypatch.setattr(transfer.time,'sleep',lambda _:None)
+    with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+        if status==401:
+            with pytest.raises(httpx.HTTPStatusError):
+                transfer.download_input(client,'https://test.example/input',{},path,6,hashlib.sha256(b'abcdef').hexdigest())
+            assert len(calls)==1
+        else:
+            transfer.download_input(client,'https://test.example/input',{},path,6,hashlib.sha256(b'abcdef').hexdigest())
+            assert path.read_bytes()==b'abcdef' and len(calls)==2
+
+
 def test_oidc_temporary_timeout_retries_without_losing_completed_jobs(monkeypatch):
     import importlib.util
     import httpx

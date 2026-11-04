@@ -6,6 +6,20 @@ from types import SimpleNamespace
 from src.modules.dieu_phoi_dung.dung_video_dai import ClipTuDong, tao_y_tuong_dien_hoa_flow
 
 
+def test_giu_canh_da_kiem_moc_khi_lan_sua_cuoi_tra_qua_nhieu_canh():
+    clip=ClipTuDong(clip_id='kb',start_ms=0,end_ms=60000,title='Nội dung',reason='Đủ ý')
+    words=[{'id':'w0','text':'Mở một cửa hàng','start_ms':0,'end_ms':4000}]
+    visual={'clip_id':'kb','renderer':'FLOW','start_word_id':'w0','end_word_id':'w0',
+            'scene':'Cửa hàng giấy mở ra','action':'Các lớp giấy mở dần'}
+    class Client:
+        max_input_bytes,max_output_tokens,calls=200000,4000,0
+        def complete(self,messages,**kwargs):
+            self.calls+=1
+            return SimpleNamespace(content=json.dumps({'visuals':[visual]*(1 if self.calls==1 else 4)}))
+    result=tao_y_tuong_dien_hoa_flow([clip],words,[],Client())
+    assert len(result)==1 and result[0]['start_word_id']=='w0' and clip.needs_review
+
+
 @pytest.mark.parametrize('layout,diagram', [
     ('CHAT_THREAD', {'title':'Tư vấn', 'steps':['Khách cần hỗ trợ','Nhân viên trả lời'], 'values':['khách','nhân viên']}),
     ('NOTE_TYPING', {'title':'Chi phí', 'steps':['Tính giá vốn','Tính tiền đóng gói']}),
