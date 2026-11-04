@@ -13,6 +13,9 @@ from src.modules.dieu_phoi_dung.dung_video_dai import ClipTuDong, tao_y_tuong_di
     ('STAT_RING',{'title':'Tỷ lệ','to_value':60,'caption':'Đơn hoàn tất'}),
     ('CHART_STORY',{'title':'Doanh thu','labels':['Một','Hai','Ba'],
                     'series':[{'name':'Doanh thu','values':[10,20,30]}]}),
+    ('AI_RANK',{'title':'Khách hỏi AI nên mua ở đâu','steps':['Đơn vị A','Đơn vị B','Đơn vị C'],'tag':'Baha','pick':0}),
+    ('DRAG_TASKS',{'title':'Cần làm','caption':'Đã xong','steps':['Đối soát đơn','Ghi giá bán','Trừ giá vốn','Tính lợi nhuận']}),
+    ('CARD_SHIFT',{'title':'Đơn hàng','steps':['Nhập tay','Tự đồng bộ']}),
 ])
 def test_auto_edit_nhan_canh_khoi_khong_co_moc_su_kien(layout,fields):
     clip=ClipTuDong(clip_id='clip',start_ms=0,end_ms=6000,title='Một ý',reason='Đủ ý')
