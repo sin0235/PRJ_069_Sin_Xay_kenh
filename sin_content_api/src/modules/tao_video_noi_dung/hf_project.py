@@ -462,7 +462,7 @@ def render_project(project: Path, output: Path, workers: str | None = None, qual
     workers = str(workers or os.getenv("CONTENT_VIDEO_HF_WORKERS") or "2")
     command = [_node(), str(hyperframes_cli()), "render", "-q", quality, "-w", workers, "-o", str(output)]
     with _RENDER_LOCK:
-        result = subprocess.run(command, cwd=project, env=_env(), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=ENGINE_TIMEOUT_SECONDS * 4)
+        result = subprocess.run(command, cwd=project, env=_env(), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=int(os.getenv("CONTENT_VIDEO_HF_RENDER_TIMEOUT_SECONDS") or 3 * 3600))   # video 100 s trên 2 vCPU có thể quá 60 phút; job runner tối đa 350 phút
     if result.returncode != 0:
         stdout_err = (result.stderr or result.stdout or "")[-800:]
         raise RuntimeError("RENDER_ENGINE_FAILED: " + stdout_err)
