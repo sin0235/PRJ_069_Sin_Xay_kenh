@@ -616,6 +616,8 @@ def _save_tts_voice(db, run: ContentVideoRun, audio, sample_rate: int) -> None:
         or not np.isfinite(samples).all()
     ):
         raise TTSProviderError("TTS_AUDIO_INVALID")
+    from .am_thanh_giong import polish_voice
+    samples = polish_voice(samples, int(sample_rate))   # bớt ồm, tăng độ rõ chữ, nén nhẹ; giữ nguyên độ dài nên mốc từ không lệch
     pcm = (np.clip(samples, -1.0, 1.0) * 32767).astype("<i2").tobytes()
     token = (getattr(run, "lease_token", None) or uuid.uuid4().hex)[:8]
     filename = f"content_video_{run.id}_tts_{token}.wav"
