@@ -662,7 +662,7 @@ def _karaoke_captions(words: list[dict], height: int, width: int, speed: float =
     return [
         TimelineCaption(
             caption_id=f"karaoke_{index:04d}", text=cue["text"], start_ms=cue["start_ms"], duration_ms=cue["duration_ms"],
-            font_size=52 if height > width else 36, safe_zone=True, words=cue["words"],
+            font_size=52 if height > width else 60, safe_zone=True, words=cue["words"],
         )
         for index, cue in enumerate(karaoke_cues(scaled), start=1)
     ]
@@ -684,7 +684,7 @@ def _tts_captions(shots: list, height: int = 1920, width: int = 1080, durations_
             text=shot.narration,
             start_ms=start_ms,
             duration_ms=duration_ms,
-            font_size=52 if height > width else 36,
+            font_size=52 if height > width else 60,
             safe_zone=True,
         ))
         start_ms += duration_ms
@@ -994,7 +994,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
                     text=cue["text"],
                     start_ms=cue_start,
                     duration_ms=cue_end - cue_start,
-                    font_size=52 if height > width else 36,
+                    font_size=52 if height > width else 60,
                     safe_zone=True,
                 ))
     vietsub_status = (
