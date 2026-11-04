@@ -1,0 +1,7596 @@
+{
+ "hyperframes_version": "0.8.222",
+ "entries": [
+  {
+   "name": "agent-cursor",
+   "kind": "component",
+   "tags": [
+    "cursor",
+    "motion-primitive",
+    "agent",
+    "ai",
+    "status",
+    "click"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "ai-answer-rank",
+   "kind": "block",
+   "tags": [
+    "mock-ui",
+    "ai",
+    "chat",
+    "ranking",
+    "list",
+    "marketing",
+    "ad-template",
+    "square"
+   ],
+   "width": 1080,
+   "height": 1080,
+   "duration": 9.0,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "ai-chat-reveal",
+   "kind": "block",
+   "tags": [
+    "showcase",
+    "mock-ui",
+    "ai",
+    "chat",
+    "vertical",
+    "ad-template"
+   ],
+   "width": 1080,
+   "height": 1920,
+   "duration": 19.3333,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "animated-bar-chart",
+   "kind": "component",
+   "tags": [
+    "data"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "du_lieu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "app-showcase",
+   "kind": "block",
+   "tags": [
+    "showcase",
+    "app",
+    "3d"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 5.5,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "apple-money-count",
+   "kind": "block",
+   "tags": [
+    "showcase",
+    "finance",
+    "kinetic",
+    "youtube",
+    "sfx"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 5.0,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "arc-motion-path",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "motionpath",
+    "gsap-plugin",
+    "hyperframes-native"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "ascii-render-pass",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "experiment",
+    "texture",
+    "ascii",
+    "quantize"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "ascii-trail-reveal",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "intro",
+    "reveal",
+    "ascii",
+    "trail",
+    "grid"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "aurora",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "light",
+    "aurora",
+    "sky"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "aurora-drift",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "background",
+    "aurora",
+    "gradient",
+    "ambient",
+    "loopable"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "avatar-cloud",
+   "kind": "component",
+   "tags": [
+    "effects",
+    "avatars",
+    "community",
+    "network",
+    "social-proof",
+    "prove"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "avatar-group-hover",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "transition-primitive",
+    "transitions-dev-port",
+    "avatar",
+    "hover"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "badge-pop",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "transition-primitive",
+    "transitions-dev-port",
+    "badge",
+    "microinteraction"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "bar-chart-race",
+   "kind": "block",
+   "tags": [
+    "data",
+    "chart",
+    "statistics",
+    "ranking"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 12.0,
+   "group": "du_lieu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "beat-accent",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "effects",
+    "burst",
+    "sting",
+    "emphasize",
+    "impact"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "beat-freeze-cut",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "music",
+    "beat-driven",
+    "freeze-frame"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "beat-pulse-background",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "background",
+    "beat",
+    "pulse",
+    "rhythmic",
+    "reactive"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "beat-timeline",
+   "kind": "component",
+   "tags": [
+    "orchestration",
+    "transitions",
+    "sequencing",
+    "bridge",
+    "timeline"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "before-after-wipe",
+   "kind": "component",
+   "tags": [
+    "prop",
+    "ui-props",
+    "compare",
+    "comparison",
+    "split-screen",
+    "holdable",
+    "before-after",
+    "wipe",
+    "slots"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "blob",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "abstract",
+    "organic",
+    "gradient"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "blue-sweater-intro-video",
+   "kind": "block",
+   "tags": [
+    "showcase",
+    "ai",
+    "creator",
+    "sfx"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 12.0,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "blur-in",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "blur-in",
+    "text-effect"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "blur-out-up",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "bottom-up-letters",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "text",
+    "letters",
+    "reveal"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "browser-device-stage",
+   "kind": "component",
+   "tags": [
+    "stage",
+    "product-demo",
+    "device",
+    "browser",
+    "phone",
+    "slot",
+    "chrome"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "camcorder-hud",
+   "kind": "block",
+   "tags": [
+    "camcorder",
+    "camera",
+    "recording",
+    "hud",
+    "overlay",
+    "creator",
+    "media-treatment-overlay"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "camera-dolly-zoom",
+   "kind": "block",
+   "tags": [
+    "camera",
+    "depth",
+    "3d",
+    "cinematic"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "camera-rig-depth-stack",
+   "kind": "component",
+   "tags": [
+    "advanced-motion",
+    "hyperframes-native"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "camera-scan-gate",
+   "kind": "component",
+   "tags": [
+    "prop",
+    "ui-props",
+    "camera",
+    "qr",
+    "scan",
+    "recognition",
+    "interaction",
+    "demonstrate"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "camera-shake",
+   "kind": "component",
+   "tags": [
+    "camera",
+    "shake",
+    "handheld",
+    "effect",
+    "cinematic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "canopy-part-title",
+   "kind": "block",
+   "tags": [
+    "3d-motion",
+    "title-card",
+    "leaves",
+    "organic",
+    "depth-of-field",
+    "two-headlines",
+    "sweep"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 12.0,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caption-blend-difference",
+   "kind": "component",
+   "tags": [
+    "text",
+    "text-effect",
+    "effect",
+    "blend-mode",
+    "contrast",
+    "inversion"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caption-camera-follow",
+   "kind": "component",
+   "tags": [
+    "captions",
+    "caption-style",
+    "camera",
+    "typography",
+    "motion-primitive",
+    "portrait"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "phu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caption-clip-wipe",
+   "kind": "component",
+   "tags": [
+    "captions",
+    "caption-style",
+    "wipe",
+    "clip-path",
+    "reveal"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "phu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caption-editorial-emphasis",
+   "kind": "component",
+   "tags": [
+    "captions",
+    "caption-style",
+    "editorial",
+    "typography",
+    "emphasis"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "phu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caption-emoji-pop",
+   "kind": "component",
+   "tags": [
+    "captions",
+    "caption-style",
+    "emoji",
+    "social"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "phu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caption-glitch-rgb",
+   "kind": "component",
+   "tags": [
+    "captions",
+    "caption-style",
+    "glitch",
+    "cyber",
+    "tech"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "phu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caption-gradient-fill",
+   "kind": "component",
+   "tags": [
+    "captions",
+    "caption-style",
+    "gradient",
+    "colorful"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "phu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caption-highlight",
+   "kind": "component",
+   "tags": [
+    "captions",
+    "caption-style",
+    "highlight",
+    "social",
+    "tiktok"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "phu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caption-kinetic-slam",
+   "kind": "component",
+   "tags": [
+    "captions",
+    "caption-style",
+    "kinetic",
+    "typography",
+    "slam"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "phu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caption-matrix-decode",
+   "kind": "component",
+   "tags": [
+    "captions",
+    "caption-style",
+    "matrix",
+    "scramble",
+    "decode"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "phu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caption-neon-accent",
+   "kind": "component",
+   "tags": [
+    "captions",
+    "caption-style",
+    "neon",
+    "glow",
+    "accent"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "phu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caption-neon-glow",
+   "kind": "component",
+   "tags": [
+    "captions",
+    "caption-style",
+    "neon",
+    "glow",
+    "gaming"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "phu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caption-parallax-layers",
+   "kind": "component",
+   "tags": [
+    "captions",
+    "caption-style",
+    "parallax",
+    "3d",
+    "depth"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "phu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caption-particle-burst",
+   "kind": "component",
+   "tags": [
+    "captions",
+    "caption-style",
+    "particles",
+    "burst",
+    "effects"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "phu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caption-pill-karaoke",
+   "kind": "component",
+   "tags": [
+    "captions",
+    "caption-style",
+    "karaoke",
+    "pill"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "phu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caption-texture",
+   "kind": "component",
+   "tags": [
+    "captions",
+    "caption-style",
+    "texture",
+    "mask"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "phu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caption-weight-shift",
+   "kind": "component",
+   "tags": [
+    "captions",
+    "caption-style",
+    "minimal",
+    "typography"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "phu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "card-resize",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "transition-primitive",
+    "transitions-dev-port",
+    "card",
+    "layout"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "caret-swap",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "text-effects",
+    "typography",
+    "swap",
+    "typewriter",
+    "remocn-port"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "carousel-circle-1",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "circle"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-circle-2",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "circle"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-circle-3",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "circle"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-circle-4",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "circle"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-circle-5",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "circle"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-orbit-1",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "orbit",
+    "3d"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-orbit-2",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "orbit",
+    "3d"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-orbit-3",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "orbit",
+    "3d"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-orbit-4",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "orbit",
+    "3d"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-orbit-5",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "orbit",
+    "3d"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-path-1",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "path"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-path-2",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "path"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-path-3",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "path"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-path-4",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "path"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-path-5",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "path"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-text-circle-1",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "title-card",
+    "kinetic-text",
+    "images",
+    "showcase",
+    "circle"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 5.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-text-circle-2",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "title-card",
+    "kinetic-text",
+    "images",
+    "showcase",
+    "circle"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 5.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-text-circle-3",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "title-card",
+    "kinetic-text",
+    "images",
+    "showcase",
+    "circle"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 5.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-text-circle-4",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "title-card",
+    "kinetic-text",
+    "images",
+    "showcase",
+    "circle"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 5.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-text-circle-5",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "title-card",
+    "kinetic-text",
+    "images",
+    "showcase",
+    "circle"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 5.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-vision-1",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "vision",
+    "3d"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-vision-2",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "vision",
+    "3d"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-vision-3",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "vision",
+    "3d"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-vision-4",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "vision",
+    "3d"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "carousel-vision-5",
+   "kind": "block",
+   "tags": [
+    "carousel",
+    "gallery",
+    "images",
+    "showcase",
+    "vision",
+    "3d"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "char-slam-explode",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography",
+    "text-treatment",
+    "scatter",
+    "slam",
+    "impact"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "chart-story",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "proof",
+    "stats",
+    "chart",
+    "bars",
+    "line",
+    "donut",
+    "progress",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "chat-message",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "chat",
+    "mock-ui",
+    "message"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "chat-thread",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "chat",
+    "mock-ui",
+    "conversation",
+    "vertical"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "chatgpt-exchange",
+   "kind": "block",
+   "tags": [
+    "showcase",
+    "mock-ui",
+    "ai",
+    "chat",
+    "vertical",
+    "ad-template"
+   ],
+   "width": 1080,
+   "height": 1920,
+   "duration": 14.9,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "chromatic-aberration-wipe",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "transition-primitive"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "chromatic-radial-split",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "shader"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "chrome-orb",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "object",
+    "chrome",
+    "metal",
+    "material"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "cinemagraph",
+   "kind": "block",
+   "tags": [
+    "effect",
+    "cinemagraph",
+    "photo",
+    "loop",
+    "freeze-frame"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 10.0,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "cinematic-zoom",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "shader"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "claude-exchange",
+   "kind": "block",
+   "tags": [
+    "showcase",
+    "mock-ui",
+    "ai",
+    "chat",
+    "vertical",
+    "ad-template"
+   ],
+   "width": 1080,
+   "height": 1920,
+   "duration": 21.4,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "code-3d-extrude",
+   "kind": "block",
+   "tags": [
+    "code",
+    "code-animation",
+    "3d",
+    "webgl",
+    "developer"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 8.0,
+   "group": "ma_nguon",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "code-diff",
+   "kind": "block",
+   "tags": [
+    "code",
+    "code-animation",
+    "diff",
+    "developer"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "ma_nguon",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "code-highlight",
+   "kind": "block",
+   "tags": [
+    "code",
+    "code-animation",
+    "highlight",
+    "developer"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 5.0,
+   "group": "ma_nguon",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "code-morph",
+   "kind": "block",
+   "tags": [
+    "code",
+    "code-animation",
+    "morph",
+    "refactor",
+    "developer"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 7.0,
+   "group": "ma_nguon",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "code-particle-assemble",
+   "kind": "block",
+   "tags": [
+    "code",
+    "code-animation",
+    "particles",
+    "gpu",
+    "webgl",
+    "developer"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 8.0,
+   "group": "ma_nguon",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "code-scroll",
+   "kind": "block",
+   "tags": [
+    "code",
+    "code-animation",
+    "scroll",
+    "developer"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "ma_nguon",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "code-shader-dissolve",
+   "kind": "block",
+   "tags": [
+    "code",
+    "code-animation",
+    "shader",
+    "webgl",
+    "developer"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 7.0,
+   "group": "ma_nguon",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "code-slice-hero",
+   "kind": "block",
+   "tags": [
+    "3d-motion",
+    "transition",
+    "typography",
+    "tiles",
+    "flip",
+    "webgl2",
+    "shadows",
+    "two-headlines"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 8.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "code-snippet-apple-terminal-pro",
+   "kind": "block",
+   "tags": [
+    "code",
+    "developer",
+    "showcase",
+    "terminal",
+    "apple",
+    "apple-terminal"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 12.0,
+   "group": "ma_nguon",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "code-snippet-dark-2026",
+   "kind": "block",
+   "tags": [
+    "code",
+    "developer",
+    "showcase",
+    "vscode"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 11.0,
+   "group": "ma_nguon",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "code-snippet-dark-modern",
+   "kind": "block",
+   "tags": [
+    "code",
+    "developer",
+    "showcase",
+    "vscode"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 11.0,
+   "group": "ma_nguon",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "code-terminal-run",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "product-demo",
+    "terminal",
+    "typing",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "code-typing",
+   "kind": "block",
+   "tags": [
+    "code",
+    "code-animation",
+    "typing",
+    "developer"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 5.0,
+   "group": "ma_nguon",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "color-wheel",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "gradient",
+    "rainbow",
+    "color"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "colorama-wipe",
+   "kind": "component",
+   "tags": [
+    "text",
+    "reveal",
+    "wipe",
+    "colorama",
+    "gradient",
+    "blur",
+    "headline",
+    "saas"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "comparison-split",
+   "kind": "component",
+   "tags": [
+    "prop",
+    "ui-props",
+    "compare",
+    "holdable",
+    "before-after",
+    "wipe"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "confetti",
+   "kind": "component",
+   "tags": [
+    "effect"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "conic-progress-ring",
+   "kind": "component",
+   "tags": [
+    "data",
+    "progress",
+    "ring",
+    "conic-gradient",
+    "prove",
+    "demonstrate"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "du_lieu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "constellation-hub",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "feature-tour",
+    "hub",
+    "nodes",
+    "connector",
+    "reveal"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "cosmic-orb",
+   "kind": "block",
+   "tags": [
+    "webgl",
+    "shader",
+    "background",
+    "showcase",
+    "3d"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 10.0,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "count-up",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "proof",
+    "stats",
+    "counter",
+    "number",
+    "countdown",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "cross-warp-morph",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "shader"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "cta-close",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "ui-props",
+    "cta",
+    "end-card",
+    "close",
+    "ask"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "cta-lockup",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "ui-props",
+    "cta",
+    "end-card",
+    "lockup",
+    "ask"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "cuboid-carousel",
+   "kind": "block",
+   "tags": [
+    "3d-motion",
+    "carousel",
+    "cards",
+    "travelling-wave",
+    "pbr",
+    "shadows",
+    "room-environment"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.67,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "cursor-annotate",
+   "kind": "component",
+   "tags": [
+    "cursor",
+    "motion-primitive",
+    "pen",
+    "annotation",
+    "draw-on",
+    "highlight"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "cursor-context-menu",
+   "kind": "component",
+   "tags": [
+    "cursor",
+    "motion-primitive",
+    "menu",
+    "right-click",
+    "desktop",
+    "files"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "cursor-drag-drop",
+   "kind": "component",
+   "tags": [
+    "cursor",
+    "motion-primitive",
+    "drag",
+    "drop",
+    "kanban",
+    "product-demo"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "cursor-glyph-trail",
+   "kind": "component",
+   "tags": [
+    "cursor",
+    "motion-primitive",
+    "demonstrate",
+    "trail",
+    "tutorial",
+    "steps",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "cursor-marquee-select",
+   "kind": "component",
+   "tags": [
+    "cursor",
+    "motion-primitive",
+    "select",
+    "marquee",
+    "grid",
+    "product-demo"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "cursor-text-select",
+   "kind": "component",
+   "tags": [
+    "cursor",
+    "motion-primitive",
+    "text",
+    "selection",
+    "editor",
+    "toolbar"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "cursor-zoom-follow",
+   "kind": "component",
+   "tags": [
+    "cursor",
+    "camera",
+    "zoom",
+    "screen-recording",
+    "click",
+    "product-demo"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "curtain-reveal",
+   "kind": "component",
+   "tags": [
+    "curtain",
+    "stage reveal",
+    "transition",
+    "motion-primitive"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "cut-the-curve",
+   "kind": "component",
+   "tags": [
+    "transition",
+    "directional-cut",
+    "velocity-match",
+    "whip",
+    "bridge",
+    "demonstrate"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "dart-cursor",
+   "kind": "component",
+   "tags": [
+    "cursor",
+    "motion-primitive",
+    "pointer",
+    "click",
+    "motion-blur",
+    "depth"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "data-chart",
+   "kind": "block",
+   "tags": [
+    "data",
+    "chart",
+    "statistics"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 15.0,
+   "group": "du_lieu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "decline-chart",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "data",
+    "chart",
+    "decline",
+    "metric",
+    "problem"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "du_lieu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "device-frame-stage",
+   "kind": "component",
+   "tags": [
+    "prop",
+    "device",
+    "mobile",
+    "tablet",
+    "ui-props",
+    "holdable"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "directional-wipe",
+   "kind": "component",
+   "tags": [
+    "transition-primitive"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "domain-warp-dissolve",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "shader"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "drift-hold",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "camera",
+    "ambient",
+    "drift",
+    "hold",
+    "loopable"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "dynamic-grid",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "motion-primitive",
+    "background",
+    "grid",
+    "ui"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "echo-smear",
+   "kind": "component",
+   "tags": [
+    "effect",
+    "smear",
+    "echo",
+    "motion-blur",
+    "velocity",
+    "after-effects",
+    "animation"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "echo-trail",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "demonstrate",
+    "trail",
+    "onion-skin",
+    "ghosts",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "editorial-flash-overlay",
+   "kind": "block",
+   "tags": [
+    "flash",
+    "editorial",
+    "social",
+    "light",
+    "transition",
+    "overlay",
+    "media-treatment-overlay"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "exploded-stack",
+   "kind": "block",
+   "tags": [
+    "3d-object",
+    "three-js",
+    "webgl",
+    "isometric",
+    "exploded-view",
+    "layers",
+    "diagram",
+    "architecture"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 5.0,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "extended-keyframe",
+   "kind": "component",
+   "tags": [
+    "motion",
+    "ease",
+    "arrival",
+    "kinetic-type",
+    "text",
+    "motion-blur",
+    "after-effects",
+    "slide-in",
+    "scale-in"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "extruded-logo",
+   "kind": "block",
+   "tags": [
+    "3d-object",
+    "three-js",
+    "webgl",
+    "logo",
+    "text",
+    "extruded",
+    "title-card"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 5.0,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "facet-morph",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "intro",
+    "morph",
+    "low-poly",
+    "svg",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "fade-through",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "transition",
+    "fade",
+    "crossfade",
+    "scene"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "falling-lines",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "texture",
+    "lines",
+    "rain",
+    "monochrome"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "filmed-screen",
+   "kind": "component",
+   "tags": [
+    "filmed",
+    "screen",
+    "monitor",
+    "led",
+    "camera",
+    "depth-of-field",
+    "html-in-canvas",
+    "shader",
+    "webgl",
+    "effect"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "flash-through-white",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "shader"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "flowchart",
+   "kind": "block",
+   "tags": [
+    "diagram",
+    "flowchart",
+    "interactive"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 12.0,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "flowchart-vertical",
+   "kind": "block",
+   "tags": [
+    "diagram",
+    "flowchart",
+    "interactive",
+    "portrait"
+   ],
+   "width": 1440,
+   "height": 2560,
+   "duration": 12.0,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "flowing-gradient",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "gradient",
+    "color",
+    "flow"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "focus-blur-resolve",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "focus-rack",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "camera",
+    "focus",
+    "focus-rack",
+    "depth",
+    "parallax",
+    "emphasize"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "focus-swap",
+   "kind": "component",
+   "tags": [
+    "effect",
+    "ui-props",
+    "focus",
+    "blur",
+    "attention",
+    "demonstrate"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "fractal-noise",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "noise",
+    "texture",
+    "clouds"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "freeze-frame-dressing",
+   "kind": "block",
+   "tags": [
+    "freeze-frame",
+    "cutout",
+    "scrapbook",
+    "paper",
+    "social",
+    "overlay",
+    "media-treatment-overlay"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "lower_third_mxh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "frost",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "orb",
+    "ice",
+    "frost",
+    "material"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "frost-sequence-camera-orbit",
+   "kind": "block",
+   "tags": [
+    "3d-motion",
+    "ice",
+    "frost",
+    "camera-orbit",
+    "logo",
+    "particles",
+    "webgpu",
+    "two-headlines"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 22.5,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "gabor-noise",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "texture",
+    "noise",
+    "monochrome"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "gallery-tunnel",
+   "kind": "block",
+   "tags": [
+    "webgl",
+    "3d",
+    "background",
+    "showcase",
+    "depth",
+    "loop"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 12.0,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "gesture-tap",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "gesture",
+    "tap",
+    "interaction",
+    "ui-props"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "glass-hero",
+   "kind": "block",
+   "tags": [
+    "3d-object",
+    "three-js",
+    "webgl",
+    "glass",
+    "refraction",
+    "hero",
+    "title-card"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 5.0,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "glass-shard-title",
+   "kind": "block",
+   "tags": [
+    "3d-motion",
+    "title-card",
+    "glass",
+    "voronoi",
+    "shards",
+    "fog",
+    "hdr"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 12.16,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "glitch",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "shader"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "gloss-sweep",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "celebration",
+    "gloss",
+    "card",
+    "badge",
+    "payoff"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "godrays",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "light",
+    "rays"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "goo",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "liquid",
+    "3d",
+    "organic",
+    "orb"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "gooey-split",
+   "kind": "block",
+   "tags": [
+    "effect",
+    "gooey",
+    "metaball",
+    "motion-blur",
+    "morph",
+    "logo",
+    "icon"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.7,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "grade-split-reveal",
+   "kind": "component",
+   "tags": [
+    "color-grading",
+    "media",
+    "compare",
+    "reveal",
+    "motion-primitive",
+    "grade"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "grain-field",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "background",
+    "grain",
+    "dots",
+    "texture",
+    "ambient",
+    "loopable"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "grain-overlay",
+   "kind": "component",
+   "tags": [
+    "texture",
+    "grain",
+    "overlay",
+    "film"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "gravitational-lens",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "shader"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "grid-card-assemble",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "layout",
+    "grid",
+    "list",
+    "stagger",
+    "assemble",
+    "feature-tour"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "grid-pixelate-wipe",
+   "kind": "component",
+   "tags": [
+    "transition",
+    "wipe",
+    "grid",
+    "pixelate"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "halftone-dissolve",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "transition",
+    "texture",
+    "halftone",
+    "dissolve"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "halftone-field",
+   "kind": "block",
+   "tags": [
+    "webgl",
+    "shader",
+    "background",
+    "texture",
+    "halftone"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 10.0,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "headline-slam",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography",
+    "headline",
+    "slam",
+    "impact",
+    "exit"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "heatmap",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "object",
+    "heat",
+    "thermal",
+    "glow"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "heygen-avatar-promo-card",
+   "kind": "block",
+   "tags": [
+    "showcase",
+    "avatar",
+    "promotion",
+    "vertical"
+   ],
+   "width": 1080,
+   "height": 1920,
+   "duration": 10.0,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "hologram",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "object",
+    "hologram",
+    "sci-fi",
+    "blue"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "holographic",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "holographic",
+    "iridescent",
+    "rainbow",
+    "orb"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "hw-arrow",
+   "kind": "component",
+   "tags": [
+    "handwritten",
+    "annotation",
+    "arrow",
+    "overlay"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "hw-boil",
+   "kind": "component",
+   "tags": [
+    "handwritten",
+    "effect",
+    "annotation"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "hw-box-label",
+   "kind": "component",
+   "tags": [
+    "handwritten",
+    "annotation",
+    "overlay"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "hw-callout-circle",
+   "kind": "component",
+   "tags": [
+    "handwritten",
+    "annotation",
+    "callout",
+    "overlay"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "hw-frame",
+   "kind": "block",
+   "tags": [
+    "handwritten",
+    "frame",
+    "media"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 8.0,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "hw-path-text",
+   "kind": "block",
+   "tags": [
+    "handwritten",
+    "typography",
+    "path",
+    "overlay"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "hw-pipeline",
+   "kind": "block",
+   "tags": [
+    "handwritten",
+    "diagram",
+    "data-viz",
+    "overlay"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 7.0,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "hw-scribble-transition",
+   "kind": "block",
+   "tags": [
+    "handwritten",
+    "transition",
+    "wipe"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.2,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "hw-text-cloud",
+   "kind": "block",
+   "tags": [
+    "handwritten",
+    "speech-bubble",
+    "overlay"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "hw-title",
+   "kind": "block",
+   "tags": [
+    "handwritten",
+    "typography",
+    "title-card",
+    "overlay"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "hw-underline",
+   "kind": "component",
+   "tags": [
+    "handwritten",
+    "annotation",
+    "text-treatment"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "hw-write-title",
+   "kind": "block",
+   "tags": [
+    "handwritten",
+    "typography",
+    "title-card",
+    "write-on",
+    "overlay"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "icon-morph-beat",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "product-demo",
+    "icon",
+    "morph",
+    "state-change",
+    "completion"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "icon-swap",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "transition-primitive",
+    "transitions-dev-port",
+    "icon",
+    "swap"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "ink-bleed-reveal",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "texture",
+    "reveal",
+    "gooey",
+    "svg-filter",
+    "deterministic",
+    "experiment"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "inline-highlight",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "text",
+    "highlight",
+    "caption"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "input-feedback",
+   "kind": "component",
+   "tags": [
+    "transition-primitive",
+    "transitions-dev-port",
+    "input",
+    "feedback"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "instagram-follow",
+   "kind": "block",
+   "tags": [
+    "social",
+    "overlay",
+    "instagram"
+   ],
+   "width": 1080,
+   "height": 1920,
+   "duration": 4.5,
+   "group": "lower_third_mxh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "ios26-liquid-glass",
+   "kind": "block",
+   "tags": [
+    "liquid-glass-html-in-canvas",
+    "webgpu",
+    "3d",
+    "iphone",
+    "ios26",
+    "notifications",
+    "gltf",
+    "html-in-canvas"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 15.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "iris-reveal",
+   "kind": "component",
+   "tags": [
+    "transition",
+    "iris",
+    "circle-reveal",
+    "clip-path",
+    "bridge",
+    "slots"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "keyframe-scrub-stack",
+   "kind": "component",
+   "tags": [
+    "advanced-motion",
+    "anime-inspired",
+    "hyperframes-native"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "kinetic-center-build",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "text-effects",
+    "kinetic-type",
+    "reveal",
+    "remocn-port"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "kinetic-type-swap",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "text-effects",
+    "kinetic-type",
+    "word-swap",
+    "reveal"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "lens-flare",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "light",
+    "flare",
+    "glow"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "light-edge",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "object",
+    "light",
+    "glow",
+    "neon",
+    "edge"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "light-leak",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "shader"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "light-sweep-pass",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "overlay",
+    "light",
+    "sweep",
+    "slots",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "line-by-line-slide",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "line-swap",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "text-effects",
+    "swap",
+    "beat",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "liquid-glass-notification",
+   "kind": "block",
+   "tags": [
+    "html-in-canvas",
+    "liquid-glass-html-in-canvas",
+    "webgpu"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 8.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "liquid-glass-widgets",
+   "kind": "block",
+   "tags": [
+    "html-in-canvas",
+    "liquid-glass-html-in-canvas",
+    "webgpu"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 8.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "liquid-metal",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "object",
+    "metal",
+    "chrome",
+    "liquid",
+    "sphere"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "locked-nucleus-orbit",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "intro",
+    "reveal",
+    "orbit",
+    "lockup",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "logo-brand-close",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography",
+    "brand",
+    "logo",
+    "end-card",
+    "close"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "logo-outro",
+   "kind": "block",
+   "tags": [
+    "branding",
+    "outro",
+    "logo"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "logo-sting",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "brand",
+    "logo",
+    "sting",
+    "impact",
+    "reveal"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "logo-wall",
+   "kind": "component",
+   "tags": [
+    "data",
+    "logos",
+    "social-proof",
+    "stagger",
+    "prove"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "du_lieu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "lottie-character-walk",
+   "kind": "block",
+   "tags": [
+    "character",
+    "character-animation",
+    "mascot",
+    "walk-cycle",
+    "gesture",
+    "pointing",
+    "puppet",
+    "lottie",
+    "explainer"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 7.5,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "lower-third-bild",
+   "kind": "block",
+   "tags": [
+    "broadcast",
+    "lower-third",
+    "news",
+    "overlay"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 8.0,
+   "group": "lower_third_mxh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "lt-accent-underline",
+   "kind": "block",
+   "tags": [
+    "lower-third",
+    "overlay",
+    "podcast",
+    "interview",
+    "minimal"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.8,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "lt-bold-block",
+   "kind": "block",
+   "tags": [
+    "lower-third",
+    "overlay",
+    "podcast",
+    "interview",
+    "bold"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.8,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "lt-clean-bar",
+   "kind": "block",
+   "tags": [
+    "lower-third",
+    "overlay",
+    "podcast",
+    "interview"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.8,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "lt-color-block",
+   "kind": "block",
+   "tags": [
+    "lower-third",
+    "overlay",
+    "podcast",
+    "interview",
+    "bold"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.8,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "lt-dark-card",
+   "kind": "block",
+   "tags": [
+    "lower-third",
+    "overlay",
+    "podcast",
+    "interview",
+    "dark"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.8,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "lt-kicker-name",
+   "kind": "block",
+   "tags": [
+    "lower-third",
+    "overlay",
+    "podcast",
+    "interview",
+    "bold"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.8,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "lt-mask-reveal",
+   "kind": "block",
+   "tags": [
+    "lower-third",
+    "overlay",
+    "podcast",
+    "interview",
+    "bold"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.8,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "lt-neon-border",
+   "kind": "block",
+   "tags": [
+    "lower-third",
+    "glow",
+    "loop",
+    "video-primitive"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.8,
+   "group": "lower_third_mxh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "lt-side-rule",
+   "kind": "block",
+   "tags": [
+    "lower-third",
+    "overlay",
+    "podcast",
+    "interview",
+    "minimal"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.8,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "lt-soft-pill",
+   "kind": "block",
+   "tags": [
+    "lower-third",
+    "overlay",
+    "podcast",
+    "interview",
+    "minimal"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.8,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "lt-stack-bars",
+   "kind": "block",
+   "tags": [
+    "lower-third",
+    "overlay",
+    "podcast",
+    "interview",
+    "bold"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.8,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "macos-notification",
+   "kind": "block",
+   "tags": [
+    "social",
+    "overlay",
+    "notification"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 5.0,
+   "group": "lower_third_mxh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "macos-tahoe-liquid-glass",
+   "kind": "block",
+   "tags": [
+    "html-in-canvas",
+    "3d",
+    "macos",
+    "tahoe",
+    "gltf"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 15.0,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "magnetic-cursor",
+   "kind": "component",
+   "tags": [
+    "cursor",
+    "motion-primitive",
+    "pointer",
+    "hover",
+    "morph",
+    "toolbar"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "marble",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "marble",
+    "texture"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "marker-checklist-card",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "handwritten",
+    "checklist",
+    "paper",
+    "marker"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "marker-highlight",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography",
+    "emphasis",
+    "marker",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "match-cut",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "transition",
+    "match-cut",
+    "hard-cut",
+    "continuity"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "matrix-decode",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "menu-morph",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "transition-primitive",
+    "transitions-dev-port",
+    "menu",
+    "morph"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "mesh-gradient",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "gradient",
+    "color"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "mesh-gradient-bg",
+   "kind": "component",
+   "tags": [
+    "effect"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "message-thread-reveal",
+   "kind": "block",
+   "tags": [
+    "showcase",
+    "mock-ui",
+    "chat",
+    "vertical",
+    "ad-template"
+   ],
+   "width": 1080,
+   "height": 1920,
+   "duration": 25.7667,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "micro-transitions",
+   "kind": "component",
+   "tags": [
+    "transition-primitive",
+    "motion-primitive",
+    "transitions-dev-port",
+    "ui",
+    "transition",
+    "microinteraction"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "mk-background",
+   "kind": "block",
+   "tags": [
+    "background",
+    "gradient",
+    "minimal",
+    "professional",
+    "presentation"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 10.0,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "mk-callout-highlight",
+   "kind": "block",
+   "tags": [
+    "typography",
+    "karaoke",
+    "captions",
+    "minimal"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 8.0,
+   "group": "phu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "mk-clone-wall-transition",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "typography",
+    "wipe"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.4,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "mk-emphasis-type",
+   "kind": "component",
+   "tags": [
+    "typography",
+    "text-treatment",
+    "minimal"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "mk-line-graph",
+   "kind": "block",
+   "tags": [
+    "data-viz",
+    "chart",
+    "graph",
+    "minimal"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 7.0,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "mk-placeholder-grid",
+   "kind": "block",
+   "tags": [
+    "placeholder",
+    "media",
+    "grid",
+    "minimal"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 8.0,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "mk-progress-stat",
+   "kind": "block",
+   "tags": [
+    "data-viz",
+    "stat",
+    "minimal"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 7.0,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "mk-specs-list",
+   "kind": "block",
+   "tags": [
+    "data-viz",
+    "list",
+    "minimal",
+    "professional"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 8.0,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "mk-usage-arc",
+   "kind": "component",
+   "tags": [
+    "data-viz",
+    "gauge",
+    "minimal"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "modal-morph",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "structure",
+    "flip",
+    "shared-element",
+    "modal",
+    "deterministic",
+    "experiment"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "morph-swap",
+   "kind": "component",
+   "tags": [
+    "transition",
+    "morph",
+    "swap",
+    "condense",
+    "reshape",
+    "holdable",
+    "slots"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "morph-text",
+   "kind": "component",
+   "tags": [
+    "text",
+    "text-effect",
+    "typography",
+    "morph",
+    "gooey",
+    "kinetic",
+    "animation"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "motion-blur",
+   "kind": "component",
+   "tags": [
+    "effect",
+    "motion-blur",
+    "shutter",
+    "after-effects",
+    "velocity",
+    "animation"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "multi-device-splay",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "device",
+    "phone",
+    "tablet",
+    "desktop",
+    "splay"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "multiplayer-cursors",
+   "kind": "component",
+   "tags": [
+    "cursor",
+    "pointer",
+    "multiplayer",
+    "collaboration",
+    "presence",
+    "loop",
+    "prove"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "native-notification-pop",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "product-demo",
+    "overlay",
+    "notification",
+    "spring"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "nebula",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "object",
+    "space",
+    "nebula",
+    "sphere"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "news-ticker",
+   "kind": "block",
+   "tags": [
+    "lower-third",
+    "overlay",
+    "news",
+    "ticker"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 7.0,
+   "group": "lower_third_mxh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "north-korea-locked-down",
+   "kind": "block",
+   "tags": [
+    "showcase",
+    "map",
+    "annotation",
+    "youtube",
+    "kinetic"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 7.0,
+   "group": "ban_do",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "notes-reveal",
+   "kind": "block",
+   "tags": [
+    "showcase",
+    "mock-ui",
+    "notes",
+    "typing",
+    "vertical",
+    "ad-template"
+   ],
+   "width": 1080,
+   "height": 1920,
+   "duration": 24.85,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "notes-typing",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "notes",
+    "typing",
+    "mock-ui",
+    "vertical"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "notification-cascade",
+   "kind": "block",
+   "tags": [
+    "showcase",
+    "mock-ui",
+    "notification",
+    "vertical",
+    "ad-template"
+   ],
+   "width": 1080,
+   "height": 1920,
+   "duration": 14.0,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "notification-pileup",
+   "kind": "component",
+   "tags": [
+    "notification",
+    "mobile",
+    "ui-props",
+    "overload",
+    "pileup",
+    "loop",
+    "agitate"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "notification-stack",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "product-demo",
+    "notification",
+    "stack",
+    "stagger"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "number-pop-in",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "transition-primitive",
+    "transitions-dev-port",
+    "number",
+    "pop"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "number-wheel",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "motion-primitive",
+    "number",
+    "counter",
+    "data"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "du_lieu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "nyc-paris-flight",
+   "kind": "block",
+   "tags": [
+    "showcase",
+    "travel",
+    "map",
+    "youtube",
+    "sfx"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "ban_do",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "obsidian",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "object",
+    "glass",
+    "iridescent",
+    "dark"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "offset-path-traveler",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "product-demo",
+    "path",
+    "traveler",
+    "auto-rotate"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "onboarding-stepper-flow",
+   "kind": "component",
+   "tags": [
+    "ui-flow",
+    "onboarding",
+    "stepper"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "orbit-card",
+   "kind": "block",
+   "tags": [
+    "3d-motion",
+    "cards",
+    "feature-reveal",
+    "dots",
+    "orbit",
+    "blender-motion",
+    "sphere"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 10.0,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "ordered-dither-pass",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "experiment",
+    "texture",
+    "dither",
+    "transition",
+    "quantize"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "organic-light-leak-overlay",
+   "kind": "block",
+   "tags": [
+    "light-leak",
+    "film",
+    "memory",
+    "transition",
+    "overlay",
+    "media-treatment-overlay"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "oscilloscope-trace",
+   "kind": "block",
+   "tags": [
+    "instrument",
+    "data",
+    "showcase",
+    "retro"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "du_lieu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "outline-draw",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "effects",
+    "outline",
+    "border",
+    "mask",
+    "proof"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "oversized-cursor",
+   "kind": "component",
+   "tags": [
+    "cursor",
+    "motion-primitive",
+    "actor",
+    "pointer",
+    "interaction"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "overwhelm-surround",
+   "kind": "component",
+   "tags": [
+    "effects",
+    "agitate",
+    "overwhelm",
+    "pressure",
+    "notifications"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "page-slide",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "transition-primitive",
+    "transitions-dev-port",
+    "page",
+    "slide"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "pan-stations",
+   "kind": "component",
+   "tags": [
+    "camera",
+    "pan",
+    "stations",
+    "features",
+    "exhibit",
+    "agitate",
+    "cross-shelved"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "panel-reveal",
+   "kind": "component",
+   "tags": [
+    "transition-primitive",
+    "transitions-dev-port",
+    "panel",
+    "reveal"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "paper-collage-reveal",
+   "kind": "component",
+   "tags": [
+    "collage",
+    "scrapbook",
+    "torn paper",
+    "reveal",
+    "transition",
+    "motion-primitive"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "parallax-device-dive",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "camera",
+    "device",
+    "phone",
+    "parallax",
+    "transition"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "parallax-unzoom",
+   "kind": "component",
+   "tags": [
+    "transition",
+    "reveal",
+    "unzoom",
+    "parallax",
+    "grid",
+    "hero"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "parallax-zoom",
+   "kind": "component",
+   "tags": [
+    "transition",
+    "zoom",
+    "parallax",
+    "grid",
+    "hero"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "particle-image-reveal",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "intros-reveals",
+    "particles",
+    "reveal",
+    "canvas",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "particle-text-dissolve",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "text-effects",
+    "particles",
+    "canvas",
+    "deterministic",
+    "experiment"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "pendulum-swing",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "physics",
+    "swing",
+    "settle",
+    "reveal"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "per-word-crossfade",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "per-word-rise",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "text-effects",
+    "typography",
+    "stagger",
+    "reveal"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "perspective-marquee",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "physical-exit",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "exit",
+    "momentum",
+    "toss",
+    "drop",
+    "slide"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "plasma",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "texture",
+    "plasma",
+    "purple"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "plastic",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "object",
+    "plastic",
+    "material",
+    "white"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "press-ripple",
+   "kind": "component",
+   "tags": [
+    "cursor",
+    "motion-primitive",
+    "product-demo",
+    "press",
+    "ripple",
+    "payoff"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "prism",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "light",
+    "prism",
+    "rainbow"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "product-turntable",
+   "kind": "block",
+   "tags": [
+    "3d-object",
+    "three-js",
+    "webgl",
+    "product",
+    "turntable",
+    "glb",
+    "loop"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "pull-back-reveal",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "camera",
+    "pull-back",
+    "reveal",
+    "recontextualize"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "pull-to-refresh",
+   "kind": "component",
+   "tags": [
+    "pointer",
+    "pointers",
+    "mobile",
+    "gesture",
+    "interaction",
+    "refresh",
+    "demonstrate"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "push-in",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "camera",
+    "push-in",
+    "focus",
+    "emphasize",
+    "holdable"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "rack-focus",
+   "kind": "block",
+   "tags": [
+    "webgl",
+    "shader",
+    "camera",
+    "depth",
+    "cinematic",
+    "showcase"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "radial-surround",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "problem-setup",
+    "radial",
+    "ring",
+    "surround",
+    "converge"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "reddit-post",
+   "kind": "block",
+   "tags": [
+    "social",
+    "overlay",
+    "reddit"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 5.0,
+   "group": "lower_third_mxh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "rgb-glitch-text",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "ridged-burn",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "shader"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "ripple-waves",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "shader"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "ripples",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "texture",
+    "rings",
+    "waves",
+    "monochrome"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "rubber-band-bumper",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "transition",
+    "rubber-band",
+    "resistance",
+    "overshoot"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "scan-band",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography",
+    "scan",
+    "chromatic",
+    "distortion",
+    "wordmark"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "scramble-reveal",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "text-effects",
+    "scramble",
+    "reveal",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "screen-flow-carousel",
+   "kind": "component",
+   "tags": [
+    "product-demo",
+    "feature-tour",
+    "carousel",
+    "rail",
+    "slot",
+    "screens"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "can_anh",
+   "needs_gpu": false,
+   "needs_assets": true
+  },
+  {
+   "name": "scroll-camera-story",
+   "kind": "component",
+   "tags": [
+    "camera",
+    "scroll",
+    "parallax",
+    "story",
+    "sections",
+    "slot",
+    "servo"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "scroll-feed",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "effects",
+    "scroll",
+    "feed",
+    "loop",
+    "agitation"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "sdf-iris",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "shader"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "segmentation-flood",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "product-demo",
+    "ai",
+    "hud",
+    "canvas",
+    "deterministic",
+    "experiment"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "separator",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "separator",
+    "layout"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "settings-toggle-flow",
+   "kind": "component",
+   "tags": [
+    "ui-flow",
+    "settings",
+    "toggle"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "share-sheet-carousel",
+   "kind": "block",
+   "tags": [
+    "showcase",
+    "mock-ui",
+    "share-sheet",
+    "vertical",
+    "ad-template"
+   ],
+   "width": 1080,
+   "height": 1920,
+   "duration": 7.2333,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "shared-axis-y",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "shared-axis-z",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "sheet-spring-up",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "sheet",
+    "spring",
+    "mock-ui",
+    "overlay"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "shimmer-sweep",
+   "kind": "component",
+   "tags": [
+    "text",
+    "shimmer",
+    "highlight",
+    "effect"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "shutter-slam",
+   "kind": "component",
+   "tags": [
+    "effect",
+    "motion-blur",
+    "shutter",
+    "after-effects",
+    "slam",
+    "animation"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "signup-flow",
+   "kind": "component",
+   "tags": [
+    "ui-flow",
+    "signup",
+    "form"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "sine-wave",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "wave",
+    "line",
+    "glow"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "skeleton-reveal",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "transition-primitive",
+    "transitions-dev-port",
+    "skeleton",
+    "reveal"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "slack-notification-ad",
+   "kind": "block",
+   "tags": [
+    "showcase",
+    "mock-ui",
+    "notification",
+    "vertical",
+    "ad-template"
+   ],
+   "width": 1080,
+   "height": 1920,
+   "duration": 12.0,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "slit-scan-reveal",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "time",
+    "slit-scan",
+    "canvas",
+    "deterministic",
+    "experiment"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "slot-machine-roll",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "motion-primitive",
+    "typography"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "snow",
+   "kind": "block",
+   "tags": [
+    "snow",
+    "snowfall",
+    "winter",
+    "weather",
+    "overlay",
+    "ambient",
+    "particles",
+    "media-treatment-overlay",
+    "loopable"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "social-proof-card",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "social-proof",
+    "end-card",
+    "cta",
+    "vertical"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "soft-blob-touch",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "product-demo",
+    "material",
+    "blob",
+    "touch",
+    "grain"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "soft-blur-in",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "text",
+    "reveal",
+    "blur"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "spain-map",
+   "kind": "block",
+   "tags": [
+    "data",
+    "map",
+    "geography",
+    "spain",
+    "europe",
+    "choropleth"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 12.0,
+   "group": "ban_do",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "spiral",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "pattern",
+    "spiral",
+    "monochrome"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "spiral-galaxy",
+   "kind": "block",
+   "tags": [
+    "hero",
+    "space",
+    "particles",
+    "webgl",
+    "background"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 10.0,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "split-flap-board",
+   "kind": "block",
+   "tags": [
+    "text",
+    "kinetic",
+    "mechanical",
+    "split-flap",
+    "solari",
+    "departure-board",
+    "reveal"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 3.5,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "split-tilt-cards",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "layout",
+    "compare",
+    "holdable",
+    "book-open",
+    "tilt",
+    "slots"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "spotify-card",
+   "kind": "block",
+   "tags": [
+    "social",
+    "overlay",
+    "spotify"
+   ],
+   "width": 1080,
+   "height": 1920,
+   "duration": 5.0,
+   "group": "lower_third_mxh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "spotlight-card",
+   "kind": "component",
+   "tags": [
+    "effect"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "spring-pop",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "effects",
+    "spring",
+    "overshoot",
+    "pop",
+    "reveal"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "spring-stack-shuffle",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "product-demo",
+    "physics",
+    "stack",
+    "interruptible-spring"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "stagger-cascade",
+   "kind": "component",
+   "tags": [
+    "effects",
+    "grid",
+    "stagger",
+    "entrance",
+    "exhibit"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "stagger-lattice",
+   "kind": "component",
+   "tags": [
+    "advanced-motion",
+    "anime-inspired",
+    "hyperframes-native"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "staggered-fade-up",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "motion-primitive",
+    "typography"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "star-rating-fill",
+   "kind": "component",
+   "tags": [
+    "data",
+    "rating",
+    "stars",
+    "fractional",
+    "fill",
+    "prove"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "du_lieu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "starfield",
+   "kind": "block",
+   "tags": [
+    "starfield",
+    "night-sky",
+    "stars",
+    "twinkle",
+    "sky",
+    "weather",
+    "overlay",
+    "ambient",
+    "particles",
+    "media-treatment-overlay",
+    "loopable"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "state-chip-rail",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "product-demo",
+    "state-machine",
+    "status",
+    "chips",
+    "rail"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "sticky-mock-swap",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "product-demo",
+    "sticky",
+    "mock",
+    "crossfade",
+    "feature-tour"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "stitched-text-draw",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "experiment",
+    "type",
+    "craft",
+    "stitch",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "stop-motion-cadence",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "time-law",
+    "stop-motion",
+    "stepped",
+    "boil",
+    "deterministic",
+    "experiment"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "store-badge-lockup",
+   "kind": "component",
+   "tags": [
+    "prop",
+    "ui-props",
+    "mobile",
+    "store-badges",
+    "cta",
+    "ask"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "strands",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "light",
+    "lines",
+    "ribbons"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "streaming-text",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "text-effect",
+    "ai",
+    "chat"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "strikethrough-replace",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "stripes",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "pattern",
+    "stripes",
+    "monochrome"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "success-check",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "transition-primitive",
+    "transitions-dev-port",
+    "success",
+    "check"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "sun-burst",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "light",
+    "rays",
+    "radial"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "svg-line-draw-loader",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "advanced-motion",
+    "anime-inspired",
+    "hyperframes-native"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "svg-mask-reveal",
+   "kind": "component",
+   "tags": [
+    "effect",
+    "svg",
+    "mask",
+    "wordmark",
+    "reveal",
+    "exhibit"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "svg-stroke-trace",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "intro",
+    "reveal",
+    "svg",
+    "stroke",
+    "line-draw"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "swipe-rail",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "interaction",
+    "gesture",
+    "swipe",
+    "cards",
+    "rail"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "swirl",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "gradient",
+    "flow",
+    "abstract"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "swirl-vortex",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "shader"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "tabs-slide-indicator",
+   "kind": "component",
+   "tags": [
+    "transition-primitive",
+    "transitions-dev-port",
+    "tabs",
+    "indicator"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "telemetry-hud",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "product-demo",
+    "hud",
+    "telemetry",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "terminal-simulator",
+   "kind": "component",
+   "tags": [
+    "code-animation"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "ma_nguon",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "testimonial-card",
+   "kind": "component",
+   "tags": [
+    "prop",
+    "ui-props",
+    "testimonial",
+    "social-proof",
+    "quote",
+    "prove"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "testimonial-proof-card",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "proof",
+    "testimonial",
+    "quote",
+    "social-proof",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "text-match-cut",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "transition",
+    "typography",
+    "match-cut",
+    "hard-cut",
+    "continuity"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "text-shimmer",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "text-effects",
+    "shimmer",
+    "specular",
+    "emphasis"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "text-stagger",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "transition-primitive",
+    "transitions-dev-port",
+    "text",
+    "stagger"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "text-state-swap",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "transition-primitive",
+    "transitions-dev-port",
+    "text",
+    "swap"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "texture-mask-text",
+   "kind": "component",
+   "tags": [
+    "text",
+    "text-effect",
+    "effect",
+    "texture",
+    "mask"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "thermal-distortion",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "shader"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "thin-film",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "object",
+    "iridescent",
+    "bubble",
+    "rainbow"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "thread-message-stack",
+   "kind": "block",
+   "tags": [
+    "social",
+    "conversation",
+    "messages"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 8.0,
+   "group": "lower_third_mxh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "three-orbiting-cards",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "three-js",
+    "webgl",
+    "hyperframes-native"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "ticker-takeover",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography",
+    "ticker",
+    "slot-machine",
+    "headline",
+    "reveal"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "tiktok-follow",
+   "kind": "block",
+   "tags": [
+    "social",
+    "overlay",
+    "tiktok"
+   ],
+   "width": 1080,
+   "height": 1920,
+   "duration": 4.5,
+   "group": "lower_third_mxh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "tilt-card",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "transition-primitive",
+    "transitions-dev-port",
+    "card",
+    "tilt"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "titlecard-calm",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography",
+    "title-card",
+    "calm",
+    "orient"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "titlecard-lockup",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography",
+    "title-card",
+    "lockup",
+    "breather",
+    "orient"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "toggle-flip",
+   "kind": "component",
+   "tags": [
+    "prop",
+    "ui-props",
+    "toggle",
+    "interaction",
+    "reference-prop",
+    "demonstrate"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "top-down-letters",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "motion-primitive",
+    "typography"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "torn-paper-rip",
+   "kind": "component",
+   "tags": [
+    "torn paper",
+    "paper rip",
+    "paper tear",
+    "transition",
+    "texture",
+    "motion-primitive"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "touch-indicator",
+   "kind": "component",
+   "tags": [
+    "cursor",
+    "motion-primitive",
+    "mobile",
+    "gesture",
+    "touch",
+    "pointer"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "tracing-beam",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "product-demo",
+    "attention",
+    "beam",
+    "path",
+    "spotlight"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "tracking-in",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "text",
+    "reveal",
+    "typography"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "transitions-3d",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "showcase"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 11.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "transitions-blur",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "showcase"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 20.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "transitions-cover",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "showcase"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 21.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "transitions-destruction",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "showcase"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 14.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "transitions-dissolve",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "showcase",
+    "crossfade"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 24.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "transitions-distortion",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "showcase"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 21.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "transitions-grid",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "showcase"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 11.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "transitions-light",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "showcase"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 21.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "transitions-mechanical",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "showcase"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 15.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "transitions-other",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "showcase"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 20.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "transitions-push",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "showcase"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 24.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "transitions-radial",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "showcase"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 20.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "transitions-scale",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "showcase"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 15.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "trust-strip",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "proof",
+    "trust",
+    "logo-strip",
+    "wordmarks"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "type-match-cut",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "transition",
+    "typography",
+    "match-cut",
+    "continuity"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "typed-prompt",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "product-demo",
+    "typing",
+    "prompt",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "typewriter",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "motion-primitive",
+    "typography"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "typing-indicator",
+   "kind": "component",
+   "tags": [
+    "video-primitive",
+    "chat",
+    "mock-ui",
+    "overlay"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "ui-3d-reveal",
+   "kind": "block",
+   "tags": [
+    "showcase",
+    "3d",
+    "reveal"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 13.0,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "ui-focus-zoom",
+   "kind": "component",
+   "tags": [
+    "camera",
+    "product-demo",
+    "zoom",
+    "focus",
+    "pan",
+    "slot",
+    "servo"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "us-map",
+   "kind": "block",
+   "tags": [
+    "data",
+    "map",
+    "geography",
+    "usa",
+    "choropleth"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 12.0,
+   "group": "ban_do",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "us-map-bubble",
+   "kind": "block",
+   "tags": [
+    "data",
+    "map",
+    "geography",
+    "usa",
+    "bubble",
+    "cities"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 12.0,
+   "group": "ban_do",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "us-map-flow",
+   "kind": "block",
+   "tags": [
+    "data",
+    "map",
+    "geography",
+    "usa",
+    "flow",
+    "connections",
+    "arcs"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 12.0,
+   "group": "ban_do",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "us-map-hex",
+   "kind": "block",
+   "tags": [
+    "data",
+    "map",
+    "geography",
+    "usa",
+    "hexgrid",
+    "tilegrid"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 10.0,
+   "group": "ban_do",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "variable-axis-type",
+   "kind": "component",
+   "tags": [
+    "typography",
+    "variable-font",
+    "kinetic-type",
+    "axis",
+    "emphasize"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "variable-font-flex",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "experiment",
+    "type",
+    "variable-font",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "vector-editor-rig",
+   "kind": "component",
+   "tags": [
+    "prop",
+    "ui-props",
+    "demonstrate",
+    "vector",
+    "design-tool",
+    "pen-tool",
+    "bezier",
+    "app-chrome"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "velocity-throw-snap",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "feature-tour",
+    "rail",
+    "velocity",
+    "throw",
+    "snap",
+    "physics"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "vfx-anamorphic-flare",
+   "kind": "block",
+   "tags": [
+    "vfx",
+    "background",
+    "showcase",
+    "optical",
+    "canvas"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 10.0,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "vfx-iphone-device",
+   "kind": "block",
+   "tags": [
+    "html-in-canvas",
+    "3d",
+    "device",
+    "iphone",
+    "macbook",
+    "gltf"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 15.0,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "vfx-liquid-background",
+   "kind": "block",
+   "tags": [
+    "html-in-canvas",
+    "liquid",
+    "webgl",
+    "displacement",
+    "background"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 12.0,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "vfx-liquid-glass",
+   "kind": "block",
+   "tags": [
+    "html-in-canvas",
+    "webgl"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 20.0,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "vfx-magnetic",
+   "kind": "block",
+   "tags": [
+    "html-in-canvas",
+    "webgl"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 15.0,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "vfx-portal",
+   "kind": "block",
+   "tags": [
+    "html-in-canvas",
+    "webgl"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 10.0,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "vfx-shatter",
+   "kind": "block",
+   "tags": [
+    "html-in-canvas",
+    "webgl"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 12.0,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "vfx-text-cursor",
+   "kind": "block",
+   "tags": [
+    "html-in-canvas",
+    "text",
+    "shader",
+    "cursor",
+    "chromatic"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 8.0,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "vignette",
+   "kind": "component",
+   "tags": [
+    "vignette",
+    "overlay",
+    "cinematic",
+    "effect"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "voronoi",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "pattern",
+    "cells",
+    "voronoi"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "vox-annotate",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "typography",
+    "annotation",
+    "marker",
+    "deterministic"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "vpn-youtube-spot",
+   "kind": "block",
+   "tags": [
+    "app",
+    "showcase",
+    "youtube",
+    "sfx"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 7.0,
+   "group": "giao_dien_gia_lap",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "water",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "orb",
+    "water",
+    "material",
+    "blue"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "waveform",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "audio",
+    "music",
+    "visualizer",
+    "bars"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "week-in-merges",
+   "kind": "block",
+   "tags": [
+    "data",
+    "chart",
+    "ranking",
+    "leaderboard"
+   ],
+   "width": 1080,
+   "height": 1350,
+   "duration": 16.0,
+   "group": "du_lieu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "weight-wave",
+   "kind": "block",
+   "tags": [
+    "typography",
+    "kinetic-type",
+    "title",
+    "variable-font",
+    "text"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "whip-pan",
+   "kind": "block",
+   "tags": [
+    "transition",
+    "shader"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.0,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "whip-pan-cut",
+   "kind": "component",
+   "tags": [
+    "transition",
+    "whip-pan",
+    "motion-blur",
+    "velocity-match",
+    "speed-ramp",
+    "bridge",
+    "slots"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "whiteboard-ink",
+   "kind": "component",
+   "tags": [
+    "motion-primitive",
+    "intro",
+    "reveal",
+    "svg",
+    "whiteboard",
+    "line-draw",
+    "slot"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "wireframe-portal-title",
+   "kind": "block",
+   "tags": [
+    "3d-motion",
+    "title-card",
+    "wireframe",
+    "portal",
+    "burst",
+    "typography",
+    "post-processing",
+    "phrase-swap"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 8.0,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "wordmark-tiles",
+   "kind": "component",
+   "tags": [
+    "typography",
+    "wordmark",
+    "tiles",
+    "raster",
+    "reveal"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "world-map",
+   "kind": "block",
+   "tags": [
+    "data",
+    "map",
+    "geography",
+    "world",
+    "choropleth"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 14.0,
+   "group": "ban_do",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "worley-noise",
+   "kind": "block",
+   "tags": [
+    "webgpu",
+    "webgpu-shader",
+    "background",
+    "texture",
+    "noise",
+    "cells",
+    "monochrome"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 2.0,
+   "group": "webgpu",
+   "needs_gpu": true,
+   "needs_assets": false
+  },
+  {
+   "name": "x-follow-card",
+   "kind": "component",
+   "tags": [
+    "social-overlay"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "x-post",
+   "kind": "block",
+   "tags": [
+    "social",
+    "overlay",
+    "twitter"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 5.0,
+   "group": "lower_third_mxh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "yt-camera-move",
+   "kind": "component",
+   "tags": [
+    "camera",
+    "zoom",
+    "effect",
+    "creator"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "camera_con_tro",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "yt-circle-pointer",
+   "kind": "component",
+   "tags": [
+    "annotation",
+    "countdown",
+    "overlay"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "yt-comment-card",
+   "kind": "block",
+   "tags": [
+    "social",
+    "comments",
+    "creator",
+    "overlay"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 8.0,
+   "group": "lower_third_mxh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "yt-feather-highlight",
+   "kind": "component",
+   "tags": [
+    "highlight",
+    "spotlight",
+    "effect",
+    "overlay"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "yt-lcd-background",
+   "kind": "block",
+   "tags": [
+    "background",
+    "texture",
+    "creator"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 10.0,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "yt-logo-intro",
+   "kind": "block",
+   "tags": [
+    "logo",
+    "intro",
+    "creator"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "yt-lower-third",
+   "kind": "block",
+   "tags": [
+    "social",
+    "overlay",
+    "youtube"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 4.5,
+   "group": "lower_third_mxh",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "yt-prism-title",
+   "kind": "block",
+   "tags": [
+    "typography",
+    "title-card",
+    "creator"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 6.0,
+   "group": "chu_tieu_de",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "yt-screen-warp",
+   "kind": "component",
+   "tags": [
+    "effect",
+    "overlay",
+    "texture"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "nen_lop_phu",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "yt-vertical-fill",
+   "kind": "block",
+   "tags": [
+    "placeholder",
+    "vertical",
+    "media"
+   ],
+   "width": 1920,
+   "height": 1080,
+   "duration": 8.0,
+   "group": "khac",
+   "needs_gpu": false,
+   "needs_assets": false
+  },
+  {
+   "name": "zoom-through-transition",
+   "kind": "component",
+   "tags": [
+    "transition-primitive"
+   ],
+   "width": null,
+   "height": null,
+   "duration": null,
+   "group": "chuyen_canh",
+   "needs_gpu": false,
+   "needs_assets": false
+  }
+ ]
+}
