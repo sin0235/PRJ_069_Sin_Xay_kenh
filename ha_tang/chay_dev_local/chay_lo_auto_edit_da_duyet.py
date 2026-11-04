@@ -21,6 +21,22 @@ def doc_goi(path):
     return bundle,digest
 
 
+def cho_canh_clip(clip_id, briefs, jobs, read_states, *, sleep=time.sleep):
+    indices={i for i,brief in enumerate(briefs) if brief['target_clip_id']==clip_id}
+    ids=[item['job_id'] for item in jobs if item['index'] in indices]
+    if not ids or len(ids)!=len(indices):
+        raise ValueError('Thiếu tác vụ cảnh của nội dung '+clip_id)
+    deadline=time.monotonic()+24*3600
+    while time.monotonic()<deadline:
+        states=read_states(ids)
+        if len(states)==len(ids) and all(s=='SUCCEEDED' for s in states):return
+        if any(s in {'FAILED','CANCELLED','NEEDS_RECONCILIATION','BLOCKED_LOGIN','BLOCKED_SETUP',
+                     'BLOCKED_QUOTA','BLOCKED_FLOW_LOGIN','BLOCKED_FLOW_QUOTA'} for s in states):
+            raise RuntimeError('Một cảnh cần đối soát; giữ receipt, không tạo lại Flow bằng khóa mới')
+        sleep(15)
+    raise TimeoutError('Giữ nguyên receipt để tiếp tục kiểm tra, không gửi lại')
+
+
 def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--bundle',type=Path,default=Path(__file__).parent/'runtime/goi_duyet_8_video_20261104.json')
@@ -98,15 +114,9 @@ def main(argv=None):
                     prompt_text=prompt,parameters=params,idempotency_key=f'lo8-{digest[:24]}-{index}',
                     project_id=bundle['project_id'],profile_id=profile,credits_source=credits)
                 state['jobs'].append({'index':index,'job_id':child.id,'renderer':brief['renderer']});save()
-    deadline=time.monotonic()+24*3600
-    while time.monotonic()<deadline:
+    def read_states(ids):
         with SessionLocal() as db:
-            states=[db.get(AIGenerationJob,item['job_id']).state for item in state['jobs']]
-        if all(s=='SUCCEEDED' for s in states):break
-        if any(s in {'FAILED','CANCELLED','NEEDS_RECONCILIATION','BLOCKED_LOGIN','BLOCKED_SETUP','BLOCKED_QUOTA'} for s in states):
-            raise RuntimeError('Một cảnh cần đối soát; giữ receipt, không tạo lại Flow bằng khóa mới')
-        time.sleep(15)
-    else:raise TimeoutError('Giữ nguyên receipt để tiếp tục kiểm tra, không gửi lại')
+            return [db.get(AIGenerationJob,ident).state for ident in ids]
     token=_create_jwt(uid,workspace)
     with httpx.Client(base_url='http://127.0.0.1:8001',headers={'Authorization':'Bearer '+token},timeout=90) as client:
         state.setdefault('parent_job_ids',{})
@@ -116,6 +126,7 @@ def main(argv=None):
         for clip in bundle['plan']['clips']:
             clip_id=clip['clip_id']
             if any(video['clip_id']==clip_id for video in state['videos']):continue
+            cho_canh_clip(clip_id,bundle['visual_briefs'],state['jobs'],read_states)
             indices=[i for i,b in enumerate(bundle['visual_briefs']) if b['target_clip_id']==clip_id]
             manifest={key:bundle[key] for key in ('source_asset_id','source_sha256',
                 'removed_pause_intervals','pause_candidates','waveform_peaks')}

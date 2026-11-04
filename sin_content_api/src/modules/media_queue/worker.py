@@ -177,6 +177,8 @@ def _claim_next_job(db: Session, token: str) -> AIGenerationJob | None:
         AIGenerationJob.state == "QUEUED",
     ).order_by(AIGenerationJob.created_at, AIGenerationJob.id)
     candidates = query.all() if AUTO_EDIT_ONLY else query.limit(1).all()
+    if AUTO_EDIT_ONLY:
+        candidates.sort(key=lambda job: json.loads(job.request_payload_json or '{}').get('operation')!='auto_edit_video')
     job_id = None
     for candidate in candidates:
         request = json.loads(candidate.request_payload_json or '{}') if AUTO_EDIT_ONLY else {}

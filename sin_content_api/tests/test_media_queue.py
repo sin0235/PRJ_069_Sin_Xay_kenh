@@ -44,6 +44,22 @@ def test_worker_auto_edit_khong_bi_khoa_ai_video_nhung_flow_van_tuan_tu(media_db
     assert db.get(ContentVideoWorkerLease,'content-video-flow').token == 'edit-token'
 
 
+def test_uu_tien_ghep_video_da_du_canh_truoc_canh_clip_sau(media_db, monkeypatch):
+    from src.modules.media_queue import worker
+    from src.models.entities import ProductionProject
+    db, ws, _=media_db
+    db.add(ProductionProject(id='edit',workspace_id=ws,title='Edit',workflow_type='AUTO_EDIT',created_by='u'))
+    for ident, operation in [('old-scene','render_auto_edit_diagram'),('new-final','auto_edit_video')]:
+        db.add(AIGenerationJob(id=ident,project_id='edit',workspace_id=ws,asset_type='VIDEO',provider='MEDIA_VIDEO',
+            provider_mode='INTERNAL_RENDERER',model_id='test',idempotency_key=ident,created_by='u',
+            request_payload_json=json.dumps({'backend_provider':'BAHA_AUTO_EDIT','operation':operation})))
+        db.commit()
+    monkeypatch.setattr(worker,'AUTO_EDIT_ONLY',True)
+    monkeypatch.setattr(worker,'LEASE_NAME','auto-edit-media')
+    assert worker.acquire_media_lease(db,'t')
+    assert worker._claim_next_job(db,'t').id=='new-final'
+
+
 @pytest.fixture
 def media_db():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
