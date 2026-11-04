@@ -20,6 +20,30 @@ from src.modules.media_queue.service import enqueue_media_job, process_next_medi
 from src.schemas.contracts import AIGenerationJobCreate, AIGenerationJobOut
 
 
+def test_worker_auto_edit_khong_bi_khoa_ai_video_nhung_flow_van_tuan_tu(media_db, monkeypatch):
+    from src.modules.media_queue import worker
+    from src.models.entities import ProductionProject
+    db, ws, _ = media_db
+    db.add_all([ProductionProject(id='edit', workspace_id=ws, title='Edit', workflow_type='AUTO_EDIT', created_by='u'),
+                ProductionProject(id='ai', workspace_id=ws, title='AI', workflow_type='AI_VIDEO', created_by='u')])
+    for ident, project, backend in [('ai-job','ai','BAHA_AUTO_EDIT'), ('flow','edit','GOOGLE_FLOW'), ('diagram','edit','BAHA_AUTO_EDIT')]:
+        db.add(AIGenerationJob(id=ident, project_id=project, workspace_id=ws, asset_type='VIDEO',
+            provider='MEDIA_VIDEO', provider_mode='INTERNAL_RENDERER', model_id='test', idempotency_key=ident,
+            created_by='u', request_payload_json=json.dumps({'backend_provider':backend})))
+    db.add(ContentVideoWorkerLease(name='content-video-flow', token='busy-ai', expires_at=datetime.now(timezone.utc)+timedelta(minutes=5)))
+    db.commit()
+    monkeypatch.setattr(worker, 'AUTO_EDIT_ONLY', True, raising=False)
+    monkeypatch.setattr(worker, 'LEASE_NAME', 'auto-edit-media')
+    assert worker.acquire_media_lease(db, 'edit-token')
+    assert worker._claim_next_job(db, 'edit-token').id == 'diagram'
+    assert worker._claim_next_job(db, 'edit-token') is None
+    assert db.get(AIGenerationJob,'ai-job').state == 'QUEUED'
+    db.get(ContentVideoWorkerLease,'content-video-flow').expires_at=datetime.now(timezone.utc)-timedelta(seconds=1)
+    db.commit()
+    assert worker._claim_next_job(db, 'edit-token').id == 'flow'
+    assert db.get(ContentVideoWorkerLease,'content-video-flow').token == 'edit-token'
+
+
 @pytest.fixture
 def media_db():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)

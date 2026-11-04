@@ -9,22 +9,44 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import HTTPException
-from sqlalchemy import exists, select, update
+from sqlalchemy import exists, select, update, or_, true
 from sqlalchemy.orm import Session
 
 from src.database import SessionLocal
-from src.models.entities import AIGenerationJob, ContentVideoWorkerLease, MediaAsset, WorkspaceBudget
+from src.models.entities import AIGenerationJob, ContentVideoWorkerLease, MediaAsset, WorkspaceBudget, ProductionProject
 from src.modules.media_queue.contracts import DeferredMediaJob, GIOI_HAN_TAC_VU_DIEN_HOA
 from src.modules.media_queue.service import FLOW_BACKEND_PROVIDERS, MEDIA_QUEUE_PROVIDERS, TEST_PROVIDERS, authorized_worker_tenant, is_production
 
 logger = logging.getLogger(__name__)
 LEASE_NAME = "content-video-flow"
+AUTO_EDIT_ONLY = False
 LEASE_SECONDS = 480
 _IN_FLIGHT = ("RUNNING", "SUBMITTING")
 
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _queue_lane():
+    return AIGenerationJob.project_id.in_(select(ProductionProject.id).where(
+        ProductionProject.workflow_type == 'AUTO_EDIT')) if AUTO_EDIT_ONLY else true()
+
+
+def acquire_media_lease(db: Session, token: str, name: str | None = None) -> bool:
+    name = name or LEASE_NAME
+    if db.get(ContentVideoWorkerLease, name) is None:
+        db.add(ContentVideoWorkerLease(name=name))
+        try:
+            db.commit()
+        except Exception:
+            db.rollback()
+    result = db.execute(update(ContentVideoWorkerLease).where(
+        ContentVideoWorkerLease.name == name,
+        or_(ContentVideoWorkerLease.expires_at.is_(None), ContentVideoWorkerLease.expires_at < _now()),
+    ).values(token=token, expires_at=_now()+timedelta(seconds=LEASE_SECONDS)))
+    db.commit()
+    return result.rowcount == 1
 
 
 def _owns_worker_lease(db: Session, token: str) -> bool:
@@ -49,6 +71,10 @@ def _release_shared_lease(db: Session, token: str) -> None:
             ContentVideoWorkerLease.name == LEASE_NAME,
             ContentVideoWorkerLease.token == token,
         ).values(token=None, expires_at=None))
+        if AUTO_EDIT_ONLY:
+            db.execute(update(ContentVideoWorkerLease).where(
+                ContentVideoWorkerLease.name == 'content-video-flow', ContentVideoWorkerLease.token == token,
+            ).values(token=None, expires_at=None))
         db.commit()
         if result.rowcount != 1:
             logger.warning("Media worker shared lease was not released for token %s", token)
@@ -82,6 +108,10 @@ class _MediaJobHeartbeat:
             if shared.rowcount != 1:
                 db.rollback()
                 return False
+            if AUTO_EDIT_ONLY:
+                db.execute(update(ContentVideoWorkerLease).where(
+                    ContentVideoWorkerLease.name == 'content-video-flow', ContentVideoWorkerLease.token == self.token,
+                ).values(expires_at=now + timedelta(seconds=LEASE_SECONDS)))
             job = db.execute(update(AIGenerationJob).where(
                 AIGenerationJob.id == self.job_id,
                 AIGenerationJob.lease_token == self.token,
@@ -106,6 +136,7 @@ class _MediaJobHeartbeat:
 def _recover_expired_jobs(db: Session, token: str) -> int:
     now = _now()
     expired_ids = [row[0] for row in db.query(AIGenerationJob.id).filter(
+        _queue_lane(),
         AIGenerationJob.provider.in_(MEDIA_QUEUE_PROVIDERS),
         AIGenerationJob.state.in_(_IN_FLIGHT),
         AIGenerationJob.lease_expires_at.is_not(None),
@@ -140,10 +171,21 @@ def _recover_expired_jobs(db: Session, token: str) -> int:
 
 
 def _claim_next_job(db: Session, token: str) -> AIGenerationJob | None:
-    job_id = db.query(AIGenerationJob.id).filter(
+    query = db.query(AIGenerationJob).filter(
+        _queue_lane(),
         AIGenerationJob.provider.in_(MEDIA_QUEUE_PROVIDERS),
         AIGenerationJob.state == "QUEUED",
-    ).order_by(AIGenerationJob.created_at, AIGenerationJob.id).limit(1).scalar()
+    ).order_by(AIGenerationJob.created_at, AIGenerationJob.id)
+    candidates = query.all() if AUTO_EDIT_ONLY else query.limit(1).all()
+    job_id = None
+    for candidate in candidates:
+        request = json.loads(candidate.request_payload_json or '{}') if AUTO_EDIT_ONLY else {}
+        if AUTO_EDIT_ONLY and str(request.get('backend_provider', '')).upper() in FLOW_BACKEND_PROVIDERS:
+            # Flow vẫn dùng khóa trình duyệt chung; render từ xa không cần chờ khóa này.
+            if not acquire_media_lease(db, token, 'content-video-flow'):
+                continue
+        job_id = candidate.id
+        break
     if not job_id:
         return None
     claimed = db.execute(update(AIGenerationJob).where(
@@ -169,6 +211,7 @@ def _resume_waiting_auto_edit_jobs(db: Session, token: str) -> int:
     terminal_states = {"SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED", "BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_QUOTA"}
     resumed = 0
     parents = db.query(AIGenerationJob).filter(
+        _queue_lane(),
         AIGenerationJob.provider == "MEDIA_VIDEO",
         AIGenerationJob.state == "WAITING_FOR_FLOW",
     ).all()
