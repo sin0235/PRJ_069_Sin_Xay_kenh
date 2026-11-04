@@ -16,6 +16,7 @@ import threading
 import wave
 from pathlib import Path
 
+from . import hf_blocks
 from . import hf_scenes
 from .brand import display_json
 from .planner import BLOCK_LAYOUTS
@@ -157,6 +158,7 @@ def build_project(
         shutil.copy(music_path, out / "assets" / music_name)
         audio_tracks.append(f'<audio id="music" src="assets/{music_name}" data-start="0" data-duration="__DURATION__" data-volume="0.126"></audio>')
     hosts, start, native, legacy, videos, collages, main_js = "", 0.0, [], [], [], 0, ""
+    used_blocks: set[str] = set()
     flashes = 0
     staged_media: dict[str, str] = {}
 
@@ -219,6 +221,15 @@ def build_project(
             dump["kind"] = scene.layout
             if aspect_ratio == "9:16" and scene.layout in BLOCK_LAYOUTS:
                 dump["portrait"] = True
+            if getattr(scene, "block", None):
+                used_blocks.add(scene.block)
+            if shot.get("block"):
+                used_blocks.add(shot["block"])
+            if scene.layout in BLOCK_LAYOUTS or (hasattr(hf_blocks, "BLOCK_SCENES") and scene.layout in hf_blocks.BLOCK_SCENES):
+                try:
+                    used_blocks.add(hf_blocks.pick_variant(scene.layout, dump).block)
+                except Exception:
+                    pass
             builder = hf_scenes.NATIVE.get(scene.layout) if aspect_ratio == "16:9" or scene.layout in BLOCK_LAYOUTS else None
             host_extra, host_css = "", ""
             if builder:
@@ -236,6 +247,7 @@ def build_project(
                       f'data-track-index="{index + 1}" data-track-kind="graphics" data-width="{width}" data-height="{height}"{host_extra} style="z-index:{index + 1};{host_css}"></div>\n')
         if transitions and index % 2 == 1:   # cách quãng: mảnh giấy xé phủ cuối cảnh trước rồi lột ra để lộ cảnh mới
             tid, collages = f"tr{index:02d}", collages + 1
+            used_blocks.add("paper-collage-reveal")
             (out / "compositions" / f"{tid}.html").write_text(collage_block(tid), encoding="utf-8")
             tstart = max(0.0, shot_start - COLLAGE_LEAD)
             spread = "outward" if collages % 2 else "scatter"
@@ -302,8 +314,18 @@ def build_project(
     audio = "\n".join(audio_tracks).replace("__DURATION__", f"{total:.3f}")
     root_background = "transparent" if transparent_background else "#0a1c2b"
     background_markup = "" if transparent_background else '<div id="bg"></div>'
+    used_vendor_files: set[str] = {"gsap.min.js", "CustomEase.min.js"}
+    for b in sorted(used_blocks):
+        try:
+            used_vendor_files.update(hf_blocks.vendor_files_for(b))
+        except Exception:
+            pass
+    extra_vendor_files = [f for f in sorted(used_vendor_files) if f not in {"gsap.min.js", "CustomEase.min.js"}]
+    for extra_file in extra_vendor_files:
+        shutil.copy(engines_dir() / "vendor" / extra_file, vendor / extra_file)
+    extra_scripts = "".join(f'<script src="assets/vendor/{f}"></script>\n' for f in extra_vendor_files)
     (out / "index.html").write_text(
-        f'<!doctype html>\n<html lang="vi">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width={width}, height={height}">\n<script src="assets/vendor/gsap.min.js"></script>\n<script src="assets/vendor/CustomEase.min.js"></script>\n'
+        f'<!doctype html>\n<html lang="vi">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width={width}, height={height}">\n<script src="assets/vendor/gsap.min.js"></script>\n<script src="assets/vendor/CustomEase.min.js"></script>\n{extra_scripts}'
         f'<style>@font-face{{font-family:"Viet";src:url(assets/fonts/be_vietnam_pro_semibold.ttf);font-weight:100 900}}html,body{{margin:0;width:{width}px;height:{height}px;overflow:hidden;background:{root_background}}}#bg{{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,#12324a 0%,#0a1c2b 62%,#06131d 100%)}}</style>\n</head>\n<body>\n'
         f'<div id="root" data-composition-id="main" data-start="0" data-duration="{total:.3f}" data-width="{width}" data-height="{height}" data-motion-blur="on">\n{background_markup}\n{hosts}{audio}</div>\n'
         '<script>\nwindow.__timelines = window.__timelines || {};\nconst tl = gsap.timeline({ paused: true });\n' + main_js + 'window.__timelines["main"] = tl;\n</script>\n</body>\n</html>\n', encoding="utf-8")

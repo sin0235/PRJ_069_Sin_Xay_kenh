@@ -19,14 +19,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
+from . import hf_vendor
+
 BLOCKS_DIR = Path(__file__).resolve().parents[3] / "engines" / "hyperframes" / "blocks"
 CATALOG_FILE = BLOCKS_DIR / "catalog.json"
 
 # Biến CSS mà các khối đọc (--fg, --bg, --brand, --accent...). Bảng màu khớp "Origami Editorial Motion B2B v1": navy, ngà, ngọc lam, vàng, đỏ san hô.
 THEME_STYLE = ("--bg:#0a1c2b;--fg:#f6efe0;--surface:#12324a;--border:rgba(255,255,255,.16);--brand:#ffd54a;--accent:#5cc8c0;"
                "--accent-2:#e8695a;--muted:#9fb4c4;--font-display:'Viet',sans-serif;--font-body:'Viet',sans-serif;--font-mono:'Viet',monospace")
-_CDN_GSAP = re.compile(r'<script[^>]+src="https://cdn\.jsdelivr\.net/npm/gsap@[^"]+/(?:gsap|CustomEase)\.min\.js"[^>]*></script>\s*')   # CustomEase nạp cục bộ ở index
-_CDN_FONT = re.compile(r'<link[^>]+fonts\.(?:googleapis|gstatic)\.com[^>]*>\s*')
 
 # Chữ mẫu tiếng Anh có sẵn trong mã khối -> tiếng Việt (khối không có biến cho các chữ này).
 _VIETNAMESE_TEXT: dict[str, dict[str, str]] = {
@@ -56,8 +56,10 @@ def prepare_block(name: str, cid: str, duration: float | None = None, literals: 
     """Mã khối cho MỘT lần dùng: bỏ CDN, đổi định danh `name` thành `cid`. Khối đọc độ dài D từ `data-duration` của chính nó
     (không lấy từ thẻ host) nên phải ghi D thật vào đó, nếu không khối thoát cảnh theo độ dài mặc định."""
     text = block_path(name).read_text(encoding="utf-8")
-    text = _CDN_GSAP.sub("", text)
-    text = _CDN_FONT.sub("", text)
+    text, _ = hf_vendor.localize(text)
+    remaining_urls = hf_vendor.scan_external(text)
+    if remaining_urls:
+        raise ValueError(f"HYPERFRAMES_BLOCK_EXTERNAL_URL:{name}:{remaining_urls[0]}")
     if duration is not None:
         text = re.sub(r'(data-(?:composition-)?duration=")[\d.]+(")', lambda m: f"{m.group(1)}{duration:.3f}{m.group(2)}", text)
         # Khi chạy, runtime không để lại data-duration trên #root nên khối rơi về giá trị mặc định trong mã: `dataset.duration || "3.5"`.
@@ -69,6 +71,13 @@ def prepare_block(name: str, cid: str, duration: float | None = None, literals: 
             raise ValueError(f"HYPERFRAMES_BLOCK_LITERAL_MISSING:{name}:{old[:30]}")
         text = text.replace(old, new)   # new do hàm dựng literals tự escape phần nội dung
     return re.sub(rf"(?<![A-Za-z0-9]){re.escape(name)}(?![A-Za-z0-9_])", cid, text)
+
+
+def vendor_files_for(name: str) -> tuple[str, ...]:
+    """Các tệp vendor cục bộ mà khối cần (từ báo cáo localize trên tệp gốc)."""
+    text = block_path(name).read_text(encoding="utf-8")
+    _, report = hf_vendor.localize(text)
+    return report.files
 
 
 def host_attrs(variables: dict | None = None) -> str:
