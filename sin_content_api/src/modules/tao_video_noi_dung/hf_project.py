@@ -13,12 +13,16 @@ import re
 import shutil
 import subprocess
 import threading
+import warnings
 import wave
 from pathlib import Path
 
 from . import hf_blocks
+from . import hf_camera
 from . import hf_captions
+from . import hf_layers
 from . import hf_scenes
+from . import hf_transitions
 from .brand import display_json
 from .planner import BLOCK_LAYOUTS
 from .render_engines import ENGINE_TIMEOUT_SECONDS, EngineUnavailable, _chrome, _node, engines_dir
@@ -44,7 +48,7 @@ def collage_block(cid: str) -> str:
     return text.replace("pcr-", f"{cid}-").replace("paper-collage-reveal", cid)
 
 
-BOUNDARY_TRANSITIONS = ("iris", "whip", "flash")   # luân phiên ở các ranh giới không dùng mảnh giấy xé
+BOUNDARY_TRANSITIONS: tuple[str, ...] = (*hf_transitions.TRANSITION_KINDS, "flash")   # luân phiên ở các ranh giới không dùng mảnh giấy xé
 
 
 def boundary_transition(kind: str, target: str, shot_start: float) -> str:
@@ -103,11 +107,17 @@ def build_project(
     out: Path, shots: list[dict], voice_wav: Path | None, words: list[dict] | None,
     transitions: bool | None = None, music_path: Path | None = None, sfx_cues: list[dict] | None = None,
     aspect_ratio: str = "16:9", media_layers: list[dict] | None = None, link_media: bool = False,
-    transparent_background: bool = False, caption_style: str = "karaoke",
+    transparent_background: bool = False, caption_style: str | None = None,
+    ambient_seed: str | None = None,
 ) -> dict:
     """shots có thể là cảnh UiScene hoặc video MP4 đã xác minh; Trả về thông tin project."""
     if aspect_ratio not in {"9:16", "16:9"}:
         raise ValueError("HYPERFRAMES_ASPECT_RATIO_INVALID")
+    if caption_style is None:
+        caption_style = os.getenv("CONTENT_VIDEO_HF_CAPTION_STYLE") or "karaoke"
+    if caption_style not in hf_captions.CAPTION_STYLES:
+        warnings.warn(f"Cảnh báo: caption_style '{caption_style}' không hợp lệ, lùi về 'karaoke'")
+        caption_style = "karaoke"
     width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
     out = Path(out)
     if transitions is None:   # mặc định bật; CONTENT_VIDEO_HF_TRANSITIONS=0 để tắt chuyển cảnh mảnh giấy
@@ -139,6 +149,10 @@ def build_project(
     used_blocks: set[str] = set()
     flashes = 0
     staged_media: dict[str, str] = {}
+    camera_enabled = os.getenv("CONTENT_VIDEO_HF_CAMERA", "1") != "0"
+    camera_scenes = 0
+    last_non_collage_kind: str | None = None
+    transition_kinds: list[str] = []
 
     def stage_media(source: Path, preferred_name: str) -> str:
         source = Path(source).resolve()
@@ -223,6 +237,19 @@ def build_project(
             host_start = max(0.0, shot_start - lead)
             hosts += (f'<div id="{cid}" data-composition-id="{cid}" data-composition-src="compositions/{cid}.html" data-start="{host_start:.3f}" data-duration="{seconds + lead:.3f}" '
                       f'data-track-index="{index + 1}" data-track-kind="graphics" data-width="{width}" data-height="{height}"{host_extra} style="z-index:{index + 1};{host_css}"></div>\n')
+            layout = getattr(scene, "layout", None) or (scene.get("layout") if isinstance(scene, dict) else None)
+            layout_str = str(layout or "")
+            is_exempt = layout_str == "END_CARD" or layout_str.startswith("OPEN_")
+            if camera_enabled and not is_exempt:
+                main_js += hf_camera.camera_motion_js("push_in", f"#{cid}", host_start, seconds + lead)
+                camera_scenes += 1
+        lt_spec = hf_layers.lower_third_for_shot(shot)
+        if lt_spec:
+            lt_cid = f"lt_{cid}"
+            used_blocks.add(lt_spec.block)
+            lt_comp, lt_host = hf_layers.overlay_host(lt_spec, lt_cid, aspect_ratio)
+            (out / "compositions" / f"{lt_cid}.html").write_text(lt_comp, encoding="utf-8")
+            hosts += lt_host + "\n"
         if transitions and index % 2 == 1:   # cách quãng: mảnh giấy xé phủ cuối cảnh trước rồi lột ra để lộ cảnh mới
             tid, collages = f"tr{index:02d}", collages + 1
             used_blocks.add("paper-collage-reveal")
@@ -234,10 +261,24 @@ def build_project(
                       f'style="z-index:{40 + index};--surface:#fbf3df;--accent-2:#c8a468;opacity:0"></div>\n')
             main_js += f'tl.fromTo("#{tid}", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.12, ease: "none" }}, {tstart:.3f});\n'
         elif transitions and index:   # các ranh giới còn lại: đổi kiểu theo vòng để không lặp một hiệu ứng
-            kind = BOUNDARY_TRANSITIONS[(index // 2 - 1) % len(BOUNDARY_TRANSITIONS)]
+            non_collage_idx = (index // 2 - 1)
+            kind = BOUNDARY_TRANSITIONS[non_collage_idx % len(BOUNDARY_TRANSITIONS)]
+            if last_non_collage_kind and kind == last_non_collage_kind:
+                non_collage_idx += 1
+                kind = BOUNDARY_TRANSITIONS[non_collage_idx % len(BOUNDARY_TRANSITIONS)]
+            last_non_collage_kind = kind
+            transition_kinds.append(kind)
             target = f"#{cid}-video" if media_path else f"#{cid}"
-            main_js += boundary_transition(kind, target, shot_start)
-            flashes += kind == "flash"
+            prev_shot = shots[index - 1]
+            prev_cid = f"s{index:02d}"
+            prev_target = f"{prev_cid}-video" if prev_shot.get("media_path") else prev_cid
+            curr_target = f"{cid}-video" if media_path else cid
+            if kind == "flash":
+                main_js += boundary_transition("flash", target, shot_start)
+                flashes += 1
+            else:
+                t_start = max(0.0, shot_start - OVERLAP)
+                main_js += hf_transitions.transition_js(kind, prev_target, curr_target, t_start, OVERLAP)
         start = max(start, shot_start + seconds)
 
     for index, layer in enumerate(media_layers or []):
@@ -265,6 +306,18 @@ def build_project(
                   f'width:{layer_width}px;height:{layer_height}px;object-fit:{fit};z-index:{100 + index}"></video>\n')
         videos.append(media_name)
     total = start
+    ambient_enabled = os.getenv("CONTENT_VIDEO_HF_AMBIENT", "1") != "0"
+    ambient_layers_count = 0
+    if ambient_enabled:
+        effective_seed = ambient_seed if ambient_seed is not None else f"{aspect_ratio}:{round(total)}"
+        amb_specs = hf_layers.ambient_for_video(effective_seed, total, aspect_ratio)
+        ambient_layers_count = len(amb_specs)
+        for amb_idx, amb_spec in enumerate(amb_specs):
+            amb_cid = f"amb_{amb_idx + 1:02d}"
+            used_blocks.add(amb_spec.block)
+            amb_comp, amb_host = hf_layers.overlay_host(amb_spec, amb_cid, aspect_ratio)
+            (out / "compositions" / f"{amb_cid}.html").write_text(amb_comp, encoding="utf-8")
+            hosts += amb_host + "\n"
     for index, cue in enumerate(sfx_cues or []):
         source = Path(cue["path"])
         start_s, volume = float(cue["start_seconds"]), float(cue["volume"])
@@ -310,7 +363,16 @@ def build_project(
         '<script>\nwindow.__timelines = window.__timelines || {};\nconst tl = gsap.timeline({ paused: true });\n' + main_js + 'window.__timelines["main"] = tl;\n</script>\n</body>\n</html>\n', encoding="utf-8")
     (out / "hyperframes.json").write_text(json.dumps({"paths": {"blocks": "compositions", "components": "compositions/components", "assets": "assets"}}), encoding="utf-8")
     (out / "package.json").write_text(json.dumps({"name": "video-baha", "private": True, "type": "module"}), encoding="utf-8")
-    return {"total_seconds": total, "collage_transitions": collages, "native_scenes": native, "legacy_scenes": legacy, "video_scenes": videos}
+    return {
+        "total_seconds": total,
+        "collage_transitions": collages,
+        "native_scenes": native,
+        "legacy_scenes": legacy,
+        "video_scenes": videos,
+        "ambient_layers": ambient_layers_count,
+        "camera_scenes": camera_scenes,
+        "transition_kinds": transition_kinds,
+    }
 
 
 def build_timeline_project(out: Path, timeline, asset_path_resolver, transition_seconds: float = 0.0) -> dict:
@@ -385,17 +447,20 @@ def _env() -> dict:
 
 def check_project(project: Path) -> dict:
     """Cổng chất lượng: hyperframes check --json. Trả về {'errors': n, 'warnings': n, 'text': ...}; không ném lỗi."""
-    result = subprocess.run([_node(), str(hyperframes_cli()), "check", "--json"], cwd=project, env=_env(), capture_output=True, text=True, timeout=ENGINE_TIMEOUT_SECONDS)
+    result = subprocess.run([_node(), str(hyperframes_cli()), "check", "--json"], cwd=project, env=_env(), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=ENGINE_TIMEOUT_SECONDS)
+    stdout_text = result.stdout or ""
+    stderr_text = result.stderr or ""
     try:
-        data = json.loads(result.stdout[result.stdout.index("{"):])
+        data = json.loads(stdout_text[stdout_text.index("{"):]) if "{" in stdout_text else {}
     except (ValueError, json.JSONDecodeError):
         data = {}
-    return {"returncode": result.returncode, "data": data, "text": (result.stdout + result.stderr)[-4000:]}
+    return {"returncode": result.returncode, "data": data, "text": (stdout_text + stderr_text)[-4000:]}
 
 
 def render_project(project: Path, output: Path, workers: str = "1", quality: str = "looks") -> None:
     command = [_node(), str(hyperframes_cli()), "render", "-q", quality, "-w", workers, "-o", str(output)]
     with _RENDER_LOCK:
-        result = subprocess.run(command, cwd=project, env=_env(), capture_output=True, text=True, timeout=ENGINE_TIMEOUT_SECONDS * 4)
+        result = subprocess.run(command, cwd=project, env=_env(), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=ENGINE_TIMEOUT_SECONDS * 4)
     if result.returncode != 0:
-        raise RuntimeError("RENDER_ENGINE_FAILED: " + (result.stderr or result.stdout)[-800:])
+        stdout_err = (result.stderr or result.stdout or "")[-800:]
+        raise RuntimeError("RENDER_ENGINE_FAILED: " + stdout_err)
