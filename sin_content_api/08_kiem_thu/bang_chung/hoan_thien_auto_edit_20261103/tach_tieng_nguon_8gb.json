@@ -1,0 +1,13 @@
+{
+  "source_asset_id": "c15a3ad0-811a-4f96-861b-630549dab417",
+  "source_bytes": 8428283732,
+  "extract_task_id": "b91862fe-e55f-4d29-a5c6-7efbabccd2ec",
+  "extract_state": "SUCCEEDED",
+  "audio_sha256": "df4d41d9ba94450208d8d007d7cdd89803c4933abcb2c3a679f181d5ee4381e1",
+  "audio_bytes": 29658552,
+  "audio_seconds": 926.8266875,
+  "runner_run": 41661344686,
+  "runner_final_state": "failure_after_extract_success",
+  "transcribe_task_id": "5ccfd858-eb3e-427b-8f15-8097a1c71b80",
+  "full_video_render_verified": false
+}
