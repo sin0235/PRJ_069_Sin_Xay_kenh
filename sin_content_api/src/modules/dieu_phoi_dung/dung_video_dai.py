@@ -1220,6 +1220,33 @@ def tao_y_tuong_dien_hoa_flow(
     return results
 
 
+def bo_sung_khoang_dien_hoa(clips, words, briefs, candidates, client, flow_available):
+    results = list(briefs)
+    by_id = {word["id"]: word for word in words}
+    for clip in clips:
+        if clip.end_ms - clip.start_ms < 30_000:
+            continue
+        visuals = [YTuongDienHoaFlow.model_validate({key: value for key, value in brief.items()
+                   if key in YTuongDienHoaFlow.model_fields}) for brief in results]
+        for start, end in _storyboard_visual_gaps(clip, words, visuals):
+            if end - start <= 16_000 or len(results) >= 20:
+                continue
+            segment = clip.model_copy(update={"start_ms": clip.start_ms + start,
+                                              "end_ms": clip.start_ms + end})
+            for brief in tao_y_tuong_dien_hoa_flow([segment], words, candidates, client, flow_available):
+                first, last = by_id.get(brief["start_word_id"]), by_id.get(brief["end_word_id"])
+                if (brief["clip_id"] == clip.clip_id and first and last
+                        and segment.start_ms <= first["start_ms"] < last["end_ms"] <= segment.end_ms
+                        and not any(kept["clip_id"] == clip.clip_id
+                                    and by_id[kept["start_word_id"]]["start_ms"] < last["end_ms"]
+                                    and by_id[kept["end_word_id"]]["end_ms"] > first["start_ms"]
+                                    for kept in results)):
+                    results.append(brief)
+                if len(results) >= 20:
+                    break
+    return sorted(results, key=lambda brief: (brief["clip_id"], by_id[brief["start_word_id"]]["start_ms"]))
+
+
 def _cut_intervals(
     clip: ClipTuDong, words: list[dict], pause_intervals: list[tuple[int, int]] | None = None,
 ) -> list[tuple[int, int]]:
@@ -1883,6 +1910,9 @@ def dung_video_dai(
         if phase != "render" and job_id:
             visual_briefs = tao_y_tuong_dien_hoa_flow(
                 plan.clips, words, existing_visual_candidates, client, flow_profile_id is not None,
+            )
+            visual_briefs = bo_sung_khoang_dien_hoa(
+                plan.clips, words, visual_briefs, existing_visual_candidates, client, flow_profile_id is not None,
             )
             for clip in plan.clips:
                 danh_dau_storyboard_nhip_hinh_yeu(
