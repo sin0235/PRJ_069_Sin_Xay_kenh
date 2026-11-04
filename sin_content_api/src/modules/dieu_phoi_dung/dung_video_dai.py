@@ -25,7 +25,7 @@ from src.modules.media_studio.video_processor import video_processor
 from src.modules.dieu_phoi_dung.phat_hien_khoang_nghi import hop_nhat_khoang_nghi, phan_tich_am_thanh_nguon
 from src.modules.tao_video_noi_dung.planner import (
     BLOCK_LAYOUTS, DIAGRAM_LAYOUTS, PORTRAIT_DIAGRAM_LAYOUTS, UiScene, _locate_phrase, _tokens, diagram_feedback, diagram_required_events,
-    resolve_diagram_times,
+    resolve_diagram_times, _flow_style_label, _flow_text,
 )
 from src.modules.tao_video_noi_dung.vietsub import align_script_words, karaoke_cues, to_srt, transcribe_words_cached
 from src.modules.tao_video_noi_dung.hf_prompt import LAYOUT_PROMPTS
@@ -1223,7 +1223,7 @@ def tao_y_tuong_dien_hoa_flow(
             item["target_end_word_id"] = target_words[-1]["id"]
         if visual.renderer == "FLOW":
             item["prompt"] = (
-                f"{_PILOT_STYLE_SNAPSHOT.style_name}. {rules} "
+                f"{_flow_style_label(style_snapshot)}. {rules} "
                 f"Bảng màu: {', '.join(_PILOT_STYLE_SNAPSHOT.palette)}. "
                 f"Cảnh: {visual.scene}. Diễn tiến: {visual.action}. "
                 "Video dọc 9:16; phát triển hoạt cảnh xuyên suốt trọn 10 giây của asset Flow, không dừng sớm hoặc để cuối clip đứng hình. "
@@ -1232,6 +1232,7 @@ def tao_y_tuong_dien_hoa_flow(
                 "Không chèn chữ, phụ đề, logo, watermark, người thật, bàn tay hoặc thao tác gấp giấy."
                 "D\u00e0nh v\u00f9ng d\u01b0\u1edbi c\u00f9ng cao 320 px c\u1ee7a khung 1080x1920 cho ph\u1ee5 \u0111\u1ec1 karaoke; kh\u00f4ng \u0111\u1eb7t th\u1ebb gi\u1ea5y, ch\u1eef, s\u1ed1 ho\u1eb7c ch\u1ee7 th\u1ec3 quan tr\u1ecdng \u1edf v\u00f9ng n\u00e0y."
             )
+            item["prompt"] = _flow_text(item["prompt"])
         else:
             scene = UiScene.model_validate(visual.ui_scene)
             if scene.layout not in DIAGRAM_LAYOUTS:
@@ -1300,6 +1301,9 @@ def _kept_ranges(start_ms: int, end_ms: int, cuts: list[tuple[int, int]]) -> lis
     ranges = []
     cursor = start_ms
     for cut_start, cut_end in cuts:
+        if cut_end <= start_ms or cut_start >= end_ms:
+            continue
+        cut_start, cut_end = max(start_ms, cut_start), min(end_ms, cut_end)
         if cut_start > cursor:
             ranges.append((cursor, cut_start))
         cursor = max(cursor, cut_end)

@@ -1,0 +1,35 @@
+{
+  "clip_id": "kb_07",
+  "cuts": [
+    {
+      "start_ms": 644930,
+      "end_ms": 652410,
+      "reason": "Lời nhắc đọc lại; giữ bản trước đó đủ ý, gồm giá vốn, chi phí, số còn lại và câu khách hỏi.",
+      "source_text": "Nhắc lại là sau giao vốn vào các khoản chi phí trực tiếp còn có 1 số các phản chi phí cố định Khách hỏi có bớt được không?",
+      "kept_text": "Sau giao vốn vào các khoản chi phí trực tiếp còn có 20 .000 trước chi phí cố định Khách từng hỏi là có bớt không? Câu rất quen thùa đúng không?",
+      "decision": {
+        "start_word_id": "w001910",
+        "end_word_id": "w001938",
+        "kept_start_word_id": "w001878",
+        "kept_end_word_id": "w001909",
+        "reason": "Lời nhắc đọc lại; giữ bản trước đó đủ ý, gồm giá vốn, chi phí, số còn lại và câu khách hỏi."
+      }
+    },
+    {
+      "start_ms": 672770,
+      "end_ms": 688210,
+      "reason": "Bỏ bản đọc vấp và phần nhắc lại; giữ phiên bản sau trọn ý, mượt hơn.",
+      "source_text": "Cùng 1 số 10 .000, người muôi nhìn thấy 1 yêu đại. Còn người bán thôi khi lại vừa nhường đi 1 phần rất lớn về cái tình lời. Đó giảm 1 nửa nó vậy đó, nó nhắc lại giảm 1 nửa cái chỗ này mới đáng đĩ này.",
+      "kept_text": "Cùng 1 con số 10 .000, người mua nhìn thấy 1 đu đại còn người bán đôi khi lại vừa nhường đi 1 phần rất lớn tiền lời.",
+      "decision": {
+        "start_word_id": "w001995",
+        "end_word_id": "w002043",
+        "kept_start_word_id": "w002044",
+        "kept_end_word_id": "w002071",
+        "reason": "Bỏ bản đọc vấp và phần nhắc lại; giữ phiên bản sau trọn ý, mượt hơn."
+      }
+    }
+  ],
+  "notes": [],
+  "model": "cx/gpt-6-luna"
+}

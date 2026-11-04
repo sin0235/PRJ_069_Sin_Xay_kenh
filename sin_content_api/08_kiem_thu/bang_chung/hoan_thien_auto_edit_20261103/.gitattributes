@@ -1,0 +1,2 @@
+# Giữ nguyên byte xuống dòng để khôi phục gói duyệt vẫn khớp SHA-256.
+goi_duyet_*.json text eol=lf

@@ -1,5 +1,7 @@
 # Chuẩn bị xử lý toàn bộ video gốc 8 GB
 
+Trạng thái mới nhất: đã căn tám nội dung, nhận dạng riêng từng nội dung, lập 74 cảnh dự kiến và đóng băng gói `AWAITING_APPROVAL`. Bảng duyệt: [ban_duyet_lo_8_video_20261104.md](ban_duyet_lo_8_video_20261104.md). Chưa gửi tạo cảnh hoặc render; chỉ chạy cả lô sau khi người dùng nói duyệt. Bộ chạy mặc định chỉ kiểm tra, cần `--duyet` để bắt đầu.
+
 Cập nhật sau khi đối chiếu tiếng toàn nguồn bằng 9Router: **8 nội dung hoàn chỉnh và 1 phần nội dung tiếp theo bị ngắt ở cuối**. Bản 10 nhóm ở lượt rà đầu bên dưới là lịch sử dự thảo, đã được thay thế trong lô dự án mới. Cần căn lại mốc hook/câu kết trước render, không lấy nguyên word ID dự thảo.
 
 ## Đầu vào và phạm vi

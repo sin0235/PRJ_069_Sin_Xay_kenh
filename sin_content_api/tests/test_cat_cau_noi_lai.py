@@ -1,6 +1,10 @@
 import pytest
 from pydantic import ValidationError
-from src.modules.dieu_phoi_dung.dung_video_dai import ClipTuDong, _cut_intervals, _caption_track
+from src.modules.dieu_phoi_dung.dung_video_dai import ClipTuDong, _cut_intervals, _caption_track, _kept_ranges
+
+
+def test_khoang_giu_lai_khong_bi_cac_khoang_cat_ngoai_doan_keo_dai():
+    assert _kept_ranges(10000,15000,[(2000,5000),(18000,20000)])==[(10000,15000)]
 
 
 def test_doan_noi_lai_bi_bo_khong_tao_khoang_thieu_dien_hoa():

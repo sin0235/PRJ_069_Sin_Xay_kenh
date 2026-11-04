@@ -6,6 +6,21 @@ from types import SimpleNamespace
 from src.modules.dieu_phoi_dung.dung_video_dai import ClipTuDong, tao_y_tuong_dien_hoa_flow
 
 
+def test_prompt_flow_auto_edit_loc_ma_mau_truoc_khi_tao_canh():
+    clip=ClipTuDong(clip_id='kb',start_ms=0,end_ms=6000,title='Cửa hàng',reason='Đủ ý')
+    words=[{'id':'w0','text':'Cửa hàng mở cửa','start_ms':0,'end_ms':4000}]
+    class Client:
+        max_input_bytes,max_output_tokens=200000,4000
+        def complete(self,messages,**kwargs):
+            return SimpleNamespace(content=json.dumps({'visuals':[{'clip_id':'kb','renderer':'FLOW',
+                'start_word_id':'w0','end_word_id':'w0','scene':'Cửa hàng giấy #ED1B24 mở ra',
+                'action':'Các lớp giấy màu #12355B trượt ra'}]}))
+    result=tao_y_tuong_dien_hoa_flow([clip],words,[],Client())
+    assert len(result)==1
+    assert '#' not in result[0]['prompt'] and 'ED1B24' not in result[0]['prompt']
+    assert result[0]['style_snapshot']['style_name'] not in result[0]['prompt']
+
+
 def test_giu_canh_da_kiem_moc_khi_lan_sua_cuoi_tra_qua_nhieu_canh():
     clip=ClipTuDong(clip_id='kb',start_ms=0,end_ms=60000,title='Nội dung',reason='Đủ ý')
     words=[{'id':'w0','text':'Mở một cửa hàng','start_ms':0,'end_ms':4000}]
