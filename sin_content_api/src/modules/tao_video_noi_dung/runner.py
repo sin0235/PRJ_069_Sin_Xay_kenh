@@ -36,7 +36,7 @@ from src.modules.media_studio.audio_processor import audio_processor
 from src.modules.media_studio.video_processor import (
     VIETSUB_FONT_PATH, VOICE_SPEED_MAX, VOICE_SPEED_MIN, fit_voice_speed, video_processor,
 )
-from src.schemas.contracts import TimelineAudioTrack, TimelineCaption, TimelineClip, TimelineDocument, TimelineMediaType
+from src.schemas.contracts import KaraokeCaptionSettings, TimelineAudioTrack, TimelineCaption, TimelineClip, TimelineDocument, TimelineMediaType
 from session_manager import FlowLoginRequired, FlowSubmissionNotSent, FlowQuotaExceeded
 from .cong_harness import approval_receipt_hash, dispatch_shot, verify_shot_receipt
 from .contracts import ReconcileShotRequest
@@ -1094,6 +1094,8 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
             gain_db=-18.0,
         ) if getattr(run, "music_asset_id", None) else None,
         captions=caption_cues,
+        # Cỡ phụ đề ASS do karaoke_settings quyết định (42/56/70), không phải font_size của từng dòng: video ngang dùng cỡ lớn nhất.
+        karaoke_settings=KaraokeCaptionSettings(font_size=70) if width > height else KaraokeCaptionSettings(),
     )
     latest = db.query(TimelineVersion).filter(TimelineVersion.project_id == run.project_id).order_by(TimelineVersion.version.desc()).first()
     version = (latest.version if latest else 0) + 1
@@ -1174,6 +1176,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
                             trim_out_ms=target_seconds * 1000,
                         )],
                         voice_track=timeline.voice_track, music_track=timeline.music_track, captions=caption_cues,
+                        karaoke_settings=timeline.karaoke_settings,
                     )
 
                     def resolve_hf_asset(asset_id: str) -> Path:
