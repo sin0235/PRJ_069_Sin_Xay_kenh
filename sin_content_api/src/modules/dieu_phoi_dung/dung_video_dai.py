@@ -1147,12 +1147,15 @@ def tao_y_tuong_dien_hoa_flow(
             elif "DIAGRAM_VERSUS_LIST_CONTENT" in str(exc):
                 feedback = "DIAGRAM_VERSUS_LIST_CONTENT: Mỗi phần tử layers phải là cụm thoại có nghĩa, ít nhất hai từ, nằm trong cụm neo left; mỗi phần tử values phải nằm trong cụm neo right hoặc verdict. Không lặp ý giữa hai phía và không dùng tên vai trò đơn thuần như Shop hay Khách."
             elif isinstance(exc, ValidationError):
+                issues = exc.errors(include_input=False)
+                invalid_indexes = {issue["loc"][1] for issue in issues
+                                   if len(issue["loc"]) > 1 and issue["loc"][0] == "visuals"
+                                   and isinstance(issue["loc"][1], int)}
                 invalid_layout = next((
-                    item.get("ui_scene", {}).get("layout") for item in raw_visuals or []
-                    if isinstance(item, dict) and isinstance(item.get("ui_scene"), dict)
+                    item.get("ui_scene", {}).get("layout") for index, item in enumerate(raw_visuals or [])
+                    if index in invalid_indexes and isinstance(item, dict) and isinstance(item.get("ui_scene"), dict)
                 ), None)
                 hints = diagram_feedback(str(exc), invalid_layout)
-                issues = exc.errors(include_input=False)
                 feedback = "; ".join(hints[:4]) or "; ".join(
                     f"{'.'.join(map(str, item['loc']))}: {item['msg']}" for item in issues[:4]
                 )
