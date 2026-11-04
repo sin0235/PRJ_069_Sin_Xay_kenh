@@ -519,7 +519,11 @@ class GoogleFlowClient:
         except PlaywrightTimeoutError:
             pass
         if agent_settings.count() and agent_settings.is_visible():
-            agent_settings.click(timeout=5000)
+            try:
+                agent_settings.click(timeout=5000)
+            except PlaywrightTimeoutError:
+                if not page.locator("button.settings-save-button").is_visible():
+                    raise
             video_section = page.locator("div.settings-section").filter(
                 has=page.locator("button.video-model-picker-button")
             ).first

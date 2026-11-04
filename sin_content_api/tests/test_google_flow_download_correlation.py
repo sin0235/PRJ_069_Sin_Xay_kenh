@@ -225,7 +225,8 @@ def test_localized_flow_agent_editor_is_accepted_without_legacy_video_mode_menu(
     flow_client.GoogleFlowClient._ensure_video_mode(Page())
 
 
-def test_flow_agent_settings_selects_portrait_video_ratio():
+@pytest.mark.parametrize('already_open',[False,True])
+def test_flow_agent_settings_selects_portrait_video_ratio(already_open):
     clicks = []
 
     class Locator:
@@ -250,6 +251,8 @@ def test_flow_agent_settings_selects_portrait_video_ratio():
             return None
 
         def click(self, **_kwargs):
+            if self.name == "agent-settings" and already_open:
+                raise flow_client.PlaywrightTimeoutError("Settings backdrop intercepts pointer events")
             clicks.append(self.name)
 
         def filter(self, *, has=None, has_text=None):
@@ -286,7 +289,7 @@ def test_flow_agent_settings_selects_portrait_video_ratio():
 
     flow_client.GoogleFlowClient._ensure_video_mode(Page(), "9:16")
 
-    assert clicks == ["agent-settings", "video-9:16", "save"]
+    assert clicks == (["video-9:16", "save"] if already_open else ["agent-settings", "video-9:16", "save"])
 
 
 def test_flow_video_mode_selects_requested_portrait_ratio():
