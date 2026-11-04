@@ -27,10 +27,20 @@ async def claim(request: Request, session_id: str):
         store = get_store()
         with store.connect() as db:
             session = db.execute('SELECT * FROM runner_session WHERE id=1').fetchone()
+            pooled = db.execute('SELECT * FROM runner_pools WHERE session_id=?', (session_id,)).fetchone()
+            if pooled:
+                session, pipeline = pooled, pooled['pipeline']
+                if pipeline != 'AUTO_EDIT':
+                    raise RemoteTaskError('REMOTE_SESSION_REJECTED')
+            else:
+                pipeline = 'AI_VIDEO'
             if not session or session['session_id'] != session_id or (session['run_id'] and session['run_id'] != str(claims['run_id'])):
                 raise RemoteTaskError('REMOTE_SESSION_REJECTED')
-            db.execute('UPDATE runner_session SET updated=?,run_id=?,ready=1 WHERE id=1', (time.time(), str(claims['run_id'])))
-        claimed = store.claim(str(claims['run_id']))
+            if pooled:
+                db.execute('UPDATE runner_pools SET updated=?,run_id=?,ready=1 WHERE session_id=?', (time.time(), str(claims['run_id']), session_id))
+            else:
+                db.execute('UPDATE runner_session SET updated=?,run_id=?,ready=1 WHERE id=1', (time.time(), str(claims['run_id'])))
+        claimed = store.claim(str(claims['run_id']), pipeline=pipeline)
         if claimed is None:
             return JSONResponse({'task': None})
         spec, token = claimed

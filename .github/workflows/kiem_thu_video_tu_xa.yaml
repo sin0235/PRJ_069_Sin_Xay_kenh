@@ -8,11 +8,17 @@ on:
       session_id:
         description: Mã phiên worker do BE tạo
         required: true
+      pipeline:
+        description: Luồng công việc riêng của runner
+        type: choice
+        options: [AI_VIDEO, AUTO_EDIT]
+        default: AI_VIDEO
+        required: false
 permissions:
   contents: read
   id-token: write
 concurrency:
-  group: prj069-kiem-thu-video
+  group: prj069-kiem-thu-video-${{ inputs.pipeline || 'AI_VIDEO' }}
   cancel-in-progress: false
 jobs:
   kiem_thu:

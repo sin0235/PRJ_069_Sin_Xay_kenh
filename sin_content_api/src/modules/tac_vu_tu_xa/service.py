@@ -38,6 +38,9 @@ class TaskStore:
                 state TEXT NOT NULL, token_hash TEXT, lease_until REAL, runner TEXT,
                 created REAL NOT NULL, result TEXT, output_manifest TEXT, error TEXT)''')
             db.execute('CREATE TABLE IF NOT EXISTS runner_session (id INTEGER PRIMARY KEY CHECK(id=1), updated REAL NOT NULL, session_id TEXT NOT NULL, run_id TEXT)')
+            db.execute('''CREATE TABLE IF NOT EXISTS runner_pools (
+                pipeline TEXT PRIMARY KEY, updated REAL NOT NULL, session_id TEXT NOT NULL UNIQUE,
+                run_id TEXT, ready INTEGER NOT NULL DEFAULT 0)''')
             columns = {row['name'] for row in db.execute('PRAGMA table_info(runner_session)')}
             if 'ready' not in columns:
                 db.execute('ALTER TABLE runner_session ADD COLUMN ready INTEGER NOT NULL DEFAULT 0')
@@ -84,14 +87,16 @@ class TaskStore:
                 raise RemoteTaskError('REMOTE_TASK_NOT_FOUND')
             return dict(row)
 
-    def claim(self, runner: str):
+    def claim(self, runner: str, pipeline: str | None = None):
+        if pipeline not in {None, 'AI_VIDEO', 'AUTO_EDIT'}:
+            raise RemoteTaskError('REMOTE_PIPELINE_INVALID')
         token = secrets.token_urlsafe(32)
         now = time.time()
         with self.connect() as db:
             db.execute("UPDATE tasks SET state='LOST',token_hash=NULL,error='REMOTE_LEASE_LOST' WHERE state IN ('RUNNING','UPLOADING') AND lease_until<=?", (now,))
-            if db.execute("SELECT 1 FROM tasks WHERE state IN ('RUNNING','UPLOADING')").fetchone():
+            if db.execute("SELECT 1 FROM tasks WHERE state IN ('RUNNING','UPLOADING') AND (? IS NULL OR pipeline=?)", (pipeline, pipeline)).fetchone():
                 return None
-            row = db.execute("SELECT * FROM tasks WHERE state='QUEUED' ORDER BY created LIMIT 1").fetchone()
+            row = db.execute("SELECT * FROM tasks WHERE state='QUEUED' AND (? IS NULL OR pipeline=?) ORDER BY created LIMIT 1", (pipeline, pipeline)).fetchone()
             if row is None:
                 return None
             db.execute("UPDATE tasks SET state='RUNNING',token_hash=?,lease_until=?,runner=? WHERE id=? AND state='QUEUED'",
@@ -116,6 +121,7 @@ class TaskStore:
             row = self._authorize(db, task, token)
             db.execute('UPDATE tasks SET lease_until=? WHERE id=?', (time.time() + 300, task))
             db.execute('UPDATE runner_session SET updated=?,ready=1 WHERE run_id=?', (time.time(), row['runner']))
+            db.execute('UPDATE runner_pools SET updated=?,ready=1 WHERE run_id=?', (time.time(), row['runner']))
 
     def validate_access(self, task, token, *, finished=False):
         with self.connect() as db:

@@ -21,6 +21,10 @@ def enabled():
 
 def ensure_runner(store):
     global _runner_probe
+    lane = (scope.get() or {}).get('pipeline', 'AI_VIDEO')
+    if lane not in {'AI_VIDEO', 'AUTO_EDIT'}:
+        raise RemoteTaskError('REMOTE_PIPELINE_INVALID')
+    table, selector = ('runner_pools', "pipeline='AUTO_EDIT'") if lane == 'AUTO_EDIT' else ('runner_session', 'id=1')
     now = time.time()
     repo = os.environ['REMOTE_GITHUB_REPOSITORY']
     ref = os.environ['REMOTE_GITHUB_REF']
@@ -30,7 +34,7 @@ def ensure_runner(store):
     if os.getenv('REMOTE_GITHUB_DISPATCH') != 'gh':
         raise RemoteTaskError('REMOTE_DISPATCH_NOT_CONFIGURED')
     with store.connect() as db:
-        session = db.execute('SELECT * FROM runner_session WHERE id=1').fetchone()
+        session = db.execute(f'SELECT * FROM {table} WHERE {selector}').fetchone()
     if session and session['run_id']:
         run_id = session['run_id']
         if _runner_probe[0] != run_id or now - _runner_probe[1] >= 30:
@@ -43,28 +47,31 @@ def ensure_runner(store):
                 _runner_probe = (run_id, now, None)
         if _runner_probe[2]:
             with store.connect() as db:
-                db.execute('DELETE FROM runner_session WHERE session_id=?', (session['session_id'],))
+                db.execute(f'DELETE FROM {table} WHERE session_id=?', (session['session_id'],))
             # Phiên cũ đã kết thúc phải nhường chỗ cho phiên mới, kể cả DB nhập trước khi có cờ ready.
     with store.connect() as db:
-        row = db.execute('SELECT * FROM runner_session WHERE id=1').fetchone()
+        row = db.execute(f'SELECT * FROM {table} WHERE {selector}').fetchone()
         if row and row['updated'] > now - (240 if row['ready'] else 1800):
             return
         session_id = str(uuid.uuid4())
-        db.execute('INSERT OR REPLACE INTO runner_session(id,updated,session_id) VALUES(1,?,?)', (now, session_id))
+        if lane == 'AUTO_EDIT':
+            db.execute("INSERT OR REPLACE INTO runner_pools(pipeline,updated,session_id) VALUES('AUTO_EDIT',?,?)", (now, session_id))
+        else:
+            db.execute('INSERT OR REPLACE INTO runner_session(id,updated,session_id) VALUES(1,?,?)', (now, session_id))
     # Chế độ dev chỉ bật tường minh; gh giữ phiên đăng nhập, BE không đọc hay lưu token của CLI.
     if os.getenv('REMOTE_GITHUB_DISPATCH') != 'gh':
         raise RemoteTaskError('REMOTE_DISPATCH_NOT_CONFIGURED')
     result = subprocess.run(['gh', 'workflow', 'run', 'kiem_thu_video_tu_xa.yaml', '--repo', repo, '--ref', ref,
-                             '-f', f'origin={origin}', '-f', f'session_id={session_id}'],
+                             '-f', f'origin={origin}', '-f', f'session_id={session_id}', '-f', f'pipeline={lane}'],
                             capture_output=True, text=True, timeout=30)
     if result.returncode:
         with store.connect() as db:
-            db.execute('DELETE FROM runner_session WHERE session_id=?', (session_id,))
+            db.execute(f'DELETE FROM {table} WHERE session_id=?', (session_id,))
         raise RemoteTaskError('REMOTE_DISPATCH_FAILED')
     match = re.search(r'/actions/runs/(\d+)', result.stdout)
     if match:
         with store.connect() as db:
-            db.execute('UPDATE runner_session SET run_id=? WHERE session_id=?', (match[1], session_id))
+            db.execute(f'UPDATE {table} SET run_id=? WHERE session_id=?', (match[1], session_id))
 
 
 def execute(stage, operation, arguments, inputs, output=None, *, input_windows=None):
