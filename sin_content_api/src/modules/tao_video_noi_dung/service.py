@@ -690,6 +690,8 @@ def retry_run(
                 "watermark_removed": old_step.get("watermark_removed", False),
                 "raw_asset_id": old_step.get("raw_asset_id"),
             })
+            if old_step.get("render_engine"):   # cảnh giữ chỗ của bước ghép HyperFrames không bị tính là clip trùng
+                step["render_engine"] = old_step["render_engine"]
             reusable_assets.append(asset.id)
         steps.append(step)
 
