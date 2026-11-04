@@ -139,6 +139,68 @@ class VideoProcessor:
         meta = self.probe_video(output_video_path)
         return {**meta, "status": "SUCCEEDED", "watermark_removed": True, "technique": "DELOGO_CORNER"}
 
+    def residual_watermark_box(self, video_path: pathlib.Path) -> Optional[tuple[int, int, int, int]]:
+        """Tìm biểu tượng ngôi sao (Gemini/Veo) còn sót sau khi khử logo. Biểu tượng bán trong suốt, đứng yên, nên trung bình theo thời gian của độ nổi
+        cục bộ (khung trừ bản làm mờ của chính nó) có đỉnh rõ ở góc dưới phải trong khi nền chuyển động bị triệt tiêu. Trả (x, y, w, h) hoặc None.
+        Đã đo: clip còn logo cho đỉnh khoảng 17, ba clip sạch dưới 7 trong vùng này."""
+        import numpy as np
+        info = self.probe_video(video_path)
+        width, height, seconds = int(info["width"]), int(info["height"]), max(1.0, float(info["duration_seconds"]))
+        crop_x, crop_y = int(width * 0.70), int(height * 0.65)
+        crop_w, crop_h = width - crop_x, height - crop_y
+        result = run_media_command([
+            self.ffmpeg_bin, "-v", "error", "-i", str(video_path),
+            "-vf", f"fps={min(4.0, 30.0 / seconds):.3f},crop={crop_w}:{crop_h}:{crop_x}:{crop_y},format=gray", "-f", "rawvideo", "-",
+        ], capture_output=True)
+        raw = np.frombuffer(result.stdout, dtype=np.uint8)
+        count = raw.size // (crop_w * crop_h)
+        if result.returncode != 0 or count < 8:
+            return None
+        frames = raw[:count * crop_w * crop_h].reshape(count, crop_h, crop_w).astype(np.float32)
+
+        def box_blur(image, radius):
+            padded = np.pad(image, ((radius, radius), (radius, radius)), mode="edge")
+            cumulative = np.pad(np.cumsum(np.cumsum(padded, 0), 1), ((1, 0), (1, 0)))
+            size = 2 * radius + 1
+            return (cumulative[size:, size:] - cumulative[:-size, size:] - cumulative[size:, :-size] + cumulative[:-size, :-size]) / (size * size)
+
+        scale = width / 1920.0
+        popout = np.mean([frame - box_blur(frame, max(4, round(16 * scale))) for frame in frames], axis=0)
+        popout = box_blur(popout, max(2, round(5 * scale)))
+        # Vùng có thể chứa logo: 16% ngoài cùng bên phải, 24% dưới cùng.
+        x0, y0 = int(width * 0.84) - crop_x, int(height * 0.76) - crop_y
+        region = popout[y0:, x0:]
+        peak = float(region.max())
+        if peak < 10.0:
+            return None
+        local_y, local_x = np.unravel_index(int(np.argmax(region)), region.shape)
+        center_x, center_y = crop_x + x0 + int(local_x), crop_y + y0 + int(local_y)
+        half = max(40, round(60 * scale))
+        box_x, box_y = max(4, center_x - half), max(4, center_y - half)
+        box_w, box_h = min(2 * half, width - box_x - 4), min(2 * half, height - box_y - 4)
+        return box_x, box_y, box_w, box_h
+
+    def clear_residual_watermark(self, video_path: pathlib.Path) -> Optional[str]:
+        """Nếu còn logo sót thì che bằng delogo tại đúng vị trí tìm được (ghi đè tệp). Trả mô tả vùng đã xử lý hoặc None. Lỗi thì giữ nguyên tệp."""
+        try:
+            box = self.residual_watermark_box(video_path)
+            if not box:
+                return None
+            x, y, w, h = box
+            repaired = video_path.with_name(f"{video_path.stem}_delogo_con_sot{video_path.suffix}")
+            result = run_media_command([
+                self.ffmpeg_bin, "-y", "-v", "error", "-i", str(video_path), "-vf", f"delogo=x={x}:y={y}:w={w}:h={h}",
+                "-map", "0:v:0", "-map", "0:a?", "-c:v", "libx264", "-preset", "veryfast", "-crf", "17", "-pix_fmt", "yuv420p", "-c:a", "copy", str(repaired),
+            ], capture_output=True, text=True)
+            if result.returncode != 0:
+                repaired.unlink(missing_ok=True)
+                return None
+            repaired.replace(video_path)
+            return f"{x},{y},{w},{h}"
+        except Exception as exc:
+            print(f"[VIDEO PROCESSOR] Kiểm tra logo còn sót lỗi ({type(exc).__name__}); giữ nguyên clip.", flush=True)
+            return None
+
     @offload("remove_watermark", "PREPARE_FLOW_ASSET", output="output_video_path")
     def remove_veo_watermark(
         self,
@@ -171,7 +233,9 @@ class VideoProcessor:
                 # Công cụ khử logo lỗi hoặc không xác nhận (vd. crash trên clip dọc 720x1280): che góc bằng delogo thay vì làm hỏng cả run.
                 print(f"[VIDEO PROCESSOR] Khử logo không xác nhận ({str(result.get('message') or result.get('status'))[:120]}); dùng delogo che góc.", flush=True)
                 output_video_path.unlink(missing_ok=True)
-                return self.mask_corner_watermark(input_video_path, output_video_path)
+                fallback = self.mask_corner_watermark(input_video_path, output_video_path)
+                residual = self.clear_residual_watermark(output_video_path)
+                return {**fallback, "technique": fallback.get("technique", "") + ("+DELOGO_RESIDUAL" if residual else ""), "residual_box": residual}
             if result.get("status") == "SUCCEEDED" and result.get("watermark_removed"):
                 input_duration = self.probe_video(input_video_path)["duration_seconds"]
                 output_duration = self.probe_video(output_video_path)["duration_seconds"]
@@ -180,6 +244,10 @@ class VideoProcessor:
                         "WATERMARK_OUTPUT_DURATION_MISMATCH: "
                         f"source={input_duration:.3f}s output={output_duration:.3f}s"
                     )
+                # Công cụ khử logo báo thành công nhưng có clip vẫn còn ngôi sao bán trong suốt (đã gặp ở shot 7 bài 10): kiểm và che phần sót.
+                residual = self.clear_residual_watermark(output_video_path)
+                if residual:
+                    result = {**result, "technique": f"{result.get('technique', 'VEO_REMOVER')}+DELOGO_RESIDUAL", "residual_box": residual}
             return result
         else:
             raise RuntimeError("Công cụ VeoWatermarkRemover chưa sẵn sàng trên hệ thống.")
