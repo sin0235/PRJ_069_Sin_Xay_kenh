@@ -1,0 +1,51 @@
+{
+  "candidate_audio_recheck": false,
+  "final_verified": false,
+  "clips": [
+    {
+      "id": "part1_01",
+      "title": "Tăng giá chưa chắc tăng lợi nhuận",
+      "start_ms": 100360,
+      "end_ms": 152920,
+      "needs_review": true,
+      "first_words": "Sao tiền lời lại giả? Nghe có vẻ vô lý đúng không nào? Bán đắt hơn thì phải",
+      "last_words": "Tất nhiên đây là con xuống giả định nha, chưa kể nhiều lợi phí còn thay đổi theo giả bán nữa nha."
+    },
+    {
+      "id": "part1_02",
+      "title": "Có đơn chưa chắc có lời",
+      "start_ms": 316950,
+      "end_ms": 360890,
+      "needs_review": false,
+      "first_words": "chuyện này người bán online là rất là dễ gặp mở báo cáo quảng cáo thấy đơn thấy",
+      "last_words": "hơi phú nhưng rõ ràng quảng cáo có thể đang mua về cái doanh thu chưa mua về lợi nhuận đâu nha"
+    },
+    {
+      "id": "part1_03",
+      "title": "Doanh thu, lợi nhuận và dòng tiền khác nhau",
+      "start_ms": 417090,
+      "end_ms": 516950,
+      "needs_review": true,
+      "first_words": "Thử tưởng tượng một chủ sốt như sau, cả tuần đơn đều điện thoại thông báo suốt ngày.",
+      "last_words": "danh thu Còn giữ cho cửa hàng sống được qua cái từng kỳ thanh toán đó Đó là quản trị dông tiền"
+    },
+    {
+      "id": "part1_04",
+      "title": "Giảm giá có thể làm mất nửa lợi nhuận",
+      "start_ms": 627750,
+      "end_ms": 717690,
+      "needs_review": true,
+      "first_words": "Giảm 10 .000 có khi mất nửa lại, một món hàng bán 100 .000 Sau giao vốn vào",
+      "last_words": "sẽ giảm với chi phí Nhưng đã giảm thì nên biết mình đang đổi đánh đổi lấy cái điều gì ở đây"
+    },
+    {
+      "id": "part1_05",
+      "title": "Đừng xếp sản phẩm chỉ theo doanh thu",
+      "start_ms": 840650,
+      "end_ms": 884900,
+      "needs_review": false,
+      "first_words": "Thử nha, thử lấy 20 mã hàng đừng xếp theo doanh thu trước, sếp theo tổng tiền đóng",
+      "last_words": "Điều đã hỏi không phải là món nào được mua nhiều nhất Mà là món nào đang thực sự nuôi cửa hàng"
+    }
+  ]
+}

@@ -316,7 +316,8 @@ def tao_ke_hoach_dung_video(
 
     pause_context_bytes = len(json.dumps(pause_intervals or [], separators=(",", ":")).encode("utf-8"))
     safe_budget = max(256, int(client.max_input_bytes) - 4750 - pause_context_bytes)
-    chunks = chia_transcript(words, safe_budget)
+    plan_words = [{key: word[key] for key in ("id", "text", "start_ms", "end_ms")} for word in words]
+    chunks = chia_transcript(plan_words, safe_budget)
     clips: list[ClipTuDong] = []
     system = (
         "Bạn là biên tập viên video ngắn tiếng Việt. Chỉ chọn các đoạn có thể đăng độc lập, giữ nguyên ý và câu nói của nguồn. "
