@@ -18,6 +18,12 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
+      - name: Xác nhận tài nguyên runner
+        shell: pwsh
+        run: |
+          $cpu = (Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors
+          $ram = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 1)
+          Write-Output "Runner: $cpu CPU logic, $ram GB RAM"
       - name: Cài dependency và build FE
         working-directory: sin_creator_os
         run: |
