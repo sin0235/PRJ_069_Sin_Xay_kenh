@@ -25,11 +25,16 @@ jobs:
           $ram = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB, 1)
           Write-Output "Runner: $cpu CPU logic, $ram GB RAM"
       - name: Cài dependency và build FE
+        shell: pwsh
         working-directory: sin_creator_os
         run: |
+          $ErrorActionPreference = 'Stop'
           npm install --global pnpm@10.24.0
-          pnpm install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm install --no-frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           pnpm build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Copy-Item -Recurse public .next/standalone/public
           Copy-Item -Recurse .next/static .next/standalone/.next/static
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
