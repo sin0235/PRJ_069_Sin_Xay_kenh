@@ -40,6 +40,26 @@ const initialRetentionByLength: Array<{ length: string; completionRate: number; 
 const performanceByPillar: Array<{ pillar: string; views: number; er: number; count: number }> = [];
 
 export default function AnalyticsPage() {
+  const router = useRouter();
+  const [learningSignals, setLearningSignals] = React.useState<LearningSignalItem[]>([]);
+  const [isLoadingSignals, setIsLoadingSignals] = React.useState(false);
+
+  const fetchSignals = React.useCallback(async () => {
+    setIsLoadingSignals(true);
+    try {
+      const signals = await PublishingService.listLearningSignals();
+      setLearningSignals(signals);
+    } catch {
+      // Fallback
+    } finally {
+      setIsLoadingSignals(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    fetchSignals();
+  }, [fetchSignals]);
+
   return (
     <div className="space-y-6 pb-20">
       {/* Header */}
