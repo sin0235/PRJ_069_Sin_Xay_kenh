@@ -210,7 +210,7 @@ export interface TimelineCaption {
 }
 
 export interface KaraokeCaptionSettings {
-  preset: "bat_nhip" | "to_sac" | "hai_dong";
+  preset: "bat_nhip" | "to_sac" | "hai_dong" | "da_sac_phan_tang" | "hop_mau_dong_chinh" | "bento_ba_tang" | "inline_pop_trai";
   font_size: 42 | 56 | 70;
   layout: "center" | "left" | "two_line";
   accent_color: "champagne" | "baha_blue" | "coral";
