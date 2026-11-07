@@ -1,0 +1,759 @@
+{
+ "title": "Theo dõi báo giá, giữ cơ hội bán hàng trong tầm mắt",
+ "narration": "Báo giá gửi trong mười phút, khách chờ hai ngày mới được nhắc lại. Bạn đoán khách chọn ai? Đây là tình huống minh họa: khách có thể rời đi khi quy trình để họ khuất khỏi tầm mắt. Nhìn hành trình báo giá như phễu: một trăm khách hỏi mua, tám mươi nhận báo giá, năm mươi mở thư, mười đặt hàng. Theo dõi từng bước để biết khách rời đi ở đâu. Trước khi gom dữ liệu, nhân viên tìm khách trong bảng tính, hộp thư và tin nhắn. Ba nơi lưu thông tin khiến việc tìm kiếm kéo dài, báo giá chậm, còn quản lý khó nhận ra điểm nghẽn. Số liệu minh họa: xử lý báo giá giảm từ ba mươi phút còn mười phút; khách chờ phản hồi giảm từ hai ngày còn bốn giờ. Kết quả thực tế tùy quy trình và dữ liệu từng doanh nghiệp. Gửi báo giá chưa kết thúc quy trình. Cần giao người phụ trách, đặt mốc nhắc lại và xác định hành động kế tiếp, thay vì để lời nhắc nằm trong trí nhớ một người. Lan gửi báo giá hôm nay; sáng mai hệ thống nhắc gọi xác nhận khách nhận. Sau ba ngày, tạo việc nhắc lại và báo quản lý. Mỗi báo giá có người theo dõi, bước tiếp theo. Theo dõi trạng thái báo giá, điểm nghẽn và mức phản hồi so với mục tiêu. Nếu gửi một trăm báo giá nhưng chỉ có cuộc gọi tiếp nối ở mức hai mươi, khoảng cách ấy cần được nhìn thấy. Ba-ha Grúp giúp doanh nghiệp kết nối dữ liệu khách hàng, tự động hóa tạo báo giá và theo dõi việc chăm sóc, để đội ngũ tập trung vào cuộc trò chuyện có khả năng tạo doanh thu. Muốn tìm điểm khách rời đi sau báo giá? Trao đổi cùng Ba-ha Grúp để rà soát từng bước, đo số khách qua mỗi khâu, tìm chỗ cần cải thiện trong quy trình bán hàng.",
+ "continuity_anchor": "Toàn bộ video dùng cảnh giấy dựng bằng mã, nền kem, xanh ngọc và navy; chữ rõ, chất liệu giấy gấp nếp, bố cục ngang mười sáu chín. Không có nhân vật giấy hay cảnh quay người thật.",
+ "shots": [
+  {
+   "shot_id": "shot-01",
+   "scene": "Câu hỏi mở về thời gian báo giá và nhắc lại.",
+   "narration": "Báo giá gửi trong mười phút, khách chờ hai ngày mới được nhắc lại. Bạn đoán khách chọn ai? Đây là tình huống minh họa: khách có thể rời đi khi quy trình để họ khuất khỏi tầm mắt.",
+   "prompt": "Giấy nền kem, hai khoảng thời gian lớn cạnh nhau, câu hỏi nổi bật.",
+   "negative_prompt": "Không logo, phụ đề, chữ phát sinh hoặc vật liệu ngoài giấy.",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "HOOK",
+   "message_ids": [
+    "pain-2",
+    "consequence-1"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "OPEN_QUESTION",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "Bạn đoán khách chọn ai?",
+     "unit": "",
+     "simulated": true,
+     "labels": [],
+     "series": [],
+     "target": null,
+     "tag": null,
+     "docs": [],
+     "diff_label": null,
+     "stamp": null,
+     "steps": [],
+     "block_step": null,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": null,
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [],
+     "layers": [],
+     "values": [],
+     "cta": null,
+     "from_value": null,
+     "to_value": null,
+     "caption": "khách chọn ai",
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "ask": "Bạn đoán khách chọn ai?",
+      "key": "khách chọn ai"
+     }
+    }
+   }
+  },
+  {
+   "shot_id": "shot-02",
+   "scene": "Phễu cho thấy khách hao dần qua các bước bán hàng.",
+   "narration": "Nhìn hành trình báo giá như phễu: một trăm khách hỏi mua, tám mươi nhận báo giá, năm mươi mở thư, mười đặt hàng. Theo dõi từng bước để biết khách rời đi ở đâu.",
+   "prompt": "Phễu giấy nhiều tầng thu hẹp dần, nhãn và số rõ ràng.",
+   "negative_prompt": "Không logo, phụ đề, chữ phát sinh hoặc vật liệu ngoài giấy.",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "PAIN",
+   "message_ids": [
+    "pain-3",
+    "insight-2"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "FUNNEL",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "Hành trình báo giá",
+     "unit": "",
+     "simulated": true,
+     "labels": [],
+     "series": [],
+     "target": null,
+     "tag": null,
+     "docs": [],
+     "diff_label": null,
+     "stamp": null,
+     "steps": [],
+     "block_step": null,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": null,
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [
+      {
+       "label": "Hỏi mua",
+       "value": 100.0
+      },
+      {
+       "label": "Nhận giá",
+       "value": 80.0
+      },
+      {
+       "label": "Mở thư",
+       "value": 50.0
+      },
+      {
+       "label": "Gọi lại",
+       "value": 30.0
+      },
+      {
+       "label": "Đặt hàng",
+       "value": 10.0
+      }
+     ],
+     "layers": [],
+     "values": [],
+     "cta": null,
+     "from_value": null,
+     "to_value": null,
+     "caption": null,
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "stages": "Nhìn hành trình báo giá",
+      "leak": "khách rời đi ở đâu"
+     }
+    }
+   }
+  },
+  {
+   "shot_id": "shot-03",
+   "scene": "Thông tin khách phân tán ở nhiều nguồn làm chậm việc tìm kiếm.",
+   "narration": "Trước khi gom dữ liệu, nhân viên tìm khách trong bảng tính, hộp thư và tin nhắn. Ba nơi lưu thông tin khiến việc tìm kiếm kéo dài, báo giá chậm, còn quản lý khó nhận ra điểm nghẽn.",
+   "prompt": "Ba chồng giấy biểu thị bảng tính, thư và tin nhắn nằm rời nhau.",
+   "negative_prompt": "Không logo, phụ đề, chữ phát sinh hoặc vật liệu ngoài giấy.",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "AGITATE",
+   "message_ids": [
+    "pain-1",
+    "consequence-2"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "DOC_LAYERS",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "Thông tin khách rời rạc",
+     "unit": "",
+     "simulated": true,
+     "labels": [],
+     "series": [],
+     "target": null,
+     "tag": null,
+     "docs": [],
+     "diff_label": "Khó theo dõi",
+     "stamp": null,
+     "steps": [],
+     "block_step": null,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": null,
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [],
+     "layers": [
+      "Bảng tính",
+      "Hộp thư",
+      "Tin nhắn"
+     ],
+     "values": [
+      "Khách",
+      "Lịch sử",
+      "Báo giá"
+     ],
+     "cta": null,
+     "from_value": null,
+     "to_value": null,
+     "caption": null,
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "explode": "Trước khi gom dữ liệu",
+      "thread": "Ba nơi lưu thông tin",
+      "label": "điểm nghẽn"
+     }
+    }
+   }
+  },
+  {
+   "shot_id": "shot-04",
+   "scene": "So sánh thời gian xử lý và chờ phản hồi trong ví dụ minh họa.",
+   "narration": "Số liệu minh họa: xử lý báo giá giảm từ ba mươi phút còn mười phút; khách chờ phản hồi giảm từ hai ngày còn bốn giờ. Kết quả thực tế tùy quy trình và dữ liệu từng doanh nghiệp.",
+   "prompt": "Hai cặp thẻ giấy trước và sau, ghi rõ thời lượng minh họa.",
+   "negative_prompt": "Không logo, phụ đề, chữ phát sinh hoặc vật liệu ngoài giấy.",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "INSIGHT",
+   "message_ids": [
+    "outcome-1",
+    "insight-3"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "BEFORE_AFTER",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "Thời gian minh họa",
+     "unit": "",
+     "simulated": true,
+     "labels": [],
+     "series": [],
+     "target": null,
+     "tag": null,
+     "docs": [
+      {
+       "title": "Xử lý báo giá",
+       "label": "Trước",
+       "value": "30 phút"
+      },
+      {
+       "title": "Xử lý báo giá",
+       "label": "Sau",
+       "value": "10 phút"
+      }
+     ],
+     "diff_label": "2 ngày thành 4 giờ",
+     "stamp": null,
+     "steps": [],
+     "block_step": null,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": null,
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [],
+     "layers": [],
+     "values": [],
+     "cta": null,
+     "from_value": null,
+     "to_value": null,
+     "caption": null,
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "before": "giảm từ",
+      "after": "còn mười phút",
+      "delta": "còn bốn giờ"
+     }
+    }
+   }
+  },
+  {
+   "shot_id": "shot-05",
+   "scene": "Các thành phần cần có sau khi gửi báo giá.",
+   "narration": "Gửi báo giá chưa kết thúc quy trình. Cần giao người phụ trách, đặt mốc nhắc lại và xác định hành động kế tiếp, thay vì để lời nhắc nằm trong trí nhớ một người.",
+   "prompt": "Danh sách giấy ba việc cần làm, các ô lần lượt được đánh dấu.",
+   "negative_prompt": "Không logo, phụ đề, chữ phát sinh hoặc vật liệu ngoài giấy.",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "SOLUTION",
+   "message_ids": [
+    "insight-1",
+    "pain-4",
+    "solution-2",
+    "consequence-3"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "CHECKLIST",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "Theo dõi báo giá",
+     "unit": "",
+     "simulated": true,
+     "labels": [],
+     "series": [],
+     "target": null,
+     "tag": null,
+     "docs": [],
+     "diff_label": null,
+     "stamp": null,
+     "steps": [
+      "Người phụ trách",
+      "Mốc nhắc lại",
+      "Hành động kế tiếp"
+     ],
+     "block_step": null,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": null,
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [],
+     "layers": [],
+     "values": [],
+     "cta": null,
+     "from_value": null,
+     "to_value": null,
+     "caption": null,
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "c0": "người phụ trách",
+      "c1": "mốc nhắc lại",
+      "c2": "hành động kế tiếp"
+     }
+    }
+   }
+  },
+  {
+   "shot_id": "shot-06",
+   "scene": "Minh họa lịch nhắc lại sau khi gửi báo giá.",
+   "narration": "Lan gửi báo giá hôm nay; sáng mai hệ thống nhắc gọi xác nhận khách nhận. Sau ba ngày, tạo việc nhắc lại và báo quản lý. Mỗi báo giá có người theo dõi, bước tiếp theo.",
+   "prompt": "Đường quy trình giấy nối gửi báo giá, gọi xác nhận, nhắc lại và báo quản lý.",
+   "negative_prompt": "Không logo, phụ đề, chữ phát sinh hoặc vật liệu ngoài giấy.",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "DEMO",
+   "message_ids": [
+    "solution-1",
+    "solution-2"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "TIMELINE",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "Lịch chăm sóc báo giá",
+     "unit": "",
+     "simulated": true,
+     "labels": [
+      "Hôm nay",
+      "Sáng mai",
+      "Ba ngày",
+      "Kế tiếp"
+     ],
+     "series": [],
+     "target": null,
+     "tag": null,
+     "docs": [],
+     "diff_label": null,
+     "stamp": null,
+     "steps": [
+      "Gửi báo giá",
+      "Gọi xác nhận",
+      "Nhắc lại",
+      "Báo quản lý"
+     ],
+     "block_step": null,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": null,
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [],
+     "layers": [],
+     "values": [],
+     "cta": null,
+     "from_value": null,
+     "to_value": null,
+     "caption": null,
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "m0": "hôm nay",
+      "m1": "sáng mai",
+      "m2": "Sau ba ngày",
+      "m3": "báo quản lý"
+     }
+    }
+   }
+  },
+  {
+   "shot_id": "shot-07",
+   "scene": "Bảng so sánh phản hồi thực tế với mục tiêu và cuộc gọi tiếp nối.",
+   "narration": "Theo dõi trạng thái báo giá, điểm nghẽn và mức phản hồi so với mục tiêu. Nếu gửi một trăm báo giá nhưng chỉ có cuộc gọi tiếp nối ở mức hai mươi, khoảng cách ấy cần được nhìn thấy.",
+   "prompt": "Biểu đồ giấy so sánh báo giá gửi với cuộc gọi tiếp nối.",
+   "negative_prompt": "Không logo, phụ đề, chữ phát sinh hoặc vật liệu ngoài giấy.",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "DEMO",
+   "message_ids": [
+    "solution-3",
+    "outcome-3"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "COMPARE_DOCS",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "Báo giá và cuộc gọi tiếp nối",
+     "unit": "",
+     "simulated": true,
+     "labels": [],
+     "series": [],
+     "target": null,
+     "tag": null,
+     "docs": [
+      {
+       "title": "Báo giá gửi",
+       "label": "Gửi",
+       "value": "100"
+      },
+      {
+       "title": "Cuộc gọi tiếp nối",
+       "label": "Nối tiếp",
+       "value": "20"
+      }
+     ],
+     "diff_label": "Khoảng cách cần thấy",
+     "stamp": null,
+     "steps": [],
+     "block_step": null,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": null,
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [],
+     "layers": [],
+     "values": [],
+     "cta": null,
+     "from_value": null,
+     "to_value": null,
+     "caption": null,
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "doc0": "báo giá",
+      "v0": "một trăm",
+      "doc1": "tiếp nối",
+      "v1": "ở mức hai mươi",
+      "thread": "khoảng cách ấy",
+      "label": "cần được nhìn thấy"
+     }
+    }
+   }
+  },
+  {
+   "shot_id": "shot-08",
+   "scene": "Các nguồn dữ liệu khách hội tụ vào nơi theo dõi chăm sóc.",
+   "narration": "Ba-ha Grúp giúp doanh nghiệp kết nối dữ liệu khách hàng, tự động hóa tạo báo giá và theo dõi việc chăm sóc, để đội ngũ tập trung vào cuộc trò chuyện có khả năng tạo doanh thu.",
+   "prompt": "Các thẻ giấy dữ liệu, báo giá và chăm sóc nối về một bảng trung tâm.",
+   "negative_prompt": "Không logo, phụ đề, chữ phát sinh hoặc vật liệu ngoài giấy.",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "OUTCOME",
+   "message_ids": [
+    "solution-1",
+    "solution-3",
+    "solution-4",
+    "outcome-2"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "HUB_SPOKE",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "Kết nối và theo dõi",
+     "unit": "",
+     "simulated": true,
+     "labels": [],
+     "series": [],
+     "target": null,
+     "tag": null,
+     "docs": [],
+     "diff_label": null,
+     "stamp": null,
+     "steps": [
+      "Dữ liệu khách",
+      "Tạo báo giá",
+      "Chăm sóc"
+     ],
+     "block_step": null,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": "Theo dõi",
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [],
+     "layers": [],
+     "values": [],
+     "cta": null,
+     "from_value": null,
+     "to_value": null,
+     "caption": null,
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "nodes": "dữ liệu khách hàng",
+      "hub": "tạo báo giá",
+      "link": "theo dõi việc chăm sóc"
+     }
+    }
+   }
+  },
+  {
+   "shot_id": "shot-09",
+   "scene": "Thẻ kết thúc mời trao đổi về điểm khách rời đi sau báo giá.",
+   "narration": "Muốn tìm điểm khách rời đi sau báo giá? Trao đổi cùng Ba-ha Grúp để rà soát từng bước, đo số khách qua mỗi khâu, tìm chỗ cần cải thiện trong quy trình bán hàng.",
+   "prompt": "Thẻ giấy kết video, lời mời rõ, nền kem và điểm nhấn xanh ngọc.",
+   "negative_prompt": "Không logo, phụ đề, chữ phát sinh hoặc vật liệu ngoài giấy.",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "CTA",
+   "message_ids": [
+    "cta-1"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "END_CARD",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "Ba-ha Group hỗ trợ doanh nghiệp",
+     "unit": "",
+     "simulated": true,
+     "labels": [],
+     "series": [],
+     "target": null,
+     "tag": null,
+     "docs": [],
+     "diff_label": null,
+     "stamp": null,
+     "steps": [],
+     "block_step": null,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": null,
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [],
+     "layers": [],
+     "values": [],
+     "cta": "Trao đổi cùng Ba-ha Group",
+     "from_value": null,
+     "to_value": null,
+     "caption": null,
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "fold": "Muốn tìm điểm khách rời đi sau báo giá?",
+      "cta": "Trao đổi cùng Ba-ha Grúp"
+     }
+    }
+   }
+  }
+ ],
+ "brief": {
+  "pains": [
+   {
+    "id": "pain-1",
+    "text": "Dữ liệu khách nằm rải rác trong bảng tính, hộp thư và ứng dụng nhắn tin; nhân viên mất thời gian tìm kiếm trước khi lập báo giá.",
+    "source": "content"
+   },
+   {
+    "id": "pain-2",
+    "text": "Khách chờ lâu mới nhận phản hồi hoặc được gọi lại; cơ hội bán hàng có thể rơi khỏi tầm mắt.",
+    "source": "content"
+   },
+   {
+    "id": "pain-3",
+    "text": "Doanh nghiệp không thấy khách rời đi ở bước nào hoặc báo giá đang mắc ở đâu.",
+    "source": "content"
+   },
+   {
+    "id": "pain-4",
+    "text": "Việc theo dõi phụ thuộc vào trí nhớ nhân viên nếu thiếu người phụ trách, mốc nhắc lại và hành động kế tiếp.",
+    "source": "content"
+   }
+  ],
+  "consequences": [
+   {
+    "id": "consequence-1",
+    "text": "Khách có thể chọn nhà cung cấp khác khi doanh nghiệp chậm nhắc lại sau khi gửi báo giá.",
+    "source": "content"
+   },
+   {
+    "id": "consequence-2",
+    "text": "Doanh thu giảm nhưng doanh nghiệp không xác định được điểm nghẽn trong quy trình bán hàng.",
+    "source": "content"
+   },
+   {
+    "id": "consequence-3",
+    "text": "Cơ hội bán hàng có thể không được chăm sóc tiếp nếu lời nhắc nằm trong trí nhớ của một người.",
+    "source": "content"
+   }
+  ],
+  "insights": [
+   {
+    "id": "insight-1",
+    "text": "Gửi báo giá chưa kết thúc quy trình; cần theo dõi phản hồi và xác định hành động kế tiếp.",
+    "source": "content"
+   },
+   {
+    "id": "insight-2",
+    "text": "Theo dõi từng bước trong phễu giúp nhận diện nơi khách rời đi và điểm nghẽn cần xử lý.",
+    "source": "content"
+   },
+   {
+    "id": "insight-3",
+    "text": "Các con số trong bài là minh họa; kết quả thực tế phụ thuộc vào quy trình và dữ liệu của từng doanh nghiệp.",
+    "source": "content"
+   }
+  ],
+  "solutions": [
+   {
+    "id": "solution-1",
+    "text": "Gom dữ liệu khách hàng về một nơi; hệ thống tạo báo giá theo mẫu, lưu lịch sử trao đổi và nhắc nhân viên đúng hạn.",
+    "source": "content"
+   },
+   {
+    "id": "solution-2",
+    "text": "Giao người phụ trách, đặt mốc nhắc lại và quy định hành động tiếp theo cho từng báo giá.",
+    "source": "content"
+   },
+   {
+    "id": "solution-3",
+    "text": "Theo dõi trạng thái báo giá, các điểm nghẽn, mức phản hồi so với mục tiêu và cơ hội theo giá trị, khả năng chốt.",
+    "source": "content"
+   },
+   {
+    "id": "solution-4",
+    "text": "Ba-ha Group được nêu là đơn vị giúp doanh nghiệp kết nối dữ liệu khách hàng, tự động hóa tạo báo giá và theo dõi việc chăm sóc.",
+    "source": "content"
+   }
+  ],
+  "outcomes": [
+   {
+    "id": "outcome-1",
+    "text": "Theo số liệu minh họa, thời gian xử lý báo giá giảm từ ba mươi phút còn mười phút; thời gian khách chờ phản hồi giảm từ hai ngày còn bốn giờ.",
+    "source": "content"
+   },
+   {
+    "id": "outcome-2",
+    "text": "Đội ngũ có thể tập trung vào cuộc trò chuyện có khả năng tạo doanh thu.",
+    "source": "content"
+   },
+   {
+    "id": "outcome-3",
+    "text": "Doanh nghiệp nhìn thấy khoảng cách giữa số báo giá gửi đi và số cuộc gọi tiếp nối.",
+    "source": "content"
+   }
+  ],
+  "cta": {
+   "id": "cta-1",
+   "text": "Trao đổi cùng Ba-ha Group để tìm điểm khách rời đi sau báo giá.",
+   "source": "content"
+  },
+  "needs_ui_demo": true
+ }
+}

@@ -14,7 +14,6 @@ from src.database import get_db
 from baha_auth.src.policy.evaluator import e2e_test_self_approval_enabled
 from .contracts import ContentVideoPlanJobResponse, ContentVideoPlanResponse, ContentVideoRunResponse, CreatePlanRequest, CreateRunRequest, ResumeRunRequest, ReconcileShotRequest, RerenderRunRequest, RetryRunRequest, UpdateStoryboardRequest
 from .runner import reconcile_shot
-from .giong_da_luu import ap_dung_ho_so_giong
 from .service import approve_plan, create_plan, create_run, enqueue_content_video_plan, get_content_video_plan_job, get_latest_history, get_plan, get_run, rerender_run, resume_run, retry_run, update_plan
 
 
@@ -109,7 +108,6 @@ def create_content_video_run(
     db: Session = Depends(get_db),
     tenant: TenantContext = Depends(require_action("media.upload")),
 ):
-    payload = ap_dung_ho_so_giong(db, tenant.workspace_id, project_id, payload)
     return create_run(db, project_id, tenant.workspace_id, tenant.user_id, payload,
         allow_direct_creation=owner_direct_creation(tenant))
 

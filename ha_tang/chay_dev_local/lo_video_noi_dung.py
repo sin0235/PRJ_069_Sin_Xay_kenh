@@ -44,7 +44,7 @@ def log(*parts):
 
 
 def load_state() -> dict:
-    return json.loads(STATE.read_text(encoding="utf-8")) if STATE.is_file() else {}
+    return json.loads(STATE.read_text(encoding="utf-8-sig")) if STATE.is_file() else {}
 
 
 def save_state(state: dict) -> None:
@@ -53,6 +53,7 @@ def save_state(state: dict) -> None:
 
 
 def doc_bai(so: str) -> tuple[str, str]:
+    so = re.match(r"\d+", so).group()   # khóa như "10b" (bản nhân bản) dùng chung bài 10
     path = glob.glob(str(NOI_DUNG / f"{so}_*.md"))[0]
     text = Path(path).read_text(encoding="utf-8")
     title = re.sub(r"^#+\s*", "", text.splitlines()[0]).strip()
@@ -73,14 +74,33 @@ def main() -> None:
     parser.add_argument("--khung", choices=["16:9", "9:16"], default="16:9", help="khung hình; mặc định ngang 16:9")
     parser.add_argument("--du-an-co-san", nargs="*", default=[], help="so=project_id: tạo bản storyboard mới trong dự án đã có thay vì dự án mới")
     parser.add_argument("--chay", action="store_true", help="tạo lượt dựng (tốn tín dụng Flow)")
+    parser.add_argument("--nhan-ban", nargs="*", default=[], help="số bài: tạo DỰ ÁN MỚI chép storyboard đã duyệt của bài đó (khóa mới '<số>b'), không đụng dự án cũ")
     parser.add_argument("--bo-qua-cong", action="store_true", help="bỏ qua cổng chất lượng trước khi tạo lượt dựng")
     args = parser.parse_args()
     existing = dict(item.split("=", 1) for item in args.du_an_co_san)
     state = load_state()
     with SessionLocal() as db:
+        for so in args.nhan_ban:
+            nguon = state[so]
+            khoa = f"{so}b"
+            while khoa in state:
+                khoa += "b"
+            ban_goc = db.get(ContentVideoPlan, nguon["plan_id"])
+            title, _ = doc_bai(so)
+            project = ProductionProject(id=str(uuid.uuid4()), workspace_id=ban_goc.workspace_id, title=f"Bài {so} - {title} (bản sửa giọng, logo, prompt Flow)",
+                                        workflow_type="AI_VIDEO", status="DRAFT", created_by=ban_goc.created_by)
+            db.add(project)
+            db.flush()
+            cot = {c.name: getattr(ban_goc, c.name) for c in ContentVideoPlan.__table__.columns if c.name not in ("id", "project_id", "revision", "created_at")}
+            ban_sao = ContentVideoPlan(id=str(uuid.uuid4()), project_id=project.id, revision=1, **cot)
+            db.add(ban_sao)
+            db.commit()
+            state[khoa] = {"project_id": project.id, "plan_id": ban_sao.id, "revision": 1, "approved": True, "nhan_ban_tu": so, "shots": nguon.get("shots")}
+            save_state(state)
+            log(f"bài {so}: đã nhân bản sang dự án MỚI {project.id[:8]} (khóa {khoa}); dự án cũ {nguon['project_id'][:8]} giữ nguyên")
         template = db.query(ContentVideoPlan).order_by(ContentVideoPlan.created_at.desc()).first()
         workspace_id, user_id = template.workspace_id, template.created_by
-        for so in args.bai:
+        for so in args.bai + [k for k in state if k not in args.bai and False]:
             entry = state.setdefault(so, {})
             title, content = doc_bai(so)
             try:
@@ -120,9 +140,10 @@ def main() -> None:
                             continue
                     request = ap_dung_ho_so_giong(db, workspace_id, entry["project_id"], CreateRunRequest(
                         plan_id=entry["plan_id"], flow_profile_id=FLOW_PROFILE, voice_source="TTS", voice_profile_id=id_giong(db, workspace_id),
-                        include_subtitles=True, idempotency_key=f"lo15-{so}-{entry['plan_id'][:8]}"))
+                        include_subtitles=True, idempotency_key=f"lo15-{so}-{entry['plan_id'][:8]}-{entry.get('so_lan_chay', 0)}"))
                     run = create_run(db, entry["project_id"], workspace_id, user_id, request)
                     entry["run_id"] = run.id
+                    entry["so_lan_chay"] = entry.get("so_lan_chay", 0) + 1   # lượt dựng sau cần khóa idempotency khác
                     save_state(state)
                     log(f"bài {so}: đã tạo lượt dựng {run.id[:8]} trạng thái {run.status}")
             except Exception as exc:  # một bài lỗi không chặn cả lô

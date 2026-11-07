@@ -101,13 +101,14 @@ function docTimeline(value: unknown): TimelineDocument {
     if (
       typeof caption.text !== "string" ||
       !laSoKhongAm(caption.start_ms) ||
-      !laSoDuong(caption.duration_ms) ||
+      !laSoKhongAm(caption.duration_ms) ||
       (caption.position_y_px !== undefined &&
         (!laSoKhongAm(caption.position_y_px) || caption.position_y_px < 150 || caption.position_y_px > 1600)) ||
       (caption.visual_type !== undefined && caption.visual_type !== "callout")
     )
       throw new Error();
-    return caption as unknown as NonNullable<TimelineDocument["captions"]>[number];
+    const duration_ms = Math.max(100, Number(caption.duration_ms) || 100);
+    return { ...caption, duration_ms } as unknown as NonNullable<TimelineDocument["captions"]>[number];
   });
   if (
     raw.caption_style !== undefined &&
@@ -172,7 +173,8 @@ export function docManifestDungTuDong(value: string): ManifestDungTuDong {
         (clip.visual_actions !== undefined && !Array.isArray(clip.visual_actions))
       )
         throw new Error();
-      const take_options = clip.take_options.map((rawTake): TakeOption => {
+      const rawTakeOptions = Array.isArray(clip.take_options) ? clip.take_options : [];
+      let take_options = rawTakeOptions.map((rawTake): TakeOption => {
         if (!rawTake || typeof rawTake !== "object") throw new Error();
         const take = rawTake as Record<string, unknown>;
         if (
@@ -192,7 +194,19 @@ export function docManifestDungTuDong(value: string): ManifestDungTuDong {
           reason: take.reason,
         };
       });
-      if (!take_options.some((take) => take.take_id === clip.selected_take_id)) throw new Error();
+      let selected_take_id = typeof clip.selected_take_id === "string" ? clip.selected_take_id : "";
+      if (take_options.length === 0) {
+        selected_take_id = selected_take_id || (typeof clip.clip_id === "string" ? clip.clip_id : "take_1");
+        take_options = [{
+          take_id: selected_take_id,
+          start_ms: clip.source_start_ms,
+          end_ms: clip.source_end_ms,
+          title: clip.title,
+          reason: clip.selection_reason || "Take gốc",
+        }];
+      } else if (!take_options.some((take) => take.take_id === selected_take_id)) {
+        selected_take_id = take_options[0].take_id;
+      }
       const visual_actions = (clip.visual_actions ?? []).map((rawAction): VisualAction => {
         if (!rawAction || typeof rawAction !== "object") throw new Error();
         const action = rawAction as Record<string, unknown>;
@@ -219,7 +233,7 @@ export function docManifestDungTuDong(value: string): ManifestDungTuDong {
         title: clip.title,
         source_start_ms: clip.source_start_ms,
         source_end_ms: clip.source_end_ms,
-        selected_take_id: clip.selected_take_id,
+        selected_take_id,
         selection_reason: clip.selection_reason,
         needs_review: clip.needs_review,
         take_options,

@@ -1,5 +1,4 @@
 from __future__ import annotations
-from src.modules.tac_vu_tu_xa.client import offload, pipeline
 
 import json
 import logging
@@ -9,44 +8,22 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import HTTPException
-from sqlalchemy import exists, select, update, or_, true
+from sqlalchemy import exists, select, update
 from sqlalchemy.orm import Session
 
 from src.database import SessionLocal
-from src.models.entities import AIGenerationJob, ContentVideoWorkerLease, MediaAsset, WorkspaceBudget, ProductionProject
-from src.modules.media_queue.contracts import DeferredMediaJob, GIOI_HAN_TAC_VU_DIEN_HOA
+from src.models.entities import AIGenerationJob, ContentVideoWorkerLease, MediaAsset, WorkspaceBudget
+from src.modules.media_queue.contracts import DeferredMediaJob
 from src.modules.media_queue.service import FLOW_BACKEND_PROVIDERS, MEDIA_QUEUE_PROVIDERS, TEST_PROVIDERS, authorized_worker_tenant, is_production
 
 logger = logging.getLogger(__name__)
 LEASE_NAME = "content-video-flow"
-AUTO_EDIT_ONLY = False
 LEASE_SECONDS = 480
 _IN_FLIGHT = ("RUNNING", "SUBMITTING")
 
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def _queue_lane():
-    return AIGenerationJob.project_id.in_(select(ProductionProject.id).where(
-        ProductionProject.workflow_type == 'AUTO_EDIT')) if AUTO_EDIT_ONLY else true()
-
-
-def acquire_media_lease(db: Session, token: str, name: str | None = None) -> bool:
-    name = name or LEASE_NAME
-    if db.get(ContentVideoWorkerLease, name) is None:
-        db.add(ContentVideoWorkerLease(name=name))
-        try:
-            db.commit()
-        except Exception:
-            db.rollback()
-    result = db.execute(update(ContentVideoWorkerLease).where(
-        ContentVideoWorkerLease.name == name,
-        or_(ContentVideoWorkerLease.expires_at.is_(None), ContentVideoWorkerLease.expires_at < _now()),
-    ).values(token=token, expires_at=_now()+timedelta(seconds=LEASE_SECONDS)))
-    db.commit()
-    return result.rowcount == 1
 
 
 def _owns_worker_lease(db: Session, token: str) -> bool:
@@ -71,10 +48,6 @@ def _release_shared_lease(db: Session, token: str) -> None:
             ContentVideoWorkerLease.name == LEASE_NAME,
             ContentVideoWorkerLease.token == token,
         ).values(token=None, expires_at=None))
-        if AUTO_EDIT_ONLY:
-            db.execute(update(ContentVideoWorkerLease).where(
-                ContentVideoWorkerLease.name == 'content-video-flow', ContentVideoWorkerLease.token == token,
-            ).values(token=None, expires_at=None))
         db.commit()
         if result.rowcount != 1:
             logger.warning("Media worker shared lease was not released for token %s", token)
@@ -108,10 +81,6 @@ class _MediaJobHeartbeat:
             if shared.rowcount != 1:
                 db.rollback()
                 return False
-            if AUTO_EDIT_ONLY:
-                db.execute(update(ContentVideoWorkerLease).where(
-                    ContentVideoWorkerLease.name == 'content-video-flow', ContentVideoWorkerLease.token == self.token,
-                ).values(expires_at=now + timedelta(seconds=LEASE_SECONDS)))
             job = db.execute(update(AIGenerationJob).where(
                 AIGenerationJob.id == self.job_id,
                 AIGenerationJob.lease_token == self.token,
@@ -136,7 +105,6 @@ class _MediaJobHeartbeat:
 def _recover_expired_jobs(db: Session, token: str) -> int:
     now = _now()
     expired_ids = [row[0] for row in db.query(AIGenerationJob.id).filter(
-        _queue_lane(),
         AIGenerationJob.provider.in_(MEDIA_QUEUE_PROVIDERS),
         AIGenerationJob.state.in_(_IN_FLIGHT),
         AIGenerationJob.lease_expires_at.is_not(None),
@@ -171,23 +139,10 @@ def _recover_expired_jobs(db: Session, token: str) -> int:
 
 
 def _claim_next_job(db: Session, token: str) -> AIGenerationJob | None:
-    query = db.query(AIGenerationJob).filter(
-        _queue_lane(),
+    job_id = db.query(AIGenerationJob.id).filter(
         AIGenerationJob.provider.in_(MEDIA_QUEUE_PROVIDERS),
         AIGenerationJob.state == "QUEUED",
-    ).order_by(AIGenerationJob.created_at, AIGenerationJob.id)
-    candidates = query.all() if AUTO_EDIT_ONLY else query.limit(1).all()
-    if AUTO_EDIT_ONLY:
-        candidates.sort(key=lambda job: json.loads(job.request_payload_json or '{}').get('operation')!='auto_edit_video')
-    job_id = None
-    for candidate in candidates:
-        request = json.loads(candidate.request_payload_json or '{}') if AUTO_EDIT_ONLY else {}
-        if AUTO_EDIT_ONLY and str(request.get('backend_provider', '')).upper() in FLOW_BACKEND_PROVIDERS:
-            # Flow vẫn dùng khóa trình duyệt chung; render từ xa không cần chờ khóa này.
-            if not acquire_media_lease(db, token, 'content-video-flow'):
-                continue
-        job_id = candidate.id
-        break
+    ).order_by(AIGenerationJob.created_at, AIGenerationJob.id).limit(1).scalar()
     if not job_id:
         return None
     claimed = db.execute(update(AIGenerationJob).where(
@@ -213,7 +168,6 @@ def _resume_waiting_auto_edit_jobs(db: Session, token: str) -> int:
     terminal_states = {"SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED", "BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_QUOTA"}
     resumed = 0
     parents = db.query(AIGenerationJob).filter(
-        _queue_lane(),
         AIGenerationJob.provider == "MEDIA_VIDEO",
         AIGenerationJob.state == "WAITING_FOR_FLOW",
     ).all()
@@ -229,7 +183,7 @@ def _resume_waiting_auto_edit_jobs(db: Session, token: str) -> int:
             or parameters.get("phase") not in {"waiting_for_flow", "render"}
             or not isinstance(child_ids, list)
             or not child_ids
-            or len(child_ids) > GIOI_HAN_TAC_VU_DIEN_HOA
+            or len(child_ids) > 3
             or any(not isinstance(child_id, str) or not child_id for child_id in child_ids)
             or len(child_ids) != len(set(child_ids))
         ):
@@ -316,40 +270,17 @@ def _execute_job(db: Session, job: AIGenerationJob, request: dict) -> MediaAsset
             if not path.is_relative_to(MEDIA_ROOT_DIR.resolve()) or not path.is_file():
                 raise ValueError("IMAGE_NOT_FOUND: Không tìm thấy tệp ảnh tham chiếu.")
             start_image_path = path
-        expected_lease = getattr(job, "lease_token", None)
-        def remember_flow_project(project_url):
-            from src.modules.flow_sessions.context import validate_flow_project_url
-            project_url = validate_flow_project_url(project_url)
-            if not project_url:
-                raise ValueError("FLOW_PROJECT_URL_INVALID")
-            payload = {**request, "flow_project_url": project_url}
-            saved = db.execute(update(AIGenerationJob).where(
-                AIGenerationJob.id == job.id,
-                AIGenerationJob.workspace_id == job.workspace_id,
-                AIGenerationJob.state == "SUBMITTING",
-                AIGenerationJob.lease_token == expected_lease,
-                AIGenerationJob.lease_expires_at > _now(),
-            ).values(request_payload_json=json.dumps(payload, ensure_ascii=False))
-                .execution_options(synchronize_session="fetch"))
-            if not expected_lease or saved.rowcount != 1:
-                db.rollback()
-                raise RuntimeError("MEDIA_JOB_LEASE_LOST_BEFORE_FLOW_SUBMISSION")
-            db.commit()
-            request["flow_project_url"] = project_url
         return video_orchestrator.generate_video_scene(
             db=db,
             workspace_id=job.workspace_id,
             user_id=job.created_by,
             prompt=request["prompt_text"],
             aspect_ratio=parameters.get("aspect_ratio", "9:16"),
-            include_audio=bool(parameters.get("include_audio", True)),
             use_official_omni=bool(parameters.get("use_official_omni", False)),
             start_image_path=start_image_path,
             start_image_asset_id=start_image_id,
             project_id=job.project_id,
             remove_watermark=bool(parameters.get("remove_watermark", False)),
-            flow_project_url=request.get("flow_project_url"),
-            on_flow_project_created=remember_flow_project,
         )
 
     if operation == "generate_flow_job":
@@ -373,7 +304,11 @@ def _execute_job(db: Session, job: AIGenerationJob, request: dict) -> MediaAsset
             phase=parameters.get("phase", "plan"),
             flow_job_ids=parameters.get("flow_job_ids"),
             plan_storage_key=parameters.get("plan_storage_key"),
-            manifest_asset_id=parameters.get("manifest_asset_id"),
+            bgm_mode=parameters.get("bgm_mode", "AUTO_MOOD"),
+            bgm_track_id=parameters.get("bgm_track_id"),
+            bgm_gain_db=float(parameters.get("bgm_gain_db", -18.0)),
+            caption_preset=parameters.get("caption_preset"),
+            aspect_ratio=parameters.get("aspect_ratio"),
         )
     if operation == "create_content_video_storyboard":
         from src.modules.tao_video_noi_dung.contracts import CreatePlanRequest
@@ -396,7 +331,6 @@ def _execute_job(db: Session, job: AIGenerationJob, request: dict) -> MediaAsset
     raise ValueError("INVALID_JOB_OPERATION: Unsupported media queue operation.")
 
 
-@pipeline("MEDIA_JOB")
 def _execute_with_profile_context(db: Session, job: AIGenerationJob, request: dict) -> MediaAsset:
     if str(request.get("backend_provider", "")).upper() not in FLOW_BACKEND_PROVIDERS:
         return _execute_job(db, job, request)

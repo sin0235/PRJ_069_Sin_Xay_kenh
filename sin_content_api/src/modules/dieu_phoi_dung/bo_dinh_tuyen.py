@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
@@ -67,7 +67,11 @@ class XuatGoiBanGiaoRequest(BaseModel):
 class TaoVideoDaiRequest(BaseModel):
     source_asset_id: str = Field(min_length=1, max_length=36)
     idempotency_key: str = Field(min_length=8, max_length=128)
-    manifest_asset_id: str | None = Field(default=None, min_length=1, max_length=36)
+    bgm_mode: Literal["NONE", "AUTO_MOOD", "LIBRARY_TRACK"] = "AUTO_MOOD"
+    bgm_track_id: Optional[str] = None
+    bgm_gain_db: float = Field(default=-10.0, ge=-36.0, le=-3.0)
+    caption_preset: Optional[Literal["da_sac_phan_tang", "hop_mau_dong_chinh", "bento_ba_tang", "inline_pop_trai"]] = None
+    aspect_ratio: Optional[Literal["9:16", "16:9"]] = None
 
 
 def _kiem_tra_quyen_du_an(db: Session, project_id: str, workspace_id: str) -> ProductionProject:
@@ -111,21 +115,7 @@ def tu_dong_dung_video_dai(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy video nguồn trong workspace.")
     if source.project_id and source.project_id != project_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Video nguồn không thuộc dự án này.")
-    if source.source_product != "UPLOAD" or source.parent_asset_id:
-        raise HTTPException(status_code=409, detail={
-            "error_code": "AUTO_EDIT_ORIGINAL_SOURCE_REQUIRED",
-            "message": "Chọn video gốc tải lên; không dùng thành phẩm hoặc cảnh AI để dựng lại.",
-        })
 
-    parameters = {"source_asset_id": source.id}
-    if req.manifest_asset_id:
-        from .dung_video_dai import doc_bien_ban_dung_lai
-        try:
-            doc_bien_ban_dung_lai(db, req.manifest_asset_id, source, ctx.workspace_id, project_id)
-        except (ValueError, OSError, TypeError, KeyError) as exc:
-            raise HTTPException(409, detail={"error_code": "AUTO_EDIT_MANIFEST_NOT_REPLAYABLE",
-                "message": "Biên bản không đủ dữ liệu dựng lại hoặc không khớp nguồn. Cần phân tích lại video gốc."}) from exc
-        parameters.update(phase="render", manifest_asset_id=req.manifest_asset_id)
     llm = LLMClient.from_db(db)
     if not llm.is_enabled:
         raise HTTPException(
@@ -143,7 +133,14 @@ def tu_dong_dung_video_dai(
         provider_mode="LOCAL_CPU_AND_CONFIGURED_LLM",
         model_id=llm.model,
         prompt_text="Dựng video nguồn thành các clip mạng xã hội, giữ nguyên khuôn mặt gốc.",
-        parameters=parameters,
+        parameters={
+            "source_asset_id": source.id,
+            "bgm_mode": req.bgm_mode,
+            "bgm_track_id": req.bgm_track_id,
+            "bgm_gain_db": req.bgm_gain_db,
+            "caption_preset": req.caption_preset,
+            "aspect_ratio": req.aspect_ratio,
+        },
         idempotency_key=req.idempotency_key,
         project_id=project_id,
         estimated_cost=0.0,

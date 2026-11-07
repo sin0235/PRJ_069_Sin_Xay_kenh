@@ -109,7 +109,7 @@ function point(el, at, dx, dy) {
 function sweep(el, at, dur) { tl.fromTo(el, { scaleX: 0, transformOrigin: '0% 50%' }, { scaleX: 1, duration: dur || .55, ease: 'power3.out' }, at); }
 function draw(el, at, dur) { const len = el.getTotalLength ? el.getTotalLength() : 600; gsap.set(el, { strokeDasharray: len, strokeDashoffset: len }); tl.to(el, { strokeDashoffset: 0, duration: dur || .6, ease: 'power2.inOut' }, at); }
 function count(el, from, to, at, dur, dec, suffix) { const o = { v: from }; tl.fromTo(o, { v: from }, { v: to, duration: dur || 1.2, ease: 'power2.out', onUpdate: () => { el.textContent = (dec ? o.v.toFixed(dec).replace('.', ',') : Math.round(o.v)) + (suffix || ''); } }, at); }
-function punch(x, y, at, k) { if (!cameraFocus.set) Object.assign(cameraFocus, { from: Math.max(0, at - .9), to: Math.min(D, at + .7), set: true }); if (!cameraFocus.points.length) Object.assign(cameraFocus, { x, y }); if (!LAYERED_CAMERA) tl.to(cameraTargets, { scale: k || 1.07, transformOrigin: x + 'px ' + y + 'px', duration: .9, ease: 'power2.inOut' }, at); }
+function punch(x, y, at, k) { if (!cameraFocus.set) Object.assign(cameraFocus, { from: Math.max(0, at - .9), to: Math.min(D, at + .7), set: true }); if (!cameraFocus.points.length) Object.assign(cameraFocus, { x, y }); if (!LAYERED_CAMERA) tl.to(cameraTargets, { scale: Math.min(k || 1.07, 1.04), transformOrigin: x + 'px ' + y + 'px', duration: .9, ease: 'power2.inOut' }, at); }
 const cameraClock = { t: 0 };
 tl.to(cameraClock, { t: D, duration: D, ease: 'none', onUpdate: () => {
   const c = window.__bahaCamera.transform(CAMERA_CONFIG.kind, CAMERA_CONFIG.motion, cameraClock.t, D, cameraFocus, 1920, 1080);
@@ -144,7 +144,8 @@ def scaffold(cid: str, scene: dict, css: str, body: str, js: str, lead: float, s
     helpers = JS_HELPERS.replace("@@EXIT@@", EXIT_JS if exit_slide else "").replace("@@SCENE@@", js)
     helpers = helpers.replace("@@CAMERA_CONFIG@@", json.dumps({"kind": scene.get("kind", ""), "motion": scene.get("camera_motion", "AUTO")}))
     helpers = helpers.replace("@@LEAD@@", repr(round(lead, 3))).replace("@@DUR@@", str(seconds)).replace("@@EV@@", json.dumps({k: round(v, 3) for k, v in events.items()}))
-    text = "<template>\n<style>\n" + BASE_CSS + css + "\n</style>\n<div id=\"root\" data-composition-id=\"@@CID@@\" data-width=\"1920\" data-height=\"1080\">" + page + "</div>\n<script>\n" + CAMERA_MOTION_JS + "\n" + helpers + "\n</script>\n</template>\n"
+    transparent_css = "\n@@S@@ .sheetBackground,@@S@@ .tape,@@S@@ .pencil,@@S@@ .marker{display:none!important}" if scene.get("transparent") else ""
+    text = "<template>\n<style>\n" + BASE_CSS + css + transparent_css + "\n</style>\n<div id=\"root\" data-composition-id=\"@@CID@@\" data-width=\"1920\" data-height=\"1080\">" + page + "</div>\n<script>\n" + CAMERA_MOTION_JS + "\n" + helpers + "\n</script>\n</template>\n"
     return text.replace("@@S@@", '[data-composition-id="' + cid + '"]').replace("@@CID@@", cid)
 
 
@@ -395,7 +396,9 @@ from . import hf_blocks  # noqa: E402
 def _block_scene(layout: str):
     """Cảnh dựng từ khối HyperFrames dựng sẵn: trả (composition, thuộc tính host, style host); hf_project ghép vào thẻ host."""
     def build(cid, scene, lead, seconds, ev):
-        return hf_blocks.scene_composition(layout, cid, scene, seconds)
+        return hf_blocks.scene_composition(
+            layout, cid, scene, seconds, transparent_background=bool(scene.get("transparent")),
+        )
     return build
 
 

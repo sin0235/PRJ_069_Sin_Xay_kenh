@@ -1,0 +1,36 @@
+{
+ "giay_dung": 377.7,
+ "meta": {
+  "width": 1920,
+  "height": 1080,
+  "duration_seconds": 88.0,
+  "video_stream_duration_seconds": 88.0,
+  "codec_name": "h264",
+  "pixel_format": "yuv420p",
+  "has_alpha": false,
+  "frame_rate": 30.0,
+  "aspect_ratio": "1920:1080",
+  "is_vertical_9_16": false,
+  "bitrate_bps": 3670818,
+  "safe_zone_tiktok": {
+   "top_margin_px": 150,
+   "bottom_margin_px": 320,
+   "right_margin_px": 120,
+   "is_compliant": false
+  }
+ },
+ "native": [
+  "OPEN_QUESTION",
+  "FUNNEL",
+  "BEFORE_AFTER",
+  "CHECKLIST",
+  "TIMELINE",
+  "HUB_SPOKE",
+  "END_CARD"
+ ],
+ "legacy": [
+  "DOC_LAYERS",
+  "COMPARE_DOCS"
+ ],
+ "check_returncode": 0
+}

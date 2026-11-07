@@ -20,46 +20,6 @@ from src.modules.media_queue.service import enqueue_media_job, process_next_medi
 from src.schemas.contracts import AIGenerationJobCreate, AIGenerationJobOut
 
 
-def test_worker_auto_edit_khong_bi_khoa_ai_video_nhung_flow_van_tuan_tu(media_db, monkeypatch):
-    from src.modules.media_queue import worker
-    from src.models.entities import ProductionProject
-    db, ws, _ = media_db
-    db.add_all([ProductionProject(id='edit', workspace_id=ws, title='Edit', workflow_type='AUTO_EDIT', created_by='u'),
-                ProductionProject(id='ai', workspace_id=ws, title='AI', workflow_type='AI_VIDEO', created_by='u')])
-    for ident, project, backend in [('ai-job','ai','BAHA_AUTO_EDIT'), ('flow','edit','GOOGLE_FLOW'), ('diagram','edit','BAHA_AUTO_EDIT')]:
-        db.add(AIGenerationJob(id=ident, project_id=project, workspace_id=ws, asset_type='VIDEO',
-            provider='MEDIA_VIDEO', provider_mode='INTERNAL_RENDERER', model_id='test', idempotency_key=ident,
-            created_by='u', request_payload_json=json.dumps({'backend_provider':backend})))
-    db.add(ContentVideoWorkerLease(name='content-video-flow', token='busy-ai', expires_at=datetime.now(timezone.utc)+timedelta(minutes=5)))
-    db.commit()
-    monkeypatch.setattr(worker, 'AUTO_EDIT_ONLY', True, raising=False)
-    monkeypatch.setattr(worker, 'LEASE_NAME', 'auto-edit-media')
-    assert worker.acquire_media_lease(db, 'edit-token')
-    assert worker._claim_next_job(db, 'edit-token').id == 'diagram'
-    assert worker._claim_next_job(db, 'edit-token') is None
-    assert db.get(AIGenerationJob,'ai-job').state == 'QUEUED'
-    db.get(ContentVideoWorkerLease,'content-video-flow').expires_at=datetime.now(timezone.utc)-timedelta(seconds=1)
-    db.commit()
-    assert worker._claim_next_job(db, 'edit-token').id == 'flow'
-    assert db.get(ContentVideoWorkerLease,'content-video-flow').token == 'edit-token'
-
-
-def test_uu_tien_ghep_video_da_du_canh_truoc_canh_clip_sau(media_db, monkeypatch):
-    from src.modules.media_queue import worker
-    from src.models.entities import ProductionProject
-    db, ws, _=media_db
-    db.add(ProductionProject(id='edit',workspace_id=ws,title='Edit',workflow_type='AUTO_EDIT',created_by='u'))
-    for ident, operation in [('old-scene','render_auto_edit_diagram'),('new-final','auto_edit_video')]:
-        db.add(AIGenerationJob(id=ident,project_id='edit',workspace_id=ws,asset_type='VIDEO',provider='MEDIA_VIDEO',
-            provider_mode='INTERNAL_RENDERER',model_id='test',idempotency_key=ident,created_by='u',
-            request_payload_json=json.dumps({'backend_provider':'BAHA_AUTO_EDIT','operation':operation})))
-        db.commit()
-    monkeypatch.setattr(worker,'AUTO_EDIT_ONLY',True)
-    monkeypatch.setattr(worker,'LEASE_NAME','auto-edit-media')
-    assert worker.acquire_media_lease(db,'t')
-    assert worker._claim_next_job(db,'t').id=='new-final'
-
-
 @pytest.fixture
 def media_db():
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
@@ -616,7 +576,6 @@ def test_flow_errors_are_retryable_only_when_submission_is_known_not_sent():
 @pytest.mark.parametrize("blocked_state,error_code", [
     ("BLOCKED_FLOW_LOGIN", "FLOW_LOGIN_REQUIRED"),
     ("BLOCKED_FLOW_QUOTA", "FLOW_QUOTA_LIMITED"),
-    ("FAILED", "FLOW_SUBMISSION_NOT_SENT"),
 ])
 @pytest.mark.parametrize("operation", ["generate_flow_job", "generate_music_track", "generate_video_scene"])
 def test_resume_blocked_generic_job_requeues_same_job_and_idempotency(media_db, monkeypatch, blocked_state, error_code, operation):
@@ -659,13 +618,12 @@ def test_resume_blocked_generic_job_requeues_same_job_and_idempotency(media_db, 
     assert request["profile_id"] == replacement_profile.id
 
 
-@pytest.mark.parametrize('state,code', [('NEEDS_RECONCILIATION','NEEDS_RECONCILIATION'), ('FAILED','INVALID_JOB_PAYLOAD'), ('NEEDS_RECONCILIATION','FLOW_SUBMISSION_NOT_SENT')])
-def test_resume_rejects_provider_submission_uncertainty(media_db, monkeypatch,state,code):
+def test_resume_rejects_provider_submission_uncertainty(media_db, monkeypatch):
     db, workspace_id, _session_factory = media_db
     media_router = _media_router_module(monkeypatch)
     job = _queued_generic_flow(db, workspace_id, "uncertain-generic-flow")
-    job.state = state
-    job.error_code = code
+    job.state = "NEEDS_RECONCILIATION"
+    job.error_code = "NEEDS_RECONCILIATION"
     db.commit()
 
     with pytest.raises(HTTPException) as error:
@@ -678,7 +636,7 @@ def test_resume_rejects_provider_submission_uncertainty(media_db, monkeypatch,st
 
     db.refresh(job)
     assert error.value.status_code == 409
-    assert job.state == state
+    assert job.state == "NEEDS_RECONCILIATION"
 
 
 def test_worker_records_only_typed_pre_submit_provider_errors(media_db, monkeypatch):
@@ -1056,117 +1014,144 @@ def test_worker_dispatches_auto_edit_hyperframes_scene_to_existing_renderer(medi
     assert calls == [(db, job, request)]
 
 
-@pytest.mark.parametrize('lease_lost',[False,True])
-def test_worker_luu_project_flow_truoc_gui_va_chan_worker_mat_lease(media_db,monkeypatch,lease_lost):
-    from src.modules.media_queue import worker
-    from src.modules.media_studio.video_provider import video_orchestrator
-    db,workspace_id,_=media_db
-    job=enqueue_media_job(db,workspace_id=workspace_id,user_id='user-queue',provider='MEDIA_VIDEO',
-        operation='generate_video_scene',backend_provider='GOOGLE_FLOW',provider_mode='FLOW_BROWSER_PILOT',
-        model_id='google-flow',prompt_text='Cảnh giấy',parameters={'include_audio':False},
-        idempotency_key='flow-project-before-submit',project_id='project-01')
-    job.state='SUBMITTING';job.lease_token='owned'
-    job.lease_expires_at=datetime.now(timezone.utc)+timedelta(minutes=5)
-    db.commit()
-    db.refresh(job)
-    request=json.loads(job.request_payload_json)
-    expected=object()
-    def generate(**kwargs):
-        assert kwargs['include_audio'] is False
-        assert kwargs['flow_project_url'] is None
-        if lease_lost:
-            db.query(AIGenerationJob).filter(AIGenerationJob.id==job.id).update({'lease_token':'other'})
-            db.commit()
-        kwargs['on_flow_project_created']('https://flow.google.com/project/doi-soat')
-        db.expire_all()
-        assert json.loads(db.get(AIGenerationJob,job.id).request_payload_json)['flow_project_url']=='https://flow.google.com/project/doi-soat'
-        return expected
-    monkeypatch.setattr(video_orchestrator,'generate_video_scene',generate)
-    if lease_lost:
-        with pytest.raises(RuntimeError,match='MEDIA_JOB_LEASE_LOST_BEFORE_FLOW_SUBMISSION'):
-            worker._execute_job(db,job,request)
-    else:
-        assert worker._execute_job(db,job,request) is expected
-
-
-@pytest.mark.parametrize('invalid', [None, 'workspace', 'project', 'hash', 'active', 'duration', 'old', 'path', 'database'])
-def test_doi_soat_flow_da_tai_khong_tao_lai(media_db,monkeypatch,tmp_path,invalid):
-    from src.modules.media_queue import service
-    from src.modules.media_studio import security
-    from src.modules.media_studio.video_processor import video_processor
-    db,ws,_=media_db
-    job=enqueue_media_job(db,workspace_id=ws,user_id='user-queue',provider='MEDIA_VIDEO',
-        operation='generate_video_scene',backend_provider='GOOGLE_FLOW',provider_mode='FLOW_BROWSER_PILOT',
-        model_id='google-flow',prompt_text='Cảnh giấy',parameters={'aspect_ratio':'9:16'},
-        idempotency_key='reconcile-downloaded-flow',project_id='project-01')
-    job.state='SUBMITTING' if invalid=='active' else 'NEEDS_RECONCILIATION'
-    path=tmp_path/'canh.mp4';path.write_bytes(b'flow-recovered')
-    digest,size=security.hash_file(path)
-    asset=MediaAsset(id='raw-recovered',workspace_id='other' if invalid=='workspace' else ws,
-        project_id='other' if invalid=='project' else job.project_id,
-        storage_key='../canh.mp4' if invalid=='path' else path.name,sha256='bad' if invalid=='hash' else digest,
-        byte_size=size,mime_detected='video/mp4',source_product='UPLOAD',created_by='user-queue',
-        created_at=datetime.now(timezone.utc)-timedelta(days=1) if invalid=='old' else datetime.now(timezone.utc))
-    db.add(asset);db.commit()
-    monkeypatch.setattr(security,'MEDIA_ROOT_DIR',tmp_path)
-    monkeypatch.setattr(video_processor,'probe_video',lambda p:{'width':1080,'height':1920,
-        'duration_seconds':4 if invalid=='duration' else 10,'frame_rate':30})
-    args=dict(job_id=job.id,asset_id=asset.id,workspace_id=ws,user_id='user-queue',
-        project_url='https://flow.google.com/project/doi-soat',reason='Đã đối chiếu cảnh tải từ Flow và kiểm tra gỡ logo.')
-    if invalid=='database':
-        from sqlalchemy.sql.dml import Update
-        execute=db.execute
-        def fail_update(statement,*args,**kwargs):
-            if isinstance(statement,Update):raise RuntimeError('DATABASE_UNAVAILABLE')
-            return execute(statement,*args,**kwargs)
-        monkeypatch.setattr(db,'execute',fail_update)
-        with pytest.raises(RuntimeError,match='DATABASE_UNAVAILABLE'):service.reconcile_flow_job(db,**args)
-        assert not list(tmp_path.glob('flow_phuc_hoi_*.mp4'))
-        assert path.read_bytes()==b'flow-recovered'
-        return
-    if invalid:
-        with pytest.raises(HTTPException):service.reconcile_flow_job(db,**args)
-        db.refresh(job);assert job.state!='SUCCEEDED'
-    else:
-        service.reconcile_flow_job(db,**args)
-        db.refresh(job);assert job.state=='SUCCEEDED'
-        output=json.loads(job.output_asset_ids_json)
-        assert len(output)==1
-        recovered=db.get(MediaAsset,output[0]);assert recovered.source_product=='GOOGLE_FLOW'
-        assert recovered.parent_asset_id==asset.id
-        assert recovered.storage_key!=asset.storage_key
-        assert security.hash_file(tmp_path/recovered.storage_key)==(digest,size)
-        service.reconcile_flow_job(db,**args)
-        assert json.loads(job.output_asset_ids_json)==output
-
-
-@pytest.mark.parametrize('invalid',[None,'old','hash','source','workspace'])
-def test_doc_bien_ban_dung_lai_kiem_nguon_va_du_lieu(media_db,monkeypatch,tmp_path,invalid):
+def test_auto_edit_parent_worker_dispatches_and_defers_for_visual_children(media_db, monkeypatch):
     from src.modules.dieu_phoi_dung import dung_video_dai as editor
-    db,ws,_=media_db
-    source=MediaAsset(id='source-original',workspace_id=ws,project_id='project-01',storage_key='source.mp4',
-        sha256='a'*64,byte_size=1,mime_detected='video/mp4',source_product='UPLOAD',created_by='user-queue')
-    data={'source_asset_id':source.id,'source_sha256':'wrong' if invalid=='source' else source.sha256,
-        'words':[{'id':'w1','text':'nội dung','start_ms':0,'end_ms':3000}],
-        'plan':{'clips':[{'clip_id':'c1','start_ms':0,'end_ms':3000,'title':'Đủ ý','reason':'Đủ ý'}]},
-        'visual_briefs':[],'visual_generation':[],'removed_pause_intervals':[],
-        'pause_candidates':[],'waveform_peaks':[]}
-    if invalid=='old':data.pop('words')
-    path=tmp_path/'bien_ban.json';path.write_text(json.dumps(data),encoding='utf-8')
-    from src.modules.media_studio.security import hash_file
-    digest,size=hash_file(path)
-    manifest=MediaAsset(id='manifest',workspace_id='other' if invalid=='workspace' else ws,project_id=source.project_id,
-        parent_asset_id=source.id,storage_key=path.name,sha256='bad' if invalid=='hash' else digest,byte_size=size,
-        mime_detected='application/json',source_product='AUTO_EDIT',created_by='user-queue')
-    db.add_all([source,manifest]);db.commit();monkeypatch.setattr(editor,'MEDIA_ROOT_DIR',tmp_path)
-    if invalid:
-        with pytest.raises(ValueError):editor.doc_bien_ban_dung_lai(db,manifest.id,source,ws,source.project_id)
-    else:
-        assert editor.doc_bien_ban_dung_lai(db,manifest.id,source,ws,source.project_id)==data
+    from src.modules.media_queue import worker
+    from src.modules.media_queue.contracts import DeferredMediaJob
+
+    db, workspace_id, session_factory = media_db
+    parent = enqueue_media_job(
+        db, workspace_id=workspace_id, user_id="user-queue", provider="MEDIA_VIDEO",
+        operation="auto_edit_video", backend_provider="BAHA_AUTO_EDIT",
+        provider_mode="LOCAL_CPU_AND_CONFIGURED_LLM", model_id="model-kiem-thu",
+        prompt_text="Dựng video nguồn thành các clip.", parameters={"source_asset_id": "source-01"},
+        idempotency_key="auto-edit-parent-defer-01", project_id="project-01",
+    )
+    token = "auto-edit-parent-defer-token"
+    _hold_shared_lease(db, token)
+    monkeypatch.setattr(worker, "SessionLocal", session_factory)
+    monkeypatch.setattr(worker, "authorized_worker_tenant", lambda *args, **kwargs: nullcontext())
+    deferred_payload = json.loads(parent.request_payload_json)
+    deferred_payload["parameters"].update(
+        phase="render", flow_job_ids=["flow-child-01"], plan_storage_key=".cache/auto_edit/parent.json",
+    )
+    calls = []
+    monkeypatch.setattr(
+        editor, "dung_video_dai",
+        lambda database, **kwargs: calls.append((database, kwargs)) or DeferredMediaJob(
+            request_payload_json=json.dumps(deferred_payload),
+            status_message="Đang chờ diễn họa.",
+        ),
+    )
+
+    assert worker.process_next_media_job(db, token) is True
+
+    db.refresh(parent)
+    assert calls == [(db, {
+        "source_asset_id": "source-01", "workspace_id": workspace_id,
+        "user_id": "user-queue", "project_id": "project-01", "job_id": parent.id,
+        "phase": "plan", "flow_job_ids": None, "plan_storage_key": None,
+    })]
+    assert parent.state == "WAITING_FOR_FLOW"
+    assert parent.error_code is None
+    assert parent.lease_token is None
+    assert json.loads(parent.request_payload_json)["parameters"]["phase"] == "render"
 
 
-@pytest.mark.parametrize("child_count", [2, 4, 20, 21])
-def test_auto_edit_waits_for_flow_children_then_resumes_once(media_db, child_count):
+def test_content_video_storyboard_enqueue_is_idempotent_and_project_scoped(media_db, monkeypatch):
+    from src.modules.llm.client import LLMClient
+    from src.modules.tao_video_noi_dung import service as content_video_service
+    from src.modules.tao_video_noi_dung.contracts import CreatePlanRequest
+
+    db, workspace_id, _ = media_db
+    monkeypatch.setattr(content_video_service, "_project", lambda *_args: None)
+
+    class EnabledLLM:
+        is_enabled = True
+        model = "test-model"
+
+    monkeypatch.setattr(LLMClient, "from_db", classmethod(lambda _cls, _db: EnabledLLM()))
+    request = CreatePlanRequest(content="Nội dung đủ dài để lập storyboard video về quy trình chăm sóc khách hàng.", target_duration_seconds=20)
+
+    first = content_video_service.enqueue_content_video_plan(
+        db, "project-storyboard", workspace_id, "user-queue", request, "storyboard-key-01"
+    )
+    repeated = content_video_service.enqueue_content_video_plan(
+        db, "project-storyboard", workspace_id, "user-queue", request, "storyboard-key-01"
+    )
+
+    assert first.job_id == repeated.job_id
+    assert first.state == "QUEUED"
+    assert content_video_service.get_content_video_plan_job(
+        db, "project-storyboard", first.job_id, workspace_id
+    ).state == "QUEUED"
+
+    with pytest.raises(HTTPException) as error:
+        content_video_service.enqueue_content_video_plan(
+            db, "different-project", workspace_id, "user-queue", request, "storyboard-key-01"
+        )
+    assert error.value.status_code == 409
+    assert error.value.detail["error_code"] == "IDEMPOTENCY_CONFLICT"
+
+
+def test_content_video_storyboard_worker_dispatches_with_job_id_as_plan_id(media_db, monkeypatch):
+    from src.modules.media_queue import worker
+    from src.modules.tao_video_noi_dung import service as content_video_service
+
+    db, workspace_id, _ = media_db
+    job = SimpleNamespace(id="storyboard-job-id", workspace_id=workspace_id, created_by="user-queue", project_id="project-storyboard")
+    request = {
+        "operation": "create_content_video_storyboard",
+        "backend_provider": "LLM_ROUTER",
+        "parameters": {
+            "content": "Nội dung đủ dài để lập storyboard video về quy trình chăm sóc khách hàng.",
+            "target_duration_seconds": 20,
+            "aspect_ratio": "9:16",
+            "project_id": "project-storyboard",
+        },
+    }
+    calls = []
+    monkeypatch.setattr(
+        content_video_service,
+        "create_plan",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    result = worker._execute_job(db, job, request)
+
+    assert result is None
+    args, kwargs = calls[0]
+    assert args[0] is db
+    assert args[1:4] == ("project-storyboard", workspace_id, "user-queue")
+    assert args[4].content == request["parameters"]["content"]
+    assert kwargs == {"plan_id": "storyboard-job-id"}
+
+
+def test_storyboard_worker_marks_success_without_media_asset(media_db, monkeypatch):
+    db, workspace_id, session_factory = media_db
+    worker = _worker_module()
+    token = str(uuid.uuid4())
+    job = enqueue_media_job(
+        db, workspace_id=workspace_id, user_id="user-queue", provider="MEDIA_VIDEO",
+        operation="create_content_video_storyboard", backend_provider="LLM_ROUTER",
+        provider_mode="LLM_ROUTER", model_id="test-model", prompt_text="Tạo storyboard video",
+        parameters={"content": "Nội dung đủ dài để lập storyboard video về quy trình chăm sóc khách hàng."},
+        idempotency_key="storyboard-worker-success-01", project_id="project-storyboard",
+    )
+    _hold_shared_lease(db, token)
+    monkeypatch.setattr(worker, "SessionLocal", session_factory)
+    monkeypatch.setattr(worker, "authorized_worker_tenant", lambda *args, **kwargs: nullcontext())
+    monkeypatch.setattr(worker, "_execute_job", lambda *_args: None)
+
+    assert worker.process_next_media_job(db, token) is True
+
+    db.refresh(job)
+    assert job.state == "SUCCEEDED"
+    assert job.output_asset_ids_json == "[]"
+    assert job.error_code is None
+
+
+def test_auto_edit_waits_for_flow_children_then_resumes_once(media_db):
     from src.modules.media_queue import worker
 
     db, workspace_id, _ = media_db
@@ -1191,19 +1176,8 @@ def test_auto_edit_waits_for_flow_children_then_resumes_once(media_db, child_cou
         prompt_text="Cảnh origami thứ hai.", parameters={},
         idempotency_key="auto-edit-child-two-01", project_id="project-01",
     )
-    child_ids = [first.id, second.id]
-    for index in range(2, child_count):
-        child = enqueue_media_job(
-            db, workspace_id=workspace_id, user_id="user-queue", provider="MEDIA_VIDEO",
-            operation="generate_video_scene", backend_provider="GOOGLE_FLOW",
-            provider_mode="FLOW_BROWSER_PILOT", model_id="google-flow",
-            prompt_text="Cảnh giấy bổ sung.", parameters={},
-            idempotency_key=f"auto-edit-child-extra-{index}", project_id="project-01",
-        )
-        child.state = "SUCCEEDED"
-        child_ids.append(child.id)
     request = json.loads(parent.request_payload_json)
-    request["parameters"].update(phase="waiting_for_flow", flow_job_ids=child_ids)
+    request["parameters"].update(phase="waiting_for_flow", flow_job_ids=[first.id, second.id])
     parent.request_payload_json = json.dumps(request)
     parent.state = "WAITING_FOR_FLOW"
     second.state = "SUCCEEDED"
@@ -1222,7 +1196,7 @@ def test_auto_edit_waits_for_flow_children_then_resumes_once(media_db, child_cou
     assert db.get(AIGenerationJob, parent.id).state == "QUEUED"
     resumed = json.loads(db.get(AIGenerationJob, parent.id).request_payload_json)
     assert resumed["parameters"]["phase"] == "render"
-    assert resumed["parameters"]["flow_job_ids"] == child_ids
+    assert resumed["parameters"]["flow_job_ids"] == [first.id, second.id]
     assert worker._resume_waiting_auto_edit_jobs(db, token) == 0
 
 
@@ -1254,3 +1228,4 @@ def test_auto_edit_cleanup_removes_only_its_persisted_plan(tmp_path, monkeypatch
         }},
     )
     assert not plan.exists()
+

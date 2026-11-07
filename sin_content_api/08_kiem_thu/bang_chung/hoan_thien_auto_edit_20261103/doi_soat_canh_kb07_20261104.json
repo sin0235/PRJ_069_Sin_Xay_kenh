@@ -1,0 +1,12 @@
+{
+  "job_id": "afffb6a3-1af4-4f36-b2ed-48a422776fb7",
+  "render_task_id": "d8eb00a9-90a0-4155-8ac4-82d7e36378c7",
+  "qc_task_id": "af08a47d-73c9-4fa3-a728-0bfea228a380",
+  "sha256": "9d5a4c94007ae3ae7511b63d9f03b25b4ae679e77132e447d540456f22c50c72",
+  "byte_size": 41262735,
+  "asset_id": "416402c8-a191-5412-bda7-a09aacfd1956",
+  "previous_state": "NEEDS_RECONCILIATION",
+  "reason": "Khóa worker hết hạn sau khi cảnh đã render và QC thành công; khôi phục đúng tệp, không render lại.",
+  "at": "2026-11-04T08:21:47.626771+00:00",
+  "rendered_again": false
+}

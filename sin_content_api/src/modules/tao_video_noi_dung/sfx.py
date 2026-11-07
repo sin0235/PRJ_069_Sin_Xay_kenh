@@ -144,11 +144,9 @@ def plan_sfx_cues(shots, durations: list[float] | None = None, word_times_by_sho
 
 
 def transition_sfx_cues(boundaries: list[float], sound_id: str = "luot_nhe") -> list[dict]:
-    item = next((sound for sound in SFX_LIBRARY if sound["id"] == sound_id), None)
-    if not item or not item["path"].is_file():
-        return []
+    item = next(sound for sound in SFX_LIBRARY if sound["id"] == sound_id)
     return [
-        {"sound_id": item["id"], "path": Path(item["path"]), "start_seconds": max(0.0, round(at - .15, 3)), "volume": item["volume"]}
+        {"sound_id": item["id"], "path": item["path"], "start_seconds": max(0.0, round(at - .15, 3)), "volume": item["volume"]}
         for at in boundaries
     ]
 
@@ -161,11 +159,9 @@ def _append(cues, seen, library, sound_id, at, shot_id, action):
         return
     seen.add(key)
     item = library[sound_id]
-    if not item["path"].is_file():
-        return
     cues.append({
         "sound_id": sound_id,
-        "path": Path(item["path"]),
+        "path": item["path"],
         "start_seconds": round(max(0.0, at), 3),
         "volume": item["volume"],
         "shot_id": shot_id,

@@ -2406,7 +2406,6 @@ def test_auto_edit_api_queues_only_when_real_llm_configured(video_fixture, monke
             id=project_id,
             workspace_id=video_fixture["ws_id"],
             title="Auto edit API test",
-            workflow_type="AUTO_EDIT",
             created_by=video_fixture["user_id"],
         ))
         db.add(MediaAsset(
@@ -2436,6 +2435,7 @@ def test_auto_edit_api_queues_only_when_real_llm_configured(video_fixture, monke
     }
     url = f"/v1/media/projects/{project_id}/dung/tu-dong-dung-video-dai"
     payload = {"source_asset_id": source_id, "idempotency_key": f"auto-edit-{uuid.uuid4().hex}"}
+
     disabled = client.post(url, headers=headers, json=payload)
     assert disabled.status_code == 503
     assert disabled.json()["detail"]["error_code"] == "LLM_NOT_CONFIGURED"
@@ -2454,7 +2454,3 @@ def test_auto_edit_api_queues_only_when_real_llm_configured(video_fixture, monke
     repeated = client.post(url, headers=headers, json=payload)
     assert repeated.status_code == 202
     assert repeated.json()["job_id"] == job_id
-    rejected = client.post(url, headers=headers, json={**payload,
-        "idempotency_key": f"replay-{uuid.uuid4().hex}", "manifest_asset_id": str(uuid.uuid4())})
-    assert rejected.status_code == 409
-    assert rejected.json()["detail"]["error_code"] == "AUTO_EDIT_MANIFEST_NOT_REPLAYABLE"

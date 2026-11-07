@@ -1,0 +1,365 @@
+{
+  "phien_ban_kho_nhac": "1.0.0",
+  "tong_so_bai": 15,
+  "muc_tieu_am_luong_goc_lufs": -16.0,
+  "muc_ha_nen_mac_dinh_db": -18.0,
+  "danh_muc": [
+    {
+      "ma": "chuyen_nghiep_b2b",
+      "ten": "Chuyên Nghiệp B2B & Công Nghệ",
+      "so_bai": 3
+    },
+    {
+      "ma": "nang_luong_bat_nhip",
+      "ten": "Năng Lượng Bắt Nhịp",
+      "so_bai": 3
+    },
+    {
+      "ma": "tam_su_ke_chuyen",
+      "ten": "Tâm Sự Kể Chuyện (Lo-Fi)",
+      "so_bai": 3
+    },
+    {
+      "ma": "kich_tinh_canh_bao",
+      "ten": "Kịch Tính Cảnh Báo",
+      "so_bai": 3
+    },
+    {
+      "ma": "truyen_cam_hung",
+      "ten": "Truyền Cảm Hứng & Thành Tựu",
+      "so_bai": 3
+    }
+  ],
+  "danh_sach_nhac": [
+    {
+      "id": "b2b_cong_nghe_so",
+      "ten": "Công Nghệ Số B2B",
+      "danh_muc": "chuyen_nghiep_b2b",
+      "nhan_dien_tam_trang": "Tập trung, hiện đại, số hóa",
+      "bpm": 104,
+      "thoi_luong_giay": 32,
+      "am_luong_mac_dinh_db": -18.0,
+      "dinh_dang": "audio/wav",
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "target_lufs": -16.0,
+      "sha256": "eb228e8c7e37f1e2749e7cfb0069d6eb6023ffff32edbf7c73eaab388441e9c6",
+      "byte_size": 6144078,
+      "tep_tin": "b2b_cong_nghe_so.wav",
+      "ban_quyen": {
+        "nguon": "INTERNAL_SYNTH_STUDIO",
+        "giay_phep": "CC0_EQUIVALENT_INTERNAL_OWNED",
+        "an_toan_tiktok_commercial": true,
+        "ghi_chu": "Bản quyền nội bộ BAHA AI Media Studio, miễn phí thương mại, an toàn tuyệt đối với TikTok Content ID."
+      }
+    },
+    {
+      "id": "b2b_chuyen_nghiep_hien_dai",
+      "ten": "Chuyên Nghiệp Hiện Đại",
+      "danh_muc": "chuyen_nghiep_b2b",
+      "nhan_dien_tam_trang": "Gọn gàng, tin cậy, chuẩn mực",
+      "bpm": 108,
+      "thoi_luong_giay": 32,
+      "am_luong_mac_dinh_db": -18.0,
+      "dinh_dang": "audio/wav",
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "target_lufs": -16.0,
+      "sha256": "43f8685a9cdd7b68439e5b45b50c8c48933c415e4a425e5bdf095302bdaa4e8f",
+      "byte_size": 6144078,
+      "tep_tin": "b2b_chuyen_nghiep_hien_dai.wav",
+      "ban_quyen": {
+        "nguon": "INTERNAL_SYNTH_STUDIO",
+        "giay_phep": "CC0_EQUIVALENT_INTERNAL_OWNED",
+        "an_toan_tiktok_commercial": true,
+        "ghi_chu": "Bản quyền nội bộ BAHA AI Media Studio, miễn phí thương mại, an toàn tuyệt đối với TikTok Content ID."
+      }
+    },
+    {
+      "id": "b2b_sang_tao_doanh_nghiep",
+      "ten": "Sáng Tạo Doanh Nghiệp",
+      "danh_muc": "chuyen_nghiep_b2b",
+      "nhan_dien_tam_trang": "Đổi mới, bứt phá, giải pháp",
+      "bpm": 112,
+      "thoi_luong_giay": 32,
+      "am_luong_mac_dinh_db": -18.0,
+      "dinh_dang": "audio/wav",
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "target_lufs": -16.0,
+      "sha256": "faee52093d08cdc5626f92079ff29a1776f97dd020af6797104148c31167c334",
+      "byte_size": 6144078,
+      "tep_tin": "b2b_sang_tao_doanh_nghiep.wav",
+      "ban_quyen": {
+        "nguon": "INTERNAL_SYNTH_STUDIO",
+        "giay_phep": "CC0_EQUIVALENT_INTERNAL_OWNED",
+        "an_toan_tiktok_commercial": true,
+        "ghi_chu": "Bản quyền nội bộ BAHA AI Media Studio, miễn phí thương mại, an toàn tuyệt đối với TikTok Content ID."
+      }
+    },
+    {
+      "id": "upbeat_nhip_nhanh",
+      "ten": "Nhịp Nhanh Bắt Mắt",
+      "danh_muc": "nang_luong_bat_nhip",
+      "nhan_dien_tam_trang": "Sôi động, kích thích tương tác",
+      "bpm": 124,
+      "thoi_luong_giay": 32,
+      "am_luong_mac_dinh_db": -18.0,
+      "dinh_dang": "audio/wav",
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "target_lufs": -16.0,
+      "sha256": "f142e1c0f72433f257d90937dc47f6ac166b962320e106033a0f245e539624db",
+      "byte_size": 6144078,
+      "tep_tin": "upbeat_nhip_nhanh.wav",
+      "ban_quyen": {
+        "nguon": "INTERNAL_SYNTH_STUDIO",
+        "giay_phep": "CC0_EQUIVALENT_INTERNAL_OWNED",
+        "an_toan_tiktok_commercial": true,
+        "ghi_chu": "Bản quyền nội bộ BAHA AI Media Studio, miễn phí thương mại, an toàn tuyệt đối với TikTok Content ID."
+      }
+    },
+    {
+      "id": "upbeat_bat_trend_hook",
+      "ten": "Bắt Trend 3 Giây Vàng",
+      "danh_muc": "nang_luong_bat_nhip",
+      "nhan_dien_tam_trang": "Giữ chân, dồn dập, sắc nét",
+      "bpm": 126,
+      "thoi_luong_giay": 32,
+      "am_luong_mac_dinh_db": -18.0,
+      "dinh_dang": "audio/wav",
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "target_lufs": -16.0,
+      "sha256": "3f20c44f36545dfdf5f11339bcf95dc430427b75e8f187ab96429242b47d215a",
+      "byte_size": 6144078,
+      "tep_tin": "upbeat_bat_trend_hook.wav",
+      "ban_quyen": {
+        "nguon": "INTERNAL_SYNTH_STUDIO",
+        "giay_phep": "CC0_EQUIVALENT_INTERNAL_OWNED",
+        "an_toan_tiktok_commercial": true,
+        "ghi_chu": "Bản quyền nội bộ BAHA AI Media Studio, miễn phí thương mại, an toàn tuyệt đối với TikTok Content ID."
+      }
+    },
+    {
+      "id": "upbeat_soi_dong_tich_cuc",
+      "ten": "Sôi Động Tích Cực",
+      "danh_muc": "nang_luong_bat_nhip",
+      "nhan_dien_tam_trang": "Lạc quan, thúc đẩy hành động",
+      "bpm": 120,
+      "thoi_luong_giay": 32,
+      "am_luong_mac_dinh_db": -18.0,
+      "dinh_dang": "audio/wav",
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "target_lufs": -16.0,
+      "sha256": "64f6b67f77efb7753aad86a9899743a075b40c279479504db826601b804138b9",
+      "byte_size": 6144078,
+      "tep_tin": "upbeat_soi_dong_tich_cuc.wav",
+      "ban_quyen": {
+        "nguon": "INTERNAL_SYNTH_STUDIO",
+        "giay_phep": "CC0_EQUIVALENT_INTERNAL_OWNED",
+        "an_toan_tiktok_commercial": true,
+        "ghi_chu": "Bản quyền nội bộ BAHA AI Media Studio, miễn phí thương mại, an toàn tuyệt đối với TikTok Content ID."
+      }
+    },
+    {
+      "id": "lofi_tam_su_dem",
+      "ten": "Lo-Fi Tâm Sự Đêm",
+      "danh_muc": "tam_su_ke_chuyen",
+      "nhan_dien_tam_trang": "Sâu lắng, ấm cúng, trải lòng",
+      "bpm": 80,
+      "thoi_luong_giay": 32,
+      "am_luong_mac_dinh_db": -18.0,
+      "dinh_dang": "audio/wav",
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "target_lufs": -16.0,
+      "sha256": "c6ef10a5d8444aee64d6274b6ca4790a0db5c72cad3212b7f2b996b1232a90d3",
+      "byte_size": 6144078,
+      "tep_tin": "lofi_tam_su_dem.wav",
+      "ban_quyen": {
+        "nguon": "INTERNAL_SYNTH_STUDIO",
+        "giay_phep": "CC0_EQUIVALENT_INTERNAL_OWNED",
+        "an_toan_tiktok_commercial": true,
+        "ghi_chu": "Bản quyền nội bộ BAHA AI Media Studio, miễn phí thương mại, an toàn tuyệt đối với TikTok Content ID."
+      }
+    },
+    {
+      "id": "lofi_chill_am_ap",
+      "ten": "Lo-Fi Chill Ấm Áp",
+      "danh_muc": "tam_su_ke_chuyen",
+      "nhan_dien_tam_trang": "Thư giãn, nhẹ nhàng, podcast",
+      "bpm": 84,
+      "thoi_luong_giay": 32,
+      "am_luong_mac_dinh_db": -18.0,
+      "dinh_dang": "audio/wav",
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "target_lufs": -16.0,
+      "sha256": "488a5e95fc3e014bce68f43920684ee557846ca77658e6a40ee163c80deb97d9",
+      "byte_size": 6144078,
+      "tep_tin": "lofi_chill_am_ap.wav",
+      "ban_quyen": {
+        "nguon": "INTERNAL_SYNTH_STUDIO",
+        "giay_phep": "CC0_EQUIVALENT_INTERNAL_OWNED",
+        "an_toan_tiktok_commercial": true,
+        "ghi_chu": "Bản quyền nội bộ BAHA AI Media Studio, miễn phí thương mại, an toàn tuyệt đối với TikTok Content ID."
+      }
+    },
+    {
+      "id": "lofi_dong_chay_suy_ngam",
+      "ten": "Dòng Chảy Suy Ngẫm",
+      "danh_muc": "tam_su_ke_chuyen",
+      "nhan_dien_tam_trang": "Trầm tư, bài học kinh nghiệm",
+      "bpm": 78,
+      "thoi_luong_giay": 32,
+      "am_luong_mac_dinh_db": -18.0,
+      "dinh_dang": "audio/wav",
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "target_lufs": -16.0,
+      "sha256": "17b0920f93aa688b4f1de9ed6cb37b42fa05db797e6f8e07512e2918a4676a31",
+      "byte_size": 6144078,
+      "tep_tin": "lofi_dong_chay_suy_ngam.wav",
+      "ban_quyen": {
+        "nguon": "INTERNAL_SYNTH_STUDIO",
+        "giay_phep": "CC0_EQUIVALENT_INTERNAL_OWNED",
+        "an_toan_tiktok_commercial": true,
+        "ghi_chu": "Bản quyền nội bộ BAHA AI Media Studio, miễn phí thương mại, an toàn tuyệt đối với TikTok Content ID."
+      }
+    },
+    {
+      "id": "kich_tinh_canh_bao_rui_ro",
+      "ten": "Cảnh Báo Rủi Ro",
+      "danh_muc": "kich_tinh_canh_bao",
+      "nhan_dien_tam_trang": "Cảnh giác, áp lực, khẩn cấp",
+      "bpm": 100,
+      "thoi_luong_giay": 32,
+      "am_luong_mac_dinh_db": -18.0,
+      "dinh_dang": "audio/wav",
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "target_lufs": -16.0,
+      "sha256": "c86c09c56bd7380a2014b4c8917879259a5bd8d92f9a5e3588251702afc0af2c",
+      "byte_size": 6144078,
+      "tep_tin": "kich_tinh_canh_bao_rui_ro.wav",
+      "ban_quyen": {
+        "nguon": "INTERNAL_SYNTH_STUDIO",
+        "giay_phep": "CC0_EQUIVALENT_INTERNAL_OWNED",
+        "an_toan_tiktok_commercial": true,
+        "ghi_chu": "Bản quyền nội bộ BAHA AI Media Studio, miễn phí thương mại, an toàn tuyệt đối với TikTok Content ID."
+      }
+    },
+    {
+      "id": "kich_tinh_diem_dau_b2b",
+      "ten": "Điểm Đau Vận Hành",
+      "danh_muc": "kich_tinh_canh_bao",
+      "nhan_dien_tam_trang": "Vấn đề tồn tại, nghẽn dòng",
+      "bpm": 96,
+      "thoi_luong_giay": 32,
+      "am_luong_mac_dinh_db": -18.0,
+      "dinh_dang": "audio/wav",
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "target_lufs": -16.0,
+      "sha256": "92a7e461cbf9f85a2cd740f3ac25d3bf2c926522f618c0fc401301d8cb0db349",
+      "byte_size": 6144078,
+      "tep_tin": "kich_tinh_diem_dau_b2b.wav",
+      "ban_quyen": {
+        "nguon": "INTERNAL_SYNTH_STUDIO",
+        "giay_phep": "CC0_EQUIVALENT_INTERNAL_OWNED",
+        "an_toan_tiktok_commercial": true,
+        "ghi_chu": "Bản quyền nội bộ BAHA AI Media Studio, miễn phí thương mại, an toàn tuyệt đối với TikTok Content ID."
+      }
+    },
+    {
+      "id": "kich_tinh_hoi_hop_truoc_sau",
+      "ten": "Hồi Hộp Trước Sau",
+      "danh_muc": "kich_tinh_canh_bao",
+      "nhan_dien_tam_trang": "So sánh Before/After, kịch tính",
+      "bpm": 104,
+      "thoi_luong_giay": 32,
+      "am_luong_mac_dinh_db": -18.0,
+      "dinh_dang": "audio/wav",
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "target_lufs": -16.0,
+      "sha256": "5f7cad1c182b8f42e384c3e978ff99555a0c3fd5de7a18e18f62fc9fd6c7c2df",
+      "byte_size": 6144078,
+      "tep_tin": "kich_tinh_hoi_hop_truoc_sau.wav",
+      "ban_quyen": {
+        "nguon": "INTERNAL_SYNTH_STUDIO",
+        "giay_phep": "CC0_EQUIVALENT_INTERNAL_OWNED",
+        "an_toan_tiktok_commercial": true,
+        "ghi_chu": "Bản quyền nội bộ BAHA AI Media Studio, miễn phí thương mại, an toàn tuyệt đối với TikTok Content ID."
+      }
+    },
+    {
+      "id": "cam_hung_vuon_tam",
+      "ten": "Vươn Tầm Khát Vọng",
+      "danh_muc": "truyen_cam_hung",
+      "nhan_dien_tam_trang": "Hùng tráng, mở rộng, tầm nhìn",
+      "bpm": 100,
+      "thoi_luong_giay": 32,
+      "am_luong_mac_dinh_db": -18.0,
+      "dinh_dang": "audio/wav",
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "target_lufs": -16.0,
+      "sha256": "f837fc034665ae74ad2c45bc482c8061a892852c5d5c9bff3ce24b0e862fb480",
+      "byte_size": 6144078,
+      "tep_tin": "cam_hung_vuon_tam.wav",
+      "ban_quyen": {
+        "nguon": "INTERNAL_SYNTH_STUDIO",
+        "giay_phep": "CC0_EQUIVALENT_INTERNAL_OWNED",
+        "an_toan_tiktok_commercial": true,
+        "ghi_chu": "Bản quyền nội bộ BAHA AI Media Studio, miễn phí thương mại, an toàn tuyệt đối với TikTok Content ID."
+      }
+    },
+    {
+      "id": "cam_hung_khoi_nghiep_thanh_cong",
+      "ten": "Khởi Nghiệp Thành Công",
+      "danh_muc": "truyen_cam_hung",
+      "nhan_dien_tam_trang": "Tự hào, tích cực, đích đến",
+      "bpm": 108,
+      "thoi_luong_giay": 32,
+      "am_luong_mac_dinh_db": -18.0,
+      "dinh_dang": "audio/wav",
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "target_lufs": -16.0,
+      "sha256": "dcbe0c3d5338afc9f21df4dd63ebcfc265a663c47d4d2e86c8ea5f18707318db",
+      "byte_size": 6144078,
+      "tep_tin": "cam_hung_khoi_nghiep_thanh_cong.wav",
+      "ban_quyen": {
+        "nguon": "INTERNAL_SYNTH_STUDIO",
+        "giay_phep": "CC0_EQUIVALENT_INTERNAL_OWNED",
+        "an_toan_tiktok_commercial": true,
+        "ghi_chu": "Bản quyền nội bộ BAHA AI Media Studio, miễn phí thương mại, an toàn tuyệt đối với TikTok Content ID."
+      }
+    },
+    {
+      "id": "cam_hung_tu_hao_dong_doi",
+      "ten": "Tự Hào Đồng Đội",
+      "danh_muc": "truyen_cam_hung",
+      "nhan_dien_tam_trang": "Gắn kết, chung sức, phát triển",
+      "bpm": 98,
+      "thoi_luong_giay": 32,
+      "am_luong_mac_dinh_db": -18.0,
+      "dinh_dang": "audio/wav",
+      "sample_rate_hz": 48000,
+      "channels": 2,
+      "target_lufs": -16.0,
+      "sha256": "2cc7bbbcd80961d0b93a1cd4f6bbbe12ecef54d0507f0855a4f3936be1fae22c",
+      "byte_size": 6144078,
+      "tep_tin": "cam_hung_tu_hao_dong_doi.wav",
+      "ban_quyen": {
+        "nguon": "INTERNAL_SYNTH_STUDIO",
+        "giay_phep": "CC0_EQUIVALENT_INTERNAL_OWNED",
+        "an_toan_tiktok_commercial": true,
+        "ghi_chu": "Bản quyền nội bộ BAHA AI Media Studio, miễn phí thương mại, an toàn tuyệt đối với TikTok Content ID."
+      }
+    }
+  ]
+}

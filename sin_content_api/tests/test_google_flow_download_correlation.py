@@ -38,7 +38,6 @@ def test_new_video_run_creates_a_fresh_flow_project():
 
     class Button:
         first = property(lambda self: self)
-        last = property(lambda self: self)
 
         def count(self):
             return 1
@@ -55,7 +54,6 @@ def test_new_video_run_creates_a_fresh_flow_project():
 
     class MissingButton:
         first = property(lambda self: self)
-        last = property(lambda self: self)
 
         def count(self):
             return 0
@@ -95,7 +93,6 @@ def test_new_project_button_falls_back_to_visible_localized_button_text():
 
     class Button:
         first = property(lambda self: self)
-        last = property(lambda self: self)
         visible = False
 
         def count(self):
@@ -113,7 +110,6 @@ def test_new_project_button_falls_back_to_visible_localized_button_text():
 
     class MissingButton:
         first = property(lambda self: self)
-        last = property(lambda self: self)
 
         def count(self):
             return 0
@@ -179,7 +175,6 @@ def test_localized_flow_agent_editor_is_accepted_without_legacy_video_mode_menu(
         def __init__(self, visible):
             self.visible = visible
             self.first = self
-            self.last = self
 
         def wait_for(self, **_kwargs):
             pass
@@ -216,7 +211,7 @@ def test_localized_flow_agent_editor_is_accepted_without_legacy_video_mode_menu(
                 return Locator(True)
             if "crop_16_9" in selector:
                 return Locator(False)
-            if selector == "button[aria-label='Settings']:visible, button[aria-label='Cài đặt']:visible":
+            if selector == "button.agent-action-button[aria-label='Settings'], button.agent-action-button:has-text('tune')":
                 return Locator(True)
             if selector in ("div.settings-section", "button.video-model-picker-button", "button.settings-save-button"):
                 return Locator(True)
@@ -225,13 +220,11 @@ def test_localized_flow_agent_editor_is_accepted_without_legacy_video_mode_menu(
     flow_client.GoogleFlowClient._ensure_video_mode(Page())
 
 
-@pytest.mark.parametrize('already_open',[False,True])
-def test_flow_agent_settings_selects_portrait_video_ratio(already_open):
+def test_flow_agent_settings_selects_portrait_video_ratio():
     clicks = []
 
     class Locator:
         first = property(lambda self: self)
-        last = property(lambda self: self)
 
         def __init__(self, name, found=False):
             self.name = name
@@ -244,15 +237,12 @@ def test_flow_agent_settings_selects_portrait_video_ratio(already_open):
             return self.found
 
         def wait_for(self, **_kwargs):
-            if self.name == "agent-settings":
-                self.found = True
+            pass
 
         def get_attribute(self, _name):
             return None
 
         def click(self, **_kwargs):
-            if self.name == "agent-settings" and already_open:
-                raise flow_client.PlaywrightTimeoutError("Settings backdrop intercepts pointer events")
             clicks.append(self.name)
 
         def filter(self, *, has=None, has_text=None):
@@ -267,8 +257,8 @@ def test_flow_agent_settings_selects_portrait_video_ratio(already_open):
         def locator(self, selector):
             if selector == "button.agent-mode-chip":
                 return Locator("agent-mode", False)
-            if selector == "button[aria-label='Settings']:visible, button[aria-label='Cài đặt']:visible":
-                return Locator("agent-settings", False)
+            if selector == "button.agent-action-button[aria-label='Settings'], button.agent-action-button:has-text('tune')":
+                return Locator("agent-settings", True)
             if selector.startswith("button.settings-trigger-button") or "aria-label*='settings'" in selector:
                 return Locator("settings-trigger", False)
             if "Nano Banana" in selector or "button:has-text('Video')" in selector or "button:has-text('Veo')" in selector:
@@ -289,7 +279,7 @@ def test_flow_agent_settings_selects_portrait_video_ratio(already_open):
 
     flow_client.GoogleFlowClient._ensure_video_mode(Page(), "9:16")
 
-    assert clicks == (["video-9:16", "save"] if already_open else ["agent-settings", "video-9:16", "save"])
+    assert clicks == ["agent-settings", "video-9:16", "save"]
 
 
 def test_flow_video_mode_selects_requested_portrait_ratio():
@@ -297,7 +287,6 @@ def test_flow_video_mode_selects_requested_portrait_ratio():
 
     class Locator:
         first = property(lambda self: self)
-        last = property(lambda self: self)
 
         def __init__(self, name, found=True):
             self.name = name
@@ -362,7 +351,6 @@ def test_flow_agent_can_attach_start_frame_from_media_library(tmp_path, attach_o
     class Locator:
         first = property(lambda self: self)
         last = property(lambda self: self)
-        last = property(lambda self: self)
 
         def __init__(self, visible=True, on_click=None, on_wait=None):
             self.visible = visible
@@ -414,7 +402,6 @@ def test_flow_agent_can_attach_start_frame_from_media_library(tmp_path, attach_o
             if role == "dialog":
                 class HiddenConsent:
                     first = property(lambda self: self)
-                    last = property(lambda self: self)
                     def wait_for(self, **_kwargs):
                         raise flow_client.PlaywrightTimeoutError("consent dialog not shown")
                 return SimpleNamespace(get_by_role=lambda *_args, **_kwargs: HiddenConsent())
@@ -459,7 +446,6 @@ def test_flow_agent_accepts_new_composer_media_indicator(tmp_path):
 
     class Locator:
         first = property(lambda self: self)
-        last = property(lambda self: self)
         last = property(lambda self: self)
 
         def __init__(self, visible=True, on_click=None):
@@ -573,3 +559,5 @@ def test_browser_display_falls_back_to_headless_without_xvfb(monkeypatch):
         assert headless is True and env is None
     with config.browser_display(False) as (headless, env):
         assert headless is False and env is None
+
+

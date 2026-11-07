@@ -43,6 +43,16 @@ _CONTENT_VIDEO_STYLE_SNAPSHOT = StyleSnapshot(
 
 _PILOT_STYLE_SNAPSHOT = _CONTENT_VIDEO_STYLE_SNAPSHOT
 
+
+def _plan_style_snapshot(aspect_ratio: str, caption_preset: str | None = None) -> dict:
+    data = _CONTENT_VIDEO_STYLE_SNAPSHOT.model_dump(mode="json")
+    data["aspect_ratio"] = aspect_ratio
+    if caption_preset:
+        data["caption_preset"] = caption_preset
+    if os.getenv("CONTENT_VIDEO_REMOTION_NATIVE") == "1":
+        data.update(render_engine="remotion", remotion_native=True, assembly="hyperframes")
+    return StyleSnapshot.model_validate(data).model_dump(mode="json")
+
 def _e2e_test_self_approval_enabled() -> bool:
     try:
         from baha_auth.src.policy.evaluator import e2e_test_self_approval_enabled
@@ -179,7 +189,7 @@ def create_plan(
     if not client.is_enabled:
         raise HTTPException(status_code=503, detail={"error_code": "LLM_NOT_CONFIGURED", "message": "LLM chưa được cấu hình hoặc đang tắt; chưa tạo storyboard."})
     try:
-        style_data = _CONTENT_VIDEO_STYLE_SNAPSHOT.model_copy(update={"aspect_ratio": request.aspect_ratio}).model_dump(mode="json")
+        style_data = _plan_style_snapshot(request.aspect_ratio, request.caption_preset)
         # Chỉ cảnh giấy (CONTENT_VIDEO_DIAGRAM_ONLY=1, khung 16:9): cờ chỉ đi vào lời nhắc, KHÔNG lưu vào style_snapshot (StyleSnapshot cấm khóa lạ).
         planning_style = {**style_data, "diagram_only": True} if os.getenv("CONTENT_VIDEO_DIAGRAM_ONLY") == "1" and request.aspect_ratio == "16:9" else style_data
         storyboard, model = generate_storyboard(
@@ -423,11 +433,32 @@ def create_run(
         if model_status()["state"] != "READY":
             raise HTTPException(503, detail={"error_code": "TTS_MODEL_NOT_READY", "message": "Cần chuẩn bị model TTS trước khi tạo video."})
     tts_config_json = json.dumps(tts_config, ensure_ascii=False, sort_keys=True, separators=(",", ":")) if tts_config else None
+
+    music_asset = None
+    if request.bgm_track_id:
+        from src.modules.media_studio.thu_vien_nhac_nen import dong_bo_tai_nguyen_nhac_nen
+        music_asset = dong_bo_tai_nguyen_nhac_nen(
+            db,
+            track_id=request.bgm_track_id,
+            workspace_id=workspace_id,
+            user_id=user_id,
+            project_id=project_id,
+        )
+    elif request.music_asset_id:
+        music_asset = db.query(MediaAsset).filter(
+            MediaAsset.id == request.music_asset_id,
+            MediaAsset.workspace_id == workspace_id,
+            MediaAsset.project_id == project_id,
+        ).first()
+        if not music_asset or not (music_asset.mime_detected or "").startswith("audio/"):
+            raise HTTPException(status_code=404, detail={"error_code": "MUSIC_ASSET_NOT_FOUND", "message": "Nhạc nền không thuộc dự án này hoặc không phải tệp âm thanh."})
+
+    effective_music_asset_id = music_asset.id if music_asset else None
     existing = db.query(ContentVideoRun).filter(ContentVideoRun.idempotency_key == request.idempotency_key).first()
     if existing:
         if request.flow_profile_id and any(step.get("flow_profile_id") != request.flow_profile_id for step in json.loads(existing.steps_json or "[]") if step.get("shot_kind") != "UI_SIM"):
             raise HTTPException(409, detail={"error_code": "IDEMPOTENCY_KEY_REUSED", "message": "Khóa đã dùng với profile Flow khác."})
-        if not _same_run_request(existing, workspace_id, project_id, plan.id, request.voice_asset_id, request.music_asset_id, tts_config_json, request.include_subtitles):
+        if not _same_run_request(existing, workspace_id, project_id, plan.id, request.voice_asset_id, effective_music_asset_id, tts_config_json, request.include_subtitles):
             raise HTTPException(status_code=409, detail={"error_code": "IDEMPOTENCY_KEY_REUSED", "message": "Khóa idempotency đã được dùng cho một run khác."})
         return _run_response(existing)
 
@@ -440,15 +471,6 @@ def create_run(
         ).first()
         if not voice_asset or not (voice_asset.mime_detected or "").startswith("audio/"):
             raise HTTPException(status_code=404, detail={"error_code": "VOICE_ASSET_NOT_FOUND", "message": "Hãy chọn tệp giọng đọc âm thanh thuộc dự án này."})
-    music_asset = None
-    if request.music_asset_id:
-        music_asset = db.query(MediaAsset).filter(
-            MediaAsset.id == request.music_asset_id,
-            MediaAsset.workspace_id == workspace_id,
-            MediaAsset.project_id == project_id,
-        ).first()
-        if not music_asset or not (music_asset.mime_detected or "").startswith("audio/"):
-            raise HTTPException(status_code=404, detail={"error_code": "MUSIC_ASSET_NOT_FOUND", "message": "Nhạc nền không thuộc dự án này hoặc không phải tệp âm thanh."})
     if request.tts_reference_asset_id:
         reference_asset = db.query(MediaAsset).filter(
             MediaAsset.id == request.tts_reference_asset_id,
@@ -501,6 +523,10 @@ def create_run(
         for step in steps:
             if step.get("shot_kind") != "UI_SIM":
                 step["flow_profile_id"] = profile_id
+    if steps:
+        steps[0]["music_gain_db"] = request.music_gain_db
+        if request.caption_preset:
+            steps[0]["caption_preset"] = request.caption_preset
     run = ContentVideoRun(
         id=run_id,
         workspace_id=workspace_id,
@@ -671,7 +697,7 @@ def retry_run(
             if not raw_asset:
                 raise HTTPException(status_code=409, detail={"error_code": "RETRY_ASSET_NOT_FOUND", "message": f"Không tìm thấy clip Flow gốc của shot {shot.shot_id}."})
             step.update({
-                "state": "SUCCEEDED", "raw_asset_id": raw_asset.id, "asset_id": raw_asset.id,
+                "state": "CLEANING", "raw_asset_id": raw_asset.id, "asset_id": raw_asset.id,
                 "watermark_removed": False,
                 "finished_at": old_step.get("finished_at") or datetime.now(timezone.utc).isoformat(),
             })

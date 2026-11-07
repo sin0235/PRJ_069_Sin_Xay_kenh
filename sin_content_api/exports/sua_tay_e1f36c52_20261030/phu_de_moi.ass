@@ -1,0 +1,66 @@
+﻿[Script Info]
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+WrapStyle: 2
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Karaoke,Be Vietnam Pro SemiBold,63,&H0000D7FF,&H00FFFFFF,&H00000000,&H99000000,0,0,0,0,100,100,0,0,1,5.7,2.5,2,115,115,86,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:01.02,Karaoke,,0,0,0,,{\fad(80,60)}{\k19}Doanh {\k23}nghiệp {\k18}tăng {\k18}nhân {\k24}sự,
+Dialogue: 0,0:00:01.02,0:00:02.22,Karaoke,,0,0,0,,{\fad(80,60)}{\k34}thêm {\k24}phần {\k62}mềm,
+Dialogue: 0,0:00:02.22,0:00:03.80,Karaoke,,0,0,0,,{\fad(80,60)}{\k20}nhưng {\k30}công {\k16}việc {\k39}vẫn {\k53}chậm,
+Dialogue: 0,0:00:03.80,0:00:05.36,Karaoke,,0,0,0,,{\fad(80,60)}{\k12}chi {\k26}phí {\k34}tăng {\k28}và {\k34}doanh {\k22}thu
+Dialogue: 0,0:00:05.36,0:00:06.56,Karaoke,,0,0,0,,{\fad(80,60)}{\k26}chưa {\k22}như {\k24}kỳ {\k48}vọng.
+Dialogue: 0,0:00:06.56,0:00:08.58,Karaoke,,0,0,0,,{\fad(80,60)}{\k10}Vấn {\k16}đề {\k28}đôi {\k28}khi {\k32}không {\k34}nằm {\k8}ở {\k16}nhân {\k30}viên,
+Dialogue: 0,0:00:08.58,0:00:09.96,Karaoke,,0,0,0,,{\fad(80,60)}{\k46}mà {\k14}ở {\k16}cách {\k24}vận {\k26}hành.
+Dialogue: 0,0:00:10.42,0:00:11.86,Karaoke,,0,0,0,,{\fad(80,60)}{\k10}Khách {\k20}hỏi {\k22}sản {\k32}phẩm {\k16}nhưng {\k22}thông {\k22}tin
+Dialogue: 0,0:00:11.86,0:00:13.50,Karaoke,,0,0,0,,{\fad(80,60)}{\k32}không {\k22}đến {\k32}kịp {\k12}bộ {\k18}phận {\k18}kinh {\k30}doanh,
+Dialogue: 0,0:00:13.50,0:00:15.90,Karaoke,,0,0,0,,{\fad(80,60)}{\k42}báo {\k34}giá {\k50}đã {\k70}gửi {\k20}nhưng {\k24}không
+Dialogue: 0,0:00:15.90,0:00:17.06,Karaoke,,0,0,0,,{\fad(80,60)}{\k16}có {\k10}lịch {\k16}chăm {\k20}sóc {\k14}tiếp {\k28}theo,
+Dialogue: 0,0:00:17.30,0:00:17.86,Karaoke,,0,0,0,,{\fad(80,60)}{\k12}khách {\k22}chờ {\k22}lâu,
+Dialogue: 0,0:00:17.86,0:00:19.16,Karaoke,,0,0,0,,{\fad(80,60)}{\k24}cơ {\k18}hội {\k20}kinh {\k26}doanh {\k22}có {\k20}thể
+Dialogue: 0,0:00:19.16,0:00:20.40,Karaoke,,0,0,0,,{\fad(80,60)}{\k32}rơi {\k16}vào {\k22}tay {\k18}đối {\k24}thủ.
+Dialogue: 0,0:00:20.62,0:00:21.92,Karaoke,,0,0,0,,{\fad(80,60)}{\k12}Nhân {\k20}viên {\k14}nhập {\k16}dữ {\k18}liệu {\k16}thủ {\k22}công,
+Dialogue: 0,0:00:22.12,0:00:23.14,Karaoke,,0,0,0,,{\fad(80,60)}{\k10}phòng {\k26}ban {\k24}thiếu {\k14}kết {\k28}nối,
+Dialogue: 0,0:00:23.14,0:00:24.94,Karaoke,,0,0,0,,{\fad(80,60)}{\k26}việc {\k24}trễ {\k24}hạn {\k36}khó {\k20}được {\k16}phát {\k22}hiện,
+Dialogue: 0,0:00:25.12,0:00:27.10,Karaoke,,0,0,0,,{\fad(80,60)}{\k10}báo {\k36}cáo {\k18}ghép {\k32}từ {\k36}nhiều {\k44}nguồn {\k22}khiến
+Dialogue: 0,0:00:27.10,0:00:28.60,Karaoke,,0,0,0,,{\fad(80,60)}{\k18}quản {\k18}lý {\k22}thiếu {\k18}thông {\k20}tin {\k26}chính {\k28}xác,
+Dialogue: 0,0:00:28.60,0:00:29.92,Karaoke,,0,0,0,,{\fad(80,60)}{\k48}khó {\k32}xác {\k20}định {\k18}nguyên {\k14}nhân
+Dialogue: 0,0:00:29.92,0:00:31.60,Karaoke,,0,0,0,,{\fad(80,60)}{\k30}doanh {\k24}thu {\k34}không {\k20}đạt {\k20}mục {\k28}tiêu,
+Dialogue: 0,0:00:31.78,0:00:33.58,Karaoke,,0,0,0,,{\fad(80,60)}{\k12}vấn {\k16}đề {\k18}đôi {\k24}khi {\k26}không {\k20}nằm {\k10}ở {\k12}nhân {\k30}viên,
+Dialogue: 0,0:00:33.80,0:00:34.62,Karaoke,,0,0,0,,{\fad(80,60)}{\k6}mà {\k18}ở {\k14}cách {\k22}vận {\k22}hành.
+Dialogue: 0,0:00:34.62,0:00:37.10,Karaoke,,0,0,0,,{\fad(80,60)}{\k51}Baha {\k51}khảo {\k38}sát {\k18}quy {\k34}trình {\k24}để {\k32}tìm
+Dialogue: 0,0:00:37.10,0:00:38.84,Karaoke,,0,0,0,,{\fad(80,60)}{\k12}công {\k28}đoạn {\k24}gây {\k28}lãng {\k20}phí {\k20}thời {\k30}gian,
+Dialogue: 0,0:00:39.20,0:00:40.16,Karaoke,,0,0,0,,{\fad(80,60)}{\k6}chi {\k28}phí {\k22}và {\k16}cơ {\k24}hội,
+Dialogue: 0,0:00:40.16,0:00:41.68,Karaoke,,0,0,0,,{\fad(80,60)}{\k42}chuyển {\k20}đổi {\k34}số {\k34}không {\k22}chỉ
+Dialogue: 0,0:00:41.68,0:00:43.00,Karaoke,,0,0,0,,{\fad(80,60)}{\k12}là {\k24}mua {\k12}thêm {\k20}phần {\k52}mềm,
+Dialogue: 0,0:00:43.00,0:00:44.82,Karaoke,,0,0,0,,{\fad(80,60)}{\k28}mà {\k28}là {\k30}thay {\k24}đổi {\k24}cách {\k22}vận {\k26}hành.
+Dialogue: 0,0:00:44.82,0:00:46.32,Karaoke,,0,0,0,,{\fad(80,60)}{\k60}Baha {\k22}xây {\k34}dựng {\k12}hệ {\k22}thống
+Dialogue: 0,0:00:46.32,0:00:47.72,Karaoke,,0,0,0,,{\fad(80,60)}{\k22}tự {\k14}động {\k30}hóa {\k32}phù {\k30}hợp,
+Dialogue: 0,0:00:47.74,0:00:48.52,Karaoke,,0,0,0,,{\fad(80,60)}{\k6}tiếp {\k18}nhận {\k18}yêu {\k24}cầu,
+Dialogue: 0,0:00:48.82,0:00:49.60,Karaoke,,0,0,0,,{\fad(80,60)}{\k10}phân {\k14}tích {\k20}nhu {\k22}cầu,
+Dialogue: 0,0:00:50.04,0:00:52.36,Karaoke,,0,0,0,,{\fad(80,60)}{\k10}lưu {\k16}thông {\k24}tin {\k38}và {\k42}chuyển {\k18}đến {\k28}đúng {\k22}bộ {\k22}phận.
+Dialogue: 0,0:00:52.56,0:00:53.80,Karaoke,,0,0,0,,{\fad(80,60)}{\k10}Hệ {\k18}thống {\k20}nhắc {\k16}nhân {\k32}viên {\k28}khi
+Dialogue: 0,0:00:53.80,0:00:54.96,Karaoke,,0,0,0,,{\fad(80,60)}{\k26}chưa {\k22}phản {\k12}hồi {\k18}đúng {\k38}hạn.
+Dialogue: 0,0:00:54.96,0:00:56.50,Karaoke,,0,0,0,,{\fad(80,60)}{\k22}Hệ {\k22}thống {\k26}cảnh {\k30}báo {\k26}quản {\k28}lý
+Dialogue: 0,0:00:56.50,0:00:58.48,Karaoke,,0,0,0,,{\fad(80,60)}{\k38}khi {\k36}việc {\k20}có {\k20}nguy {\k20}cơ {\k64}trễ.
+Dialogue: 0,0:00:58.48,0:00:59.32,Karaoke,,0,0,0,,{\fad(80,60)}{\k10}Thông {\k14}tin {\k22}hoạt {\k14}động {\k24}được
+Dialogue: 0,0:00:59.32,0:01:00.96,Karaoke,,0,0,0,,{\fad(80,60)}{\k18}tập {\k26}trung {\k22}để {\k24}quản {\k14}lý {\k14}theo {\k34}dõi.
+Dialogue: 0,0:01:01.18,0:01:02.48,Karaoke,,0,0,0,,{\fad(80,60)}{\k8}Không {\k24}cần {\k28}gom {\k32}báo {\k38}cáo
+Dialogue: 0,0:01:02.48,0:01:03.63,Karaoke,,0,0,0,,{\fad(80,60)}{\k28}rời {\k14}từ {\k22}từng {\k16}phòng {\k35}ban,
+Dialogue: 0,0:01:03.63,0:01:05.16,Karaoke,,0,0,0,,{\fad(80,60)}{\k35}con {\k34}người {\k24}vẫn {\k30}kiểm {\k30}soát
+Dialogue: 0,0:01:05.16,0:01:06.20,Karaoke,,0,0,0,,{\fad(80,60)}{\k20}quyết {\k16}định {\k18}quan {\k38}trọng.
+Dialogue: 0,0:01:06.34,0:01:07.92,Karaoke,,0,0,0,,{\fad(80,60)}{\k22}AI {\k32}hỗ {\k22}trợ {\k14}việc {\k18}lặp {\k30}lại {\k20}và
+Dialogue: 0,0:01:07.92,0:01:09.26,Karaoke,,0,0,0,,{\fad(80,60)}{\k16}cung {\k16}cấp {\k18}thông {\k22}tin {\k28}kịp {\k22}thời.
+Dialogue: 0,0:01:09.54,0:01:11.78,Karaoke,,0,0,0,,{\fad(80,60)}{\k12}Hiệu {\k28}quả {\k22}cần {\k16}được {\k16}đo {\k24}bằng {\k16}thời {\k26}gian {\k24}xử {\k28}lý,
+Dialogue: 0,0:01:11.84,0:01:12.78,Karaoke,,0,0,0,,{\fad(80,60)}{\k12}phản {\k20}hồi {\k20}đúng {\k28}hạn {\k14}và
+Dialogue: 0,0:01:12.78,0:01:14.28,Karaoke,,0,0,0,,{\fad(80,60)}{\k16}cơ {\k20}hội {\k22}không {\k22}bị {\k24}bỏ {\k34}sót.
+Dialogue: 0,0:01:14.60,0:01:16.48,Karaoke,,0,0,0,,{\fad(80,60)}{\k20}Quản {\k18}lý {\k22}theo {\k42}dõi {\k24}hoạt {\k14}động {\k18}tập {\k30}trung,
+Dialogue: 0,0:01:16.48,0:01:18.00,Karaoke,,0,0,0,,{\fad(80,60)}{\k44}nhận {\k28}cảnh {\k20}báo {\k60}sớm.
+Dialogue: 0,0:01:18.00,0:01:20.04,Karaoke,,0,0,0,,{\fad(80,60)}{\k80}Baha {\k20}Group {\k36}cung {\k20}cấp {\k26}giải {\k22}pháp
+Dialogue: 0,0:01:20.04,0:01:21.14,Karaoke,,0,0,0,,{\fad(80,60)}{\k32}AI {\k24}cho {\k22}doanh {\k20}nghiệp.

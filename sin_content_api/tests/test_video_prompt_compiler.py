@@ -37,3 +37,21 @@ def test_compiler_uses_english_instructions_for_english_flow_prompts():
     assert "Authoritative visual brief" in result.compiled_directive
     assert "Compose natively in vertical 9:16" in result.compiled_directive
     assert "Bố cục" not in result.compiled_directive
+
+
+def test_compiler_allows_connected_multiphase_camera_moves():
+    brief = "Máy quay hạ thấp, dolly tiến rồi orbit quanh chủ thể trong một cú máy liên tục."
+    result = VideoPromptCompiler().compile(brief)
+
+    assert brief in result.compiled_directive
+    assert "tối đa ba pha liên kết" in result.compiled_directive
+    assert "Chỉ một chuyển động camera đơn giản" not in result.compiled_directive
+
+
+def test_english_flow_prompt_allows_connected_multiphase_camera_moves():
+    brief = "Crane down, dolly in, then orbit around the subject in one continuous shot."
+    result = VideoPromptCompiler().compile(brief, language="en")
+
+    assert brief in result.compiled_directive
+    assert "up to three connected phases" in result.compiled_directive
+    assert "one simple, steady camera move" not in result.compiled_directive

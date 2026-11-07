@@ -1,5 +1,4 @@
 from __future__ import annotations
-from src.modules.tac_vu_tu_xa.client import offload, pipeline
 
 import hashlib
 import json
@@ -93,7 +92,6 @@ def group_words(words: Iterable[object]) -> list[dict]:
     return cues
 
 
-@offload("transcribe_cues", "TRANSCRIBE")
 def transcribe_vietnamese(audio_path: Path) -> list[dict]:
     if os.getenv("APP_ENV", "").lower() == "production" and os.getenv("VIETSUB_INFERENCE_CHILD") != "1":
         return _transcribe_isolated(audio_path)
@@ -193,7 +191,6 @@ def _srt_timestamp(milliseconds: int) -> str:
     return f"{hours:02}:{minutes:02}:{seconds:02},{millis:03}"
 
 
-@offload("transcribe_words", "TRANSCRIBE")
 def transcribe_words(audio_path: Path) -> list[dict]:
     if os.getenv("APP_ENV", "").lower() == "production" and os.getenv("VIETSUB_INFERENCE_CHILD") != "1":
         return _transcribe_isolated(audio_path, "words")

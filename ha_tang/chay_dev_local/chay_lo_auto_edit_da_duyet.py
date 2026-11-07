@@ -143,6 +143,7 @@ def main(argv=None):
             clip_id=clip['clip_id']
             if any(video['clip_id']==clip_id for video in state['videos']):continue
             cho_canh_clip(clip_id,bundle['visual_briefs'],state['jobs'],read_states)
+            client.headers['Authorization']='Bearer '+_create_jwt(uid,workspace)
             indices=[i for i,b in enumerate(bundle['visual_briefs']) if b['target_clip_id']==clip_id]
             manifest={key:bundle[key] for key in ('source_asset_id','source_sha256',
                 'removed_pause_intervals','pause_candidates','waveform_peaks')}

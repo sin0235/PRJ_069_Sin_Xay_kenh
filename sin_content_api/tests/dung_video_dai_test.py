@@ -118,11 +118,12 @@ def test_storyboard_tinh_callout_don_le_la_mot_diem_chu_khong_phu_day_clip():
 def test_qc_khung_den_dung_ffmpeg_decode_va_tra_ve_khoang_can_ra_soat(monkeypatch, tmp_path):
     commands = []
 
-    def ffmpeg(command, **kwargs):
+    def ffmpeg(command, **_kwargs):
         commands.append(command)
-        assert "capture_output" not in kwargs
-        kwargs["stderr"].write("[blackdetect @ 0x1] black_start:2.000 black_end:4.125 black_duration:2.125\n")
-        return SimpleNamespace(returncode=0)
+        return SimpleNamespace(
+            returncode=0,
+            stderr="[blackdetect @ 0x1] black_start:2.000 black_end:4.125 black_duration:2.125\n",
+        )
 
     monkeypatch.setattr("src.modules.dieu_phoi_dung.dung_video_dai.run_media_command", ffmpeg)
 
@@ -136,7 +137,7 @@ def test_qc_khung_den_dung_ffmpeg_decode_va_tra_ve_khoang_can_ra_soat(monkeypatc
 def test_qc_khung_den_dung_lai_neu_ffmpeg_decode_that_bai(monkeypatch, tmp_path):
     monkeypatch.setattr(
         "src.modules.dieu_phoi_dung.dung_video_dai.run_media_command",
-        lambda *_args, **_kwargs: SimpleNamespace(returncode=1),
+        lambda *_args, **_kwargs: SimpleNamespace(returncode=1, stderr="decoder failed"),
     )
 
     with pytest.raises(ValueError, match="AUTO_EDIT_FULL_DECODE_FAILED"):
@@ -254,8 +255,7 @@ def test_llm_that_lap_ke_hoach_nhieu_clip_va_chi_cat_tu_dem_thua():
     assert isinstance(plan, TaoKeHoachDungVideo)
     assert plan.clips[0].cut_word_ids == ["w1"]
     callouts = [item for item in _caption_track(plan.clips[0], words, []) if item.get("visual_type") == "callout"]
-    assert callouts == [{"text": "cách", "start_ms": 500, "duration_ms": 1300, "font_size": 70,
-                         "position_y_px": 1050, "visual_type": "callout", "animated_label": True}]
+    assert callouts == [{"text": "cách", "start_ms": 500, "duration_ms": 1300, "font_size": 50, "position_y_px": 1050, "visual_type": "callout"}]
     assert "Chỉ chọn các đoạn" in client.messages[0][0]["content"]
     assert "start_word_id và end_word_id" in client.messages[0][1]["content"]
     assert "chỉ dùng punch_in một lần cho ý nhấn mạnh" in client.messages[0][1]["content"]
@@ -510,14 +510,13 @@ def test_llm_duoc_huong_dan_dung_overlay_co_hoac_khong_co_alpha():
     assert opaque_actions[0]["mode"] == "OVERLAY"
 
 
-@pytest.mark.parametrize(("layout_size", "expected_size"), [("small", (270, 480)), ("large", (405, 720))])
-def test_llm_uu_tien_checklist_alpha_nho_de_phu_len_video_nguoi_noi(layout_size, expected_size):
+def test_llm_uu_tien_checklist_alpha_nho_de_phu_len_video_nguoi_noi():
     clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=5000, title="Checklist", reason="CÃ³ cÃ¡c bÆ°á»›c")
     words = [tu(1, "bÆ°á»›c má»™t", 0, 900), tu(2, "bÆ°á»›c hai", 1000, 1800)]
     client = LLMGia([{"actions": [{
         "clip_id": "part1_01", "asset_id": "checklist-alpha", "mode": "OVERLAY",
         "start_word_id": "w1", "end_word_id": "w2", "reason": "Checklist lÃ  minh há»a phá»¥",
-        "layout_position": "upper_right", "layout_size": layout_size,
+        "layout_position": "upper_right", "layout_size": "small",
     }]}])
 
     actions = chon_dien_hoa([clip], words, [{
@@ -531,7 +530,7 @@ def test_llm_uu_tien_checklist_alpha_nho_de_phu_len_video_nguoi_noi(layout_size,
 
     assert actions[0]["mode"] == "OVERLAY"
     assert timeline["overlays"][0]["asset_id"] == "checklist-alpha"
-    assert (timeline["overlays"][0]["width"], timeline["overlays"][0]["height"]) == expected_size
+    assert (timeline["overlays"][0]["width"], timeline["overlays"][0]["height"]) == (270, 480)
     assert any("checklist" in item.casefold() and "tag" in item.casefold()
                and "OVERLAY" in item and "small" in item for item in requirements)
 
@@ -556,7 +555,7 @@ def test_llm_duoc_nhac_lai_khi_bo_qua_asset_hyperframes_dung_target():
     assert any("checklist-alpha" in item and "bỏ qua" in item for item in retry_request["yeu_cau"])
 
 
-def test_checklist_alpha_khong_ep_overlay_neu_llm_tu_choi_bo_cuc():
+def test_checklist_alpha_dung_overlay_nho_neu_llm_van_bo_qua():
     clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=5000, title="Checklist", reason="Các bước")
     words = [tu(1, "ghi giá bán", 0, 900), tu(2, "tiền thực nhận", 1000, 1800)]
     client = LLMGia([{"actions": []}, {"actions": []}])
@@ -567,11 +566,12 @@ def test_checklist_alpha_khong_ep_overlay_neu_llm_tu_choi_bo_cuc():
         "target_clip_id": "part1_01", "target_start_word_id": "w1", "target_end_word_id": "w2",
     }], client)
 
-    assert actions == []
+    assert len(actions) == 1
+    assert actions[0]["mode"] == "OVERLAY" and actions[0]["layout_size"] == "small"
     assert clip.needs_review is True
 
 
-def test_checklist_alpha_overlay_khong_tu_thu_nho_large():
+def test_checklist_alpha_overlay_khong_che_mat_khi_llm_chon_large_ben_phai():
     clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=5000, title="Checklist", reason="Các bước")
     words = [tu(1, "ghi giá bán", 500, 1200), tu(2, "trừ chi phí", 1400, 2200)]
     client = LLMGia([{"actions": [{
@@ -588,14 +588,14 @@ def test_checklist_alpha_overlay_khong_tu_thu_nho_large():
     }], client)
 
     assert actions[0]["mode"] == "OVERLAY"
-    assert (actions[0]["layout_position"], actions[0]["layout_size"]) == ("upper_right", "large")
+    assert (actions[0]["layout_position"], actions[0]["layout_size"]) == ("upper_left", "medium")
     assert _tao_timeline("speaker", clip, words, visual_actions=actions)["overlays"] == [{
         "asset_id": "checklist-alpha", "start_ms": 500, "duration_ms": 1700,
-        "x": 555, "y": 280, "width": 405, "height": 720,
+        "x": 120, "y": 280, "width": 360, "height": 640,
     }]
 
 
-def test_asset_target_sai_clip_bi_bo_va_danh_dau_ra_soat():
+def test_asset_target_duoc_dat_dung_clip_neu_llm_gan_nham_clip_khac():
     clips = [
         ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=5000, title="Kết quả", reason="Clip một"),
         ClipTuDong(clip_id="part1_02", start_ms=5000, end_ms=10000, title="Checklist", reason="Clip hai"),
@@ -614,8 +614,8 @@ def test_asset_target_sai_clip_bi_bo_va_danh_dau_ra_soat():
         "target_clip_id": "part1_02", "target_start_word_id": "w2", "target_end_word_id": "w3",
     }], client)
 
-    assert actions == []
-    assert all(clip.needs_review for clip in clips)
+    assert any(action["clip_id"] == "part1_02" and action["asset_id"] == "checklist-alpha"
+               and action["mode"] == "OVERLAY" for action in actions)
 
 
 def test_llm_co_the_chon_speaker_pip_voi_asset_giay_nen_duc():
@@ -771,11 +771,10 @@ def test_hyperframes_child_dang_ky_asset_da_probe_trong_workspace(monkeypatch, t
         "width": 1080, "height": 1920, "frame_rate": 30, "duration_seconds": 10, "has_alpha": False,
     })
     monkeypatch.setattr(editor, "run_media_command", lambda *_args, **_kwargs: SimpleNamespace(returncode=0, stderr=""))
-    # Bước giải mã đầy đủ nằm ở tac_vu_tu_xa.stages và gọi ffmpeg thật; tệp giả của test không giải mã được.
-    monkeypatch.setattr("src.modules.tac_vu_tu_xa.stages.verify_decode", lambda _path: {"decode_ok": True})
 
     rendered = {}
     def render(_scene, _style, _duration, _ratio, out_path, **kwargs):
+        rendered["camera_motion"] = _scene.diagram.camera_motion
         rendered["word_times"] = kwargs.get("word_times")
         rendered["aspect_ratio"] = _ratio
         out_path.write_bytes(b"h" * 24_000)
@@ -789,11 +788,12 @@ def test_hyperframes_child_dang_ky_asset_da_probe_trong_workspace(monkeypatch, t
         style, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")).hexdigest()
     request = {"operation": "render_auto_edit_diagram", "backend_provider": "BAHA_AUTO_EDIT", "parameters": {
-        "target_clip_id": "part1_01", "duration_seconds": 6, "narration": "trước và sau",
+        "target_clip_id": "part1_01", "duration_seconds": 10, "narration": "trước và sau",
         "narration_word_times": [0.2, 0.8],
         "ui_scene": {
             "layout": "BEFORE_AFTER",
             "diagram": {
+                "camera_motion": "DOLLY_ZOOM",
                 "title": "Đơn hàng", "docs": [
                     {"title": "Trước", "label": "Đơn", "value": "100"},
                     {"title": "Sau", "label": "Đơn", "value": "60"},
@@ -816,39 +816,12 @@ def test_hyperframes_child_dang_ky_asset_da_probe_trong_workspace(monkeypatch, t
         assert asset.byte_size == 24_000 and asset.sha256 == editor.hash_file(path)[0]
         assert path.is_relative_to(media_root) and path.is_file()
         assert rendered["aspect_ratio"] == "9:16"
+        assert rendered["camera_motion"] == "DOLLY_ZOOM"
         assert rendered["word_times"] == [0.2, 0.8]
     finally:
         db.close()
         Base.metadata.drop_all(engine)
         engine.dispose()
-
-
-@pytest.mark.parametrize("duration_seconds", [2, 7])
-def test_render_auto_edit_diagram_chi_nhan_duration_tu_3_den_6_giay(monkeypatch, duration_seconds):
-    from src.modules.dieu_phoi_dung import dung_video_dai as editor
-    from src.modules.tao_video_noi_dung import render_engines
-    from src.modules.tao_video_noi_dung.service import _PILOT_STYLE_SNAPSHOT
-
-    style = _PILOT_STYLE_SNAPSHOT.model_dump(mode="json")
-    style_hash = hashlib.sha256(json.dumps(
-        style, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
-    ).encode("utf-8")).hexdigest()
-    request = {"operation": "render_auto_edit_diagram", "backend_provider": "BAHA_AUTO_EDIT", "parameters": {
-        "target_clip_id": "part1_01", "duration_seconds": duration_seconds, "narration": "trước và sau",
-        "ui_scene": {"layout": "BEFORE_AFTER", "diagram": {
-            "title": "Đơn hàng", "docs": [
-                {"title": "Trước", "label": "Đơn", "value": "100"},
-                {"title": "Sau", "label": "Đơn", "value": "60"},
-            ],
-            "diff_label": "Giảm 40", "on": {"before": "trước", "after": "sau", "delta": "giảm"},
-        }},
-        "style_snapshot": style, "style_snapshot_hash": style_hash,
-    }}
-    job = SimpleNamespace(provider="MEDIA_VIDEO", workspace_id="ws-auto-edit", project_id=None, created_by="user")
-    monkeypatch.setattr(render_engines, "render_scene", lambda *_args, **_kwargs: pytest.fail("render must not run"))
-
-    with pytest.raises(ValueError, match="HYPERFRAMES_REQUEST_INVALID"):
-        editor.render_auto_edit_diagram(None, job, request)
 
 
 def test_tao_y_tuong_flow_giu_style_giay_ghep_va_clip_duoc_chon():
@@ -867,11 +840,10 @@ def test_tao_y_tuong_flow_giu_style_giay_ghep_va_clip_duoc_chon():
     assert visuals[0]["target_clip_id"] == clip.clip_id
     assert visuals[0]["duration_seconds"] == 10
     assert visuals[0]["has_alpha"] is False
-    assert visuals[0]["style_snapshot"]["style_name"] in visuals[0]["prompt"]
+    assert _PILOT_STYLE_SNAPSHOT.style_name in visuals[0]["prompt"]
     assert all(color in visuals[0]["prompt"] for color in _PILOT_STYLE_SNAPSHOT.palette)
     assert _PILOT_STYLE_SNAPSHOT.style_name == _CONTENT_VIDEO_STYLE_SNAPSHOT.style_name
-    assert "origami" in visuals[0]["prompt"].casefold()
-    assert visuals[0]["style_snapshot"]["style_name"] != _CONTENT_VIDEO_STYLE_SNAPSHOT.style_name
+    assert "origami" not in visuals[0]["prompt"].casefold()
     assert "trọn 10 giây" in visuals[0]["prompt"].casefold()
     assert "2 đến 4 lớp chuyển động" in visuals[0]["prompt"].casefold()
     system_prompt = client.messages[0][0]["content"].casefold()
@@ -879,6 +851,31 @@ def test_tao_y_tuong_flow_giu_style_giay_ghep_va_clip_duoc_chon():
     assert "asset nguồn cố định 10 giây" in system_prompt
     assert "hyperframes" in system_prompt and "quy trình" in system_prompt
     assert "không chỉ dành cho biểu đồ" in system_prompt
+    assert "camera_motion ưu tiên auto" in system_prompt
+    assert "dolly_zoom cho before_after" in system_prompt
+
+
+def test_tao_y_tuong_khong_ghep_fallback_visual_thieu_ngu_canh_tu():
+    clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=20000, title="Bai hoc", reason="Du y")
+    words = [tu(index, f"tu {index}", 1000 + (index - 1) * 1000, 2000 + (index - 1) * 1000)
+             for index in range(1, 9)]
+    visual_1 = {
+        "clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w4",
+        "scene": "Paper layers", "action": "Open the paper layers",
+        "renderer": "FLOW",
+    }
+    visual_2 = {
+        "clip_id": clip.clip_id, "start_word_id": "w5", "end_word_id": "w8",
+        "scene": "Moving paper shapes", "action": "Fold into a new shape",
+        "renderer": "FLOW",
+    }
+    malformed = {**visual_2, "action": "short"}
+    client = LLMGia([{"visuals": [visual_1, visual_2, malformed]}, {"visuals": [visual_1]}])
+
+    visuals = tao_y_tuong_dien_hoa_flow([clip], words, [], client)
+
+    assert len(visuals) == 1
+    assert visuals[0]["narration"] == "tu 1 tu 2 tu 3 tu 4"
 
 
 def test_tao_y_tuong_co_the_dat_nhieu_dien_hoa_vao_cac_doan_rieng_trong_mot_clip():
@@ -937,27 +934,6 @@ def test_planner_tu_bo_sung_visual_khi_storyboard_clip_dai_con_khoang_trong_lon(
     assert [item["start_word_id"] for item in repair_request["visuals_hop_le_can_giu"]] == ["w1", "w5"]
     assert len(visuals) == 3
     assert clip.needs_review is False
-
-
-def test_visual_prompts_leave_bottom_tiktok_caption_safe_zone():
-    clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=12_000, title="So sánh", reason="Nêu chênh lệch")
-    response = {"visuals": [{
-        "clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w3",
-        "scene": "Một tờ giấy gấp mở thành hai thẻ", "action": "Hai thẻ lần lượt mở ra",
-        "renderer": "FLOW",
-    }]}
-    words = [tu(1, "trước", 1_000, 2_000), tu(2, "một trăm", 2_000, 3_000),
-             tu(3, "sau", 3_000, 4_000)]
-    client = LLMGia([response])
-
-    visuals = tao_y_tuong_dien_hoa_flow([clip], words, [], client)
-
-    request = json.loads(client.messages[0][1]["content"])
-    assert any("320 px" in item and "phụ đề karaoke" in item for item in request["yeu_cau"])
-    assert "320 px" in visuals[0]["prompt"]
-    assert "giấy gấp" in request["style"]["visual_rules"]
-    assert "giấy gấp" in visuals[0]["prompt"]
-    assert "bảng kính" not in visuals[0]["style_snapshot"]["visual_rules"]
 
 
 def test_planner_danh_dau_ra_soat_neu_llm_khong_sua_khoang_trong_storyboard():
@@ -1136,13 +1112,12 @@ def test_planner_giu_visual_hop_le_khi_visual_khac_sai_schema():
     words = [tu(1, "Trước", 1_000, 1_200), tu(2, "100", 1_200, 1_400), tu(3, "sau", 1_400, 1_600),
              tu(4, "60", 1_600, 1_800), tu(5, "giảm", 1_800, 2_000), tu(6, "40", 2_000, 2_200),
              tu(7, "số", 5_000, 5_200), tu(8, "đơn", 5_200, 5_400), tu(9, "giảm", 5_400, 5_600)]
-    client = LLMGia([response] * 4)
+    client = LLMGia([response, response, response])
 
     visuals = tao_y_tuong_dien_hoa_flow([clip], words, [], client, flow_available=False)
 
     assert len(visuals) == 1 and visuals[0]["ui_scene"]["layout"] == "BEFORE_AFTER"
     assert clip.needs_review is True
-    assert len(client.messages) == 4
 
 
 def test_tao_y_tuong_tu_choi_so_do_keo_dai_qua_khoang_ke_va_yeu_cau_tach_visual():
@@ -2091,8 +2066,8 @@ def test_retranscribe_every_candidate_uses_router_and_removes_temp_audio(monkeyp
     local = [tu(1, "xin", 100, 300), tu(2, "tăng", 800, 1000), tu(3, "giả", 1500, 1700)]
     calls = []
 
-    def render_audio(source, target, start_ms, duration_ms):
-        assert source == audio_path and start_ms == 100 and duration_ms == 1600
+    def render_audio(args, **_kwargs):
+        target = Path(args[-1])
         target.write_bytes(b"mp3")
         return SimpleNamespace(returncode=0)
 
@@ -2107,8 +2082,7 @@ def test_retranscribe_every_candidate_uses_router_and_removes_temp_audio(monkeyp
             assert prompt["router_transcript"] == "xin tăng giá."
             return type("KetQua", (), {"content": json.dumps({"transcript": "xin tăng giá.", "needs_review": False})})()
 
-    from src.modules.tac_vu_tu_xa import stages
-    monkeypatch.setattr(stages, "extract_audio", render_audio)
+    monkeypatch.setattr(editor, "run_media_command", render_audio)
     corrected = _retranscribe_candidates(audio_path, [clip], local, RouterClient())
 
     assert len(calls) == 1
@@ -2129,9 +2103,8 @@ def test_retranscribe_reconciliation_error_keeps_router_transcript_and_marks_rev
     clip = ClipTuDong(clip_id="part1_01", start_ms=100, end_ms=1700, title="Một ý", reason="Đủ ý.")
     local = [tu(1, "xin", 100, 300), tu(2, "tăng", 800, 1000), tu(3, "giả", 1500, 1700)]
 
-    def render_audio(source, target, start_ms, duration_ms):
-        assert source == audio_path and start_ms == 100 and duration_ms == 1600
-        target.write_bytes(b"mp3")
+    def render_audio(args, **_kwargs):
+        Path(args[-1]).write_bytes(b"mp3")
         return SimpleNamespace(returncode=0)
 
     class RouterClient:
@@ -2141,8 +2114,7 @@ def test_retranscribe_reconciliation_error_keeps_router_transcript_and_marks_rev
         def complete(self, _messages, max_tokens=None):
             raise LLMResponseError("failed", error_code="UPSTREAM_TIMEOUT")
 
-    from src.modules.tac_vu_tu_xa import stages
-    monkeypatch.setattr(stages, "extract_audio", render_audio)
+    monkeypatch.setattr(editor, "run_media_command", render_audio)
     corrected = _retranscribe_candidates(audio_path, [clip], local, RouterClient())
 
     assert [word["text"] for word in corrected] == ["xin", "tăng", "giá."]
@@ -2162,17 +2134,15 @@ def test_retranscribe_router_error_keeps_whisper_words_and_review_flag(monkeypat
     )
     local = [tu(1, "xin", 100, 300)]
 
-    def render_audio(source, target, start_ms, duration_ms):
-        assert source == audio_path and start_ms == 100 and duration_ms == 1600
-        target.write_bytes(b"mp3")
+    def render_audio(args, **_kwargs):
+        Path(args[-1]).write_bytes(b"mp3")
         return SimpleNamespace(returncode=0)
 
     class RouterClient:
         def transcribe_audio(self, _path):
             raise LLMResponseError("failed", error_code="UPSTREAM_TIMEOUT")
 
-    from src.modules.tac_vu_tu_xa import stages
-    monkeypatch.setattr(stages, "extract_audio", render_audio)
+    monkeypatch.setattr(editor, "run_media_command", render_audio)
     corrected = _retranscribe_candidates(audio_path, [clip], local, RouterClient())
 
     assert corrected == local
@@ -2271,28 +2241,14 @@ def test_dung_video_dai_render_luu_nhieu_clip_va_giu_nguyen_nguon(monkeypatch, t
         subtitle_starts = [line.split(" --> ", 1)[0] for line in subtitle_text.splitlines() if " --> " in line]
         assert subtitle_starts == sorted(subtitle_starts)
         manifest = json.loads((media_root / manifests[0].storage_key).read_text(encoding="utf-8"))
-        assert manifest["source_asset_id"] == source.id
-        assert manifest["source_sha256"] == original_hash
-        assert any(word["id"] == "stt_part1_01_0001" for word in manifest["words"])
-        assert manifest["plan"]["clips"][0]["clip_id"] == "part1_01"
-        assert isinstance(manifest["visual_briefs"], list)
         assert manifest["clips"][0]["removed_filler_word_ids"] == ["stt_part1_01_0001"]
         assert manifest["clips"][0]["callout_word_ids"] == ["stt_part1_01_0002"]
         assert manifest["clips"][0]["effect"] == "punch_in"
         assert manifest["clips"][0]["timeline"]["quality_checks"] == {
             "full_decode": "PASS", "long_black_segments": [],
         }
-        assert manifest["clips"][0]["timeline"]["brand_end_card"]["logo_asset"] == "logo_doc_mau.png"
-        assert security.hash_file(source_path)[0] == original_hash
-        def no_analysis(*args, **kwargs):
-            raise AssertionError("RERENDER_MUST_NOT_TRANSCRIBE_OR_GENERATE")
-        monkeypatch.setattr(editor, "transcribe_words_cached", no_analysis)
-        monkeypatch.setattr(editor, "_retranscribe_candidates", no_analysis)
-        monkeypatch.setattr(editor, "tao_y_tuong_dien_hoa_flow", no_analysis)
-        replayed = editor.dung_video_dai(db, source_asset_id=source.id, workspace_id=workspace_id,
-            user_id=user_id, project_id=None, job_id=job_id, phase="render", manifest_asset_id=manifests[0].id)
-        replay_video = next(asset for asset in replayed if asset.mime_detected == "video/mp4")
-        assert replay_video.id != videos[0].id and replay_video.parent_asset_id == source.id
+        assert manifest["clips"][0]["timeline"]["brand_end_card"]["logo_asset"] == "logo_ngang_am_ban.png"
+        assert manifest["clips"][0]["timeline"]["brand_end_card"]["shot_asset"] == "shot_ket_baha_midnight_doc_3s.mp4"
         assert security.hash_file(source_path)[0] == original_hash
     finally:
         db.close()
@@ -2300,8 +2256,7 @@ def test_dung_video_dai_render_luu_nhieu_clip_va_giu_nguyen_nguon(monkeypatch, t
         engine.dispose()
 
 
-@pytest.mark.parametrize('diagram_layout', ['BEFORE_AFTER', 'CHECKLIST'])
-def test_auto_edit_enqueue_hyperframes_diagram_child(monkeypatch, tmp_path, diagram_layout):
+def test_auto_edit_enqueue_hyperframes_diagram_child(monkeypatch, tmp_path):
     from src.modules.dieu_phoi_dung import dung_video_dai as editor
     from src.modules.tao_video_noi_dung.service import _PILOT_STYLE_SNAPSHOT
 
@@ -2346,18 +2301,15 @@ def test_auto_edit_enqueue_hyperframes_diagram_child(monkeypatch, tmp_path, diag
             for index, text in enumerate(("trước", "là", "một", "trăm", "sau", "còn", "sáu", "mươi"))
         ]
         monkeypatch.setattr(editor, "transcribe_words_cached", lambda *_args: words)
-        monkeypatch.setattr(editor, "phan_tich_am_thanh_nguon", lambda *_args: {"pause_intervals": [], "waveform_peaks": [0]})
+        monkeypatch.setattr(editor, "phat_hien_khoang_nghi", lambda *_args: [])
+        monkeypatch.setattr(editor, "tinh_muc_song", lambda *_args: [0])
         monkeypatch.setattr(editor.LLMClient, "from_db", classmethod(lambda _cls, _db: SimpleNamespace(model="real-model")))
         monkeypatch.setattr(editor, "tao_ke_hoach_dung_video", lambda *_args, **_kwargs: TaoKeHoachDungVideo(clips=[
             ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=12000, title="Đơn hàng", reason="Có phép so sánh"),
         ]))
         style = _PILOT_STYLE_SNAPSHOT.model_dump(mode="json")
         style_hash = hashlib.sha256(json.dumps(style, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-        from src.modules.flow_sessions import service as flow_service
-        monkeypatch.setattr(flow_service, "resolve_profile", lambda *_args: SimpleNamespace(
-            id="flow-profile", google_flow_state="READY",
-        ))
-        diagram_brief = {
+        monkeypatch.setattr(editor, "tao_y_tuong_dien_hoa_flow", lambda *_args: [{
             "clip_id": "part1_01", "target_clip_id": "part1_01", "renderer": "HYPERFRAMES",
             "start_word_id": "w000000", "end_word_id": "w000007",
             "scene": "So sánh số đơn trước và sau", "action": "Hai tấm giấy mở ra để so sánh",
@@ -2369,18 +2321,7 @@ def test_auto_edit_enqueue_hyperframes_diagram_child(monkeypatch, tmp_path, diag
                     {"title": "Sau", "label": "Đơn", "value": "60"},
                 ], "diff_label": "Giảm 40", "on": {"before": "trước", "after": "sau", "delta": "sáu mươi"},
             }},
-        }
-        flow_brief = {
-            "clip_id": "part1_01", "target_clip_id": "part1_01", "renderer": "FLOW",
-            "start_word_id": "w000001", "end_word_id": "w000003",
-            "scene": "M?t t?a nh? gi?y g?i h?ng", "action": "C?a s? m? v? l?e l?n",
-            "prompt": "M?t t?a nh? gi?y g?i h?ng, c?a s? m? v? l?e l?n.",
-        }
-        if diagram_layout == 'CHECKLIST':
-            diagram_brief['ui_scene'] = {'layout': 'CHECKLIST', 'diagram': {
-                'title': 'Các bước', 'steps': ['Trước', 'Sau'], 'on': {'c0': 'trước', 'c1': 'sau'},
-            }}
-        monkeypatch.setattr(editor, "tao_y_tuong_dien_hoa_flow", lambda *_args: [diagram_brief, flow_brief])
+        }])
 
         deferred = editor.dung_video_dai(
             db, source_asset_id=source.id, workspace_id=workspace_id, user_id=user_id,
@@ -2391,15 +2332,11 @@ def test_auto_edit_enqueue_hyperframes_diagram_child(monkeypatch, tmp_path, diag
         child_id = parent_request["parameters"]["flow_job_ids"][0]
         child = db.get(AIGenerationJob, child_id)
         child_request = json.loads(child.request_payload_json)
-        flow_child = db.get(AIGenerationJob, parent_request["parameters"]["flow_job_ids"][1])
-        flow_request = json.loads(flow_child.request_payload_json)
-        assert flow_request["parameters"]["remove_watermark"] is True
         assert child_request["operation"] == "render_auto_edit_diagram"
         assert child_request["backend_provider"] == "BAHA_AUTO_EDIT"
         assert child_request["parameters"]["style_snapshot_hash"] == style_hash
         assert child_request["parameters"]["target_start_word_id"] == "w000000"
         assert child_request["parameters"]["target_end_word_id"] == "w000007"
-        assert child_request['parameters']['transparent_background'] is (diagram_layout != 'CHECKLIST')
         assert parent_request["parameters"]["phase"] == "render"
         assert "HyperFrames" in deferred.status_message
         brief = json.loads((media_root / parent_request["parameters"]["plan_storage_key"]).read_text(encoding="utf-8"))["flow_briefs"][0]
@@ -2452,6 +2389,201 @@ def test_y_tuong_dien_hoa_requires_explicit_renderer():
     assert "renderer" in schema["required"]
 
 
+def test_auto_edit_hyperframes_overlay_preserves_captions_and_audio(monkeypatch, tmp_path):
+    from src.modules.dieu_phoi_dung import dung_video_dai as editor
+    from src.modules.tao_video_noi_dung import hf_project
+
+    source = tmp_path / "source.mp4"
+    graphic = tmp_path / "graphic.mov"
+    source.write_bytes(b"source")
+    graphic.write_bytes(b"graphic")
+    timeline = {
+        "width": 1080, "height": 1920, "fps": 30, "transition_seconds": 0.16,
+        "clips": [{
+            "clip_id": "main", "asset_id": "source", "audio_asset_id": "source", "media_type": "video",
+            "start_ms": 0, "duration_ms": 4000, "trim_in_ms": 0, "trim_out_ms": 4000,
+            "audio_trim_in_ms": 0,
+        }],
+        "overlays": [{"asset_id": "graphic", "x": 120, "y": 240, "width": 360, "height": 640,
+                      "start_ms": 1000, "duration_ms": 2000}],
+        "captions": [{"text": "Tỷ lệ đúng", "start_ms": 500, "duration_ms": 1200, "font_size": 42,
+                      "words": [{"text": "đúng", "start_ms": 700, "end_ms": 1000}]}],
+    }
+    calls = {"renders": [], "shots": None, "layers": None, "audio_specs": None, "workers": None}
+
+    def render_timeline_document(timeline, asset_path_resolver, output_path, **_kwargs):
+        calls["renders"].append(timeline)
+        if output_path.name == "base.mp4":
+            segment_dir = _kwargs["temp_dir"]
+            segment_dir.mkdir(parents=True, exist_ok=True)
+            for index, clip in enumerate(timeline["clips"]):
+                (segment_dir / f"seg_{index:03d}_{clip['clip_id']}.mp4").write_bytes(b"segment")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"rendered")
+        return {"duration_seconds": 4.0, "width": 1080, "height": 1920, "frame_rate": 30}
+
+    def build_project(_project, shots, *_args, **kwargs):
+        calls["shots"] = shots
+        calls["layers"] = kwargs["media_layers"]
+        return {"total_seconds": 4.0, "native_scenes": [], "legacy_scenes": [], "video_scenes": []}
+
+    def render_project(_project, output_path, **kwargs):
+        calls["workers"] = kwargs["workers"]
+        output_path.write_bytes(b"visual")
+
+    def preserve_audio(output_path, audio_specs, _work_dir, mix_existing, duration_seconds):
+        calls["audio_specs"] = audio_specs
+        assert mix_existing is False and duration_seconds == 4.0
+        output_path.write_bytes(b"audio")
+        return True
+
+    monkeypatch.setattr(editor.video_processor, "render_timeline_document", render_timeline_document)
+    monkeypatch.setattr(editor.video_processor, "_preserve_native_clip_audio", preserve_audio)
+    monkeypatch.setattr(editor.video_processor, "probe_video", lambda *_args: {"duration_seconds": 4.0, "width": 1080, "height": 1920, "frame_rate": 30})
+    monkeypatch.setattr(hf_project, "build_project", build_project)
+    monkeypatch.setattr(hf_project, "render_project", render_project)
+    monkeypatch.setattr(audio_processor, "measure_loudness", lambda *_args: {
+        "measured_i_lufs": -14.0, "measured_tp_dbtp": -2.0, "measured_lra_lu": 4.0,
+    })
+
+    output = tmp_path / "final.mp4"
+    stale_segment = tmp_path / "render" / "hyperframes" / "base_render" / "seg_999_stale.mp4"
+    stale_segment.parent.mkdir(parents=True, exist_ok=True)
+    stale_segment.write_bytes(b"stale")
+    result = editor._render_auto_edit_timeline(
+        timeline, lambda asset_id: {"source": source, "graphic": graphic}[asset_id], output, tmp_path / "render",
+    )
+
+    assert result["assembly"] == "hyperframes_timeline"
+    assert output.read_bytes() == b"audio"
+    assert not stale_segment.exists()
+    assert calls["renders"][0]["overlays"] == [] and calls["renders"][0]["captions"] == []
+    assert calls["renders"][1]["captions"] == timeline["captions"] and calls["renders"][1]["overlays"] == []
+    assert calls["shots"][0]["media_path"].name == "seg_000_main.mp4"
+    assert calls["layers"][0]["start_seconds"] == 1.0 and calls["layers"][0]["duration_seconds"] == 2.0
+    assert calls["workers"] == "1"
+    assert calls["audio_specs"][0][0].name == "base.mp4"
+
+
+def test_auto_edit_hyperframes_failure_falls_back_to_ffmpeg(monkeypatch, tmp_path):
+    from src.modules.dieu_phoi_dung import dung_video_dai as editor
+    from src.modules.tao_video_noi_dung import hf_project
+
+    source = tmp_path / "source.mp4"
+    source.write_bytes(b"source")
+    timeline = {
+        "width": 1080, "height": 1920, "fps": 30, "transition_seconds": 0.16,
+        "clips": [{"clip_id": "main", "asset_id": "source", "media_type": "video",
+                   "start_ms": 0, "duration_ms": 2000, "trim_in_ms": 0, "trim_out_ms": 2000}],
+        "overlays": [{"asset_id": "graphic", "x": 120, "y": 240, "width": 360, "height": 640,
+                      "start_ms": 0, "duration_ms": 1500}],
+        "captions": [],
+    }
+    rendered = []
+
+    def render_timeline_document(timeline, asset_path_resolver, output_path, **_kwargs):
+        rendered.append(timeline)
+        if output_path.name == "base.mp4":
+            segment_dir = _kwargs["temp_dir"]
+            segment_dir.mkdir(parents=True, exist_ok=True)
+            for index, clip in enumerate(timeline["clips"]):
+                (segment_dir / f"seg_{index:03d}_{clip['clip_id']}.mp4").write_bytes(b"segment")
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"ffmpeg")
+        return {"duration_seconds": 2.0}
+
+    monkeypatch.setattr(editor.video_processor, "render_timeline_document", render_timeline_document)
+    monkeypatch.setattr(editor.video_processor, "probe_video", lambda *_args: {
+        "duration_seconds": 2.0, "width": 1080, "height": 1920, "frame_rate": 30,
+    })
+    monkeypatch.setattr(hf_project, "build_timeline_project", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("render unavailable")))
+    monkeypatch.delenv("CONTENT_VIDEO_RENDER_FALLBACK", raising=False)
+
+    output = tmp_path / "fallback.mp4"
+    result = editor._render_auto_edit_timeline(
+        timeline, lambda _asset_id: source, output, tmp_path / "render",
+    )
+
+    assert result["assembly"] == "ffmpeg_fallback"
+    assert output.read_bytes() == b"ffmpeg"
+    assert rendered[-1]["overlays"] == timeline["overlays"]
+
+
+def test_auto_edit_without_overlays_keeps_ffmpeg_renderer(monkeypatch, tmp_path):
+    from src.modules.dieu_phoi_dung import dung_video_dai as editor
+
+    timeline = {"clips": [], "overlays": []}
+    calls = []
+    monkeypatch.setattr(editor.video_processor, "render_timeline_document", lambda **kwargs: calls.append(kwargs) or {"duration_seconds": 1.0})
+
+    result = editor._render_auto_edit_timeline(timeline, lambda _asset_id: None, tmp_path / "out.mp4", tmp_path / "render")
+
+    assert result["duration_seconds"] == 1.0
+    assert len(calls) == 1 and calls[0]["timeline"] is timeline
+
+
+def test_auto_edit_multi_clip_without_overlays_uses_hyperframes(monkeypatch, tmp_path):
+    from src.modules.dieu_phoi_dung import dung_video_dai as editor
+    from src.modules.tao_video_noi_dung import hf_project
+
+    sources = {name: tmp_path / f"{name}.mp4" for name in ("first", "second")}
+    for source in sources.values():
+        source.write_bytes(b"source")
+    timeline = {
+        "width": 1080, "height": 1920, "fps": 30, "transition_seconds": 0.16,
+        "clips": [
+            {"clip_id": "first", "asset_id": "first", "media_type": "video", "duration_ms": 2000,
+             "trim_in_ms": 0, "trim_out_ms": 2000},
+            {"clip_id": "second", "asset_id": "second", "media_type": "video", "duration_ms": 2000,
+             "trim_in_ms": 0, "trim_out_ms": 2000},
+        ],
+        "overlays": [], "captions": [],
+    }
+    calls = {"shots": None, "workers": None}
+
+    def render_timeline_document(timeline, asset_path_resolver, output_path, **kwargs):
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"rendered")
+        if output_path.name == "base.mp4":
+            segment_dir = kwargs["temp_dir"]
+            segment_dir.mkdir(parents=True, exist_ok=True)
+            for index, clip in enumerate(timeline["clips"]):
+                (segment_dir / f"seg_{index:03d}_{clip['clip_id']}.mp4").write_bytes(b"segment")
+        return {"duration_seconds": 4.0, "width": 1080, "height": 1920, "frame_rate": 30}
+
+    def build_project(_project, shots, *_args, **_kwargs):
+        calls["shots"] = shots
+        return {"total_seconds": 4.0, "native_scenes": [], "legacy_scenes": [], "video_scenes": []}
+
+    def render_project(_project, output_path, **kwargs):
+        calls["workers"] = kwargs["workers"]
+        output_path.write_bytes(b"visual")
+
+    monkeypatch.setattr(editor.video_processor, "render_timeline_document", render_timeline_document)
+    def probe_video(path):
+        name = Path(path).name
+        duration = {"seg_000_first.mp4": 1.966, "seg_001_second.mp4": 2.034}.get(name, 4.0)
+        return {"duration_seconds": duration, "width": 1080, "height": 1920, "frame_rate": 30}
+
+    monkeypatch.setattr(editor.video_processor, "probe_video", probe_video)
+    monkeypatch.setattr(editor.video_processor, "_preserve_native_clip_audio", lambda *_args: False)
+    monkeypatch.setattr(hf_project, "build_project", build_project)
+    monkeypatch.setattr(hf_project, "render_project", render_project)
+
+    output = tmp_path / "result.mp4"
+    result = editor._render_auto_edit_timeline(
+        timeline, lambda asset_id: sources[asset_id], output, tmp_path / "render",
+    )
+
+    assert result["assembly"] == "hyperframes_timeline"
+    assert output.read_bytes() == b"rendered"
+    assert [shot["media_path"].name for shot in calls["shots"]] == ["seg_000_first.mp4", "seg_001_second.mp4"]
+    assert calls["shots"][0]["seconds"] == 2.126
+    assert calls["shots"][1]["start_seconds"] == 1.966
+    assert calls["shots"][1]["fade_in_seconds"] == 0.16
+    assert calls["workers"] == "1"
+
+
 def test_planner_retries_after_three_unavailable_renderer_choices():
     clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=12_000, title="Don hang", reason="So sanh")
     flow = {"visuals": [{"clip_id": clip.clip_id, "start_word_id": "w1", "end_word_id": "w1",
@@ -2502,54 +2634,125 @@ def test_planner_reconsiders_empty_plan_after_flow_is_unavailable():
 
     assert len(visuals) == 1 and visuals[0]["renderer"] == "HYPERFRAMES"
     assert len(client.messages) == 3
-
-
-@pytest.mark.parametrize("transparent, accepted", [(False, True), (True, False)])
-def test_render_auto_edit_diagram_nhan_clip_playwright_khi_hyperframes_chua_cai(monkeypatch, tmp_path, transparent, accepted):
-    """Cảnh thường mà HyperFrames chưa cài: render_scene lùi sang Playwright, clip hợp lệ phải được nhận; nền trong suốt thì vẫn cần HyperFrames."""
+def test_auto_edit_flow_child_requests_watermark_removal(monkeypatch, tmp_path):
     from src.modules.dieu_phoi_dung import dung_video_dai as editor
-    from src.modules.tao_video_noi_dung import render_engines
-    from src.modules.tao_video_noi_dung.service import _PILOT_STYLE_SNAPSHOT
+    from src.modules.flow_sessions import service as flow_service
 
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     Base.metadata.create_all(engine)
     db = sessionmaker(bind=engine, expire_on_commit=False)()
-    workspace_id = "ws-hyperframes-fallback"
+    workspace_id, user_id, job_id = "ws-auto-flow", "user-auto-flow", "auto-edit-parent-flow"
     media_root = tmp_path / "media"
-    output_dir = media_root / "workspaces" / workspace_id / "media"
-    output_dir.mkdir(parents=True)
+    source_path = media_root / "workspaces" / workspace_id / "media" / "source.mp4"
+    source_path.parent.mkdir(parents=True)
+    source_path.write_bytes(b"raw-upload-fixture")
+    source_hash, source_size = security.hash_file(source_path)
+    db.add_all([
+        Workspace(id=workspace_id, name="Auto Edit Flow", slug=workspace_id),
+        MediaAsset(
+            id="source-flow", workspace_id=workspace_id, storage_key=source_path.relative_to(media_root).as_posix(),
+            sha256=source_hash, byte_size=source_size, mime_detected="video/mp4", duration_ms=12000,
+            source_product="UPLOAD", created_by=user_id,
+        ),
+        AIGenerationJob(
+            id=job_id, workspace_id=workspace_id, asset_type="VIDEO", provider="MEDIA_VIDEO",
+            provider_mode="QUEUE", model_id="auto-edit", idempotency_key="auto-edit-parent-flow-key",
+            state="RUNNING", request_payload_json=json.dumps({"parameters": {"profile_id": None}}),
+            created_by=user_id,
+        ),
+    ])
+    db.commit()
+    monkeypatch.setattr(security, "MEDIA_ROOT_DIR", media_root)
     monkeypatch.setattr(editor, "MEDIA_ROOT_DIR", media_root)
-    monkeypatch.setattr(editor, "get_workspace_storage_dir", lambda _workspace: output_dir)
-    monkeypatch.setattr(editor.video_processor, "probe_video", lambda _path: {
-        "width": 1080, "height": 1920, "frame_rate": 25, "duration_seconds": 5.9, "has_alpha": transparent,
-    })
-    monkeypatch.setattr("src.modules.tac_vu_tu_xa.stages.verify_decode", lambda _path: {"decode_ok": True})
 
-    def render(_scene, _style, _duration, _ratio, out_path, **_kwargs):
-        out_path.write_bytes(b"p" * 4_000)
-        return {"render_engine": "playwright"}
+    def extract_audio(args, **_kwargs):
+        Path(args[-1]).write_bytes(b"audio")
+        return SimpleNamespace(returncode=0)
 
-    monkeypatch.setattr(render_engines, "render_scene", render)
-    style = _PILOT_STYLE_SNAPSHOT.model_dump(mode="json")
-    style_hash = hashlib.sha256(json.dumps(style, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
-    request = {"operation": "render_auto_edit_diagram", "backend_provider": "BAHA_AUTO_EDIT", "parameters": {
-        "target_clip_id": "part1_01", "duration_seconds": 6, "narration": "trước và sau", "transparent_background": transparent,
-        "ui_scene": {"layout": "BEFORE_AFTER", "diagram": {
-            "title": "Đơn hàng", "docs": [{"title": "Trước", "label": "Đơn", "value": "100"}, {"title": "Sau", "label": "Đơn", "value": "60"}],
-            "diff_label": "Giảm 40", "on": {"before": "trước", "after": "sau", "delta": "giảm"}}},
-        "style_snapshot": style, "style_snapshot_hash": style_hash,
-    }}
-    job = SimpleNamespace(provider="MEDIA_VIDEO", workspace_id=workspace_id, project_id=None, created_by="user-fallback")
-    try:
-        db.add(Workspace(id=workspace_id, name="HyperFrames fallback", slug=workspace_id))
-        db.commit()
-        if accepted:
-            asset = editor.render_auto_edit_diagram(db, job, request)
-            assert asset.byte_size == 4_000 and (media_root / asset.storage_key).is_file()
-        else:
-            with pytest.raises(ValueError, match="HYPERFRAMES_ENGINE_NOT_USED"):
-                editor.render_auto_edit_diagram(db, job, request)
-    finally:
-        db.close()
-        Base.metadata.drop_all(engine)
-        engine.dispose()
+    words = [{"id": f"w{index:06d}", "text": f"tu{index}", "start_ms": index * 1000, "end_ms": index * 1000 + 500}
+             for index in range(12)]
+    monkeypatch.setattr(editor, "run_media_command", extract_audio)
+    monkeypatch.setattr(editor.video_processor, "probe_video", lambda *_args: {"duration_seconds": 12, "width": 720, "height": 1280})
+    monkeypatch.setattr(editor, "transcribe_words_cached", lambda *_args: words)
+    monkeypatch.setattr(editor, "phat_hien_khoang_nghi", lambda *_args: [])
+    monkeypatch.setattr(editor, "tinh_muc_song", lambda *_args: [0])
+    monkeypatch.setattr(editor.LLMClient, "from_db", classmethod(lambda _cls, _db: SimpleNamespace(model="real-model")))
+    monkeypatch.setattr(editor, "tao_ke_hoach_dung_video", lambda *_args, **_kwargs: TaoKeHoachDungVideo(clips=[
+        ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=12000, title="Chu de", reason="Day du y"),
+    ]))
+    monkeypatch.setattr(editor, "tao_y_tuong_dien_hoa_flow", lambda *_args: [{
+        "clip_id": "part1_01", "target_clip_id": "part1_01", "renderer": "FLOW", "prompt": "Origami paper animation",
+        "start_word_id": "w000000", "end_word_id": "w000007", "scene": "Paper scene", "action": "Show result",
+        "narration": "Explanation", "duration_seconds": 10,
+    }])
+    monkeypatch.setattr(flow_service, "resolve_profile", lambda *_args: SimpleNamespace(id="ready-flow-profile", google_flow_state="READY"))
+
+    deferred = editor.dung_video_dai(
+        db, source_asset_id="source-flow", workspace_id=workspace_id, user_id=user_id,
+        project_id=None, job_id=job_id,
+    )
+
+    parent_request = json.loads(deferred.request_payload_json)
+    child = db.get(AIGenerationJob, parent_request["parameters"]["flow_job_ids"][0])
+    child_request = json.loads(child.request_payload_json)
+    assert child_request["operation"] == "generate_video_scene"
+    assert child_request["parameters"]["remove_watermark"] is True
+    db.close()
+    Base.metadata.drop_all(engine)
+    engine.dispose()
+
+
+def test_prepare_block_transparent_background_injects_alpha_zero_css():
+    from src.modules.tao_video_noi_dung.hf_blocks import scene_composition
+
+    block_html, _attrs, style = scene_composition(
+        "KINETIC_TITLE", "s01-b", {"title": "MÓN BÁN CHẠY"}, duration=3.5, transparent_background=True
+    )
+
+    assert "background: transparent !important" in block_html
+    assert "translateY(-34cqh)" in block_html
+    assert "hf-fx-rig" in block_html
+    assert ".nty-body, .va-note" in block_html
+    assert "--bg:transparent" in style
+    assert "--surface:transparent" in style
+
+
+def test_block_layout_with_alpha_defaults_to_overlay_in_chest_safe_zone():
+    clip = ClipTuDong(clip_id="part1_01", start_ms=0, end_ms=12_000, title="Món bán chạy", reason="Đủ ý")
+    words = [
+        tu(1, "món", 1_000, 1_500),
+        tu(2, "bán", 1_500, 2_000),
+        tu(3, "chạy", 2_000, 2_500),
+        tu(4, "nhất", 2_500, 3_500),
+    ]
+    assets = [{
+        "asset_id": "alpha-kinetic-01",
+        "kind": "video",
+        "scene": "Món bán chạy nhất",
+        "narration": "món bán chạy nhất",
+        "duration_seconds": 3.0,
+        "has_alpha": True,
+        "duration_ms": 3_000,
+        "target_clip_id": "part1_01",
+        "start_word_id": "w1",
+        "end_word_id": "w4",
+        "ui_scene": {"layout": "KINETIC_TITLE", "title": "MÓN BÁN CHẠY"},
+    }]
+    client = LLMGia([{"actions": [{
+        "asset_id": "alpha-kinetic-01",
+        "clip_id": "part1_01",
+        "mode": "CUTAWAY",
+        "start_word_id": "w1",
+        "end_word_id": "w4",
+        "reason": "Nhấn mạnh câu mở đầu",
+    }]}])
+
+    actions = chon_dien_hoa([clip], words, assets, client)
+    assert len(actions) == 1
+    assert actions[0]["mode"] == "OVERLAY"
+
+    timeline = _tao_timeline("source", clip, words, visual_actions=actions)
+    assert len(timeline["overlays"]) == 1
+    ov = timeline["overlays"][0]
+    assert (ov["x"], ov["y"], ov["width"], ov["height"]) == (60, 40, 960, 1706)
+

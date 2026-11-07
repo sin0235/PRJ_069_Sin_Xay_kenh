@@ -1,0 +1,46 @@
+{
+ "trang_thai": "ĐẠT",
+ "loi": [],
+ "mo_hinh_llm": "storyboard có sẵn",
+ "so_shot": 9,
+ "thoi_luong_giong_giay": 77.59,
+ "clip_tung_shot_giay": [
+  10,
+  9,
+  10,
+  10,
+  9,
+  10,
+  10,
+  10,
+  10
+ ],
+ "thoi_luong_video_giay": 88.0,
+ "toc_do_hinh": 1.0,
+ "sha256": "6ac1dfab43c6c97b02668eae0314e6e1542a60f90209cb430b0cc716ebe6d517",
+ "do_ro_phu_de": 64,
+ "meta": {
+  "width": 1920,
+  "height": 1080,
+  "duration_seconds": 88.0,
+  "video_stream_duration_seconds": 88.0,
+  "codec_name": "h264",
+  "pixel_format": "yuv420p",
+  "has_alpha": false,
+  "frame_rate": 30.0,
+  "aspect_ratio": "1920:1080",
+  "is_vertical_9_16": false,
+  "bitrate_bps": 1121582,
+  "safe_zone_tiktok": {
+   "top_margin_px": 150,
+   "bottom_margin_px": 320,
+   "right_margin_px": 120,
+   "is_compliant": false
+  },
+  "video_playback_speed": 1.0,
+  "video_content_duration_seconds": 88.0,
+  "voice_audio_duration_seconds": 88.0,
+  "silent_tail_seconds": 0.0,
+  "frozen_tail_seconds": 0.0
+ }
+}

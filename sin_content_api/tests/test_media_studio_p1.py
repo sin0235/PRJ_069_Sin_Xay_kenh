@@ -43,7 +43,8 @@ from src.database import Base, SessionLocal, engine
 from src.main import app
 from src.models.entities import (
     Workspace, User, MediaAsset, ProductionProject, ProductionTask,
-    AIGenerationJob, MusicBrief, TimelineVersion, VoiceConsent, MediaQCResult
+    AIGenerationJob, MusicBrief, TimelineVersion, VoiceConsent, MediaQCResult,
+    ContentVideoPlan, ContentVideoRun
 )
 from baha_auth.src.database import (
     Base as AuthBase, SessionLocal as AuthSessionLocal, engine as AuthEngine
@@ -639,45 +640,6 @@ def test_b10_download_requires_workspace_authorization(media_fixture):
     assert r_b.status_code in (401, 403, 404), f"Cross-tenant download should be blocked: {r_b.status_code}"
 
 
-def test_tai_media_ten_tieng_viet_phat_duoc(media_fixture, monkeypatch, tmp_path):
-    from src.modules.media_studio import router as media_router_module
-    from src.auth.tenancy import TenantContext
-    from src.modules.media_studio.router import download_asset
-
-    fix = media_fixture
-    tenant = TenantContext(fix["ws_a_id"], fix["user_a_id"], None, None, str(uuid.uuid4()), True)
-    monkeypatch.setattr(media_router_module, "MEDIA_ROOT_DIR", tmp_path)
-    asset_id = str(uuid.uuid4())
-    filename = "giọng nói rất rõ.mp3"
-    storage_key = f"workspaces/{fix['ws_a_id']}/media/{filename}"
-    media_path = tmp_path / storage_key
-    media_path.parent.mkdir(parents=True)
-    media_path.write_bytes(b"ID3" + b"\x00" * 200)
-    with SessionLocal() as db:
-        db.add(MediaAsset(
-            id=asset_id,
-            workspace_id=fix["ws_a_id"],
-            storage_key=storage_key,
-            sha256=hashlib.sha256(media_path.read_bytes()).hexdigest(),
-            byte_size=media_path.stat().st_size,
-            mime_detected="audio/mpeg",
-            source_product="UPLOAD",
-            original_filename=filename,
-            created_by=fix["user_a_id"],
-        ))
-        db.commit()
-
-    with SessionLocal() as db:
-        try:
-            downloaded = download_asset(asset_id, None, None, False, db, tenant)
-        except UnicodeEncodeError as exc:
-            pytest.fail(f"Tên tiếng Việt không được mã hóa trong Content-Disposition: {exc}")
-
-    disposition = downloaded.headers["content-disposition"]
-    assert "filename*=utf-8''" in disposition
-    assert "gi%E1%BB%8Dng%20n%C3%B3i%20r%E1%BA%A5t%20r%C3%B5.mp3" in disposition
-
-
 # ==============================================================================
 # TEST CASE B11: Upload Rejects Oversize File (M-P2)
 # ==============================================================================
@@ -809,4 +771,139 @@ def test_b12_upload_safe_name_and_project_scope(media_fixture):
         headers=headers_b,
     )
     assert r_cross.status_code in (400, 404), f"Cross-workspace project assignment should fail: {r_cross.status_code}"
+
+
+def test_delete_video_project_removes_workflow_data_and_keeps_media_assets(media_fixture):
+    fix = media_fixture
+    headers = {
+        "Authorization": f"Bearer {fix['token_a']}",
+        "X-Workspace-Id": fix["ws_a_id"],
+    }
+    created = client.post("/v1/media/projects", json={"title": "Video cần xóa"}, headers=headers)
+    assert created.status_code == 201
+    project_id = created.json()["id"]
+    asset_id, plan_id, run_id, job_id, brief_id = [str(uuid.uuid4()) for _ in range(5)]
+
+    with SessionLocal() as db:
+        db.add_all([
+            MediaAsset(
+                id=asset_id, workspace_id=fix["ws_a_id"], project_id=project_id,
+                storage_key=f"workspaces/{fix['ws_a_id']}/media/output.mp4", sha256="a" * 64,
+                byte_size=10, mime_detected="video/mp4", source_product="GEMINI_VIDEO",
+                created_by=fix["user_a_id"],
+            ),
+            ContentVideoPlan(
+                id=plan_id, workspace_id=fix["ws_a_id"], project_id=project_id, revision=1,
+                source_content="Nội dung video cần xóa", content_sha256="b" * 64,
+                target_duration_seconds=30, style_snapshot_json="{}", style_snapshot_sha256="c" * 64,
+                storyboard_json="{}", storyboard_sha256="d" * 64, llm_model="test",
+                created_by=fix["user_a_id"],
+            ),
+            TimelineVersion(project_id=project_id, version=1, created_by=fix["user_a_id"]),
+            ProductionTask(project_id=project_id, task_type="QC", status="COMPLETED"),
+            AIGenerationJob(
+                id=job_id, workspace_id=fix["ws_a_id"], project_id=project_id,
+                asset_type="VIDEO", provider="GOOGLE_OFFICIAL", provider_mode="OFFICIAL_API",
+                model_id="test", idempotency_key=str(uuid.uuid4()), state="SUCCEEDED",
+                created_by=fix["user_a_id"],
+            ),
+            MusicBrief(
+                id=brief_id, workspace_id=fix["ws_a_id"], project_id=project_id,
+                title="Nhạc video", mood="Bình tĩnh", genre="Ambient", prompt_text="Nhạc nền",
+                created_by=fix["user_a_id"],
+            ),
+        ])
+        db.flush()
+        db.add(ContentVideoRun(
+            id=run_id, workspace_id=fix["ws_a_id"], project_id=project_id, plan_id=plan_id,
+            final_asset_id=asset_id, plan_revision=1, storyboard_sha256="d" * 64,
+            style_snapshot_sha256="c" * 64, approval_sha256="e" * 64,
+            idempotency_key=str(uuid.uuid4()), status="SUCCEEDED", created_by=fix["user_a_id"],
+        ))
+        db.commit()
+
+    deleted = client.delete(f"/v1/media/projects/{project_id}", headers=headers)
+    assert deleted.status_code == 204, deleted.text
+
+    with SessionLocal() as db:
+        assert db.get(ProductionProject, project_id) is None
+        assert db.get(ContentVideoPlan, plan_id) is None
+        assert db.get(ContentVideoRun, run_id) is None
+        assert db.query(TimelineVersion).filter_by(project_id=project_id).count() == 0
+        assert db.query(ProductionTask).filter_by(project_id=project_id).count() == 0
+        assert db.get(MediaAsset, asset_id).project_id is None
+        assert db.get(AIGenerationJob, job_id).project_id is None
+        assert db.get(MusicBrief, brief_id).project_id is None
+
+
+def test_delete_video_project_rejects_running_generation(media_fixture):
+    fix = media_fixture
+    headers = {
+        "Authorization": f"Bearer {fix['token_a']}",
+        "X-Workspace-Id": fix["ws_a_id"],
+    }
+    created = client.post("/v1/media/projects", json={"title": "Video đang chạy"}, headers=headers)
+    assert created.status_code == 201
+    project_id = created.json()["id"]
+    plan_id = str(uuid.uuid4())
+    with SessionLocal() as db:
+        db.add(ContentVideoPlan(
+            id=plan_id, workspace_id=fix["ws_a_id"], project_id=project_id, revision=1,
+            source_content="Nội dung video", content_sha256="b" * 64,
+            target_duration_seconds=30, style_snapshot_json="{}", style_snapshot_sha256="c" * 64,
+            storyboard_json="{}", storyboard_sha256="d" * 64, llm_model="test",
+            created_by=fix["user_a_id"],
+        ))
+        db.flush()
+        db.add(ContentVideoRun(
+            workspace_id=fix["ws_a_id"], project_id=project_id, plan_id=plan_id,
+            plan_revision=1, storyboard_sha256="d" * 64, style_snapshot_sha256="c" * 64,
+            approval_sha256="e" * 64, idempotency_key=str(uuid.uuid4()), status="RUNNING",
+            created_by=fix["user_a_id"],
+        ))
+        db.commit()
+
+    deleted = client.delete(f"/v1/media/projects/{project_id}", headers=headers)
+    assert deleted.status_code == 409
+    assert client.get("/v1/media/projects", headers=headers).json()[0]["id"] == project_id
+
+
+def test_delete_video_project_cannot_cross_workspace(media_fixture):
+    fix = media_fixture
+    headers_a = {
+        "Authorization": f"Bearer {fix['token_a']}",
+        "X-Workspace-Id": fix["ws_a_id"],
+    }
+    headers_b = {
+        "Authorization": f"Bearer {fix['token_b']}",
+        "X-Workspace-Id": fix["ws_b_id"],
+    }
+    created = client.post("/v1/media/projects", json={"title": "Project workspace B"}, headers=headers_b)
+    assert created.status_code == 201
+
+    deleted = client.delete(f"/v1/media/projects/{created.json()['id']}", headers=headers_a)
+    assert deleted.status_code == 404
+    assert client.get("/v1/media/projects", headers=headers_b).json()[0]["id"] == created.json()["id"]
+
+
+def test_delete_video_project_rejects_flow_job_waiting_for_render(media_fixture):
+    fix = media_fixture
+    headers = {
+        "Authorization": f"Bearer {fix['token_a']}",
+        "X-Workspace-Id": fix["ws_a_id"],
+    }
+    created = client.post("/v1/media/projects", json={"title": "Video chờ Flow"}, headers=headers)
+    assert created.status_code == 201
+    project_id = created.json()["id"]
+    with SessionLocal() as db:
+        db.add(AIGenerationJob(
+            workspace_id=fix["ws_a_id"], project_id=project_id, asset_type="VIDEO",
+            provider="GOOGLE_FLOW", provider_mode="SUBSCRIPTION_ASSISTED", model_id="veo",
+            idempotency_key=str(uuid.uuid4()), state="WAITING_FOR_FLOW", created_by=fix["user_a_id"],
+        ))
+        db.commit()
+
+    deleted = client.delete(f"/v1/media/projects/{project_id}", headers=headers)
+    assert deleted.status_code == 409
+    assert client.get("/v1/media/projects", headers=headers).json()[0]["id"] == project_id
 

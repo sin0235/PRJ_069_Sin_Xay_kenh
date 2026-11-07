@@ -43,7 +43,7 @@ from .contracts import ReconcileShotRequest
 from .sfx import plan_sfx_cues, transition_sfx_cues
 from .planner import DIAGRAM_LAYOUTS, PORTRAIT_DIAGRAM_LAYOUTS, Storyboard
 from .brand import restore_display_words, to_spoken
-from .render_engines import assembly_mode, render_placeholder, render_scene
+from .render_engines import assembly_mode, native_remotion_enabled, native_remotion_fingerprint, render_placeholder, render_scene
 from .tts_provider import TTSProviderError, tts_provider_manager
 from .vietsub import MODEL_SIZE as VIETSUB_MODEL_SIZE, VietsubError, align_script_words, karaoke_cues, to_srt, transcribe_cached, transcribe_words_cached
 
@@ -730,7 +730,7 @@ def _karaoke_captions(words: list[dict], height: int, width: int, speed: float =
     return [
         TimelineCaption(
             caption_id=f"karaoke_{index:04d}", text=cue["text"], start_ms=cue["start_ms"], duration_ms=cue["duration_ms"],
-            font_size=52 if height > width else 72, safe_zone=True, words=cue["words"],
+            font_size=70 if height > width else 50, safe_zone=True, words=cue["words"],
         )
         for index, cue in enumerate(karaoke_cues(scaled), start=1)
     ]
@@ -752,7 +752,7 @@ def _tts_captions(shots: list, height: int = 1920, width: int = 1080, durations_
             text=shot.narration,
             start_ms=start_ms,
             duration_ms=duration_ms,
-            font_size=52 if height > width else 72,
+            font_size=84 if height > width else 64,
             safe_zone=True,
         ))
         start_ms += duration_ms
@@ -880,6 +880,12 @@ def _use_hyperframes_assembly(storyboard, style: dict) -> bool:
     )
 
 
+def _has_real_ui_clip(step: dict) -> bool:
+    return bool(step.get("render_engine")) and step.get("render_engine") not in {
+        "placeholder", "hyperframes_assembly",
+    } and step.get("render_variant") != "placeholder"
+
+
 @offload("render_project", "RENDER_FINAL", output="output_path")
 def _render_with_hyperframes(
     storyboard, steps: list[dict], voice_path: Path | None, words: list[dict] | None, output_path: Path,
@@ -898,14 +904,17 @@ def _render_with_hyperframes(
     for index, shot in enumerate(storyboard.shots):
         seconds = steps[index].get("clip_seconds") or shot.duration_seconds
         media = shot_media[index] if shot_media else None
-        if shot.shot_kind == "FLOW_ORIGAMI":
-            if not media:
-                raise RuntimeError("HYPERFRAMES_VIDEO_ASSET_MISSING")
+        word_times = steps[index].get("word_times")
+        if word_times is None and shot.shot_kind == "UI_SIM":
+            word_times = _diagram_word_times(storyboard.shots, steps, index, per_clip=True)
+        if media:
             shots.append({"shot_id": shot.shot_id, "scene": None, "media_path": media["path"],
                           "media_start_seconds": media.get("media_start_seconds", 0), "narration": shot.narration,
-                          "seconds": seconds})
+                          "seconds": seconds, "word_times": word_times,
+                          "render_metadata": media.get("render_metadata")})
             continue
-        word_times = None if shot_media is not None else _diagram_word_times(storyboard.shots, steps, index, per_clip=True)
+        if shot.shot_kind == "FLOW_ORIGAMI":
+            raise RuntimeError("HYPERFRAMES_VIDEO_ASSET_MISSING")
         shots.append({"shot_id": shot.shot_id, "scene": shot.ui_scene, "narration": shot.narration, "seconds": seconds,
                       "events": resolve_diagram_times(shot.ui_scene, shot.narration, seconds, word_times), "word_times": word_times})
     work = Path(tempfile.mkdtemp(prefix="hf_run_", dir=output_path.parent))
@@ -924,7 +933,49 @@ def _render_with_hyperframes(
         shutil.rmtree(work, ignore_errors=True)
     meta = video_processor.probe_video(output_path)
     return {**meta, "video_content_duration_seconds": meta["duration_seconds"], "voice_audio_duration_seconds": meta["duration_seconds"],
-            "silent_tail_seconds": 0, "frozen_tail_seconds": 0, "assembly": "hyperframes", "native_scenes": info["native_scenes"], "legacy_scenes": info["legacy_scenes"]}
+            "silent_tail_seconds": 0, "frozen_tail_seconds": 0, "assembly": "hyperframes", "render_engine": "hyperframes",
+            "native_scenes": info["native_scenes"], "legacy_scenes": info["legacy_scenes"],
+            "scene_renderers": [shot["render_metadata"] for shot in shots if shot.get("render_metadata")]}
+
+
+def _clean_flow_asset(db, run: ContentVideoRun, step: dict) -> None:
+    # Xóa logo Veo một lần cho clip Flow gốc (asset sạch lưu riêng, khóa theo sha256 của clip gốc nên chạy lại không xóa lần hai).
+    raw_id = step.get("raw_asset_id") or step.get("asset_id")
+    raw = db.query(MediaAsset).filter(
+        MediaAsset.id == raw_id,
+        MediaAsset.workspace_id == run.workspace_id,
+        MediaAsset.project_id == run.project_id,
+    ).first()
+    if not raw:
+        raise RuntimeError("WATERMARK_SOURCE_ASSET_MISSING")
+    raw_path = _verified_asset_path(raw, "FLOW_SOURCE")
+    clean_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"flow-clean-v1:{run.workspace_id}:{run.project_id}:{raw.sha256}"))
+    clean = db.query(MediaAsset).filter(
+        MediaAsset.id == clean_id,
+        MediaAsset.workspace_id == run.workspace_id,
+        MediaAsset.project_id == run.project_id,
+    ).first()
+    if clean:
+        _verified_asset_path(clean, "FLOW_CLEAN")
+    else:
+        path = get_workspace_storage_dir(run.workspace_id) / f"flow_clean_{clean_id}.mp4"
+        result = video_processor.remove_veo_watermark(raw_path, path, use_cpu=True)
+        if result.get("status") != "SUCCEEDED" or not result.get("watermark_removed"):
+            raise RuntimeError("WATERMARK_REMOVAL_FAILED")
+        clean = MediaAsset(
+            id=clean_id, workspace_id=run.workspace_id, project_id=run.project_id,
+            storage_key=path.relative_to(MEDIA_ROOT_DIR).as_posix(),
+            sha256=_file_sha256(path), byte_size=path.stat().st_size,
+            mime_detected="video/mp4", duration_ms=raw.duration_ms,
+            source_product="VEO_WATERMARK_CLEANED", original_filename=path.name,
+            parent_asset_id=raw.id, created_by=run.created_by, approval_state="UNREVIEWED",
+        )
+        db.add(clean)
+        db.commit()
+    step.update({
+        "state": "SUCCEEDED", "raw_asset_id": raw.id, "asset_id": clean.id,
+        "watermark_removed": True, "finished_at": _now().isoformat(),
+    })
 
 
 def _render_ui_asset(db, run: ContentVideoRun, plan: ContentVideoPlan, shot, step: dict, word_times: list[float] | None = None, clip_seconds: int | None = None, placeholder: bool = False) -> MediaAsset:
@@ -934,8 +985,15 @@ def _render_ui_asset(db, run: ContentVideoRun, plan: ContentVideoPlan, shot, ste
     style = json.loads(plan.style_snapshot_json)
     aspect_ratio = style.get("aspect_ratio", "9:16")
     seconds = clip_seconds or shot.duration_seconds
+    native_requested = native_remotion_enabled(shot.ui_scene, style)
+    requested_fingerprint = native_remotion_fingerprint(
+        shot.ui_scene, seconds, aspect_ratio, shot.narration, word_times,
+    ) if native_requested else None
     try:
-        meta = render_placeholder(path, seconds, aspect_ratio) if placeholder else render_scene(shot.ui_scene, style, seconds, aspect_ratio, path, narration=shot.narration, word_times=word_times)
+        if placeholder and not native_requested:
+            meta = {**render_placeholder(path, seconds, aspect_ratio), "render_engine": "placeholder", "render_variant": "placeholder"}
+        else:
+            meta = render_scene(shot.ui_scene, style, seconds, aspect_ratio, path, narration=shot.narration, word_times=word_times)
         _, issues = _probe_shot_with_qc(path, seconds, aspect_ratio)
         if issues:
             raise RuntimeError(f"SHOT_QC_FAILED:{shot.shot_id}:{','.join(issues)}")
@@ -948,7 +1006,13 @@ def _render_ui_asset(db, run: ContentVideoRun, plan: ContentVideoPlan, shot, ste
         db.add(asset)
         # Asset và receipt hoàn tất cùng transaction, có thể render lại nếu worker bị ngắt.
         step.update(state="SUCCEEDED", raw_asset_id=asset.id, asset_id=asset.id,
-                    watermark_removed=False, finished_at=_now().isoformat(), render_engine=meta.get("render_engine", "playwright"))
+                    watermark_removed=False, finished_at=_now().isoformat(),
+                    render_engine=meta.get("render_engine", "playwright"),
+                    render_variant=meta.get("render_variant", "legacy_html"),
+                    renderer_revision=meta.get("renderer_revision"),
+                    render_fingerprint=meta.get("render_fingerprint"),
+                    requested_render_fingerprint=requested_fingerprint,
+                    timing_source=meta.get("timing_source"))
         return asset
     except Exception:
         path.unlink(missing_ok=True)
@@ -1033,7 +1097,11 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     style = json.loads(plan.style_snapshot_json)
     hyperframes_eligible = _use_hyperframes_assembly(storyboard, style)
     hyperframes_has_flow = any(shot.shot_kind == "FLOW_ORIGAMI" for shot in storyboard.shots)
-    use_hf = bool(hyperframes_eligible and (hyperframes_has_flow or (voice_input and is_tts_voice and variable_clips)))
+    hyperframes_has_native = any(
+        shot.shot_kind == "UI_SIM" and native_remotion_enabled(shot.ui_scene, style)
+        for shot in storyboard.shots
+    )
+    use_hf = bool(hyperframes_eligible and (hyperframes_has_flow or hyperframes_has_native or (voice_input and is_tts_voice and variable_clips)))
     if voice_input and include_subtitles and is_tts_voice:
         speed = fit_voice_speed(target_seconds * 1000, voice_asset.duration_ms)
         measured = [
@@ -1070,7 +1138,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
                     text=cue["text"],
                     start_ms=cue_start,
                     duration_ms=cue_end - cue_start,
-                    font_size=52 if height > width else 72,
+                    font_size=70 if height > width else 50,
                     safe_zone=True,
                 ))
     vietsub_status = (
@@ -1079,6 +1147,10 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         "GENERATED_FROM_TTS_SCRIPT" if is_tts_voice else
         "GENERATED_UNREVIEWED" if caption_cues else "NO_SPEECH_DETECTED"
     )
+    steps_now = json.loads(run.steps_json or "[]")
+    run_music_gain = float(steps_now[0].get("music_gain_db", -10.0)) if steps_now and isinstance(steps_now[0], dict) else -10.0
+    run_preset = steps_now[0].get("caption_preset") if steps_now and isinstance(steps_now[0], dict) else None
+    chosen_preset = run_preset or style.get("caption_preset") or "da_sac_phan_tang"
     timeline = TimelineDocument(
         width=width,
         height=height,
@@ -1091,11 +1163,14 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         music_track=TimelineAudioTrack(
             asset_id=run.music_asset_id,
             duration_ms=target_seconds * 1000,
-            gain_db=-18.0,
+            gain_db=run_music_gain,
+            duck_music=True,
         ) if getattr(run, "music_asset_id", None) else None,
         captions=caption_cues,
-        # Cỡ phụ đề ASS do karaoke_settings quyết định (42/56/70), không phải font_size của từng dòng: video ngang dùng cỡ lớn nhất.
-        karaoke_settings=KaraokeCaptionSettings(font_size=70) if width > height else KaraokeCaptionSettings(),
+        karaoke_settings=KaraokeCaptionSettings(
+            preset=chosen_preset,
+            font_size=50 if width > height else 70,
+        ),
     )
     latest = db.query(TimelineVersion).filter(TimelineVersion.project_id == run.project_id).order_by(TimelineVersion.version.desc()).first()
     version = (latest.version if latest else 0) + 1
@@ -1131,12 +1206,20 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     run.current_step = "RENDER"
     db.commit()
     steps_now = json.loads(run.steps_json or "[]")
+    scene_renderers = [
+        {key: step[key] for key in ("shot_id", "render_engine", "render_variant", "renderer_revision",
+                                     "render_fingerprint", "requested_render_fingerprint", "timing_source") if key in step}
+        for step in steps_now if _has_real_ui_clip(step)
+    ]
     render_meta = None
+    hyperframes_failed = False
     clip_durations = [clip.duration_ms / 1000 for clip in clips]
     sfx_cues = plan_sfx_cues(storyboard.shots, clip_durations)
     if use_hf and os.getenv("CONTENT_VIDEO_HF_TRANSITIONS", "1") != "0":
+        from .hf_project import collage_transition_indices
+
         sfx_cues.extend(transition_sfx_cues(
-            [clips[index].start_ms / 1000 for index in range(1, len(clips), 2)], "xe_giay",
+            [clips[index].start_ms / 1000 for index in collage_transition_indices(len(clips))], "xe_giay",
         ))
     elif not use_hf and len(clips) > 1:
         sfx_cues.extend(transition_sfx_cues([clip.start_ms / 1000 for clip in clips[1:]]))
@@ -1154,15 +1237,20 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         music_path = _verified_asset_path(music_asset, "MUSIC_ASSET")
     if use_hf:
         try:
-            if hyperframes_has_flow:
-                shot_media = [
-                    {"path": resolve_asset(asset_ids[index]), "media_start_seconds": clips[index].trim_in_ms / 1000}
-                    if shot.shot_kind == "FLOW_ORIGAMI" else None
-                    for index, shot in enumerate(storyboard.shots)
-                ]
+            shot_media = [
+                {"path": resolve_asset(asset_ids[index]), "media_start_seconds": clips[index].trim_in_ms / 1000,
+                 "render_metadata": {key: steps_now[index].get(key) for key in (
+                     "render_engine", "render_variant", "renderer_revision", "render_fingerprint", "timing_source",
+                 ) if steps_now[index].get(key)}}
+                if shot.shot_kind == "FLOW_ORIGAMI" or (
+                    shot.shot_kind == "UI_SIM" and _has_real_ui_clip(steps_now[index])
+                ) else None
+                for index, shot in enumerate(storyboard.shots)
+            ]
+            if hyperframes_has_flow or hyperframes_has_native or (caption_cues and not karaoke_words) or getattr(run, "music_asset_id", None):
                 with tempfile.TemporaryDirectory(prefix="hf_visual_", dir=output_path.parent) as visual_dir:
                     visual_path = Path(visual_dir) / "visual.mp4"
-                    _render_with_hyperframes(
+                    visual_meta = _render_with_hyperframes(
                         storyboard, steps_now, None, None, visual_path,
                         aspect_ratio=style.get("aspect_ratio", "9:16"), shot_media=shot_media,
                     )
@@ -1187,7 +1275,9 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
                         caption_style="vietsub_karaoke_v2", preserve_voice_audio=is_tts_voice,
                         sfx_cues=sfx_cues,
                     )
-                if not is_tts_voice:
+                    render_meta.update(assembly="hyperframes", visual_engine="hyperframes",
+                                       scene_renderers=visual_meta.get("scene_renderers", []))
+                if hyperframes_has_flow and not is_tts_voice:
                     audio_specs = [
                         (resolve_asset(asset_id), "video", clip.trim_in_ms / 1000, clip.duration_ms / 1000)
                         for asset_id, clip in zip(asset_ids, clips, strict=True)
@@ -1196,6 +1286,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
                         flow_audio_present = video_processor._preserve_native_clip_audio(
                             output_path, audio_specs, Path(audio_dir),
                             bool(voice_asset or getattr(run, "music_asset_id", None) or sfx_cues), target_seconds,
+                            music_path=music_path, music_gain_db=run_music_gain,
                         )
                     render_meta["flow_native_audio"] = flow_audio_present
                     if flow_audio_present:
@@ -1206,10 +1297,13 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
                         render_meta["audio_normalization"] = "EBU_R128"
             else:
                 render_meta = _render_with_hyperframes(
-                    storyboard, steps_now, voice_input[1], karaoke_words if include_subtitles else None,
+                    storyboard, steps_now, voice_input[1] if voice_input else None,
+                    karaoke_words if include_subtitles else None,
                     output_path, music_path=music_path, sfx_cues=sfx_cues, aspect_ratio=style.get("aspect_ratio", "9:16"),
+                    shot_media=shot_media if any(shot_media) else None,
                 )
         except Exception as exc:
+            hyperframes_failed = True
             if os.getenv("CONTENT_VIDEO_RENDER_FALLBACK", "1") == "0":
                 raise
             # Đường lùi: dựng lại từng cảnh bằng Playwright rồi ghép kiểu cũ, run vẫn ra video.
@@ -1219,6 +1313,8 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
             ratio = style_now.get("aspect_ratio", "9:16")
             for shot_index, (shot, asset_id) in enumerate(zip(storyboard.shots, asset_ids, strict=True)):
                 if shot.shot_kind != "UI_SIM":
+                    continue
+                if _has_real_ui_clip(steps_now[shot_index]):
                     continue
                 path = out_dir / f"hf_fallback_{run.id}_{shot_index}.mp4"
                 duration = step_clip_seconds[shot_index] or shot.duration_seconds
@@ -1232,9 +1328,11 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
                 caption_style="vietsub_karaoke_v2", preserve_voice_audio=is_tts_voice,
                 sfx_cues=sfx_cues,
             )
+            render_meta.update(assembly="classic", assembly_fallback="hyperframes" if hyperframes_failed else None)
         finally:
             for path in fallback_paths.values():
                 path.unlink(missing_ok=True)
+    render_meta.setdefault("scene_renderers", scene_renderers)
     if is_tts_voice:
         time_scale = float(render_meta.get("video_content_duration_seconds", render_meta["duration_seconds"])) / target_seconds
         if abs(time_scale - 1.0) > 0.001:
@@ -1257,6 +1355,8 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         "audio_normalization", "video_playback_speed",
         "video_content_duration_seconds", "voice_audio_duration_seconds",
         "silent_tail_seconds", "frozen_tail_seconds",
+        "assembly", "render_engine", "visual_engine", "assembly_fallback",
+        "scene_renderers", "native_scenes", "legacy_scenes",
     ):
         if key in render_meta:
             meta[key] = render_meta[key]
@@ -1440,8 +1540,13 @@ def process_run(run_id: str, token: str | None = None) -> None:
             _voice_input(db, run, plan)
             steps = json.loads(run.steps_json or "[]")
             for s_idx, (s_step, s_shot) in enumerate(zip(steps, storyboard.shots, strict=True)):
+                native_scene = (s_shot.shot_kind == "UI_SIM" and getattr(s_shot, "ui_scene", None)
+                                and native_remotion_enabled(s_shot.ui_scene, json.loads(plan.style_snapshot_json)))
                 if s_step.get("word_times") is None and getattr(s_shot, "ui_scene", None) and s_shot.ui_scene.layout in DIAGRAM_LAYOUTS:
-                    computed = _diagram_word_times(storyboard.shots, steps, s_idx, per_clip=bool(s_step.get("clip_seconds")))
+                    computed = _diagram_word_times(
+                        storyboard.shots, steps, s_idx,
+                        per_clip=bool(s_step.get("clip_seconds")) or bool(native_scene),
+                    )
                     if computed is not None:
                         s_step["word_times"] = computed
             _save_run(db, run, steps)
@@ -1463,36 +1568,44 @@ def process_run(run_id: str, token: str | None = None) -> None:
 
             for shot_index, (step, shot) in enumerate(zip(steps, storyboard.shots, strict=True)):
                 verify_shot_receipt(run, plan, shot, step)
+                clip_seconds = step.get("clip_seconds")
+                native_ui = shot.shot_kind == "UI_SIM" and native_remotion_enabled(
+                    shot.ui_scene, json.loads(plan.style_snapshot_json),
+                )
+                word_times = step.get("word_times")
+                if word_times is None and shot.shot_kind == "UI_SIM" and shot.ui_scene.layout in DIAGRAM_LAYOUTS:
+                    word_times = _diagram_word_times(
+                        storyboard.shots, steps, shot_index, per_clip=bool(clip_seconds) or native_ui,
+                    )
+                if shot.shot_kind == "FLOW_ORIGAMI" and step.get("state") == "SUCCEEDED" and not step.get("watermark_removed"):
+                    step["state"] = "CLEANING"
                 if step.get("state") == "SUCCEEDED":
-                    continue
+                    expected_fingerprint = native_remotion_fingerprint(
+                        shot.ui_scene, clip_seconds or shot.duration_seconds,
+                        json.loads(plan.style_snapshot_json).get("aspect_ratio", "9:16"),
+                        shot.narration, word_times,
+                    ) if native_ui else None
+                    if not native_ui or step.get("requested_render_fingerprint") == expected_fingerprint:
+                        continue
+                    step.update(state="READY", raw_asset_id=None, asset_id=None)
+                    for key in ("render_engine", "render_variant", "renderer_revision", "render_fingerprint",
+                                "requested_render_fingerprint", "timing_source"):
+                        step.pop(key, None)
                 if shot.shot_kind == "UI_SIM":
                     run.current_step = shot.shot_id
                     step["started_at"] = _now().isoformat()
                     _save_run(db, run, steps)
-                    clip_seconds = step.get("clip_seconds")
                     hf_assembly = _use_hyperframes_assembly(storyboard, json.loads(plan.style_snapshot_json)) and (
                         bool(clip_seconds) or any(item.shot_kind == "FLOW_ORIGAMI" for item in storyboard.shots)
                     )
-                    word_times = None if hf_assembly else (_diagram_word_times(storyboard.shots, steps, shot_index, per_clip=bool(clip_seconds)) if shot.ui_scene.layout in DIAGRAM_LAYOUTS else None)
-                    _render_ui_asset(db, run, plan, shot, step, word_times, clip_seconds, placeholder=hf_assembly)
+                    _render_ui_asset(db, run, plan, shot, step, word_times, clip_seconds,
+                                     placeholder=hf_assembly and not native_ui)
                     run.output_asset_ids_json = json.dumps([item["asset_id"] for item in steps if item.get("asset_id")])
                     _save_run(db, run, steps)
                     continue
                 if step.get("state") == "CLEANING":
-                    raw_asset_id = step.get("raw_asset_id") or step.get("asset_id")
-                    raw_asset = db.query(MediaAsset).filter(
-                        MediaAsset.id == raw_asset_id,
-                        MediaAsset.workspace_id == run.workspace_id,
-                        MediaAsset.project_id == run.project_id,
-                    ).first()
-                    if not raw_asset:
-                        raise RuntimeError("WATERMARK_SOURCE_ASSET_MISSING")
-                    _verified_asset_path(raw_asset, "FLOW_SOURCE")
-                    # shortcut: Flow clips retain their watermark until a Linux remover is available.
-                    step.update({
-                        "state": "SUCCEEDED", "raw_asset_id": raw_asset.id, "asset_id": raw_asset.id,
-                        "watermark_removed": False, "finished_at": _now().isoformat(),
-                    })
+                    _save_run(db, run, steps)
+                    _clean_flow_asset(db, run, step)
                     run.output_asset_ids_json = json.dumps([item.get("asset_id") for item in steps if item.get("asset_id")])
                     _save_run(db, run, steps)
                     continue
@@ -1586,12 +1699,15 @@ def process_run(run_id: str, token: str | None = None) -> None:
                 if shot_issues:
                     raise RuntimeError(f"SHOT_QC_FAILED:{shot.shot_id}:{','.join(shot_issues)}")
                 step.update({
-                    "state": "SUCCEEDED",
+                    "state": "CLEANING",
                     "raw_asset_id": asset.id,
                     "asset_id": asset.id,
                     "watermark_removed": False,
                     "finished_at": _now().isoformat(),
                 })
+                run.output_asset_ids_json = json.dumps([item.get("asset_id") for item in steps if item.get("asset_id")])
+                _save_run(db, run, steps)
+                _clean_flow_asset(db, run, step)
                 run.output_asset_ids_json = json.dumps([item.get("asset_id") for item in steps if item.get("asset_id")])
                 _save_run(db, run, steps)
             asset_ids = [step["asset_id"] for step in steps]

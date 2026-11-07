@@ -4,13 +4,11 @@ Hỗ trợ mở rộng video 16:9 sang 9:16 (Blurred Canvas Extension), kiểm t
 Safe Zone, ghép video phân cảnh, track âm thanh và tẩy sạch watermark Google Veo / Gemini AI.
 """
 
-from src.modules.tac_vu_tu_xa.client import offload, pipeline
 import logging
 import json
 import math
 import os
 import pathlib
-import re
 import subprocess
 from src.media_process import run_media_command
 import sys
@@ -120,88 +118,6 @@ class VideoProcessor:
             }
         }
 
-    @offload("mask_corner_watermark", "PREPARE_FLOW_ASSET", output="output_video_path")
-    def mask_corner_watermark(self, input_video_path: pathlib.Path, output_video_path: pathlib.Path) -> Dict[str, Any]:
-        """Đường lùi khi công cụ khử logo lỗi: xóa biểu tượng ở góc dưới phải bằng bộ lọc delogo của ffmpeg (nội suy từ vùng xung quanh)."""
-        info = self.probe_video(input_video_path)
-        width, height = int(info["width"]), int(info["height"])
-        box_x, box_y = int(width * 0.79), int(height * 0.88)
-        box_w, box_h = min(int(width * 0.10), width - box_x - 2), min(int(height * 0.07), height - box_y - 2)
-        output_video_path.parent.mkdir(parents=True, exist_ok=True)
-        result = run_media_command([
-            self.ffmpeg_bin, "-y", "-v", "error", "-i", str(input_video_path),
-            "-vf", f"delogo=x={box_x}:y={box_y}:w={box_w}:h={box_h}",
-            "-map", "0:v:0", "-map", "0:a?", "-c:v", "libx264", "-preset", "veryfast", "-crf", "17", "-pix_fmt", "yuv420p",
-            "-c:a", "copy", str(output_video_path),
-        ], capture_output=True, text=True)
-        if result.returncode != 0:
-            raise RuntimeError("VIDEO_DELOGO_FAILED: " + " ".join((result.stderr or "").split())[-100:])
-        meta = self.probe_video(output_video_path)
-        return {**meta, "status": "SUCCEEDED", "watermark_removed": True, "technique": "DELOGO_CORNER"}
-
-    def residual_watermark_box(self, video_path: pathlib.Path) -> Optional[tuple[int, int, int, int]]:
-        """Tìm biểu tượng ngôi sao (Gemini/Veo) còn sót sau khi khử logo. Biểu tượng bán trong suốt, đứng yên, nên trung bình theo thời gian của độ nổi
-        cục bộ (khung trừ bản làm mờ của chính nó) có đỉnh rõ ở góc dưới phải trong khi nền chuyển động bị triệt tiêu. Trả (x, y, w, h) hoặc None.
-        Đã đo: clip còn logo cho đỉnh khoảng 17, ba clip sạch dưới 7 trong vùng này."""
-        import numpy as np
-        info = self.probe_video(video_path)
-        width, height, seconds = int(info["width"]), int(info["height"]), max(1.0, float(info["duration_seconds"]))
-        crop_x, crop_y = int(width * 0.70), int(height * 0.65)
-        crop_w, crop_h = width - crop_x, height - crop_y
-        result = run_media_command([
-            self.ffmpeg_bin, "-v", "error", "-i", str(video_path),
-            "-vf", f"fps={min(4.0, 30.0 / seconds):.3f},crop={crop_w}:{crop_h}:{crop_x}:{crop_y},format=gray", "-f", "rawvideo", "-",
-        ], capture_output=True)
-        raw = np.frombuffer(result.stdout, dtype=np.uint8)
-        count = raw.size // (crop_w * crop_h)
-        if result.returncode != 0 or count < 8:
-            return None
-        frames = raw[:count * crop_w * crop_h].reshape(count, crop_h, crop_w).astype(np.float32)
-
-        def box_blur(image, radius):
-            padded = np.pad(image, ((radius, radius), (radius, radius)), mode="edge")
-            cumulative = np.pad(np.cumsum(np.cumsum(padded, 0), 1), ((1, 0), (1, 0)))
-            size = 2 * radius + 1
-            return (cumulative[size:, size:] - cumulative[:-size, size:] - cumulative[size:, :-size] + cumulative[:-size, :-size]) / (size * size)
-
-        scale = width / 1920.0
-        popout = np.mean([frame - box_blur(frame, max(4, round(16 * scale))) for frame in frames], axis=0)
-        popout = box_blur(popout, max(2, round(5 * scale)))
-        # Vùng có thể chứa logo: 16% ngoài cùng bên phải, 24% dưới cùng.
-        x0, y0 = int(width * 0.84) - crop_x, int(height * 0.76) - crop_y
-        region = popout[y0:, x0:]
-        peak = float(region.max())
-        if peak < 10.0:
-            return None
-        local_y, local_x = np.unravel_index(int(np.argmax(region)), region.shape)
-        center_x, center_y = crop_x + x0 + int(local_x), crop_y + y0 + int(local_y)
-        half = max(40, round(60 * scale))
-        box_x, box_y = max(4, center_x - half), max(4, center_y - half)
-        box_w, box_h = min(2 * half, width - box_x - 4), min(2 * half, height - box_y - 4)
-        return box_x, box_y, box_w, box_h
-
-    def clear_residual_watermark(self, video_path: pathlib.Path) -> Optional[str]:
-        """Nếu còn logo sót thì che bằng delogo tại đúng vị trí tìm được (ghi đè tệp). Trả mô tả vùng đã xử lý hoặc None. Lỗi thì giữ nguyên tệp."""
-        try:
-            box = self.residual_watermark_box(video_path)
-            if not box:
-                return None
-            x, y, w, h = box
-            repaired = video_path.with_name(f"{video_path.stem}_delogo_con_sot{video_path.suffix}")
-            result = run_media_command([
-                self.ffmpeg_bin, "-y", "-v", "error", "-i", str(video_path), "-vf", f"delogo=x={x}:y={y}:w={w}:h={h}",
-                "-map", "0:v:0", "-map", "0:a?", "-c:v", "libx264", "-preset", "veryfast", "-crf", "17", "-pix_fmt", "yuv420p", "-c:a", "copy", str(repaired),
-            ], capture_output=True, text=True)
-            if result.returncode != 0:
-                repaired.unlink(missing_ok=True)
-                return None
-            repaired.replace(video_path)
-            return f"{x},{y},{w},{h}"
-        except Exception as exc:
-            print(f"[VIDEO PROCESSOR] Kiểm tra logo còn sót lỗi ({type(exc).__name__}); giữ nguyên clip.", flush=True)
-            return None
-
-    @offload("remove_watermark", "PREPARE_FLOW_ASSET", output="output_video_path")
     def remove_veo_watermark(
         self,
         input_video_path: pathlib.Path,
@@ -216,26 +132,15 @@ class VideoProcessor:
         Khử sạch logo / watermark Google Veo & Gemini AI khỏi video bằng công cụ chuyên dụng.
         """
         if veo_remover and veo_remover.is_available():
-            try:
-                result = veo_remover.remove_watermark(
-                    input_video_path=input_video_path,
-                    output_video_path=output_video_path,
-                    use_cpu=use_cpu,
-                    watermark_type=watermark_type,
-                    denoise_method=denoise_method,
-                    region=region,
-                    veo_alpha=veo_alpha
-                )
-            except Exception as exc:
-                print(f"[VIDEO PROCESSOR] Công cụ khử logo lỗi ({type(exc).__name__}); dùng delogo che góc.", flush=True)
-                result = {}
-            if result.get("status") != "SUCCEEDED" or not result.get("watermark_removed"):
-                # Công cụ khử logo lỗi hoặc không xác nhận (vd. crash trên clip dọc 720x1280): che góc bằng delogo thay vì làm hỏng cả run.
-                print(f"[VIDEO PROCESSOR] Khử logo không xác nhận ({str(result.get('message') or result.get('status'))[:120]}); dùng delogo che góc.", flush=True)
-                output_video_path.unlink(missing_ok=True)
-                fallback = self.mask_corner_watermark(input_video_path, output_video_path)
-                residual = self.clear_residual_watermark(output_video_path)
-                return {**fallback, "technique": fallback.get("technique", "") + ("+DELOGO_RESIDUAL" if residual else ""), "residual_box": residual}
+            result = veo_remover.remove_watermark(
+                input_video_path=input_video_path,
+                output_video_path=output_video_path,
+                use_cpu=use_cpu,
+                watermark_type=watermark_type,
+                denoise_method=denoise_method,
+                region=region,
+                veo_alpha=veo_alpha
+            )
             if result.get("status") == "SUCCEEDED" and result.get("watermark_removed"):
                 input_duration = self.probe_video(input_video_path)["duration_seconds"]
                 output_duration = self.probe_video(output_video_path)["duration_seconds"]
@@ -244,15 +149,10 @@ class VideoProcessor:
                         "WATERMARK_OUTPUT_DURATION_MISMATCH: "
                         f"source={input_duration:.3f}s output={output_duration:.3f}s"
                     )
-                # Công cụ khử logo báo thành công nhưng có clip vẫn còn ngôi sao bán trong suốt (đã gặp ở shot 7 bài 10): kiểm và che phần sót.
-                residual = self.clear_residual_watermark(output_video_path)
-                if residual:
-                    result = {**result, "technique": f"{result.get('technique', 'VEO_REMOVER')}+DELOGO_RESIDUAL", "residual_box": residual}
             return result
         else:
             raise RuntimeError("Công cụ VeoWatermarkRemover chưa sẵn sàng trên hệ thống.")
 
-    @offload("expand_canvas", "PREPARE_FLOW_ASSET", output="output_video_path")
     def expand_16_9_to_9_16(
         self,
         input_video_path: pathlib.Path,
@@ -378,45 +278,24 @@ class VideoProcessor:
 
         return self.probe_video(output_path)
 
-    def _ghep_chuyen_canh_tuan_tu(self, segments, work_dir, transition_seconds, fps):
-        """Chỉ giải mã hai đoạn mỗi lượt, tránh giữ cả timeline trong bộ nhớ xfade."""
-        frames = [round(float(self.probe_video(path)["duration_seconds"]) * fps) for path in segments]
-        fade_frames = min(max(1, round(min(transition_seconds, 0.5) * fps)), min(frames) // 2)
-        if fade_frames < 1:
-            raise ValueError("VIDEO_TRANSITION_CLIP_TOO_SHORT")
-        fade = fade_frames / fps
-        pieces = []
-        for index, segment in enumerate(segments):
-            skip = fade_frames if index else 0
-            target = work_dir / f"chuyen_canh_{index:03d}.mp4"
-            command = [self.ffmpeg_bin, "-y", "-i", str(segment)]
-            if index + 1 < len(segments):
-                command += ["-i", str(segments[index + 1])]
-                filters = (
-                    f"[0:v]trim=start_frame={skip},setpts=PTS-STARTPTS,"
-                    f"tpad=stop_mode=clone:stop_duration={fade:.9f}[a];"
-                    f"[1:v]trim=end_frame={fade_frames},setpts=PTS-STARTPTS[b];"
-                    f"[a][b]xfade=transition=fade:duration={fade:.9f}:"
-                    f"offset={(frames[index] - skip) / fps:.9f}[v]"
-                )
-                command += ["-filter_complex", filters, "-map", "[v]"]
-            else:
-                command += ["-vf", f"trim=start_frame={skip},setpts=PTS-STARTPTS"]
-            command += ["-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(fps), str(target)]
-            result = run_media_command(command, capture_output=True, text=True)
-            if result.returncode:
-                raise RuntimeError(f"Lỗi chuyển cảnh đoạn {index}: {result.stderr}")
-            pieces.append(target)
-        listing = work_dir / "danh_sach_chuyen_canh.txt"
-        listing.write_text("".join("file '" + str(path.resolve()).replace("\\", "/") + "'\n" for path in pieces), encoding="utf-8")
-        output = work_dir / "concat_video.mp4"
-        result = run_media_command([self.ffmpeg_bin, "-y", "-f", "concat", "-safe", "0", "-i", str(listing),
-                                    "-c", "copy", str(output)], capture_output=True, text=True)
-        if result.returncode:
-            raise RuntimeError(f"Lỗi ghép các đoạn chuyển cảnh: {result.stderr}")
-        return output
+    def _build_bgm_stream_filter(self, input_idx: int, gain_db: float, duration_sec: float, label: str = "m") -> str:
+        """
+        Tạo chuỗi bộ lọc FFmpeg cho nhạc nền:
+        - Tự động lặp liền mạch (aloop) nếu bài nhạc ngắn hơn video.
+        - Lọc EQ nhường dải tần giọng nói (cut nhẹ 3dB ở 1.5kHz).
+        - Điều chỉnh âm lượng gain_db (mặc định -10dB).
+        - Fade-in 0.5s ở đầu và Fade-out 1.5s ở cuối video.
+        """
+        fade_out_st = max(0.0, duration_sec - 1.5)
+        fade_out_dur = min(1.5, duration_sec)
+        return (
+            f"[{input_idx}:a]aloop=loop=-1:size=2e+09,atrim=0:{duration_sec:.3f},"
+            f"aresample=44100,aformat=channel_layouts=stereo,"
+            f"highpass=f=70,equalizer=f=1500:t=q:w=1.2:g=-3,"
+            f"volume={gain_db:.2f}dB,"
+            f"afade=t=in:st=0:d=0.5,afade=t=out:st={fade_out_st:.3f}:d={fade_out_dur:.3f}[{label}]"
+        )
 
-    @offload("render_timeline", "RENDER_FINAL", output="output_path")
     def render_timeline_document(
         self,
         timeline: Any,
@@ -500,22 +379,13 @@ class VideoProcessor:
                     audio_file = asset_path_resolver(audio_asset_id)
                     audio_trim_ms = clip.get("audio_trim_in_ms", trim_in_ms) if isinstance(clip, dict) else trim_in_ms
 
-                    pad_color = clip.get("pad_color") if isinstance(clip, dict) else getattr(clip, "pad_color", None)
-                    if pad_color is not None and not re.fullmatch(r"[0-9a-fA-F]{6}", str(pad_color)):
-                        raise ValueError("VIDEO_PAD_COLOR_INVALID")
-                    background = f"0x{pad_color}" if pad_color else "black"
                     if fit == "contain":
-                        vf_scale = f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color={background},setsar=1,fps={fps}"
+                        vf_scale = f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,fps={fps}"
                     else:
                         vf_scale = f"scale={width}:{height}:force_original_aspect_ratio=increase,crop={width}:{height},setsar=1,fps={fps}"
                     if effect == "punch_in":
                         zoom_width, zoom_height = round(width * 1.06), round(height * 1.06)
                         vf_scale += f",scale={zoom_width}:{zoom_height},crop={width}:{height}"
-                    if pad_color:
-                        vf_scale += (
-                            f",format=rgba,split[fg][bg];[bg]drawbox=color={background}:t=fill:replace=1[base];"
-                            "[base][fg]overlay=shortest=1:format=auto"
-                        )
 
                     if media_type == "image":
                         dur_s = max(0.1, duration_ms / 1000.0)
@@ -579,9 +449,38 @@ class VideoProcessor:
                                                    audio_trim_ms / 1000.0, dur_s))
                         total_duration_sec += dur_s
 
-                # 2. Chuyển cảnh từng cặp để RAM không tăng theo số đoạn trên timeline.
+                # 2. Ghép các phân cảnh video. Mỗi đoạn (trừ đoạn cuối) được tpad ngay trên đầu vào để xfade
+                # còn đủ hình; tpad đặt sau xfade không kéo dài luồng nên các đoạn sau bị cắt mất.
                 if transition_seconds > 0 and len(seg_files) > 1:
-                    concat_video = self._ghep_chuyen_canh_tuan_tu(seg_files, work_dir, transition_seconds, fps)
+                    transition = min(transition_seconds, 0.5)
+                    # Offset phải theo độ dài thực của đoạn (có thể ngắn hơn danh nghĩa vài frame), nếu không xfade bị cắt.
+                    measured = [float(self.probe_video(seg)["duration_seconds"]) for seg in seg_files]
+                    last = len(seg_files) - 1
+                    filter_parts = [
+                        f"[{idx}:v]tpad=stop_mode=clone:stop_duration={transition:.3f}[p{idx}]"
+                        for idx in range(last)
+                    ]
+                    previous = "p0"
+                    offset = 0.0
+                    for idx, duration in enumerate(measured[:-1]):
+                        nxt = f"p{idx + 1}" if idx + 1 < last else f"{last}:v"
+                        output = f"x{idx}"
+                        filter_parts.append(
+                            f"[{previous}][{nxt}]xfade=transition=fade:duration={transition:.3f}:offset={offset + duration:.3f}[{output}]"
+                        )
+                        previous = output
+                        offset += duration
+                    concat_video = work_dir / "concat_video.mp4"
+                    cmd_transition = [self.ffmpeg_bin, "-y"]
+                    for seg_file in seg_files:
+                        cmd_transition.extend(["-i", str(seg_file)])
+                    cmd_transition.extend([
+                        "-filter_complex", ";".join(filter_parts), "-map", f"[{previous}]",
+                        "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", str(fps), str(concat_video),
+                    ])
+                    res_concat = run_media_command(cmd_transition, capture_output=True, text=True)
+                    if res_concat.returncode != 0:
+                        raise RuntimeError(f"Lỗi chuyển cảnh mềm: {res_concat.stderr}")
                 else:
                     concat_list = work_dir / "concat_list.txt"
                     with open(concat_list, "w", encoding="utf-8") as f:
@@ -609,8 +508,7 @@ class VideoProcessor:
                 karaoke_captions, static_captions = [], []
                 for caption in captions:
                     words = caption.get("words") if isinstance(caption, dict) else getattr(caption, "words", None)
-                    animated_label = caption.get("animated_label", False) if isinstance(caption, dict) else getattr(caption, "animated_label", False)
-                    (karaoke_captions if words or animated_label else static_captions).append(caption)
+                    (karaoke_captions if words else static_captions).append(caption)
 
                 current_video = concat_video
                 overlays = getattr(timeline, "overlays", [])
@@ -625,16 +523,20 @@ class VideoProcessor:
                         overlay_inputs.extend(["-i", str(overlay_file)])
                         width_px, height_px = int(overlay.get("width", 320)), int(overlay.get("height", 480))
                         start_s = int(overlay["start_ms"]) / 1000
-                        end_s = start_s + int(overlay["duration_ms"]) / 1000
-                        trim_s = int(overlay.get("trim_in_ms", 0)) / 1000
+                        dur_s = int(overlay["duration_ms"]) / 1000
+                        end_s = start_s + dur_s
+                        trim_in_s = int(overlay.get("trim_in_ms", 0)) / 1000
                         next_label = f"ov{index}"
+                        trim_expr = (
+                            f"trim=start={trim_in_s:.3f}:duration={dur_s:.3f},"
+                            if trim_in_s > 0
+                            else f"trim=duration={dur_s:.3f},"
+                        )
                         filters.append(
-                            f"[{index + 1}:v]trim=start={trim_s:.3f}:duration={end_s - start_s:.3f},"
-                            f"setpts=PTS-STARTPTS+{start_s:.3f}/TB,"
-                            f"scale={width_px}:{height_px}:force_original_aspect_ratio=decrease[scaled{index}];"
+                            f"[{index + 1}:v]{trim_expr}setpts=PTS-STARTPTS+{start_s:.3f}/TB,"
+                            f"format=rgba,scale={width_px}:{height_px}:force_original_aspect_ratio=decrease[scaled{index}];"
                             f"[{previous}][scaled{index}]overlay=x={int(overlay.get('x', width - width_px - 120))}:"
-                            f"y={int(overlay.get('y', 260))}:eof_action=pass:repeatlast=0:"
-                            f"enable='gte(t,{start_s:.3f})*lt(t,{end_s:.3f})'[${next_label}]".replace("[$", "[")
+                            f"y={int(overlay.get('y', 260))}:format=auto:enable='between(t,{start_s:.3f},{end_s:.3f})':eof_action=pass[{next_label}]"
                         )
                         previous = next_label
                     overlay_video = work_dir / "overlay_video.mp4"
@@ -694,7 +596,9 @@ class VideoProcessor:
                         c_start_s = (getattr(cap, "start_ms", 0) or (cap.get("start_ms", 0) if isinstance(cap, dict) else 0)) / 1000.0
                         c_dur_s = (getattr(cap, "duration_ms", 2000) or (cap.get("duration_ms", 2000) if isinstance(cap, dict) else 2000)) / 1000.0
                         c_end_s = c_start_s + c_dur_s
-                        f_size = getattr(cap, "font_size", 26) or (cap.get("font_size", 26) if isinstance(cap, dict) else 26)
+                        f_size = getattr(cap, "font_size", None) or (cap.get("font_size") if isinstance(cap, dict) else None)
+                        if not f_size:
+                            f_size = 84 if height > width else 64
                         requested_y = getattr(cap, "position_y_px", None) or (cap.get("position_y_px") if isinstance(cap, dict) else None)
                         visual_type = cap.get("visual_type", "") if isinstance(cap, dict) else getattr(cap, "visual_type", "")
                         cap_font_color = font_color
@@ -753,8 +657,23 @@ class VideoProcessor:
                 if isinstance(music_tr, dict):
                     music_gain_db = music_tr.get("gain_db", 0.0)
 
+                duck_att = getattr(music_tr, "ducking_attenuation_db", None) if music_tr else None
+                if isinstance(music_tr, dict) and duck_att is None:
+                    duck_att = music_tr.get("ducking_attenuation_db")
+                if duck_att is not None and abs(music_gain_db) < 0.001:
+                    music_gain_db = float(duck_att)
+                elif abs(music_gain_db) < 0.001 and music_asset_id:
+                    music_gain_db = -10.0
+
                 has_voice = bool(voice_asset_id)
                 has_music = bool(music_asset_id)
+
+                from .audio_processor import audio_processor
+                has_native_audio = any(
+                    m == "video" and audio_processor.probe_audio(p).get("codec_name") != "unknown"
+                    for p, m, t, d in native_audio_specs
+                )
+                music_deferred_to_native = bool(not has_voice and has_music and has_native_audio and not preserve_voice_audio)
 
                 final_audio = work_dir / "final_audio.wav"
                 final_duration_sec = total_duration_sec
@@ -765,7 +684,6 @@ class VideoProcessor:
                 if preserve_voice_audio:
                     if not has_voice:
                         raise ValueError("RAW_TTS_REQUIRES_VOICE")
-                    from .audio_processor import audio_processor
                     voice_file = asset_path_resolver(voice_asset_id)
                     voice_duration = float(audio_processor.probe_audio(voice_file)["duration_seconds"])
                     if voice_duration <= 0:
@@ -775,13 +693,15 @@ class VideoProcessor:
                     final_duration_sec = max(video_content_duration_sec, voice_duration)
                     if has_music:
                         music_file = asset_path_resolver(music_asset_id)
+                        bgm_filter = self._build_bgm_stream_filter(1, music_gain_db, final_duration_sec, "m")
                         run_media_command([
                             self.ffmpeg_bin, "-y", "-t", f"{final_duration_sec:.3f}",
                             "-i", str(voice_file), "-i", str(music_file),
                             "-filter_complex",
-                             f"[1:a]volume={music_gain_db:.2f}dB,apad=whole_dur={final_duration_sec:.3f}[m];"
-                             f"[m][0:a]sidechaincompress=threshold=0.03:ratio=6:attack=15:release=350[d];"
-                            "[d][0:a]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[a]",
+                            f"{bgm_filter};"
+                            f"[0:a]asplit=2[v_sc][v_mix];"
+                            f"[m][v_sc]sidechaincompress=threshold=0.08:ratio=2.0:attack=40:release=350:makeup=1[d];"
+                            "[v_mix][d]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.95[a]",
                             "-map", "[a]", "-ar", "44100", "-ac", "2", "-t", f"{final_duration_sec:.3f}", str(final_audio),
                         ], capture_output=True, check=True)
                     else:
@@ -790,35 +710,22 @@ class VideoProcessor:
                 elif has_voice and has_music:
                     voice_file = asset_path_resolver(voice_asset_id)
                     music_file = asset_path_resolver(music_asset_id)
+                    bgm_filter = self._build_bgm_stream_filter(1, music_gain_db, total_duration_sec, "m_in")
                     cmd_audio = [
                         self.ffmpeg_bin, "-y",
                         "-t", f"{total_duration_sec:.3f}",
                         "-i", str(voice_file),
                         "-i", str(music_file),
                         "-filter_complex",
-                        f"[1:a]volume={music_gain_db:.2f}dB,apad=whole_dur={total_duration_sec:.3f}[m_in];"
-                        f"[0:a]apad=whole_dur={total_duration_sec:.3f},atrim=duration={total_duration_sec:.3f},acompressor=threshold=0.1:ratio=4:attack=10:release=150,volume=0dB[v_in];"
-                        "[m_in][v_in]sidechaincompress=threshold=0.1:ratio=4:attack=150:release=800[m_ducked];"
-                        "[m_ducked][v_in]amix=inputs=2:duration=first:dropout_transition=2[mixed];"
+                        f"{bgm_filter};"
+                        f"[0:a]aresample=44100,aformat=channel_layouts=stereo,apad=whole_dur={total_duration_sec:.3f},atrim=duration={total_duration_sec:.3f},asplit=2[v_sc][v_mix];"
+                        "[m_in][v_sc]sidechaincompress=threshold=0.08:ratio=2.0:attack=40:release=350:makeup=1[m_ducked];"
+                        "[v_mix][m_ducked]amix=inputs=2:duration=first:normalize=0[mixed];"
                         "[mixed]loudnorm=I=-14:LRA=11:TP=-1.5[out_a]",
                         "-map", "[out_a]",
                         str(final_audio)
                     ]
-                    res_a = run_media_command(cmd_audio, capture_output=True, text=True)
-                    if res_a.returncode != 0:
-                        cmd_audio_simple = [
-                            self.ffmpeg_bin, "-y",
-                            "-t", f"{total_duration_sec:.3f}",
-                            "-i", str(voice_file),
-                            "-i", str(music_file),
-                            "-filter_complex",
-                            f"[1:a]volume={music_gain_db:.2f}dB,apad=whole_dur={total_duration_sec:.3f}[music];"
-                            f"[0:a]apad=whole_dur={total_duration_sec:.3f},atrim=duration={total_duration_sec:.3f}[voice];"
-                            "[voice][music]amix=inputs=2:duration=first[mixed];[mixed]loudnorm=I=-14:LRA=11:TP=-1.5[aout]",
-                            "-map", "[aout]",
-                            str(final_audio)
-                        ]
-                        run_media_command(cmd_audio_simple, capture_output=True, check=True)
+                    run_media_command(cmd_audio, capture_output=True, check=True)
 
                 elif has_voice:
                     voice_file = asset_path_resolver(voice_asset_id)
@@ -831,13 +738,16 @@ class VideoProcessor:
                     ]
                     run_media_command(cmd_audio, capture_output=True, check=True)
 
-                elif has_music:
+                elif has_music and not music_deferred_to_native:
                     music_file = asset_path_resolver(music_asset_id)
+                    bgm_filter = self._build_bgm_stream_filter(0, music_gain_db, total_duration_sec, "m_in")
                     cmd_audio = [
                         self.ffmpeg_bin, "-y",
                         "-t", f"{total_duration_sec:.3f}",
                         "-i", str(music_file),
-                        "-af", f"volume={music_gain_db:.2f}dB,apad=whole_dur={total_duration_sec:.3f},atrim=duration={total_duration_sec:.3f},loudnorm=I=-14:LRA=11:TP=-1.5",
+                        "-filter_complex",
+                        f"{bgm_filter};[m_in]loudnorm=I=-14:LRA=11:TP=-1.5[out_a]",
+                        "-map", "[out_a]",
                         str(final_audio)
                     ]
                     run_media_command(cmd_audio, capture_output=True, check=True)
@@ -859,7 +769,7 @@ class VideoProcessor:
                     )
 
                 cmd_final = [self.ffmpeg_bin, "-y", "-i", str(current_video)]
-                if has_voice or has_music or has_sfx:
+                if has_voice or (has_music and not music_deferred_to_native) or has_sfx:
                     cmd_final.extend([
                         "-i", str(final_audio), "-c:a", "aac", "-b:a", "192k",
                     ])
@@ -882,7 +792,11 @@ class VideoProcessor:
                     raise RuntimeError(f"Lỗi ghép hoàn chỉnh thành phẩm MP4: {res_final.stderr}")
 
                 flow_audio_present = False if preserve_voice_audio else self._preserve_native_clip_audio(
-                    output_path, native_audio_specs, work_dir, has_voice or has_music or has_sfx, total_duration_sec,
+                    output_path, native_audio_specs, work_dir,
+                    has_voice or (has_music and not music_deferred_to_native) or has_sfx,
+                    total_duration_sec,
+                    music_path=asset_path_resolver(music_asset_id) if (music_deferred_to_native and music_asset_id) else None,
+                    music_gain_db=music_gain_db,
                 )
 
                 meta = self.probe_video(output_path)
@@ -960,7 +874,10 @@ class VideoProcessor:
         run_media_command(command, capture_output=True, check=True)
         return output
 
-    def _preserve_native_clip_audio(self, output_path, audio_specs, work_dir, mix_existing, duration_sec):
+    def _preserve_native_clip_audio(
+        self, output_path, audio_specs, work_dir, mix_existing, duration_sec,
+        music_path: Optional[pathlib.Path] = None, music_gain_db: float = -18.0
+    ):
         from .audio_processor import audio_processor
 
         probed_specs = [
@@ -994,6 +911,38 @@ class VideoProcessor:
         ], capture_output=True, check=True)
 
         mixed_video = work_dir / "flow_audio_video.mp4"
+        if music_path and pathlib.Path(music_path).is_file():
+            fade_out_st = max(0.0, duration_sec - 1.5)
+            fade_out_dur = min(1.5, duration_sec)
+            bgm_filter = (
+                f"[2:a]aloop=loop=-1:size=2e+09,atrim=0:{duration_sec:.3f},"
+                f"aresample=44100,aformat=channel_layouts=stereo,"
+                f"highpass=f=70,equalizer=f=1500:t=q:w=1.2:g=-3,"
+                f"volume={music_gain_db:.2f}dB,"
+                f"afade=t=in:st=0:d=0.5,afade=t=out:st={fade_out_st:.3f}:d={fade_out_dur:.3f}[bgm];"
+                f"[1:a]aresample=44100,aformat=channel_layouts=stereo,apad=whole_dur={duration_sec:.3f},atrim=duration={duration_sec:.3f},asplit=2[spk_sc][spk_mix];"
+                f"[bgm][spk_sc]sidechaincompress=threshold=0.08:ratio=2.0:attack=40:release=350:makeup=1[ducked_bgm];"
+                f"[spk_mix][ducked_bgm]amix=inputs=2:duration=first:normalize=0"
+            )
+            if mix_existing:
+                audio_pipeline = f"{bgm_filter}[voice_music_mix];[0:a][voice_music_mix]amix=inputs=2:duration=first:normalize=0,"
+            else:
+                audio_pipeline = f"{bgm_filter},"
+            normalization = "loudnorm=I=-14:LRA=11:TP=-1.5"
+            cmd = [
+                self.ffmpeg_bin, "-y",
+                "-i", str(output_path),
+                "-i", str(native_audio),
+                "-i", str(music_path),
+                "-filter_complex", f"{audio_pipeline}{normalization}[aout]",
+                "-map", "0:v:0", "-map", "[aout]",
+                "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2",
+                "-t", f"{duration_sec:.3f}", str(mixed_video)
+            ]
+            run_media_command(cmd, capture_output=True, check=True)
+            shutil.move(str(mixed_video), str(output_path))
+            return True
+
         cmd = [self.ffmpeg_bin, "-y", "-i", str(output_path), "-i", str(native_audio)]
         audio_input = "[0:a][1:a]amix=inputs=2:duration=first:normalize=0," if mix_existing else "[1:a]"
         # Giữ dải động nguồn và chừa 1,5 dB cho đỉnh phát sinh khi mã hóa AAC.
@@ -1015,7 +964,7 @@ class VideoProcessor:
         cmd.extend(["-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-ac", "2",
                     "-t", f"{duration_sec:.3f}", str(mixed_video)])
         run_media_command(cmd, capture_output=True, check=True)
-        mixed_video.replace(output_path)
+        shutil.move(str(mixed_video), str(output_path))
         return True
 
 video_processor = VideoProcessor()

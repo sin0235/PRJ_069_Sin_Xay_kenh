@@ -27,11 +27,6 @@ def require_provider(provider: str) -> None:
 
 
 def model_status(*, verify_hashes: bool = False) -> dict:
-    # Khi giọng được đẩy sang GitHub Actions (REMOTE_COMPUTE_MODE=github), máy này không nạp mô hình;
-    # runner trên Actions (REMOTE_ENGINE_CHILD=1) vẫn kiểm mô hình cục bộ như thường.
-    if (not verify_hashes and os.environ.get("REMOTE_COMPUTE_MODE") == "github"
-            and os.environ.get("REMOTE_ENGINE_CHILD") != "1"):
-        return {"state": "READY", "provider": "VIE_NEU_V3_TURBO", "mode": "REMOTE_GITHUB"}
     try:
         manifest = json.loads((cache_home() / "nas-model.json").read_text())
         if manifest["revisions"] != MODEL_REVISIONS or not manifest.get("files") or manifest.get("warmup") != "SUCCEEDED":

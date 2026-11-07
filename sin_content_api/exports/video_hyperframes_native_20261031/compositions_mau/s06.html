@@ -1,0 +1,104 @@
+<template>
+<style>
+
+@font-face{font-family:"Viet";src:url('assets/fonts/be_vietnam_pro_semibold.ttf');font-weight:400 800}
+@font-face{font-family:"BrandSans";src:url('assets/fonts/utm_helvetins.ttf')}
+[data-composition-id="s06"]{position:absolute;inset:0;font-family:"Viet",sans-serif;color:#163344}
+[data-composition-id="s06"] .cam{position:absolute;inset:0}
+[data-composition-id="s06"] .sheet{position:absolute;left:170px;top:70px;width:1576px;height:860px;border-radius:22px;background-color:#faf5e9;
+  background-image:radial-gradient(circle at 3px 4px,rgba(185,171,134,.24) 1.1px,transparent 1.4px),radial-gradient(circle at 10px 11px,rgba(185,171,134,.2) 1px,transparent 1.3px);background-size:14px 14px;
+  box-shadow:26px 26px 0 #081f30}
+[data-composition-id="s06"] .fold{position:absolute;right:0;top:0;width:70px;height:70px;background:linear-gradient(225deg,#e8dfc7 50%,#cfc6ab 50%);border-top-right-radius:22px}
+[data-composition-id="s06"] .title{position:absolute;left:80px;top:40px;font-size:46px;font-weight:700;white-space:nowrap}
+[data-composition-id="s06"] .title .m{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:10px;margin-right:.28em}
+[data-composition-id="s06"] .title .m>span{display:inline-block}
+[data-composition-id="s06"] .unit{position:absolute;left:80px;top:100px;font-size:28px;color:#5b7a82}
+[data-composition-id="s06"] .sim{position:absolute;right:100px;top:44px;width:310px;height:52px;border-radius:12px;background:#fff3cf;border:2px solid #d9b23a;color:#7a5d0a;font-size:28px;font-weight:600;display:flex;align-items:center;justify-content:center}
+[data-composition-id="s06"] .tape{position:absolute;width:140px;height:34px;opacity:.78}
+[data-composition-id="s06"] .pencil{position:absolute;left:68px;top:330px;width:34px;height:400px;background:#FABC11;box-shadow:6px 8px 0 rgba(8,31,48,.4)}
+[data-composition-id="s06"] .pencil:before{content:"";position:absolute;left:0;top:-26px;width:34px;height:30px;border-radius:4px;background:#ED1B24}
+[data-composition-id="s06"] .pencil:after{content:"";position:absolute;left:0;top:400px;border-left:17px solid transparent;border-right:17px solid transparent;border-top:52px solid #e9c9a0}
+[data-composition-id="s06"] .marker{position:absolute;left:1814px;top:760px;width:44px;height:300px;border-radius:10px;background:#e9eef2;box-shadow:6px 8px 0 rgba(8,31,48,.4)}
+[data-composition-id="s06"] .marker:before{content:"";position:absolute;left:0;top:150px;width:44px;height:150px;border-radius:10px;background:#FABC11}
+[data-composition-id="s06"] .cursor{position:absolute;left:0;top:0;width:34px;height:44px;opacity:0;filter:drop-shadow(3px 4px 0 rgba(8,31,48,.35))}
+[data-composition-id="s06"] .ring{position:absolute;left:0;top:0;width:60px;height:60px;margin:-30px 0 0 -30px;border-radius:50%;border:5px solid #0562AF;opacity:0}
+
+[data-composition-id="s06"] .tbar{position:absolute;left:100px;top:395px;width:1380px;height:30px;border-radius:15px;background:#e4dcc3}
+[data-composition-id="s06"] .tfill{position:absolute;left:100px;top:395px;width:1380px;height:30px;border-radius:15px;background:#178777;transform:scaleX(0);transform-origin:0 50%}
+[data-composition-id="s06"] .tm{position:absolute;top:380px;width:60px;height:60px;border-radius:50%;background:#fff;border:10px solid #0f5f57;opacity:0}
+[data-composition-id="s06"] .tc{position:absolute;width:300px;height:150px;border-radius:20px;background:#fffdf7;border:4px solid #cdbf9c;box-shadow:12px 14px 0 rgba(205,191,156,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0}
+[data-composition-id="s06"] .tc b{font-size:32px;color:#d9694a;font-weight:800}[data-composition-id="s06"] .tc span{font-size:40px;font-weight:700;margin-top:8px}
+
+</style>
+<div id="root" data-composition-id="s06" data-width="1920" data-height="1080">
+<div class="cam" id="s06-cam">
+  <div class="tape" style="left:156px;top:61px;background:#3fae9c"></div>
+  <div class="tape" style="left:1646px;top:901px;background:#FABC11"></div>
+  <div class="pencil" id="s06-pencil"></div><div class="marker" id="s06-marker"></div>
+  <div class="sheet" id="s06-sheet">
+    <div class="fold"></div>
+    <div class="title"><span class="m"><span>Lịch</span></span><span class="m"><span>chăm</span></span><span class="m"><span>sóc</span></span><span class="m"><span>báo</span></span><span class="m"><span>giá</span></span></div>
+    <div class="sim">Dữ liệu mô phỏng</div>
+    <div class="tbar"></div><div class="tfill" id="s06-fill"></div><div class="tc" id="s06-c0" style="left:40px;top:180px"><b>Hôm nay</b><span>Gửi báo giá</span></div><div class="tm" id="s06-m0" style="left:160px"></div><div class="tc" id="s06-c1" style="left:440px;top:470px"><b>Sáng mai</b><span>Gọi xác nhận</span></div><div class="tm" id="s06-m1" style="left:560px"></div><div class="tc" id="s06-c2" style="left:840px;top:180px"><b>Ba ngày</b><span>Nhắc lại</span></div><div class="tm" id="s06-m2" style="left:960px"></div><div class="tc" id="s06-c3" style="left:1240px;top:470px"><b>Kế tiếp</b><span>Báo quản lý</span></div><div class="tm" id="s06-m3" style="left:1360px"></div>
+  </div>
+  <svg class="cursor" id="s06-cursor" viewBox="0 0 34 44"><path d="M2 2 L2 38 L11 30 L18 43 L25 40 L18 27 L31 27 Z" fill="#fff" stroke="#163344" stroke-width="3" stroke-linejoin="round"/></svg>
+  <div class="ring" id="s06-ring"></div>
+</div>
+</div>
+<script>
+
+const R = document.querySelector('[data-composition-id="s06"]');
+const q = (s) => R.querySelector(s), qa = (s) => Array.from(R.querySelectorAll(s));
+const L = 0.3, D = 10.3, EV = {"m0": 0.9, "m1": 1.71, "m2": 3.81, "m3": 5.61};
+const T = (k) => EV[k] + L;
+const tl = gsap.timeline({ paused: true });
+const box = (el) => { const r = el.getBoundingClientRect(), b = R.getBoundingClientRect(), k = (b.width / 1920) || 1; return { x: (r.left - b.left) / k, y: (r.top - b.top) / k, w: r.width / k, h: r.height / k }; };
+const geo = new Map();
+const where = (el) => { if (!geo.has(el)) geo.set(el, box(el)); return geo.get(el); };
+/* trang giấy trượt vào, rồi trôi rất nhẹ; trượt ra ở cuối cảnh (thoát ngắn hơn lúc vào) */
+gsap.set(q('#s06-sheet'), { transformOrigin: '50% 50%' });
+tl.fromTo(q('#s06-cam'), { x: L > 0 ? 190 : 0, opacity: L > 0 ? 0 : 1 }, { x: 0, opacity: 1, duration: L > 0 ? .6 : .01, ease: 'power4.out' }, 0);
+tl.fromTo(q('#s06-cam'), { scale: 1 }, { scale: 1.035, duration: D, ease: 'none' }, 0);
+
+if (D > 3) tl.to(q('#s06-cam'), { x: -210, opacity: 0.35, duration: .4, ease: 'power3.in' }, D - .42);
+
+/* tiêu đề: từng từ trồi lên từ mặt nạ, vào lệch nhau */
+const words = qa('#s06-sheet .title .m>span');
+if (words.length) tl.fromTo(words, { yPercent: 115, opacity: 0 }, { yPercent: 0, opacity: 1, duration: .75, ease: 'expo.out', stagger: .07 }, .18 + L);
+const meta = qa('#s06-sheet .unit, #s06-sheet .sim');
+if (meta.length) tl.fromTo(meta, { opacity: 0, y: -14 }, { opacity: 1, y: 0, duration: .5, ease: 'power3.out', stagger: .1 }, .5 + L);
+/* con trỏ chuột giấy: tới phần tử thật trước mốc lời 0,45 giây rồi nhấn, gợn vòng xanh */
+const cur = q('#s06-cursor'), ring = q('#s06-ring');
+let curX = 1700, curY = 980, curShown = false, curPrev = 0;
+function point(el, at, dx, dy) {
+  const start = Math.max(curPrev + .12, at - .8);
+  const tx = () => where(el).x + where(el).w * (dx === undefined ? .78 : dx), ty = () => where(el).y + where(el).h * (dy === undefined ? .78 : dy);
+  if (!curShown) { curShown = true; tl.fromTo(cur, { opacity: 0, x: 1700, y: 980 }, { opacity: 1, duration: .25, ease: 'power2.out' }, start - .1); tl.set(cur, { x: curX, y: curY }, start - .1); }
+  tl.to(cur, { x: tx, y: ty, duration: Math.max(.2, at - .08 - start), ease: 'power2.inOut' }, start);
+  tl.to(cur, { scale: .86, duration: .07, ease: 'power2.in', transformOrigin: '0 0' }, at - .08);
+  tl.to(cur, { scale: 1, duration: .16, ease: 'power3.out', transformOrigin: '0 0' }, at - .01);
+  tl.set(ring, { x: tx, y: ty }, at - .01);
+  tl.fromTo(ring, { scale: .3, opacity: .85 }, { scale: 1.7, opacity: 0, duration: .5, ease: 'power3.out', immediateRender: false }, at);
+  curPrev = at;
+}
+/* bút dạ quang quét qua chữ; số khoanh bằng nét bút */
+function sweep(el, at, dur) { tl.fromTo(el, { scaleX: 0, transformOrigin: '0% 50%' }, { scaleX: 1, duration: dur || .55, ease: 'power3.out' }, at); }
+function draw(el, at, dur) { const len = el.getTotalLength ? el.getTotalLength() : 600; gsap.set(el, { strokeDasharray: len, strokeDashoffset: len }); tl.to(el, { strokeDashoffset: 0, duration: dur || .6, ease: 'power2.inOut' }, at); }
+function count(el, from, to, at, dur, dec, suffix) { const o = { v: from }; tl.fromTo(o, { v: from }, { v: to, duration: dur || 1.2, ease: 'power2.out', onUpdate: () => { el.textContent = (dec ? o.v.toFixed(dec).replace('.', ',') : Math.round(o.v)) + (suffix || ''); } }, at); }
+function punch(x, y, at, k) { tl.to(q('#s06-cam'), { scale: k || 1.07, transformOrigin: x + 'px ' + y + 'px', duration: .9, ease: 'power2.inOut' }, at); }
+
+const NM = 4;
+gsap.set(q('#s06-fill'), { scaleX: 0 });
+for (let i = 0; i < NM; i++) {
+  const at = T('m' + i), up = i % 2 === 0;
+  tl.to(q('#s06-fill'), { scaleX: .04 + (NM > 1 ? i / (NM - 1) * .92 : 0), duration: .7, ease: 'power3.inOut' }, at - .45);
+  tl.fromTo(q('#s06-m' + i), { opacity: 0, scale: 0 }, { opacity: 1, scale: 1, duration: .45, ease: 'power4.out' }, at);
+  tl.fromTo(q('#s06-c' + i), { opacity: 0, y: up ? 36 : -36 }, { opacity: 1, y: 0, duration: .75, ease: 'expo.out' }, at + .05);
+  point(q('#s06-c' + i), at + .1, .8, .85);
+}
+punch(960, 420, T('m' + (NM - 1)), 1.05);
+
+window.__timelines['s06'] = tl;
+
+</script>
+</template>

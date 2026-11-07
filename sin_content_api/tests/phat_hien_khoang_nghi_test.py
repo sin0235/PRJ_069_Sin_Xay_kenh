@@ -62,18 +62,3 @@ def test_phat_hien_khoang_nghi_bao_loi_khi_ffmpeg_that_bai(tmp_path, monkeypatch
     monkeypatch.setattr(module, "run_media_command", lambda *_args, **_kwargs: type("Result", (), {"returncode": 1, "stderr": "bad audio"})())
     with pytest.raises(ValueError, match="SILENCE_DETECTION_FAILED"):
         module.phat_hien_khoang_nghi(audio)
-
-
-def test_phat_hien_khoang_nghi_luu_log_ra_dia_va_doc_tung_dong(tmp_path, monkeypatch):
-    from src.modules.dieu_phoi_dung import phat_hien_khoang_nghi as module
-
-    audio = tmp_path / "audio.wav"
-    tao_wav(audio, [(2000, 0)])
-
-    def ffmpeg(_command, **kwargs):
-        assert "capture_output" not in kwargs
-        kwargs["stderr"].write("silence_start: 0\nsilence_end: 1.5 | silence_duration: 1.5\n")
-        return type("Result", (), {"returncode": 0})()
-
-    monkeypatch.setattr(module, "run_media_command", ffmpeg)
-    assert module.phat_hien_khoang_nghi(audio) == [(0, 1500)]

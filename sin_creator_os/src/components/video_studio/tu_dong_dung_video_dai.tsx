@@ -83,7 +83,7 @@ export function TuDongDungVideoDai({ projectId, assets, onAssetsChanged, initial
     }).catch((cause: unknown) => {
       if (active) {
         setManifest(null);
-        setError(cause instanceof Error ? cause.message : "Không đọc được biên bản dựng video.");
+        console.warn("Không đọc được biên bản dựng video:", cause);
       }
     });
     return () => { active = false; };

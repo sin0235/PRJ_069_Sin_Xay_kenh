@@ -11,6 +11,7 @@ import json
 import re
 from pathlib import Path
 
+from src.modules.media_studio.phan_tich_phu_de_da_tang import COLOR_HEX_MAP, phan_loai_tu_khoa
 from . import hf_vendor
 
 BLOCKS_DIR = Path(__file__).resolve().parents[3] / "engines" / "hyperframes" / "blocks"
@@ -73,13 +74,17 @@ def karaoke_composition(words: list[dict], total: float, aspect_ratio: str = "16
         code += f'tl.set("#cap-g{g}", {{ opacity: 0, visibility: "hidden" }}, 0);\ntl.set("#cap-g{g}", {{ visibility: "visible" }}, {start:.3f});\n'
         code += f'tl.fromTo("#cap-g{g}", {{ opacity: 0, y: 14 }}, {{ opacity: 1, y: 0, duration: .16, ease: "power3.out" }}, {start:.3f});\n'
         for i, w in enumerate(group):
-            code += f'tl.to("#cap-{g}-{i}", {{ color: "#FFD54A", duration: .06, ease: "none" }}, {w["start_ms"] / 1000:.3f});\n'
+            role = phan_loai_tu_khoa(w.get("text", ""))
+            word_color = COLOR_HEX_MAP.get(role, "#FFD54A")
+            code += f'tl.to("#cap-{g}-{i}", {{ color: "{word_color}", scale: 1.15, duration: .06, ease: "back.out(2)" }}, {w["start_ms"] / 1000:.3f});\n'
+            code += f'tl.to("#cap-{g}-{i}", {{ scale: 1.0, duration: .10, ease: "power1.out" }}, {w["end_ms"] / 1000:.3f});\n'
         code += f'tl.to("#cap-g{g}", {{ opacity: 0, duration: .12, ease: "power2.in" }}, {end - .12:.3f});\ntl.set("#cap-g{g}", {{ opacity: 0, visibility: "hidden" }}, {end:.3f});\n'
-    left, right, bottom, font_size = (120, 120, 340, 44) if portrait else (0, 0, 38, 54)
+    left, right, bottom, font_size = (100, 100, 340, 84) if portrait else (0, 0, 48, 64)
     return (f'<template>\n<style>@font-face{{font-family:"Viet";src:url(\'assets/fonts/be_vietnam_pro_semibold.ttf\');font-weight:400 800}}\n'
             '[data-composition-id="captions"]{position:absolute;inset:0;font-family:"Viet",sans-serif}\n'
             f'[data-composition-id="captions"] .g{{position:absolute;left:{left}px;right:{right}px;bottom:{bottom}px;text-align:center;font-size:{font_size}px;font-weight:700;color:#fff;white-space:nowrap;opacity:0;visibility:hidden;'
-            '-webkit-text-stroke:9px #06131d;paint-order:stroke fill;overflow:visible}</style>\n'
+            '-webkit-text-stroke:10px #06131d;paint-order:stroke fill;overflow:visible}\n'
+            '[data-composition-id="captions"] .w{display:inline-block;transform-origin:center bottom}</style>\n'
             f'<div id="root" data-composition-id="captions" data-width="{width}" data-height="{height}">\n{markup}</div>\n'
             f'<script>\nconst tl = gsap.timeline({{ paused: true }});\n{code}window.__timelines["captions"] = tl;\n</script>\n</template>\n')
 
@@ -138,9 +143,11 @@ def caption_composition(style: str, words: list[dict], total: float, aspect: str
             cur += len(g)
         text = re.sub(r'var\s+RAW_GROUPS\s*=\s*\[[\s\S]*?\];', f'var RAW_GROUPS = {json.dumps(raw_groups)};', text)
 
-    # Cập nhật từ khóa nhấn mạnh cho các khối dùng KEYWORDS
+    # Cập nhật từ khóa nhấn mạnh cho các khối dùng KEYWORDS theo ngữ nghĩa tiếng Việt
     if "var KEYWORDS =" in text:
-        kw = [i for i in range(len(words)) if i % 3 == 0]
+        kw = [i for i, w in enumerate(words) if phan_loai_tu_khoa(str(w.get("text", ""))) != "NORMAL_WHITE"]
+        if not kw:
+            kw = [i for i in range(len(words)) if i % 3 == 0]
         text = re.sub(r'var\s+KEYWORDS\s*=\s*new\s+Set\(\[[^\]]*\]\);', f'var KEYWORDS = new Set({json.dumps(kw)});', text)
 
     # Cập nhật thời lượng thật vào mã và thuộc tính data-duration
@@ -170,8 +177,11 @@ def caption_composition(style: str, words: list[dict], total: float, aspect: str
         text = re.sub(r'max-width:\s*(?:1400|1600)px;', 'max-width: 960px;', text)
         text = re.sub(r'var\s+SAFE_ZONE_WIDTH\s*=\s*\d+;', 'var SAFE_ZONE_WIDTH = 920;', text)
         text = re.sub(r'var\s+PILL_MAX_WIDTH\s*=\s*\d+;', 'var PILL_MAX_WIDTH = 920;', text)
-        text = re.sub(r'var\s+BASE_FONT_SIZE\s*=\s*\d+;', 'var BASE_FONT_SIZE = 54;', text)
-        text = re.sub(r'var\s+CAPTION_FONT_SIZE\s*=\s*\d+;', 'var CAPTION_FONT_SIZE = 54;', text)
+        text = re.sub(r'var\s+BASE_FONT_SIZE\s*=\s*\d+;', 'var BASE_FONT_SIZE = 84;', text)
+        text = re.sub(r'var\s+CAPTION_FONT_SIZE\s*=\s*\d+;', 'var CAPTION_FONT_SIZE = 84;', text)
+    else:
+        text = re.sub(r'var\s+BASE_FONT_SIZE\s*=\s*\d+;', 'var BASE_FONT_SIZE = 64;', text)
+        text = re.sub(r'var\s+CAPTION_FONT_SIZE\s*=\s*\d+;', 'var CAPTION_FONT_SIZE = 64;', text)
 
     # Đồng bộ font chữ tiếng Việt Be Vietnam Pro
     for old_font in ["Anton", "Space Grotesk", "Montserrat", "Poppins", "Outfit", "Inter"]:

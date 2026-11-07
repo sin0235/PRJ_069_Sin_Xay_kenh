@@ -34,9 +34,15 @@ BRAND_DIR = Path(__file__).with_name("brand")
 OVERLAP = 0.3   # giây chồng lấn giữa hai cảnh liền nhau: cảnh sau trượt vào khi cảnh trước đang trượt ra
 COLLAGE_SECONDS = 1.2   # chuyển cảnh "mảnh giấy xé lột ra" của kho khối HyperFrames (paper-collage-reveal, Apache-2.0), dùng ở ranh giới cách quãng
 COLLAGE_LEAD = 0.15     # giây mảnh giấy phủ trước khi cảnh mới bắt đầu
+COLLAGE_SPACING = 6
+MAX_COLLAGE_TRANSITIONS = 2
 BLOCKS_DIR = Path(__file__).resolve().parents[3] / "engines" / "hyperframes" / "blocks"
 VIDEO_SUFFIXES = {".avi", ".m4v", ".mkv", ".mov", ".mp4", ".webm"}
 _RENDER_LOCK = threading.Lock()
+
+
+def collage_transition_indices(shot_count: int) -> list[int]:
+    return list(range(COLLAGE_SPACING, shot_count, COLLAGE_SPACING))[:MAX_COLLAGE_TRANSITIONS]
 
 
 def collage_block(cid: str) -> str:
@@ -48,7 +54,7 @@ def collage_block(cid: str) -> str:
     return text.replace("pcr-", f"{cid}-").replace("paper-collage-reveal", cid)
 
 
-BOUNDARY_TRANSITIONS: tuple[str, ...] = (*hf_transitions.TRANSITION_KINDS, "flash")   # luân phiên ở các ranh giới không dùng mảnh giấy xé
+BOUNDARY_TRANSITIONS: tuple[str, ...] = ("dissolve", "grid", "flash", *hf_transitions.TRANSITION_KINDS)  # các dạng mở đầu là fade, wipe, cắt phủ
 
 
 def boundary_transition(kind: str, target: str, shot_start: float) -> str:
@@ -73,10 +79,23 @@ def hyperframes_cli() -> Path:
     return cli
 
 
-def legacy_scene(cid: str, scene, narration: str, seconds: int, lead: float, word_times: list[float] | None, aspect_ratio: str = "16:9") -> str:
+def legacy_scene(
+    cid: str,
+    scene,
+    narration: str,
+    seconds: int,
+    lead: float,
+    word_times: list[float] | None,
+    aspect_ratio: str = "16:9",
+    transparent_background: bool = False,
+) -> str:
     """Cảnh chưa có bản viết trực tiếp: nhúng trang cũ trong iframe, một timeline GSAP điều khiển setT."""
     width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
-    page = _diagram_html(diagram_payload(scene, narration, seconds, word_times), aspect_ratio).replace("performance.now()", "0")
+    page = _diagram_html(
+        diagram_payload(scene, narration, seconds, word_times),
+        aspect_ratio,
+        transparent_background=transparent_background,
+    ).replace("performance.now()", "0")
     total = seconds + lead
     return (f'<template>\n<style>[data-composition-id="{cid}"]{{position:absolute;inset:0;overflow:hidden}}[data-composition-id="{cid}"] iframe{{position:absolute;left:0;top:0;width:{width}px;height:{height}px;border:0}}</style>\n'
             f'<div id="root" data-composition-id="{cid}" data-width="{width}" data-height="{height}"><iframe id="{cid}-f" srcdoc="{html.escape(page, quote=True)}"></iframe></div>\n'
@@ -132,7 +151,9 @@ def build_project(
     for name in ("logo_doc_mau.png", "logo_ngang_mau.png", "logo_doc_am_ban.png"):
         shutil.copy(BRAND_DIR / name, brand / name)
     shutil.copy(engines_dir() / "vendor" / "gsap.min.js", vendor / "gsap.min.js")
-    shutil.copy(engines_dir() / "vendor" / "CustomEase.min.js", vendor / "CustomEase.min.js")   # plugin mà vài khối HyperFrames cần
+    custom_ease = engines_dir() / "vendor" / "CustomEase.min.js"
+    if custom_ease.is_file():
+        shutil.copy(custom_ease, vendor / "CustomEase.min.js")   # plugin mà vài khối HyperFrames cần
     if voice_wav:
         shutil.copy(voice_wav, out / "assets" / "voice.wav")
     audio_tracks = []
@@ -148,11 +169,14 @@ def build_project(
     hosts, start, native, legacy, videos, collages, main_js = "", 0.0, [], [], [], 0, ""
     used_blocks: set[str] = set()
     flashes = 0
+    cadence = []
     staged_media: dict[str, str] = {}
     camera_enabled = os.getenv("CONTENT_VIDEO_HF_CAMERA", "1") != "0"
     camera_scenes = 0
     last_non_collage_kind: str | None = None
     transition_kinds: list[str] = []
+    transition_indices = collage_transition_indices(len(shots)) if transitions else []
+    non_collage_transition_count = 0
 
     def stage_media(source: Path, preferred_name: str) -> str:
         source = Path(source).resolve()
@@ -213,6 +237,8 @@ def build_project(
             dump["kind"] = scene.layout
             if aspect_ratio == "9:16" and scene.layout in BLOCK_LAYOUTS:
                 dump["portrait"] = True
+            if transparent_background:
+                dump["transparent"] = True
             if getattr(scene, "block", None):
                 used_blocks.add(scene.block)
             if shot.get("block"):
@@ -232,7 +258,10 @@ def build_project(
                     main_js += f'tl.to("#{cid}", {{ opacity: 0, duration: 0.25, ease: "power1.in" }}, {max(0.0, shot_start + seconds - 0.25):.3f});\n'
             else:
                 legacy.append(scene.layout)
-                text = legacy_scene(cid, scene, shot["narration"], seconds, lead, shot.get("word_times"), aspect_ratio)
+                text = legacy_scene(
+                    cid, scene, shot["narration"], seconds, lead, shot.get("word_times"), aspect_ratio,
+                    transparent_background=transparent_background,
+                )
             (out / "compositions" / f"{cid}.html").write_text(text, encoding="utf-8")
             host_start = max(0.0, shot_start - lead)
             hosts += (f'<div id="{cid}" data-composition-id="{cid}" data-composition-src="compositions/{cid}.html" data-start="{host_start:.3f}" data-duration="{seconds + lead:.3f}" '
@@ -250,7 +279,7 @@ def build_project(
             lt_comp, lt_host = hf_layers.overlay_host(lt_spec, lt_cid, aspect_ratio)
             (out / "compositions" / f"{lt_cid}.html").write_text(lt_comp, encoding="utf-8")
             hosts += lt_host + "\n"
-        if transitions and index % 2 == 1:   # cách quãng: mảnh giấy xé phủ cuối cảnh trước rồi lột ra để lộ cảnh mới
+        if transitions and index in transition_indices:   # chỉ xé giấy ở ranh giới 6/12, tối đa hai lần mỗi video
             tid, collages = f"tr{index:02d}", collages + 1
             used_blocks.add("paper-collage-reveal")
             (out / "compositions" / f"{tid}.html").write_text(collage_block(tid), encoding="utf-8")
@@ -260,14 +289,17 @@ def build_project(
                       f'data-track-index="{40 + index}" data-track-kind="graphics" data-width="{width}" data-height="{height}" data-variable-values=\'{{"panels":6,"tone":"mixed","spread":"{spread}"}}\' '
                       f'style="z-index:{40 + index};--surface:#fbf3df;--accent-2:#c8a468;opacity:0"></div>\n')
             main_js += f'tl.fromTo("#{tid}", {{ opacity: 0 }}, {{ opacity: 1, duration: 0.12, ease: "none" }}, {tstart:.3f});\n'
-        elif transitions and index:   # các ranh giới còn lại: đổi kiểu theo vòng để không lặp một hiệu ứng
-            non_collage_idx = (index // 2 - 1)
+        elif transitions and index:   # xé giấy ở 6/12; các ranh giới khác luân phiên hiệu ứng
+            non_collage_idx = non_collage_transition_count
             kind = BOUNDARY_TRANSITIONS[non_collage_idx % len(BOUNDARY_TRANSITIONS)]
             if last_non_collage_kind and kind == last_non_collage_kind:
                 non_collage_idx += 1
                 kind = BOUNDARY_TRANSITIONS[non_collage_idx % len(BOUNDARY_TRANSITIONS)]
+            non_collage_transition_count = non_collage_idx + 1
             last_non_collage_kind = kind
             transition_kinds.append(kind)
+            cadence_kind = {"dissolve": "fade", "grid": "wipe", "flash": "cut"}.get(kind, "wipe")
+            cadence.append({"boundary": index, "type": cadence_kind})
             target = f"#{cid}-video" if media_path else f"#{cid}"
             prev_shot = shots[index - 1]
             prev_cid = f"s{index:02d}"
@@ -277,8 +309,9 @@ def build_project(
                 main_js += boundary_transition("flash", target, shot_start)
                 flashes += 1
             else:
-                t_start = max(0.0, shot_start - OVERLAP)
-                main_js += hf_transitions.transition_js(kind, prev_target, curr_target, t_start, OVERLAP)
+                transition_seconds = min(OVERLAP, seconds)
+                t_start = max(0.0, shot_start - transition_seconds)
+                main_js += hf_transitions.transition_js(kind, prev_target, curr_target, t_start, transition_seconds)
         start = max(start, shot_start + seconds)
 
     for index, layer in enumerate(media_layers or []):
@@ -366,6 +399,8 @@ def build_project(
     return {
         "total_seconds": total,
         "collage_transitions": collages,
+        "collage_transition_indices": transition_indices[:collages],
+        "transition_cadence": cadence,
         "native_scenes": native,
         "legacy_scenes": legacy,
         "video_scenes": videos,
@@ -457,10 +492,18 @@ def check_project(project: Path) -> dict:
     return {"returncode": result.returncode, "data": data, "text": (stdout_text + stderr_text)[-4000:]}
 
 
-def render_project(project: Path, output: Path, workers: str | None = None, quality: str = "looks") -> None:
-    # Runner GitHub riêng tư chỉ có 2 vCPU và 7 GB RAM nên mặc định 2 worker; đặt CONTENT_VIDEO_HF_WORKERS=1 nếu hết bộ nhớ.
-    workers = str(workers or os.getenv("CONTENT_VIDEO_HF_WORKERS") or "2")
+def render_project(
+    project: Path,
+    output: Path,
+    workers: str | None = None,
+    quality: str = "looks",
+    transparent_background: bool = False,
+) -> None:
+    # Concurrency render mặc định = 1 (quy tắc Rule 9 và Rule 20).
+    workers = str(workers or os.getenv("CONTENT_VIDEO_HF_WORKERS") or "1")
     command = [_node(), str(hyperframes_cli()), "render", "-q", quality, "-w", workers, "-o", str(output)]
+    if transparent_background or str(output).lower().endswith(".mov"):
+        command.extend(["--format=mov", "--prores-profile=4444"])
     with _RENDER_LOCK:
         result = subprocess.run(command, cwd=project, env=_env(), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=int(os.getenv("CONTENT_VIDEO_HF_RENDER_TIMEOUT_SECONDS") or 3 * 3600))   # video 100 s trên 2 vCPU có thể quá 60 phút; job runner tối đa 350 phút
     if result.returncode != 0:

@@ -280,7 +280,8 @@ def list_assets(
     result = []
     for a in assets:
         out = MediaAssetOut.model_validate(a)
-        out.url = f"/v1/media/assets/{a.id}/download?ttl=3600"
+        v_hash = (a.sha256[:12] if a.sha256 else str(a.byte_size or ""))
+        out.url = f"/v1/media/assets/{a.id}/download?ttl=3600&v={v_hash}"
         result.append(out)
     return result
 
@@ -293,7 +294,8 @@ def get_asset(
     """Lấy chi tiết tư liệu với kiểm tra phân tách đa khách thuê nghiêm ngặt (B02)."""
     asset = media_service.get_asset(db, tenant.workspace_id, asset_id)
     out = MediaAssetOut.model_validate(asset)
-    out.url = f"/v1/media/assets/{asset.id}/download?ttl=3600"
+    v_hash = (asset.sha256[:12] if asset.sha256 else str(asset.byte_size or ""))
+    out.url = f"/v1/media/assets/{asset.id}/download?ttl=3600&v={v_hash}"
     return out
 
 @media_router.get("/assets/{asset_id}/download")
@@ -333,7 +335,9 @@ def download_asset(
     filename = asset.original_filename or file_path.name
     headers = {
         "Accept-Ranges": "bytes",
-        "Cache-Control": "private, max-age=3600",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
     }
 
     if download:
@@ -409,24 +413,6 @@ def submit_ai_job(
     return response_payload
 
 
-class FlowJobReconciliation(BaseModel):
-    asset_id: str = Field(min_length=1, max_length=128)
-    project_url: str = Field(min_length=1, max_length=2048)
-    reason: str = Field(min_length=10, max_length=2000)
-
-
-@jobs_router.post("/{job_id}/reconcile", response_model=None)
-def reconcile_ai_flow_job(
-    job_id: str, payload: FlowJobReconciliation,
-    db: Session = Depends(get_db),
-    tenant: TenantContext = Depends(require_action("ai_job.create")),
-):
-    from src.modules.media_queue.service import reconcile_flow_job
-    job = reconcile_flow_job(db, job_id=job_id, workspace_id=tenant.workspace_id,
-        user_id=tenant.user_id, **payload.model_dump())
-    return _ai_job_response_payload(job)
-
-
 @jobs_router.post("/{job_id}/resume", response_model=None, status_code=status.HTTP_202_ACCEPTED)
 def resume_ai_job(
     job_id: str,
@@ -456,15 +442,12 @@ def resume_ai_job(
         "FLOW_QUOTA_LIMITED",
         "FLOW_CREDITS_INSUFFICIENT",
     }
-    blocked_states = {"BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_QUOTA", "BLOCKED_FLOW_SETUP"}
-    before_submission = (
-        job.state in blocked_states and job.error_code in resumable_codes
-    ) or (job.state == "FAILED" and job.error_code == "FLOW_SUBMISSION_NOT_SENT")
     if (
         job.provider not in {"MEDIA_MUSIC", "MEDIA_VIDEO"}
         or request_payload.get("operation") not in {"generate_flow_job", "generate_music_track", "generate_video_scene"}
         or request_payload.get("backend_provider") not in FLOW_BACKEND_PROVIDERS
-        or not before_submission
+        or job.state not in {"BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_QUOTA", "BLOCKED_FLOW_SETUP"}
+        or job.error_code not in resumable_codes
     ):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -484,8 +467,8 @@ def resume_ai_job(
     result = db.execute(update(AIGenerationJob).where(
         AIGenerationJob.id == job.id,
         AIGenerationJob.workspace_id == tenant.workspace_id,
-        AIGenerationJob.state == job.state,
-        AIGenerationJob.error_code == job.error_code,
+        AIGenerationJob.state.in_(("BLOCKED_FLOW_LOGIN", "BLOCKED_FLOW_QUOTA", "BLOCKED_FLOW_SETUP")),
+        AIGenerationJob.error_code.in_(resumable_codes),
         AIGenerationJob.lease_token.is_(None),
     ).values(
         request_payload_json=json.dumps(request_payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
@@ -914,6 +897,67 @@ def generate_music_track(
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail={"error_code": "AUDIO_QC_FAILED", "message": msg})
 
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"error_code": "MUSIC_GENERATION_FAILED", "message": msg})
+
+
+# ==============================================================================
+# BGM LIBRARY ENDPOINTS (Thư viện nhạc nền có sẵn)
+# ==============================================================================
+
+@media_router.get("/bgm-library")
+def lay_danh_sach_nhac_nen_co_san(
+    category: Optional[str] = Query(None, description="Lọc theo danh mục: chuyen_nghiep_b2b, nang_luong_bat_nhip, tam_su_ke_chuyen, kich_tinh_canh_bao, truyen_cam_hung"),
+    search: Optional[str] = Query(None, description="Tìm kiếm từ khóa theo tên hoặc tâm trạng"),
+    tenant: TenantContext = Depends(require_action("media.read"))
+):
+    """Lấy danh sách các bản nhạc nền có sẵn, phân loại cảm xúc và thông số kỹ thuật."""
+    from src.modules.media_studio.thu_vien_nhac_nen import doc_bang_ke_ban_quyen, danh_sach_nhac_nen
+    bang_ke = doc_bang_ke_ban_quyen()
+    items = danh_sach_nhac_nen(danh_muc=category, tu_khoa=search)
+    return {
+        "phien_ban": bang_ke.get("phien_ban_kho_nhac", "1.0.0"),
+        "tong_so_bai": len(items),
+        "danh_muc": bang_ke.get("danh_muc", []),
+        "items": items
+    }
+
+
+@media_router.get("/bgm-library/{track_id}/stream")
+def stream_nhac_nen(
+    track_id: str,
+    tenant: TenantContext = Depends(require_action("media.read"))
+):
+    """Phát trực tuyến tệp âm thanh nhạc nền để nghe thử trên giao diện."""
+    from src.modules.media_studio.thu_vien_nhac_nen import lay_duong_dan_tep_goc, lay_thong_tin_bai_nhac
+    path = lay_duong_dan_tep_goc(track_id)
+    if not path or not path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Không tìm thấy tệp nhạc nền trong thư viện.")
+    info = lay_thong_tin_bai_nhac(track_id) or {}
+    mime = info.get("dinh_dang", "audio/wav")
+    return FileResponse(path, media_type=mime, filename=path.name)
+
+
+@media_router.post("/bgm-library/{track_id}/attach", response_model=MediaAssetOut)
+def gan_nhac_nen_vao_du_an(
+    track_id: str,
+    project_id: Optional[str] = Query(None, description="ID dự án sản xuất liên kết"),
+    db: Session = Depends(get_db),
+    tenant: TenantContext = Depends(require_action("media.upload"))
+):
+    """Đồng bộ một bản nhạc nền từ thư viện vào dự án dưới dạng MediaAsset hợp lệ."""
+    from src.modules.media_studio.thu_vien_nhac_nen import dong_bo_tai_nguyen_nhac_nen
+    try:
+        asset = dong_bo_tai_nguyen_nhac_nen(
+            db,
+            workspace_id=tenant.workspace_id,
+            project_id=project_id,
+            user_id=tenant.user_id,
+            ma_nhac_nen=track_id
+        )
+        out = MediaAssetOut.model_validate(asset)
+        out.url = f"/v1/media/assets/{asset.id}/download?ttl=3600"
+        return out
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 
 
 @media_router.post("/assets/{asset_id}/review", response_model=MediaAssetOut)

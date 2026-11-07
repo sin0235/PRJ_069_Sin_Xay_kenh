@@ -291,3 +291,4 @@ def test_video_upload_keeps_unknown_duration_if_probe_fails(upload_context, monk
 
     assert asset.duration_ms is None
     assert (media_root / asset.storage_key).is_file()
+

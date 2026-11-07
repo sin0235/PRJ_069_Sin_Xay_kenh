@@ -25,9 +25,9 @@
       planes: { back: { z: back, blur_px: focus.back || 0 }, middle: { z: 0, blur_px: focus.middle || 0 }, front: { z: front, blur_px: focus.front || 0 } } };
   };
   var PROFILES = {
-    ORBIT_ARC: [frame(0, 0, 0, 0, 0, 0, 1, 1800, 0, 0), frame(-18, 8, 22, 1, -3, .2, 1.01, 1900, -60, 25), frame(-48, 20, 100, 3, -8, .6, 1.04, 1600, -240, 130), frame(24, 0, 20, 0, 0, 0, 1.01, 1900, -35, 15)],
+    ORBIT_ARC: [frame(0, 0, 0, 0, 0, 0, 1, 1800, 0, 0), frame(-18, 8, 22, 0, 0, 0, 1.01, 1900, -60, 25), frame(-48, 20, 100, 0, 0, 0, 1.04, 1600, -240, 130), frame(24, 0, 20, 0, 0, 0, 1.01, 1900, -35, 15)],
     CRANE_DIVE: [frame(0, 0, 0, 0, 0, 0, 1, 1800, 0, 0), frame(0, -55, 28, -2, 0, 0, 1.01, 2000, -55, 30), frame(8, 92, 150, 7, 2, -.4, 1.06, 1400, -230, 150), frame(0, 12, 24, 0, 0, 0, 1.01, 1900, -40, 18)],
-    PARALLAX_PASS: [frame(0, 0, 0, 0, 0, 0, 1, 1800, 0, 0), frame(-64, 0, 48, 0, -4, 0, 1.02, 2000, -110, 60), frame(76, 6, 120, 1, 5, .4, 1.05, 1500, -300, 160), frame(10, 0, 28, 0, 0, 0, 1.01, 1850, -45, 22)],
+    PARALLAX_PASS: [frame(0, 0, 0, 0, 0, 0, 1, 1800, 0, 0), frame(-64, 0, 48, 0, 0, 0, 1.02, 2000, -110, 60), frame(76, 6, 120, 0, 0, 0, 1.04, 1500, -300, 160), frame(10, 0, 28, 0, 0, 0, 1.01, 1850, -45, 22)],
     WHIP_PAN_SETTLE: [frame(0, 0, 0, 0, 0, 0, 1, 1800, 0, 0), frame(-16, 0, 18, 0, -2, -.2, 1.01, 1900, -25, 12), frame(94, 4, 72, 1, 8, 1.6, 1.04, 1600, -140, 85, 4), frame(-8, 0, 16, 0, 0, 0, 1.01, 1900, -20, 10)],
     DOLLY_RACK: [
       frame(0, 0, 0, 0, 0, 0, 1, 1800, 0, 0, { back: 1.4, middle: .7 }),
@@ -132,10 +132,19 @@
     pose.x = clamp(pose.x + (w / 2 - x0) * .02, -w * .1, w * .1);
     pose.y = clamp(pose.y + (h / 2 - y0) * .02, -h * .1, h * .1);
     pose.z = clamp(pose.z, -220, 220);
-    pose.pitch = clamp(pose.pitch, -10, 10); pose.yaw = clamp(pose.yaw, -10, 10); pose.roll = clamp(pose.roll, -2, 2);
-    pose.scale = clamp(pose.scale, 1, 1.07); pose.perspective = clamp(pose.perspective, 1200, 2200);
+    if (mode === "PARALLAX_PASS" || kind === "VERSUS_LIST") {
+      // Giữ chữ trong mặt phẳng; chiều sâu vẫn đến từ lớp parallax.
+      pose.pitch = pose.yaw = pose.roll = 0;
+    }
+    pose.scale = clamp(pose.scale, 1, kind === "VERSUS_LIST" ? 1.015 : 1.07); pose.perspective = clamp(pose.perspective, 1200, 2200);
+    if (kind === "VERSUS_LIST") {
+      var minX = 60.1 - (x0 + (120 - x0) * pose.scale), maxX = 959.9 - (x0 + (960 - x0) * pose.scale);
+      pose.x = clamp(pose.x, h > w ? Math.max(-20, minX) : -36, h > w ? Math.min(0, maxX) : 0);
+      pose.y = clamp(pose.y, -15, 15);
+      pose.z = 0;
+    }
     ["back", "middle", "front"].forEach(function (key) {
-      pose.planes[key].z = key === "back" ? clamp(pose.planes[key].z, -300, 0) : key === "front" ? clamp(pose.planes[key].z, 0, 160) : 0;
+      pose.planes[key].z = kind === "VERSUS_LIST" ? 0 : key === "back" ? clamp(pose.planes[key].z, -300, 0) : key === "front" ? clamp(pose.planes[key].z, 0, 160) : 0;
       pose.planes[key].blur_px = clamp(pose.planes[key].blur_px, 0, key === "middle" ? 1.5 : 4);
     });
     return { origin: x0.toFixed(2) + "px " + y0.toFixed(2) + "px",

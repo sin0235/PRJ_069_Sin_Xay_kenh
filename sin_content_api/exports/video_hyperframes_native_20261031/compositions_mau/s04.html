@@ -1,0 +1,104 @@
+<template>
+<style>
+
+@font-face{font-family:"Viet";src:url('assets/fonts/be_vietnam_pro_semibold.ttf');font-weight:400 800}
+@font-face{font-family:"BrandSans";src:url('assets/fonts/utm_helvetins.ttf')}
+[data-composition-id="s04"]{position:absolute;inset:0;font-family:"Viet",sans-serif;color:#163344}
+[data-composition-id="s04"] .cam{position:absolute;inset:0}
+[data-composition-id="s04"] .sheet{position:absolute;left:170px;top:70px;width:1576px;height:860px;border-radius:22px;background-color:#faf5e9;
+  background-image:radial-gradient(circle at 3px 4px,rgba(185,171,134,.24) 1.1px,transparent 1.4px),radial-gradient(circle at 10px 11px,rgba(185,171,134,.2) 1px,transparent 1.3px);background-size:14px 14px;
+  box-shadow:26px 26px 0 #081f30}
+[data-composition-id="s04"] .fold{position:absolute;right:0;top:0;width:70px;height:70px;background:linear-gradient(225deg,#e8dfc7 50%,#cfc6ab 50%);border-top-right-radius:22px}
+[data-composition-id="s04"] .title{position:absolute;left:80px;top:40px;font-size:46px;font-weight:700;white-space:nowrap}
+[data-composition-id="s04"] .title .m{display:inline-block;overflow:hidden;vertical-align:top;padding-bottom:10px;margin-right:.28em}
+[data-composition-id="s04"] .title .m>span{display:inline-block}
+[data-composition-id="s04"] .unit{position:absolute;left:80px;top:100px;font-size:28px;color:#5b7a82}
+[data-composition-id="s04"] .sim{position:absolute;right:100px;top:44px;width:310px;height:52px;border-radius:12px;background:#fff3cf;border:2px solid #d9b23a;color:#7a5d0a;font-size:28px;font-weight:600;display:flex;align-items:center;justify-content:center}
+[data-composition-id="s04"] .tape{position:absolute;width:140px;height:34px;opacity:.78}
+[data-composition-id="s04"] .pencil{position:absolute;left:68px;top:330px;width:34px;height:400px;background:#FABC11;box-shadow:6px 8px 0 rgba(8,31,48,.4)}
+[data-composition-id="s04"] .pencil:before{content:"";position:absolute;left:0;top:-26px;width:34px;height:30px;border-radius:4px;background:#ED1B24}
+[data-composition-id="s04"] .pencil:after{content:"";position:absolute;left:0;top:400px;border-left:17px solid transparent;border-right:17px solid transparent;border-top:52px solid #e9c9a0}
+[data-composition-id="s04"] .marker{position:absolute;left:1814px;top:760px;width:44px;height:300px;border-radius:10px;background:#e9eef2;box-shadow:6px 8px 0 rgba(8,31,48,.4)}
+[data-composition-id="s04"] .marker:before{content:"";position:absolute;left:0;top:150px;width:44px;height:150px;border-radius:10px;background:#FABC11}
+[data-composition-id="s04"] .cursor{position:absolute;left:0;top:0;width:34px;height:44px;opacity:0;filter:drop-shadow(3px 4px 0 rgba(8,31,48,.35))}
+[data-composition-id="s04"] .ring{position:absolute;left:0;top:0;width:60px;height:60px;margin:-30px 0 0 -30px;border-radius:50%;border:5px solid #0562AF;opacity:0}
+
+[data-composition-id="s04"] .ba{position:absolute;top:180px;width:660px;height:520px;border-radius:20px;background:#fffdf7;border:4px solid #cdbf9c;box-shadow:12px 14px 0 rgba(205,191,156,.55);opacity:0;overflow:hidden}
+[data-composition-id="s04"] .before{left:70px;background:#f3eedf}[data-composition-id="s04"] .after{left:850px;border-color:#3fae9c}
+[data-composition-id="s04"] .bh{height:92px;color:#fff;font-size:44px;font-weight:800;display:flex;align-items:center;justify-content:center}
+[data-composition-id="s04"] .bl{margin-top:34px;font-size:30px;color:#5b7a82;text-align:center}
+[data-composition-id="s04"] .bv{position:relative;margin:56px auto 0;width:max-content;font-size:130px;font-weight:800;color:#6c6a5c;white-space:nowrap}
+[data-composition-id="s04"] .after .bv{color:#0f5f57}
+[data-composition-id="s04"] .strike{position:absolute;left:-14px;right:-14px;top:50%;height:12px;margin-top:-6px;border-radius:6px;background:#d9694a;transform:scaleX(0);transform-origin:0 50%;transform:rotate(-4deg) scaleX(0)}
+[data-composition-id="s04"] .pill{position:absolute;left:518px;top:740px;width:540px;height:80px;border-radius:40px;background:#0f5f57;color:#fff;font-size:42px;font-weight:800;display:flex;align-items:center;justify-content:center;opacity:0}
+
+</style>
+<div id="root" data-composition-id="s04" data-width="1920" data-height="1080">
+<div class="cam" id="s04-cam">
+  <div class="tape" style="left:156px;top:61px;background:#3fae9c"></div>
+  <div class="tape" style="left:1646px;top:901px;background:#FABC11"></div>
+  <div class="pencil" id="s04-pencil"></div><div class="marker" id="s04-marker"></div>
+  <div class="sheet" id="s04-sheet">
+    <div class="fold"></div>
+    <div class="title"><span class="m"><span>Thời</span></span><span class="m"><span>gian</span></span><span class="m"><span>minh</span></span><span class="m"><span>họa</span></span></div>
+    <div class="sim">Dữ liệu mô phỏng</div>
+    <div class="ba before" id="s04-before"><div class="bh" style="background:#8c7f5f">Xử lý báo giá</div><div class="bl">Trước</div><div class="bv" id="s04-beforev">30 phút<i class="strike" id="s04-strike"></i></div></div><div class="ba after" id="s04-after"><div class="bh" style="background:#178777">Xử lý báo giá</div><div class="bl">Sau</div><div class="bv" id="s04-afterv">10 phút<i class="strike" id="s04-strike"></i></div></div><div class="pill" id="s04-pill">2 ngày thành 4 giờ</div>
+  </div>
+  <svg class="cursor" id="s04-cursor" viewBox="0 0 34 44"><path d="M2 2 L2 38 L11 30 L18 43 L25 40 L18 27 L31 27 Z" fill="#fff" stroke="#163344" stroke-width="3" stroke-linejoin="round"/></svg>
+  <div class="ring" id="s04-ring"></div>
+</div>
+</div>
+<script>
+
+const R = document.querySelector('[data-composition-id="s04"]');
+const q = (s) => R.querySelector(s), qa = (s) => Array.from(R.querySelectorAll(s));
+const L = 0.3, D = 10.3, EV = {"before": 0.9, "after": 3.05, "delta": 5.57};
+const T = (k) => EV[k] + L;
+const tl = gsap.timeline({ paused: true });
+const box = (el) => { const r = el.getBoundingClientRect(), b = R.getBoundingClientRect(), k = (b.width / 1920) || 1; return { x: (r.left - b.left) / k, y: (r.top - b.top) / k, w: r.width / k, h: r.height / k }; };
+const geo = new Map();
+const where = (el) => { if (!geo.has(el)) geo.set(el, box(el)); return geo.get(el); };
+/* trang giấy trượt vào, rồi trôi rất nhẹ; trượt ra ở cuối cảnh (thoát ngắn hơn lúc vào) */
+gsap.set(q('#s04-sheet'), { transformOrigin: '50% 50%' });
+tl.fromTo(q('#s04-cam'), { x: L > 0 ? 190 : 0, opacity: L > 0 ? 0 : 1 }, { x: 0, opacity: 1, duration: L > 0 ? .6 : .01, ease: 'power4.out' }, 0);
+tl.fromTo(q('#s04-cam'), { scale: 1 }, { scale: 1.035, duration: D, ease: 'none' }, 0);
+
+if (D > 3) tl.to(q('#s04-cam'), { x: -210, opacity: 0.35, duration: .4, ease: 'power3.in' }, D - .42);
+
+/* tiêu đề: từng từ trồi lên từ mặt nạ, vào lệch nhau */
+const words = qa('#s04-sheet .title .m>span');
+if (words.length) tl.fromTo(words, { yPercent: 115, opacity: 0 }, { yPercent: 0, opacity: 1, duration: .75, ease: 'expo.out', stagger: .07 }, .18 + L);
+const meta = qa('#s04-sheet .unit, #s04-sheet .sim');
+if (meta.length) tl.fromTo(meta, { opacity: 0, y: -14 }, { opacity: 1, y: 0, duration: .5, ease: 'power3.out', stagger: .1 }, .5 + L);
+/* con trỏ chuột giấy: tới phần tử thật trước mốc lời 0,45 giây rồi nhấn, gợn vòng xanh */
+const cur = q('#s04-cursor'), ring = q('#s04-ring');
+let curX = 1700, curY = 980, curShown = false, curPrev = 0;
+function point(el, at, dx, dy) {
+  const start = Math.max(curPrev + .12, at - .8);
+  const tx = () => where(el).x + where(el).w * (dx === undefined ? .78 : dx), ty = () => where(el).y + where(el).h * (dy === undefined ? .78 : dy);
+  if (!curShown) { curShown = true; tl.fromTo(cur, { opacity: 0, x: 1700, y: 980 }, { opacity: 1, duration: .25, ease: 'power2.out' }, start - .1); tl.set(cur, { x: curX, y: curY }, start - .1); }
+  tl.to(cur, { x: tx, y: ty, duration: Math.max(.2, at - .08 - start), ease: 'power2.inOut' }, start);
+  tl.to(cur, { scale: .86, duration: .07, ease: 'power2.in', transformOrigin: '0 0' }, at - .08);
+  tl.to(cur, { scale: 1, duration: .16, ease: 'power3.out', transformOrigin: '0 0' }, at - .01);
+  tl.set(ring, { x: tx, y: ty }, at - .01);
+  tl.fromTo(ring, { scale: .3, opacity: .85 }, { scale: 1.7, opacity: 0, duration: .5, ease: 'power3.out', immediateRender: false }, at);
+  curPrev = at;
+}
+/* bút dạ quang quét qua chữ; số khoanh bằng nét bút */
+function sweep(el, at, dur) { tl.fromTo(el, { scaleX: 0, transformOrigin: '0% 50%' }, { scaleX: 1, duration: dur || .55, ease: 'power3.out' }, at); }
+function draw(el, at, dur) { const len = el.getTotalLength ? el.getTotalLength() : 600; gsap.set(el, { strokeDasharray: len, strokeDashoffset: len }); tl.to(el, { strokeDashoffset: 0, duration: dur || .6, ease: 'power2.inOut' }, at); }
+function count(el, from, to, at, dur, dec, suffix) { const o = { v: from }; tl.fromTo(o, { v: from }, { v: to, duration: dur || 1.2, ease: 'power2.out', onUpdate: () => { el.textContent = (dec ? o.v.toFixed(dec).replace('.', ',') : Math.round(o.v)) + (suffix || ''); } }, at); }
+function punch(x, y, at, k) { tl.to(q('#s04-cam'), { scale: k || 1.07, transformOrigin: x + 'px ' + y + 'px', duration: .9, ease: 'power2.inOut' }, at); }
+
+tl.fromTo(q('#s04-before'), { opacity: 0, x: -90, rotation: -1.5 }, { opacity: 1, x: 0, rotation: 0, duration: .85, ease: 'expo.out' }, T('before'));
+tl.fromTo(q('#s04-after'), { opacity: 0, x: 240, rotation: 1.5 }, { opacity: 1, x: 0, rotation: 0, duration: .9, ease: 'expo.out' }, T('after'));
+tl.fromTo(q('#s04-strike'), { scaleX: 0, rotation: -4, transformOrigin: '0% 50%' }, { scaleX: 1, rotation: -4, duration: .5, ease: 'power3.inOut' }, T('after') + .35);
+tl.fromTo(q('#s04-pill'), { opacity: 0, y: 24, scale: .86 }, { opacity: 1, y: 0, scale: 1, duration: .55, ease: 'power4.out' }, T('delta'));
+point(q('#s04-afterv'), T('after') + .3, .8, .8);
+point(q('#s04-pill'), T('delta') + .25, .82, .75);
+punch(1180, 520, T('delta'), 1.05);
+
+window.__timelines['s04'] = tl;
+
+</script>
+</template>

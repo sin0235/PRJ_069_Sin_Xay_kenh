@@ -7,6 +7,9 @@ Nguồn: gói `tiếng việt.zip` do công ty cung cấp (logo BAHA Group, bi�
 | `logo_doc_mau.png` | Logo dọc màu, đặt trên nền sáng (thẻ kết) |
 | `logo_ngang_mau.png` | Logo ngang màu, nền sáng |
 | `logo_doc_am_ban.png`, `logo_ngang_am_ban.png` | Logo âm bản (trắng), đặt trên nền tối |
+| `shot_ket_baha_midnight_doc_3s.mp4`, `shot_ket_baha_midnight_ngang_3s.mp4` | Shot kết Midnight Champagne dựng sẵn, 3 giây, khung dọc/ngang |
+| `mau_shot_ket_baha.html` | Mẫu xem trước shot kết trong trình duyệt |
+| `loi_moi_theo_doi.txt` | Lời mời trong shot kết |
 | `utm_helvetins.ttf` | Phông chữ chữ thường của bộ nhận diện (UTM HelvetIns) |
 | `svn_vt_redzone_classic.otf` | Phông chữ của chữ BAHA GROUP trong logo (SVN-VT Redzone Classic) |
 

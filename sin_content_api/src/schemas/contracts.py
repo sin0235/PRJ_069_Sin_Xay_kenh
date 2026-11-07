@@ -923,7 +923,8 @@ class TimelineAudioTrack(BaseModel):
     start_ms: int = Field(0, ge=0, description="Vi tri bat dau tren timeline (ms)")
     duration_ms: Optional[int] = Field(None, gt=0, description="Thoi luong; None = toan bo asset")
     gain_db: float = Field(0.0, ge=-60.0, le=20.0, description="He so am luong (dB)")
-    duck_music: bool = Field(False, description="Chỉ dành cho track music: duck khi co voice")
+    duck_music: bool = Field(True, description="Chỉ dành cho track music: duck khi co voice")
+    ducking_attenuation_db: Optional[float] = Field(None, description="Mức hạ âm khi ducking (dB)")
 
 class TimelineCaption(BaseModel):
     """Phu de chu tren video."""
@@ -1082,6 +1083,7 @@ class TimelineAudioTrack(BaseModel):
     duration_ms: Optional[int] = Field(None, ge=0, description="Thời lượng phát (ms)")
     gain_db: float = Field(0.0, description="Mức gain âm lượng (dB)")
     ducking_attenuation_db: Optional[float] = Field(None, description="Mức hạ âm khi ducking (dB)")
+    duck_music: bool = Field(True, description="Chỉ dành cho track music: duck khi có voice")
 
 
 class TimelineCaptionWord(BaseModel):
@@ -1095,11 +1097,10 @@ class TimelineCaption(BaseModel):
     text: str = Field(..., min_length=1, description="Nội dung phụ đề")
     start_ms: int = Field(0, ge=0, description="Thời điểm bắt đầu (ms)")
     duration_ms: int = Field(..., gt=0, description="Thời lượng hiển thị (ms)")
-    font_size: int = Field(26, ge=12, le=72, description="Cỡ chữ (px)")
+    font_size: int = Field(26, ge=12, le=120, description="Cỡ chữ (px)")
     safe_zone: bool = Field(True, description="Tuân thủ Safe Zone TikTok")
     words: List[TimelineCaptionWord] = Field(default_factory=list, description="Mốc thời gian từng từ cho phụ đề karaoke")
     visual_type: Optional[Literal["callout"]] = None
-    animated_label: bool = False
     position_y_px: Optional[int] = Field(None, ge=150)
 
 
@@ -1114,8 +1115,11 @@ class TimelineOverlay(BaseModel):
 
 
 class KaraokeCaptionSettings(BaseModel):
-    preset: Literal["bat_nhip", "to_sac", "hai_dong"] = "bat_nhip"
-    font_size: Literal[42, 56, 70] = 56
+    preset: Literal[
+        "bat_nhip", "to_sac", "hai_dong",
+        "da_sac_phan_tang", "hop_mau_dong_chinh", "bento_ba_tang", "inline_pop_trai"
+    ] = "da_sac_phan_tang"
+    font_size: int = Field(84, description="Cỡ chữ phụ đề karaoke (mặc định 84 cho dọc, 64 cho ngang)")
     layout: Literal["center", "left", "two_line"] = "center"
     accent_color: Literal["champagne", "baha_blue", "coral"] = "champagne"
     outline: bool = True

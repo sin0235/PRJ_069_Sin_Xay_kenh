@@ -1,9 +1,6 @@
-"""Chọn engine dựng clip cảnh giấy: playwright (mặc định, đã chạy trên NAS), hyperframes hoặc remotion.
+"""Chọn engine cảnh và giữ đường HTML/HyperFrames tương thích.
 
-Cả ba dùng đúng một trang cảnh (`diagram_scene.html`, hàm thuần của thời gian) và cùng một hợp đồng đầu ra: MP4 H.264 30 khung hình mỗi giây,
-yuv420p, không âm thanh, đúng độ dài. Chọn engine bằng `style_snapshot["render_engine"]` hoặc biến môi trường `CONTENT_VIDEO_RENDER_ENGINE`.
-Engine Node (hyperframes, remotion) lỗi hoặc thiếu thì quay về playwright trừ khi `CONTENT_VIDEO_RENDER_FALLBACK=0`.
-Cảnh chữ cũ (CHAT, AI_PANEL, DASHBOARD) và khung 9:16 luôn dùng playwright.
+Remotion native là opt-in cho CHECKLIST, KPI_CARDS và BEFORE_AFTER; cảnh khác tiếp tục dùng composition Scene.
 """
 from __future__ import annotations
 from src.modules.tac_vu_tu_xa.client import offload, pipeline
@@ -11,6 +8,7 @@ from src.modules.tac_vu_tu_xa.client import offload, pipeline
 import hashlib
 import json
 import logging
+import math
 import os
 import shutil
 import subprocess
@@ -24,6 +22,10 @@ from .ui_sim import _diagram_html, diagram_payload, hyperframes_composition_html
 
 logger = logging.getLogger(__name__)
 ENGINES = ("playwright", "hyperframes", "remotion")
+NATIVE_REMOTION_LAYOUTS = frozenset(("CHECKLIST", "KPI_CARDS", "BEFORE_AFTER"))
+NATIVE_REMOTION_FPS = 30
+NATIVE_REMOTION_THEME = {"background": "#0B0F17", "surface": "#1C2A40", "ink": "#F2EEE6", "accent": "#D9B26A"}
+NATIVE_REMOTION_ASSETS = {"font": "phong_chu/be_vietnam_pro_dam.ttf", "logo": "thuong_hieu/logo_ngang_mau.png"}
 ENGINE_TIMEOUT_SECONDS = 900
 
 
@@ -42,6 +44,56 @@ def selected_engine(style_snapshot: dict | None) -> str:
     if name not in ENGINES:
         raise ValueError("RENDER_ENGINE_INVALID")
     return name
+
+
+def native_event_frame(seconds: float, duration_in_frames: int) -> int:
+    if not math.isfinite(seconds) or duration_in_frames < 1:
+        raise ValueError("REMOTION_NATIVE_TIMING_INVALID")
+    return min(duration_in_frames - 1, max(0, math.floor(seconds * NATIVE_REMOTION_FPS + 0.5)))
+
+
+def native_remotion_props(scene: UiScene, duration_seconds: float, aspect_ratio: str, narration: str = "", word_times: list[float] | None = None) -> dict:
+    if scene.layout not in NATIVE_REMOTION_LAYOUTS:
+        raise ValueError("REMOTION_NATIVE_LAYOUT_UNSUPPORTED")
+    if not math.isfinite(duration_seconds) or duration_seconds <= 0:
+        raise ValueError("REMOTION_NATIVE_DURATION_INVALID")
+    if aspect_ratio not in ("9:16", "16:9"):
+        raise ValueError("REMOTION_NATIVE_ASPECT_RATIO_INVALID")
+    if word_times is not None and (
+        len(word_times) != len(narration.split())
+        or any(isinstance(time, bool) or not isinstance(time, (int, float)) or not math.isfinite(time) for time in word_times)
+        or any(current < previous for previous, current in zip(word_times, word_times[1:]))
+    ):
+        raise ValueError("REMOTION_NATIVE_WORD_TIMES_INVALID")
+    width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
+    return {"schemaVersion": 1, "diagram": diagram_payload(scene, narration, duration_seconds, word_times),
+            "fps": NATIVE_REMOTION_FPS,
+            "durationInFrames": max(1, math.floor(duration_seconds * NATIVE_REMOTION_FPS + 0.5)),
+            "width": width, "height": height, "theme": dict(NATIVE_REMOTION_THEME), "assets": dict(NATIVE_REMOTION_ASSETS)}
+
+
+def native_remotion_enabled(scene: UiScene, style_snapshot: dict | None) -> bool:
+    style = style_snapshot or {}
+    return selected_engine(style) == "remotion" and style.get("remotion_native") is True and scene.layout in NATIVE_REMOTION_LAYOUTS
+
+
+def renderer_revision(root: Path | None = None) -> str:
+    root = root or engines_dir() / "remotion"
+    paths = [*(root / "src").rglob("*"), root / "package.json", root / "package-lock.json"]
+    if (root / "public").is_dir():
+        paths.extend((root / "public").rglob("*"))
+    digest = hashlib.sha256()
+    for path in sorted(path for path in paths if path.is_file()):
+        digest.update(path.relative_to(root).as_posix().encode("utf-8")); digest.update(b"\0"); digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def native_remotion_fingerprint(scene: UiScene, duration_seconds: float, aspect_ratio: str, narration: str = "", word_times: list[float] | None = None) -> str:
+    props = native_remotion_props(scene, duration_seconds, aspect_ratio, narration, word_times)
+    raw = json.dumps({"renderer_revision": renderer_revision(), "props": props,
+                      "timing_source": "word_times" if word_times is not None else "estimated"},
+                     ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def _node() -> str:
@@ -65,7 +117,8 @@ def _workers() -> str:
 
 
 def _run(command: list[str], cwd: Path, env: dict | None = None) -> None:
-    result = subprocess.run(command, cwd=cwd, env=env, capture_output=True, text=True, timeout=ENGINE_TIMEOUT_SECONDS)
+    result = subprocess.run(command, cwd=cwd, env=env, capture_output=True, text=True,
+                            encoding="utf-8", errors="replace", timeout=ENGINE_TIMEOUT_SECONDS)
     if result.returncode != 0:
         raise RuntimeError("RENDER_ENGINE_FAILED: " + (result.stderr or result.stdout)[-600:])
 
@@ -74,7 +127,9 @@ def _normalize(source: Path, out_path: Path, duration_seconds: int) -> dict:
     """Đưa đầu ra của engine về cùng hợp đồng với luồng playwright để các bước sau không phân biệt engine."""
     encoded = source.with_name("normalized.mp4")
     run_media_command([
-        video_processor.ffmpeg_bin, "-y", "-v", "error", "-i", str(source), "-an", "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+        video_processor.ffmpeg_bin, "-y", "-v", "error", "-i", str(source), "-an",
+        "-vf", "scale=in_range=auto:out_range=tv,format=yuv420p", "-color_range", "tv",
+        "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
         "-r", "30", "-t", str(duration_seconds), "-movflags", "+faststart", str(encoded),
     ], check=True, capture_output=True, timeout=180)
     meta = video_processor.probe_video(encoded)
@@ -123,44 +178,72 @@ def render_hyperframes(scene: UiScene, duration_seconds: int, out_path: Path, na
         return _normalize(raw, out_path, duration_seconds)
 
 
-def _remotion_bundle(root: Path, node: str, cli: Path) -> Path:
-    """Bundle một lần cho mọi cảnh (độ dài lấy từ props); tạo lại khi mã nguồn Remotion đổi."""
-    digest = hashlib.sha256()
-    for path in sorted([*(root / "src").rglob("*"), root / "package.json"]):
-        if path.is_file():
-            digest.update(path.read_bytes())
-    cache = Path(os.environ.get("PRJ069_ENGINES_CACHE") or Path(tempfile.gettempdir()) / "prj069_engines") / f"remotion_{digest.hexdigest()[:16]}"
+def _remotion_bundle(root: Path, node: str, cli: Path, revision: str | None = None) -> Path:
+    """Cache theo mã, lockfile và tài nguyên public; bundle được công bố nguyên tử."""
+    revision = revision or renderer_revision(root)
+    cache = Path(os.environ.get("PRJ069_ENGINES_CACHE") or Path(tempfile.gettempdir()) / "prj069_engines") / f"remotion_{revision[:16]}"
     if (cache / "index.html").is_file():
         return cache
     cache.parent.mkdir(parents=True, exist_ok=True)
-    staging = cache.with_name(cache.name + ".dang_tao")
-    shutil.rmtree(staging, ignore_errors=True)
-    _run([node, str(cli), "bundle", "src/index.js", f"--out-dir={staging}"], root)
-    staging.replace(cache)
+    staging = Path(tempfile.mkdtemp(prefix=cache.name + ".dang_tao_", dir=cache.parent))
+    staging.rmdir()
+    try:
+        _run([node, str(cli), "bundle", "src/index.js", f"--out-dir={staging}"], root)
+        if (cache / "index.html").is_file():
+            return cache
+        try:
+            staging.replace(cache)
+        except OSError:
+            if not (cache / "index.html").is_file():
+                raise
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
     return cache
 
 
-def render_remotion(scene: UiScene, duration_seconds: int, out_path: Path, narration: str = "", word_times: list[float] | None = None, aspect_ratio: str = "16:9") -> dict:
+def render_remotion(scene: UiScene, duration_seconds: int, out_path: Path, narration: str = "", word_times: list[float] | None = None, aspect_ratio: str = "16:9", *, native: bool = False) -> dict:
+    out_path = Path(out_path).resolve()
     root = engines_dir() / "remotion"
     cli = root / "node_modules" / "@remotion" / "cli" / "remotion-cli.js"
     if not cli.is_file():
         raise EngineUnavailable("REMOTION_NOT_INSTALLED")
     node = _node()
-    page_html = _diagram_html(diagram_payload(scene, narration, duration_seconds, word_times), aspect_ratio)
-    bundle = _remotion_bundle(root, node, cli)
+    if native:
+        props = native_remotion_props(scene, duration_seconds, aspect_ratio, narration, word_times)
+        public = root / "public"
+        if any(not (public / asset).is_file() for asset in NATIVE_REMOTION_ASSETS.values()):
+            raise ValueError("REMOTION_NATIVE_ASSET_MISSING")
+        variant, composition = "native", "CanhTrucTiep"
+    else:
+        props = {"html": _diagram_html(diagram_payload(scene, narration, duration_seconds, word_times), aspect_ratio),
+                 "durationInFrames": duration_seconds * NATIVE_REMOTION_FPS}
+        variant, composition = "legacy_html", "Scene"
+    revision = renderer_revision(root)
+    bundle = _remotion_bundle(root, node, cli, revision)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="rm_", dir=out_path.parent, ignore_cleanup_errors=True) as tmp:
-        props = Path(tmp) / "props.json"
-        width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
-        props.write_text(json.dumps({"html": page_html, "durationInFrames": duration_seconds * 30, "width": width, "height": height}, ensure_ascii=False), encoding="utf-8")
+        props_path = Path(tmp) / "props.json"
+        if not native:
+            width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
+            props.update(width=width, height=height)
+        props_path.write_text(json.dumps(props, ensure_ascii=False, allow_nan=False), encoding="utf-8")
         raw = Path(tmp) / "raw.mp4"
-        command = [node, str(cli), "render", str(bundle), "Scene", str(raw), f"--props={props}", "--codec=h264", "--muted", "--pixel-format=yuv420p",
+        command = [node, str(cli), "render", str(bundle), composition, str(raw), f"--props={props_path}", "--codec=h264", "--muted", "--pixel-format=yuv420p",
                    f"--concurrency={_workers()}", "--log=error"]
         chrome = _chrome()
         if chrome:
             command.append(f"--browser-executable={chrome}")
         _run(command, root)
-        return _normalize(raw, out_path, duration_seconds)
+        duration = props["durationInFrames"] / NATIVE_REMOTION_FPS if native else duration_seconds
+        meta = _normalize(raw, out_path, duration)
+        result = {**meta, "render_variant": variant}
+        if native:
+            fingerprint = json.dumps({"renderer_revision": revision, "props": props,
+                                      "timing_source": "word_times" if word_times is not None else "estimated"},
+                                     ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            result.update(renderer_revision=revision, render_fingerprint=hashlib.sha256(fingerprint.encode("utf-8")).hexdigest(),
+                          timing_source="word_times" if word_times is not None else "estimated")
+        return result
 
 
 PORTRAIT_SIZE = (1080, 1920)
@@ -227,7 +310,8 @@ def _landscape_scene_in_portrait(scene, style_snapshot, duration_seconds, out_pa
             if str(exc).startswith(("VIDEO_", "REMOTE_", "FLOW_")):
                 raise
             raise RuntimeError(f"VIDEO_LANDSCAPE_IN_PORTRAIT_FAILED: {type(exc).__name__}: {' '.join(str(exc).split())[:80]}") from exc
-    return {**video_processor.probe_video(out_path), "render_engine": meta.get("render_engine"), "expanded_from": "16:9", "expand_mode": mode}
+    return {**video_processor.probe_video(out_path), **{key: meta[key] for key in ("render_engine", "render_variant", "renderer_revision", "render_fingerprint", "timing_source") if key in meta},
+            "expanded_from": "16:9", "expand_mode": mode}
 
 
 BACKENDS = {"hyperframes": render_hyperframes, "remotion": render_remotion}
@@ -237,22 +321,45 @@ BACKENDS = {"hyperframes": render_hyperframes, "remotion": render_remotion}
 def render_scene(scene: UiScene, style_snapshot: dict, duration_seconds: int, aspect_ratio: str, out_path: Path,
                  narration: str = "", word_times: list[float] | None = None, transparent_background: bool = False) -> dict:
     """Dựng clip cảnh bằng engine đã chọn; trả về meta của clip kèm `render_engine` là engine đã thật sự dùng."""
+    out_path = Path(out_path).resolve()
     if (aspect_ratio == "9:16" and scene.layout in DIAGRAM_LAYOUTS and scene.layout not in PORTRAIT_DIAGRAM_LAYOUTS
             and not transparent_background):
         return _landscape_scene_in_portrait(scene, style_snapshot, duration_seconds, out_path, narration, word_times)
     engine = selected_engine(style_snapshot)
+    native = native_remotion_enabled(scene, style_snapshot)
+    if engine == "remotion" and transparent_background:
+        raise ValueError("REMOTION_ALPHA_UNSUPPORTED")
+    if (engine == "remotion" and (style_snapshot or {}).get("remotion_native") is True and not native
+            and os.environ.get("CONTENT_VIDEO_RENDER_FALLBACK", "1") == "0"):
+        raise EngineUnavailable("REMOTION_NATIVE_LAYOUT_UNSUPPORTED")
+    if native:
+        native_remotion_props(scene, duration_seconds, aspect_ratio, narration, word_times)
     portrait_diagram = engine in ("hyperframes", "remotion") and aspect_ratio == "9:16" and scene.layout in PORTRAIT_DIAGRAM_LAYOUTS
+    fallback_reason = None
     if engine != "playwright" and scene.layout in DIAGRAM_LAYOUTS and (aspect_ratio == "16:9" or portrait_diagram) and 1 <= duration_seconds <= 20:
         try:
             backend = BACKENDS[engine]
-            meta = backend(scene, duration_seconds, out_path, narration, word_times, aspect_ratio, transparent_background) if engine == "hyperframes" else backend(scene, duration_seconds, out_path, narration, word_times, aspect_ratio=aspect_ratio)
-            return {**meta, "render_engine": engine}
-        except Exception as exc:   # mọi lỗi dựng của engine (kể cả ValueError, KeyError, hết giờ) đều lùi sang Playwright để vẫn ra clip
+            if engine == "hyperframes":
+                meta = backend(scene, duration_seconds, out_path, narration, word_times, aspect_ratio, transparent_background)
+            elif native:
+                meta = backend(scene, duration_seconds, out_path, narration, word_times, aspect_ratio=aspect_ratio, native=True)
+            else:
+                meta = backend(scene, duration_seconds, out_path, narration, word_times, aspect_ratio=aspect_ratio)
+            result = {**meta, "render_engine": engine}
+            if engine == "remotion":
+                result.setdefault("render_variant", "native" if native else "legacy_html")
+            return result
+        except (EngineUnavailable, RuntimeError, subprocess.SubprocessError, OSError) as exc:
             if transparent_background or os.environ.get("CONTENT_VIDEO_RENDER_FALLBACK", "1") == "0":
                 raise
+            fallback_reason = f"{type(exc).__name__}: {exc}"
             logger.warning("RENDER_ENGINE_FALLBACK: %s không dựng được (%s); dùng playwright", engine, str(exc)[:300])
+    elif engine == "remotion":
+        fallback_reason = "REMOTION_LAYOUT_OR_DURATION_UNSUPPORTED"
+        if os.environ.get("CONTENT_VIDEO_RENDER_FALLBACK", "1") == "0":
+            raise EngineUnavailable(fallback_reason)
     meta = render_ui_scene(scene, style_snapshot, duration_seconds, aspect_ratio, out_path, narration=narration, word_times=word_times)
-    return {**meta, "render_engine": "playwright"}
+    return {**meta, "render_engine": "playwright", **({"render_variant": "fallback", "render_fallback_reason": fallback_reason} if engine == "remotion" else {})}
 
 
 def assembly_mode(style_snapshot: dict | None) -> str:
@@ -269,6 +376,7 @@ def assembly_mode(style_snapshot: dict | None) -> str:
 @offload("placeholder", "RENDER_VISUAL", output="out_path")
 def render_placeholder(out_path: Path, seconds: int, aspect_ratio: str = "16:9") -> dict:
     """Clip đen đúng độ dài, chỉ để giữ chỗ trong dây chuyền tài sản và QC khi cả video sẽ được dựng bằng HyperFrames (không tốn thời gian dựng cảnh)."""
+    out_path = Path(out_path).resolve()
     width, height = (1080, 1920) if aspect_ratio == "9:16" else (1920, 1080)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     run_media_command([

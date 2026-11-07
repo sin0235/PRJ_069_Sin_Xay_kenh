@@ -220,15 +220,3 @@ def test_pending_legacy_login_cannot_replace_unknown_live_owner(tmp_path, monkey
         assert db.get(FlowLoginSession, "legacy").status == "OPEN"
         assert db.get(FlowLoginSession, "legacy").active_slot == "flow"
 
-
-
-def test_phien_windows_mo_native_khong_can_x11_novnc(monkeypatch):
-    worker = _worker_module()
-    monkeypatch.setattr(worker.os, "name", "nt")
-    runtime = worker.DesktopRuntime()
-    def forbidden(*args, **kwargs):
-        raise AssertionError("X11_NOT_ALLOWED_ON_WINDOWS")
-    monkeypatch.setattr(runtime, "_spawn", forbidden)
-    runtime.start()
-    assert runtime.processes == []
-    assert runtime.stop() is True

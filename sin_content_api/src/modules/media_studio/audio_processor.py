@@ -3,7 +3,6 @@
 Cung cấp các hàm đo đạc LUFS theo chuẩn EBU R128, chuẩn hóa -14 LUFS, kiểm định chất lượng âm thanh (Audio QC), auto-ducking nhạc nền và fade-out.
 """
 
-from src.modules.tac_vu_tu_xa.client import offload
 import json
 import os
 import pathlib
@@ -55,7 +54,6 @@ class AudioProcessor:
             "channels": int(audio_stream.get("channels", 2)) if audio_stream else 2,
         }
 
-    @offload("measure_loudness", "QC")
     def measure_loudness(self, filepath: pathlib.Path) -> Dict[str, Any]:
         """
         Đo đạc âm lượng tích hợp (Integrated Loudness) chuẩn EBU R128 bằng FFmpeg:
@@ -92,7 +90,6 @@ class AudioProcessor:
 
         raise RuntimeError(f"Không thể đo đạc âm lượng EBU R128 từ tệp {filepath}. Output: {output[:300]}")
 
-    @offload("audio_qc", "QC")
     def verify_audio_qc(
         self,
         filepath: pathlib.Path,
@@ -167,7 +164,6 @@ class AudioProcessor:
             "reason": "Đạt chuẩn kiểm định âm lượng TikTok (-14 LUFS)" if qc_passed else f"Âm lượng không đạt chuẩn: {i_lufs:.1f} LUFS (yêu cầu {min_lufs:.1f} đến {max_lufs:.1f}), Peak {tp_dbtp:.1f} dBTP"
         }
 
-    @offload("normalize_audio", "RENDER_FINAL", output="output_path")
     def normalize_loudness(
         self,
         input_path: pathlib.Path,
@@ -205,25 +201,24 @@ class AudioProcessor:
         meta["measured_lra_lu"] = measurement["measured_lra_lu"]
         return meta
 
-    @offload("duck_audio", "RENDER_FINAL", output="output_path")
     def apply_auto_ducking(
         self,
         voice_path: pathlib.Path,
         music_path: pathlib.Path,
         output_path: pathlib.Path,
-        music_attenuation_db: float = -18.0
+        music_attenuation_db: float = -10.0
     ) -> Dict[str, Any]:
         """
         Kỹ thuật Auto-Ducking (Hạ nhạc nền thông minh khi có giọng nói):
         - Sử dụng filter 'sidechaincompress' của FFmpeg: Giọng đọc (Voice track) đóng vai trò trigger.
-        - Khi có tiếng nói, nhạc nền tự động giảm âm lượng xuống (-18dB) để làm nổi bật lời thoại.
+        - Khi có tiếng nói, nhạc nền tự động giảm âm lượng xuống (-10dB) để làm nổi bật lời thoại.
         - Khi người nói ngắt quãng, nhạc nền mượt mà tăng trở lại âm lượng ban đầu.
         """
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         filter_complex = (
             "[0:a][1:a]sidechaincompress="
-            "threshold=0.12:ratio=4:attack=20:release=350[ducked];"
+            "threshold=0.08:ratio=2.0:attack=40:release=350[ducked];"
             "[ducked][1:a]amix=inputs=2:duration=first:dropout_transition=2[out]"
         )
 
@@ -246,7 +241,6 @@ class AudioProcessor:
         meta["ducking_applied"] = True
         return meta
 
-    @offload("trim_audio", "RENDER_FINAL", output="output_path")
     def trim_and_fade(
         self,
         input_path: pathlib.Path,

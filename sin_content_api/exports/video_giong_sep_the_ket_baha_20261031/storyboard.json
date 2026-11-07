@@ -1,0 +1,703 @@
+{
+ "title": "Từ báo giá đến đơn hàng: khép kín hành trình khách",
+ "narration": "Một nghìn lượt hỏi giá mỗi tháng, nhưng chỉ một trăm tám mươi người chốt đơn. Khách hàng rơi ở đâu? Nhân viên vừa tiếp khách vừa trả lời tin nhắn. Báo giá gửi đi rồi, nhưng không ai nhớ gọi lại. Khách chờ phản hồi, trong khi đối thủ trả lời nhanh hơn. Thời gian phản hồi trung bình là ba giờ. Nguyên nhân không nằm ở giá. Dữ liệu rải rác giữa tin nhắn, bảng tính và hộp thư. Phản hồi đúng hạn chỉ đạt năm mươi tám phần trăm, chưa tới mục tiêu chín mươi phần trăm. BAHA Group đề xuất gom dữ liệu khách về một nơi, tự động trả lời khi khách hỏi, rồi nhắc nhân viên theo dõi từng báo giá. Khi báo giá quá hạn, hệ thống nhắc nhân viên và cảnh báo quản lý. Mỗi bước có người theo dõi, để khách không phải chờ mà không rõ khi nào được phản hồi. Tuần đầu khảo sát quy trình bán hàng. Tuần hai thiết kế luồng chăm sóc khách. Tuần bốn chạy thử với nhóm nhỏ, tuần sáu vận hành toàn cửa hàng. Theo bài viết, thời gian phản hồi giảm từ ba giờ xuống năm phút sau triển khai. Khách nhận câu trả lời sớm hơn và có thể tiếp tục hành trình mua hàng. Hãy trao đổi cùng BAHA Group để rà soát hành trình khách hàng, tìm điểm cần cải thiện và chọn bước phù hợp cho doanh nghiệp bạn.",
+ "continuity_anchor": "Cảnh giấy dựng bằng mã trên nền kem, bảng và thẻ giấy gấp màu xanh ngọc, xanh navy. Dùng chữ và số rõ, bố cục phẳng, tương phản cao. Không có nhân vật; mỗi sơ đồ tự đứng độc lập, không nối tiếp khung hình giữa các shot.",
+ "shots": [
+  {
+   "shot_id": "shot_01",
+   "scene": "Mở bằng quy mô lượt hỏi giá và câu hỏi về số người chốt đơn.",
+   "narration": "Một nghìn lượt hỏi giá mỗi tháng, nhưng chỉ một trăm tám mươi người chốt đơn. Khách hàng rơi ở đâu?",
+   "prompt": "Cảnh giấy dựng bằng mã: nền kem, con số lượt hỏi giá nổi bật cạnh con số chốt đơn nhỏ hơn; câu hỏi đặt bên dưới, màu xanh ngọc và navy.",
+   "negative_prompt": "",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "HOOK",
+   "message_ids": [
+    "c2",
+    "c1"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "OPEN_NUMBER",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "Hỏi giá nhiều, chốt đơn ít",
+     "unit": "lượt",
+     "simulated": false,
+     "labels": [],
+     "series": [],
+     "target": null,
+     "tag": null,
+     "docs": [],
+     "diff_label": null,
+     "stamp": null,
+     "steps": [],
+     "block_step": null,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": null,
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [],
+     "layers": [],
+     "values": [],
+     "cta": null,
+     "from_value": 1000.0,
+     "to_value": 180.0,
+     "caption": "Khách hàng rơi ở đâu?",
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "count": "Một nghìn lượt hỏi giá",
+      "caption": "Khách hàng rơi ở đâu?"
+     }
+    }
+   }
+  },
+  {
+   "shot_id": "shot_02",
+   "scene": "Minh họa nhân viên bận nhiều việc và báo giá bị bỏ quên.",
+   "narration": "Nhân viên vừa tiếp khách vừa trả lời tin nhắn. Báo giá gửi đi rồi, nhưng không ai nhớ gọi lại.",
+   "prompt": "Cảnh giấy dựng bằng mã: dải quy trình giấy thể hiện tiếp khách, trả lời tin nhắn, gửi báo giá; bước theo dõi bị chặn nổi bật.",
+   "negative_prompt": "",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "PAIN",
+   "message_ids": [
+    "p1"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "PROCESS_RAIL",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "Báo giá thiếu theo dõi",
+     "unit": "",
+     "simulated": true,
+     "labels": [],
+     "series": [],
+     "target": null,
+     "tag": null,
+     "docs": [],
+     "diff_label": null,
+     "stamp": null,
+     "steps": [
+      "Tiếp khách",
+      "Trả lời tin",
+      "Gửi báo giá",
+      "Theo dõi"
+     ],
+     "block_step": 2,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": null,
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [],
+     "layers": [],
+     "values": [],
+     "cta": null,
+     "from_value": null,
+     "to_value": null,
+     "caption": null,
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "stations": "Nhân viên",
+      "block": "trả lời",
+      "release": "gửi đi"
+     }
+    }
+   }
+  },
+  {
+   "shot_id": "shot_03",
+   "scene": "Đối chiếu tình trạng khách chờ với đối thủ phản hồi nhanh hơn.",
+   "narration": "Khách chờ phản hồi, trong khi đối thủ trả lời nhanh hơn. Thời gian phản hồi trung bình là ba giờ, đủ lâu để khách cân nhắc lựa chọn khác.",
+   "prompt": "Cảnh giấy dựng bằng mã: hai thẻ giấy đặt cạnh nhau, một thẻ cho khách đang chờ và một thẻ cho đối thủ trả lời nhanh; nhãn thể hiện thời gian phản hồi trung bình.",
+   "negative_prompt": "",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "AGITATE",
+   "message_ids": [
+    "p3",
+    "p2"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "COMPARE_DOCS",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "Khách chờ, đối thủ trả lời nhanh",
+     "unit": "",
+     "simulated": false,
+     "labels": [],
+     "series": [],
+     "target": null,
+     "tag": null,
+     "docs": [
+      {
+       "title": "Khách hàng",
+       "label": "Đang chờ",
+       "value": "Ba giờ"
+      },
+      {
+       "title": "Đối thủ",
+       "label": "Trả lời nhanh",
+       "value": "Nhanh hơn"
+      }
+     ],
+     "diff_label": "Khoảng chờ kéo dài",
+     "stamp": null,
+     "steps": [],
+     "block_step": null,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": null,
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [],
+     "layers": [],
+     "values": [],
+     "cta": null,
+     "from_value": null,
+     "to_value": null,
+     "caption": null,
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "doc0": "Khách chờ",
+      "v0": "trong khi",
+      "doc1": "trả lời",
+      "v1": "Thời gian",
+      "thread": "trung bình",
+      "label": "giờ, đủ"
+     }
+    }
+   }
+  },
+  {
+   "shot_id": "shot_04",
+   "scene": "Làm rõ dữ liệu phân tán và tỷ lệ phản hồi chưa đạt mục tiêu.",
+   "narration": "Nguyên nhân không nằm ở giá. Dữ liệu rải rác giữa tin nhắn, bảng tính và hộp thư. Phản hồi đúng hạn chỉ đạt năm mươi tám phần trăm, chưa tới mục tiêu chín mươi phần trăm.",
+   "prompt": "Cảnh giấy dựng bằng mã: biểu đồ giấy có tỷ lệ phản hồi đúng hạn và vạch mục tiêu; khoảng cách giữa hai mức được tô rõ.",
+   "negative_prompt": "",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "INSIGHT",
+   "message_ids": [
+    "i1",
+    "p2"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "CHART_TARGET",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "Phản hồi đúng hạn chưa đạt mục tiêu",
+     "unit": "phần trăm",
+     "simulated": false,
+     "labels": [
+      "Hiện tại",
+      "Mục tiêu"
+     ],
+     "series": [
+      {
+       "name": "Phản hồi đúng hạn",
+       "values": [
+        58.0,
+        58.0
+       ]
+      }
+     ],
+     "target": 90.0,
+     "tag": null,
+     "docs": [],
+     "diff_label": null,
+     "stamp": null,
+     "steps": [],
+     "block_step": null,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": null,
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [],
+     "layers": [],
+     "values": [],
+     "cta": null,
+     "from_value": null,
+     "to_value": null,
+     "caption": null,
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "s0": "Nguyên nhân",
+      "target": "tin nhắn,",
+      "gap": "chỉ đạt"
+     }
+    }
+   }
+  },
+  {
+   "shot_id": "shot_05",
+   "scene": "Gom dữ liệu về một nơi và kết nối các nguồn khách.",
+   "narration": "BAHA Group đề xuất gom dữ liệu khách về một nơi, tự động trả lời khi khách hỏi, rồi nhắc nhân viên theo dõi từng báo giá đã gửi.",
+   "prompt": "Cảnh giấy dựng bằng mã: các thẻ nguồn khách nối về một trung tâm, rồi tỏa thành các bước chăm sóc rõ ràng.",
+   "negative_prompt": "",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "SOLUTION",
+   "message_ids": [
+    "s1",
+    "s2",
+    "s3"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "HUB_SPOKE",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "Gom dữ liệu, nối bước chăm sóc",
+     "unit": "",
+     "simulated": true,
+     "labels": [],
+     "series": [],
+     "target": null,
+     "tag": null,
+     "docs": [],
+     "diff_label": null,
+     "stamp": null,
+     "steps": [
+      "Tin nhắn",
+      "Bảng tính",
+      "Hộp thư"
+     ],
+     "block_step": null,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": "Một nơi",
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [],
+     "layers": [],
+     "values": [],
+     "cta": null,
+     "from_value": null,
+     "to_value": null,
+     "caption": null,
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "nodes": "gom dữ liệu khách",
+      "hub": "về một nơi",
+      "link": "tự động trả lời khi khách hỏi"
+     }
+    }
+   }
+  },
+  {
+   "shot_id": "shot_06",
+   "scene": "Thể hiện nhắc nhân viên và cảnh báo quản lý khi báo giá quá hạn.",
+   "narration": "Khi báo giá quá hạn, hệ thống nhắc nhân viên và cảnh báo quản lý. Mỗi bước có người theo dõi, để khách không phải chờ mà không rõ khi nào được phản hồi.",
+   "prompt": "Cảnh giấy dựng bằng mã: các thẻ việc lần lượt được đánh dấu; thẻ báo giá quá hạn bật cảnh báo quản lý.",
+   "negative_prompt": "",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "DEMO",
+   "message_ids": [
+    "s3"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "CHECKLIST",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "Theo dõi báo giá đến hạn",
+     "unit": "",
+     "simulated": true,
+     "labels": [],
+     "series": [],
+     "target": null,
+     "tag": null,
+     "docs": [],
+     "diff_label": null,
+     "stamp": null,
+     "steps": [
+      "Nhận câu hỏi",
+      "Gửi báo giá",
+      "Nhắc nhân viên",
+      "Báo quản lý"
+     ],
+     "block_step": null,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": null,
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [],
+     "layers": [],
+     "values": [],
+     "cta": null,
+     "from_value": null,
+     "to_value": null,
+     "caption": null,
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "c0": "Khi báo",
+      "c1": "nhân viên",
+      "c2": "bước có",
+      "c3": "phải chờ"
+     }
+    }
+   }
+  },
+  {
+   "shot_id": "shot_07",
+   "scene": "Trình bày lộ trình triển khai theo bốn mốc.",
+   "narration": "Tuần đầu khảo sát quy trình bán hàng. Tuần hai thiết kế luồng chăm sóc khách. Tuần bốn chạy thử với nhóm nhỏ, tuần sáu vận hành toàn cửa hàng theo lộ trình.",
+   "prompt": "Cảnh giấy dựng bằng mã: hai thẻ giấy đặt cạnh nhau, một thẻ cho giai đoạn chạy thử và một thẻ cho vận hành toàn cửa hàng; màu sắc phân biệt rõ.",
+   "negative_prompt": "",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "DEMO",
+   "message_ids": [
+    "s4"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "COMPARE_DOCS",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "Các mốc triển khai",
+     "unit": "",
+     "simulated": false,
+     "labels": [],
+     "series": [],
+     "target": null,
+     "tag": null,
+     "docs": [
+      {
+       "title": "Chạy thử",
+       "label": "Nhóm nhỏ",
+       "value": "Tuần bốn"
+      },
+      {
+       "title": "Vận hành",
+       "label": "Toàn cửa hàng",
+       "value": "Tuần sáu"
+      }
+     ],
+     "diff_label": "Theo từng giai đoạn",
+     "stamp": null,
+     "steps": [],
+     "block_step": null,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": null,
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [],
+     "layers": [],
+     "values": [],
+     "cta": null,
+     "from_value": null,
+     "to_value": null,
+     "caption": null,
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "doc0": "Tuần đầu",
+      "v0": "trình bán",
+      "doc1": "thiết kế",
+      "v1": "khách. Tuần",
+      "thread": "với nhóm",
+      "label": "vận hành"
+     }
+    }
+   }
+  },
+  {
+   "shot_id": "shot_08",
+   "scene": "Nêu mức giảm thời gian phản hồi theo bài viết.",
+   "narration": "Theo bài viết, thời gian phản hồi giảm từ ba giờ xuống năm phút sau triển khai. Khách nhận câu trả lời sớm hơn và có thể tiếp tục hành trình mua hàng.",
+   "prompt": "Cảnh giấy dựng bằng mã: đồng hồ giấy đổi từ thời gian dài sang ngắn, kim chỉ rõ mức phản hồi sau triển khai.",
+   "negative_prompt": "",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "OUTCOME",
+   "message_ids": [
+    "o1"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "GAUGE",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "Thời gian phản hồi sau triển khai",
+     "unit": "phút",
+     "simulated": false,
+     "labels": [],
+     "series": [],
+     "target": null,
+     "tag": null,
+     "docs": [],
+     "diff_label": null,
+     "stamp": null,
+     "steps": [],
+     "block_step": null,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": null,
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [],
+     "layers": [],
+     "values": [],
+     "cta": null,
+     "from_value": 180.0,
+     "to_value": 5.0,
+     "caption": "Phản hồi nhanh hơn",
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "dial": "thời gian phản hồi",
+      "needle": "giảm từ ba giờ xuống năm phút"
+     }
+    }
+   }
+  },
+  {
+   "shot_id": "shot_09",
+   "scene": "Kết bằng lời mời trao đổi cùng BAHA Group.",
+   "narration": "Hãy trao đổi cùng BAHA Group để rà soát hành trình khách hàng, tìm điểm cần cải thiện và chọn bước phù hợp cho doanh nghiệp bạn.",
+   "prompt": "Cảnh giấy dựng bằng mã: thẻ kết giấy nền kem, tên BAHA Group và lời mời trao đổi đặt rõ ở trung tâm.",
+   "negative_prompt": "",
+   "duration_seconds": 10,
+   "continues_previous": false,
+   "prompt_contract_version": 4,
+   "beat": "CTA",
+   "message_ids": [
+    "cta1"
+   ],
+   "shot_kind": "UI_SIM",
+   "action_beats": [],
+   "ui_scene": {
+    "layout": "END_CARD",
+    "messages": [],
+    "highlight": null,
+    "diagram": {
+     "title": "BAHA Group rà soát hành trình khách hàng",
+     "unit": "",
+     "simulated": true,
+     "labels": [],
+     "series": [],
+     "target": null,
+     "tag": null,
+     "docs": [],
+     "diff_label": null,
+     "stamp": null,
+     "steps": [],
+     "block_step": null,
+     "total": null,
+     "total_label": null,
+     "slices": [],
+     "final_label": null,
+     "sources": [],
+     "uses": [],
+     "hub_label": null,
+     "drill_use": null,
+     "drill_rows": [],
+     "items": [],
+     "layers": [],
+     "values": [],
+     "cta": "Trao đổi cùng BAHA Group",
+     "from_value": null,
+     "to_value": null,
+     "caption": null,
+     "variant": null,
+     "value": null,
+     "points": [],
+     "axis_x": null,
+     "axis_y": null,
+     "pick": null,
+     "cards": [],
+     "on": {
+      "fold": "Hãy trao",
+      "cta": "hàng, tìm"
+     }
+    }
+   }
+  }
+ ],
+ "brief": {
+  "pains": [
+   {
+    "id": "p1",
+    "text": "Nhân viên kinh doanh vừa tiếp khách vừa trả lời tin nhắn; báo giá gửi đi nhưng không được theo dõi.",
+    "source": "content"
+   },
+   {
+    "id": "p2",
+    "text": "Thông tin khách phân tán giữa tin nhắn, bảng tính và hộp thư; thời gian phản hồi trung bình ba giờ, tỷ lệ phản hồi đúng hạn năm mươi tám phần trăm.",
+    "source": "content"
+   },
+   {
+    "id": "p3",
+    "text": "Khách chờ phản hồi trong khi đối thủ trả lời nhanh hơn.",
+    "source": "content"
+   }
+  ],
+  "consequences": [
+   {
+    "id": "c1",
+    "text": "Khách rơi rụng nhiều nhất giữa lúc nhận báo giá và chốt đơn.",
+    "source": "content"
+   },
+   {
+    "id": "c2",
+    "text": "Một nghìn lượt hỏi giá mỗi tháng, sáu trăm bốn mươi người nhận báo giá, một trăm tám mươi người chốt đơn và một trăm năm mươi người thanh toán.",
+    "source": "content"
+   }
+  ],
+  "insights": [
+   {
+    "id": "i1",
+    "text": "Bài viết cho rằng nguyên nhân thất thoát không nằm ở giá, mà ở dữ liệu phân tán, phản hồi chậm và thiếu theo dõi báo giá.",
+    "source": "content"
+   }
+  ],
+  "solutions": [
+   {
+    "id": "s1",
+    "text": "Ba-ha đề xuất gom dữ liệu khách về một nơi.",
+    "source": "content"
+   },
+   {
+    "id": "s2",
+    "text": "Ba-ha đề xuất tự động trả lời khi khách hỏi.",
+    "source": "content"
+   },
+   {
+    "id": "s3",
+    "text": "Ba-ha đề xuất nhắc nhân viên theo dõi từng báo giá và cảnh báo quản lý khi báo giá quá hạn.",
+    "source": "content"
+   },
+   {
+    "id": "s4",
+    "text": "Lộ trình nêu trong bài: khảo sát quy trình bán hàng tuần đầu, thiết kế luồng chăm sóc khách tuần hai, chạy thử với nhóm nhỏ tuần bốn, vận hành toàn cửa hàng tuần sáu.",
+    "source": "content"
+   }
+  ],
+  "outcomes": [
+   {
+    "id": "o1",
+    "text": "Theo bài viết, sau triển khai, thời gian phản hồi giảm từ ba giờ xuống năm phút.",
+    "source": "content"
+   }
+  ],
+  "cta": {
+   "id": "cta1",
+   "text": "Trao đổi cùng Ba-ha Group để rà soát hành trình khách hàng.",
+   "source": "content"
+  },
+  "needs_ui_demo": false
+ }
+}
