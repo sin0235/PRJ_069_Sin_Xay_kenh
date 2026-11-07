@@ -71,6 +71,7 @@ import { BangDieuPhoiDung } from "@/components/video_studio/bang_dieu_phoi_dung"
 import {
   KARAOKE_CAPTION_COLORS,
   KARAOKE_CAPTION_DEFAULTS,
+  KARAOKE_PRESETS_EXTENDED,
   taoNoiDungPhuDeXemTruoc,
   taoPhuDeDeLuu,
   taoThongSoPhuDeXemTruoc,
@@ -87,11 +88,7 @@ import {
 } from "@/lib/video_studio/lien_ket_studio";
 import { capNhatHinhHocOverlay } from "@/lib/video_studio/timeline_overlay";
 
-const KARAOKE_PRESETS = [
-  { value: "bat_nhip", label: "Nảy theo từ", accent_color: "champagne", word_pop: true, layout: "center" },
-  { value: "to_sac", label: "Tô sắc", accent_color: "baha_blue", word_pop: false, layout: "center" },
-  { value: "hai_dong", label: "Hai dòng", accent_color: "coral", word_pop: false, layout: "two_line" },
-] as const;
+const KARAOKE_PRESETS = KARAOKE_PRESETS_EXTENDED;
 
 export default function VideoStudioPage() {
   const router = useRouter();
@@ -270,6 +267,9 @@ export default function VideoStudioPage() {
       const document = res.timeline;
       const clips = document?.clips ?? [];
       const captions = document?.captions ?? [];
+      if (document?.width && document?.height) {
+        setAspectRatio(document.width >= document.height ? "16:9" : "9:16");
+      }
       setTimelineVersion(res.version);
       setTimelineClips(clips);
       setTimelineOverlays(document?.overlays ?? []);
@@ -769,6 +769,7 @@ export default function VideoStudioPage() {
     previewCanvasHeight,
     captionFontSize,
     karaokeSettings,
+    aspectRatio === "9:16" ? 1920 : 1080,
   );
   const karaokePreview = taoNoiDungPhuDeXemTruoc(
     previewCaptionCueForDisplay,
@@ -1254,7 +1255,7 @@ export default function VideoStudioPage() {
                       aria-label="Phong cách karaoke"
                       variant="outline"
                       size="sm"
-                      className="grid w-full grid-cols-3"
+                      className="grid w-full grid-cols-2 gap-1"
                       onValueChange={(value) => {
                         const preset = KARAOKE_PRESETS.find((item) => item.value === value);
                         if (preset) {
@@ -1581,11 +1582,14 @@ export default function VideoStudioPage() {
                   {captionStyle === "vietsub_karaoke_v2"
                     ? karaokePreview.words.map((word, index) => (
                       <React.Fragment key={`${index}-${word.text}`}>
-                        {karaokePreview.breakAfter === index && <br />}
+                        {(karaokePreview.breakAfterIndices ? karaokePreview.breakAfterIndices.includes(index - 1) : karaokePreview.breakAfter === index) && <br />}
                         <span
-                          className={`inline-block transition-transform duration-100 motion-reduce:transition-none motion-reduce:scale-100 ${word.active && karaokeSettings.word_pop ? "scale-105" : ""}`}
+                          className={`inline-block transition-transform duration-100 motion-reduce:transition-none motion-reduce:scale-100 ${
+                            word.active && karaokeSettings.word_pop ? "scale-105" : ""
+                          } ${word.isPill ? "px-1.5 py-0.5 rounded bg-rose-600 text-white shadow-md font-black" : ""}`}
                           style={{
-                            color: word.active ? KARAOKE_CAPTION_COLORS[karaokeSettings.accent_color] : "white",
+                            color: word.isPill ? "#FFFFFF" : (word.active ? word.color : "white"),
+                            fontSize: `${previewCaptionStyle.fontSizePx * (word.sizeFactor ?? 1.0)}px`,
                           }}
                         >
                           {word.text}

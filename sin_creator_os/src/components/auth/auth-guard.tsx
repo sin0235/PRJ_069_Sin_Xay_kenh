@@ -35,7 +35,8 @@ export function AuthGuard({ children, devAuthBypass = false }: { children: React
       const authorized = Boolean(session);
       setCheck({ pathname, authorized });
       if (!authorized) {
-        router.replace(`/auth/v1/login?redirect=${encodeURIComponent(pathname)}`);
+        const returnUrl = `${pathname}${window.location.search}`;
+        router.replace(`/auth/v1/login?redirect=${encodeURIComponent(returnUrl)}`);
       }
     });
 
