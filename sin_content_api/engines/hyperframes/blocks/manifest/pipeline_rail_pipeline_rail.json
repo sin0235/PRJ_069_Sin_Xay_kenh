@@ -1,0 +1,73 @@
+{
+  "order": 0,
+  "layout": "PIPELINE_RAIL",
+  "variant_key": "pipeline_rail",
+  "block": "pipeline-rail",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "title": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "title"
+        },
+        "ĐIỂM NGHẼN QUY TRÌNH BÁN HÀNG"
+      ]
+    },
+    "steps": {
+      "fn": "join",
+      "args": [
+        {
+          "fn": "default",
+          "args": [
+            {
+              "field": "steps"
+            },
+            []
+          ]
+        },
+        ", "
+      ]
+    },
+    "block_step": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "block_step"
+        },
+        2
+      ]
+    },
+    "tag": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "tag"
+        },
+        "Khách tiềm năng"
+      ]
+    },
+    "value": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "value"
+        },
+        "42"
+      ]
+    },
+    "caption": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "caption"
+        },
+        ""
+      ]
+    }
+  }
+}

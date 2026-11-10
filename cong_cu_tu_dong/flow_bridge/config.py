@@ -1,7 +1,11 @@
 """Shared profile and Flow client configuration."""
 
+import contextlib
 import os
 from pathlib import Path
+import select
+import shutil
+import subprocess
 import sys
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -24,6 +28,59 @@ _DEFAULT_BROWSER_CHANNEL = "msedge" if sys.platform == "win32" else "chromium"
 BROWSER_CHANNEL = os.environ.get("BROWSER_CHANNEL", _DEFAULT_BROWSER_CHANNEL)
 DEFAULT_TIMEOUT_MS = 240000
 POLL_INTERVAL_SEC = 3
+
+
+FLOW_HEADED = os.environ.get("FLOW_HEADED", "1") != "0"
+
+
+def _start_xvfb():
+    """Bật Xvfb trên số display trống do chính Xvfb chọn (-displayfd), không đụng display :99 của phiên đăng nhập noVNC."""
+    xvfb = shutil.which(os.environ.get("FLOW_XVFB_BIN", "Xvfb"))
+    if not xvfb:
+        return None
+    read_fd, write_fd = os.pipe()
+    process = None
+    try:
+        process = subprocess.Popen(
+            [xvfb, "-displayfd", str(write_fd), "-screen", "0", "1400x900x24", "-nolisten", "tcp"],
+            pass_fds=[write_fd], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+        os.close(write_fd)
+        write_fd = -1
+        ready, _, _ = select.select([read_fd], [], [], 10)
+        number = os.read(read_fd, 16).decode().strip() if ready else ""
+        if not number.isdigit() or process.poll() is not None:
+            raise RuntimeError("XVFB_START_FAILED")
+        return process, {**os.environ, "DISPLAY": f":{number}"}
+    except Exception:
+        if process and process.poll() is None:
+            process.kill()
+        return None
+    finally:
+        os.close(read_fd)
+        if write_fd != -1:
+            os.close(write_fd)
+
+
+@contextlib.contextmanager
+def browser_display(headless: bool):
+    """Chromium headless dễ bị reCAPTCHA của Google chấm thấp nên trên Linux chạy có cửa sổ thật trong Xvfb; lỗi thì dùng lại headless.
+
+    Trả về (headless_hieu_luc, env_cho_trinh_duyet).
+    """
+    started = _start_xvfb() if headless and FLOW_HEADED and sys.platform.startswith("linux") else None
+    if started is None:
+        yield headless, None
+        return
+    process, env = started
+    try:
+        yield False, env
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
 
 
 def browser_launch_args(*extra: str) -> list[str]:

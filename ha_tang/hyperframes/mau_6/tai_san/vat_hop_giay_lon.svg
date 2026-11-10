@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -100 100 100" width="100" height="100" data-anchor="0,0">
+  <g id="box-large">
+    <polygon points="-45,0 45,0 45,-58 -45,-58" fill="#e6dcce" />
+    <polygon points="-45,-58 0,-90 90,-90 45,-58" fill="#f6efe0" />
+    <polygon points="45,0 45,-58 90,-90 90,-32" fill="#d6c9b8" />
+    <polygon points="-10,-58 10,-58 55,-90 35,-90" fill="#ffd54a" opacity="0.9" />
+    <polygon points="-10,0 10,0 10,-58 -10,-58" fill="#e6be33" opacity="0.9" />
+    <line x1="-45" y1="-58" x2="45" y2="-58" stroke="rgba(255,255,255,0.5)" stroke-width="1.2" />
+    <line x1="45" y1="-58" x2="45" y2="0" stroke="rgba(255,255,255,0.3)" stroke-width="1" />
+  </g>
+</svg>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-25 -50 50 50" width="50" height="50" data-anchor="0,0">
+  <g id="sticky-note">
+    <!-- Giay note mau vang -->
+    <polygon points="-22,0 22,0 22,-40 10,-48 -22,-48" fill="#ffd54a" />
+    <!-- Goc gap cuon origami -->
+    <polygon points="10,-48 22,-40 10,-40" fill="#e6be33" />
+    <line x1="-16" y1="-34" x2="14" y2="-34" stroke="#0a1c2b" stroke-width="2" opacity="0.5" />
+    <line x1="-16" y1="-24" x2="10" y2="-24" stroke="#0a1c2b" stroke-width="2" opacity="0.5" />
+    <line x1="-16" y1="-14" x2="4" y2="-14" stroke="#0a1c2b" stroke-width="2" opacity="0.5" />
+  </g>
+</svg>

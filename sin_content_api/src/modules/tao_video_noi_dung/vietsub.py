@@ -292,7 +292,7 @@ def align_script_words(script_words: list[str], asr_words: list[dict]) -> list[d
     return aligned
 
 
-def karaoke_cues(words: list[dict], max_words: int = 6, max_ms: int = 2800) -> list[dict]:
+def karaoke_cues(words: list[dict], max_words: int = 6, max_ms: int = 2800, comma_min: int = 4) -> list[dict]:
     """Chia từ thành cụm ngắn như phụ đề edit chuyên nghiệp; giữ mốc từng từ cho hiệu ứng tô từ."""
     cues: list[dict] = []
     current: list[dict] = []
@@ -316,7 +316,7 @@ def karaoke_cues(words: list[dict], max_words: int = 6, max_ms: int = 2800) -> l
             flush()
         current.append(word)
         text = word["text"]
-        if len(current) >= 2 and (text.endswith((".", "!", "?", ";", ":")) or (len(current) >= 4 and text.endswith(","))):
+        if len(current) >= 2 and (text.endswith((".", "!", "?", ";", ":")) or (len(current) >= comma_min and text.endswith(","))):
             flush()
     flush()
     for cue, following in zip(cues, cues[1:]):

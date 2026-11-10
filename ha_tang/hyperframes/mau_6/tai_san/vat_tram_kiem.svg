@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-35 -90 70 90" width="70" height="90" data-anchor="0,0">
+  <g id="check-station">
+    <!-- Cot tram -->
+    <polygon points="-8,0 8,0 8,-70 -8,-70" fill="#12324a" />
+    <polygon points="8,0 14,-5 14,-75 8,-70" fill="#0d283c" />
+    <!-- Khung cam bien origami tren dinh -->
+    <polygon points="-30,-70 30,-70 24,-88 -24,-88" fill="#5cc8c0" />
+    <polygon points="30,-70 24,-88 34,-92 40,-74" fill="#46ada6" />
+    <!-- Mat quet / den tin hieu -->
+    <circle cx="0" cy="-79" r="5" fill="#ffd54a" />
+    <line x1="-30" y1="-70" x2="30" y2="-70" stroke="rgba(255,255,255,0.5)" stroke-width="1.2" />
+  </g>
+</svg>

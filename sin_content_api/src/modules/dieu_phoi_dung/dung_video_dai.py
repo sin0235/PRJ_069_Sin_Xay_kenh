@@ -1512,7 +1512,7 @@ def _tao_timeline(
         "captions": _caption_track(clip, words, cuts, width=width, height=height),
         "karaoke_settings": {
             "preset": caption_preset,
-            "font_size": 70 if height > width else 50,
+            "font_size": 92 if height > width else 90,
         },
     }
 

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-40 -80 80 80" width="80" height="80" data-anchor="0,0">
+  <g id="box-med">
+    <polygon points="-35,0 35,0 35,-45 -35,-45" fill="#e6dcce" />
+    <polygon points="-35,-45 0,-70 70,-70 35,-45" fill="#f6efe0" />
+    <polygon points="35,0 35,-45 70,-70 70,-25" fill="#d6c9b8" />
+    <polygon points="-8,-45 8,-45 43,-70 27,-70" fill="#ffd54a" opacity="0.9" />
+    <polygon points="-8,0 8,0 8,-45 -8,-45" fill="#e6be33" opacity="0.9" />
+    <line x1="-35" y1="-45" x2="35" y2="-45" stroke="rgba(255,255,255,0.5)" stroke-width="1.2" />
+    <line x1="35" y1="-45" x2="35" y2="0" stroke="rgba(255,255,255,0.3)" stroke-width="1" />
+  </g>
+</svg>

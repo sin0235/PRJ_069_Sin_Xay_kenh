@@ -1,0 +1,218 @@
+{
+  "V1": {
+    "template": "V1 - Điểm đau, nguyên nhân, cách gỡ (Pain, Cause, Fix)",
+    "storyboard_path": "ha_tang\\hyperframes\\mau_video\\v1\\storyboard_baha_v1.json",
+    "overall_passed": true,
+    "results": {
+      "GV1": {
+        "gate": "GV1",
+        "passed": true,
+        "details": {
+          "total_duration": 100,
+          "duration_ok": true,
+          "signature_occurrences": 4,
+          "signature_ok": true,
+          "flow_seconds": 20,
+          "flow_ok": true
+        }
+      },
+      "GV2": {
+        "gate": "GV2",
+        "passed": true,
+        "coverage": 1.0,
+        "errors": []
+      },
+      "GV3": {
+        "gate": "GV3",
+        "passed": true,
+        "details": {
+          "unique_layouts_count": 12,
+          "layout_variety_ok": true,
+          "max_fast_streak": 1,
+          "fast_streak_ok": true,
+          "has_consecutive_same_layout": false
+        }
+      },
+      "GV4": {
+        "gate": "GV4",
+        "passed": true,
+        "details": {
+          "max_transition_repetition": 1,
+          "transitions_variety_ok": true
+        }
+      },
+      "GV5": {
+        "gate": "GV5",
+        "passed": true,
+        "details": {
+          "sfx_count": 18,
+          "max_allowed_sfx": 83,
+          "density_ok": true
+        }
+      },
+      "GV6": {
+        "gate": "GV6",
+        "passed": true,
+        "details": {
+          "sub_style": "tu_dong",
+          "style_valid": true,
+          "safe_zone_ok": true
+        }
+      },
+      "GV7": {
+        "gate": "GV7",
+        "passed": true,
+        "details": {
+          "total_ram_gb": 15.81,
+          "free_ram_gb": 6.25,
+          "peak_ram_target": "< 6 GB",
+          "ram_status_ok": true
+        }
+      }
+    }
+  },
+  "V4": {
+    "template": "V4 - Trước và sau (Transformation)",
+    "storyboard_path": "ha_tang\\hyperframes\\mau_video\\v4\\storyboard_baha_v4.json",
+    "overall_passed": true,
+    "results": {
+      "GV1": {
+        "gate": "GV1",
+        "passed": true,
+        "details": {
+          "total_duration": 100,
+          "duration_ok": true,
+          "signature_occurrences": 3,
+          "signature_ok": true,
+          "flow_seconds": 10,
+          "flow_ok": true
+        }
+      },
+      "GV2": {
+        "gate": "GV2",
+        "passed": true,
+        "coverage": 1.0,
+        "errors": []
+      },
+      "GV3": {
+        "gate": "GV3",
+        "passed": true,
+        "details": {
+          "unique_layouts_count": 12,
+          "layout_variety_ok": true,
+          "max_fast_streak": 0,
+          "fast_streak_ok": true,
+          "has_consecutive_same_layout": false
+        }
+      },
+      "GV4": {
+        "gate": "GV4",
+        "passed": true,
+        "details": {
+          "max_transition_repetition": 1,
+          "transitions_variety_ok": true
+        }
+      },
+      "GV5": {
+        "gate": "GV5",
+        "passed": true,
+        "details": {
+          "sfx_count": 16,
+          "max_allowed_sfx": 83,
+          "density_ok": true
+        }
+      },
+      "GV6": {
+        "gate": "GV6",
+        "passed": true,
+        "details": {
+          "sub_style": "hop_mau_dong_chinh",
+          "style_valid": true,
+          "safe_zone_ok": true
+        }
+      },
+      "GV7": {
+        "gate": "GV7",
+        "passed": true,
+        "details": {
+          "total_ram_gb": 15.81,
+          "free_ram_gb": 6.25,
+          "peak_ram_target": "< 6 GB",
+          "ram_status_ok": true
+        }
+      }
+    }
+  },
+  "V2": {
+    "template": "V2 - Con số tố cáo (Numbers Reveal)",
+    "storyboard_path": "ha_tang\\hyperframes\\mau_video\\v2\\storyboard_baha_v2.json",
+    "overall_passed": true,
+    "results": {
+      "GV1": {
+        "gate": "GV1",
+        "passed": true,
+        "details": {
+          "total_duration": 100,
+          "duration_ok": true,
+          "signature_occurrences": 4,
+          "signature_ok": true,
+          "flow_seconds": 10,
+          "flow_ok": true
+        }
+      },
+      "GV2": {
+        "gate": "GV2",
+        "passed": true,
+        "coverage": 1.0,
+        "errors": []
+      },
+      "GV3": {
+        "gate": "GV3",
+        "passed": true,
+        "details": {
+          "unique_layouts_count": 12,
+          "layout_variety_ok": true,
+          "max_fast_streak": 0,
+          "fast_streak_ok": true,
+          "has_consecutive_same_layout": false
+        }
+      },
+      "GV4": {
+        "gate": "GV4",
+        "passed": true,
+        "details": {
+          "max_transition_repetition": 1,
+          "transitions_variety_ok": true
+        }
+      },
+      "GV5": {
+        "gate": "GV5",
+        "passed": true,
+        "details": {
+          "sfx_count": 22,
+          "max_allowed_sfx": 83,
+          "density_ok": true
+        }
+      },
+      "GV6": {
+        "gate": "GV6",
+        "passed": true,
+        "details": {
+          "sub_style": "bento_ba_tang",
+          "style_valid": true,
+          "safe_zone_ok": true
+        }
+      },
+      "GV7": {
+        "gate": "GV7",
+        "passed": true,
+        "details": {
+          "total_ram_gb": 15.81,
+          "free_ram_gb": 6.25,
+          "peak_ram_target": "< 6 GB",
+          "ram_status_ok": true
+        }
+      }
+    }
+  }
+}

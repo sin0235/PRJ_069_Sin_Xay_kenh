@@ -20,7 +20,6 @@ if sys.platform == "win32":
         pass
 
 from playwright.sync_api import sync_playwright
-from profile_guard import profile_locked
 
 from config import (
     BROWSER_CHANNEL,
@@ -54,6 +53,10 @@ class FlowQuotaExceeded(RuntimeError):
 
 class FlowSubmissionNotSent(RuntimeError):
     """Flow UI failed before the generation request was submitted."""
+
+
+class FlowUnusualActivity(FlowSubmissionNotSent):
+    """Google rejected the automated session (reCAPTCHA) with its 'unusual activity' error; retrying immediately only worsens it."""
 
 
 def classify_provider_state(

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -70 100 70" width="100" height="70" data-anchor="0,0">
+  <g id="kpi-card">
+    <path d="M-46,0 L46,0 Q50,0 50,-4 L50,-64 Q50,-68 46,-68 L-46,-68 Q-50,-68 -50,-64 L-50,-4 Q-50,0 -46,0 Z" fill="#12324a" />
+    <rect x="-42" y="-62" width="84" height="20" rx="3" fill="#184261" />
+    <polygon points="-42,-62 0,-62 -20,-42 -42,-42" fill="#20537a" />
+    <circle cx="34" cy="-52" r="5" fill="#5cc8c0" />
+    <!-- Chi so KPI noi bat -->
+    <rect x="-40" y="-34" width="48" height="18" rx="2" fill="#ffd54a" opacity="0.9" />
+    <polygon points="18,-30 40,-30 29,-16" fill="#5cc8c0" />
+    <line x1="-50" y1="-68" x2="50" y2="-68" stroke="rgba(255,255,255,0.3)" stroke-width="1.2" />
+  </g>
+</svg>

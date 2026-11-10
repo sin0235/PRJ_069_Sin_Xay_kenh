@@ -1,0 +1,73 @@
+{
+  "order": 0,
+  "layout": "BOOK_FLIP",
+  "variant_key": "book_flip",
+  "block": "book-flip",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "title": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "title"
+        },
+        "CHUYỂN ĐỔI MÔ HÌNH VẬN HÀNH"
+      ]
+    },
+    "before_label": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "docs.0.label"
+        },
+        "HỖN LOẠN & THỦ CÔNG"
+      ]
+    },
+    "after_label": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "docs.1.label"
+        },
+        "TỰ ĐỘNG & TINH GỌN"
+      ]
+    },
+    "steps": {
+      "fn": "join",
+      "args": [
+        {
+          "fn": "default",
+          "args": [
+            {
+              "field": "steps"
+            },
+            []
+          ]
+        },
+        ", "
+      ]
+    },
+    "diff_label": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "diff_label"
+        },
+        "TIẾT KIỆM 40% GIỜ"
+      ]
+    },
+    "caption": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "caption"
+        },
+        ""
+      ]
+    }
+  }
+}

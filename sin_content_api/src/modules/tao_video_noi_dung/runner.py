@@ -730,9 +730,9 @@ def _karaoke_captions(words: list[dict], height: int, width: int, speed: float =
     return [
         TimelineCaption(
             caption_id=f"karaoke_{index:04d}", text=cue["text"], start_ms=cue["start_ms"], duration_ms=cue["duration_ms"],
-            font_size=70 if height > width else 50, safe_zone=True, words=cue["words"],
+            font_size=92 if height > width else 90, safe_zone=True, words=cue["words"],
         )
-        for index, cue in enumerate(karaoke_cues(scaled), start=1)
+        for index, cue in enumerate(karaoke_cues(scaled, max_words=9 if height > width else 16, max_ms=7500, comma_min=5 if height > width else 8), start=1)
     ]
 
 
@@ -1138,7 +1138,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
                     text=cue["text"],
                     start_ms=cue_start,
                     duration_ms=cue_end - cue_start,
-                    font_size=70 if height > width else 50,
+                    font_size=92 if height > width else 90,
                     safe_zone=True,
                 ))
     vietsub_status = (
@@ -1150,7 +1150,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
     steps_now = json.loads(run.steps_json or "[]")
     run_music_gain = float(steps_now[0].get("music_gain_db", -10.0)) if steps_now and isinstance(steps_now[0], dict) else -10.0
     run_preset = steps_now[0].get("caption_preset") if steps_now and isinstance(steps_now[0], dict) else None
-    chosen_preset = run_preset or style.get("caption_preset") or "da_sac_phan_tang"
+    chosen_preset = run_preset or style.get("caption_preset") or "tu_dong"
     timeline = TimelineDocument(
         width=width,
         height=height,
@@ -1169,7 +1169,7 @@ def _render_and_qc(db, run: ContentVideoRun, plan: ContentVideoPlan, storyboard:
         captions=caption_cues,
         karaoke_settings=KaraokeCaptionSettings(
             preset=chosen_preset,
-            font_size=50 if width > height else 70,
+            font_size=90 if width > height else 92,
         ),
     )
     latest = db.query(TimelineVersion).filter(TimelineVersion.project_id == run.project_id).order_by(TimelineVersion.version.desc()).first()

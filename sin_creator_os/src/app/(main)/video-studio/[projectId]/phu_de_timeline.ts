@@ -1,8 +1,8 @@
 import type { KaraokeCaptionSettings, TimelineCaption, TimelineDocument } from "@/lib/api/media-studio-api";
 
 export const KARAOKE_CAPTION_DEFAULTS: KaraokeCaptionSettings = {
-  preset: "bat_nhip",
-  font_size: 56,
+  preset: "tu_dong",
+  font_size: 84,
   layout: "center",
   accent_color: "champagne",
   outline: true,

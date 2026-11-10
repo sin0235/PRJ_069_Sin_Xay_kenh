@@ -1,0 +1,355 @@
+<!doctype html>
+<!--
+  book-flip: HyperFrames component scene (Trước và sau lật trang)
+  Thiết kế theo chuẩn Origami Editorial Motion B2B v1.
+-->
+<html
+  lang="vi"
+  data-composition-id="book-flip"
+  data-composition-duration="9"
+  data-composition-variables='[
+    { "id": "title", "type": "string", "role": "content", "label": "Tiêu đề", "default": "CHUYỂN ĐỔI MÔ HÌNH VẬN HÀNH" },
+    { "id": "before_label", "type": "string", "role": "content", "label": "Trạng thái trước", "default": "HỖN LOẠN & THỦ CÔNG" },
+    { "id": "after_label", "type": "string", "role": "content", "label": "Trạng thái sau", "default": "TỰ ĐỘNG & TINH GỌN" },
+    { "id": "steps", "type": "string", "role": "content", "label": "Các mục sắp xếp", "default": "Hợp đồng, Báo giá, Chăm sóc, Tiến độ" },
+    { "id": "diff_label", "type": "string", "role": "content", "label": "Con dấu kết quả", "default": "TIẾT KIỆM 40% GIỜ" },
+    { "id": "caption", "type": "string", "role": "content", "label": "Kết luận", "default": "Từ xử lý thủ công chuyển sang vận hành thông minh" }
+  ]'
+>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Book Flip</title>
+  </head>
+  <body>
+    <template>
+      <div id="root" data-composition-id="book-flip" data-duration="9" data-fps="30">
+        <style>
+          #root {
+            position: absolute;
+            inset: 0;
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            background: #0a1c2b;
+            font-family: 'Viet', sans-serif;
+            color: #f6efe0;
+            user-select: none;
+            perspective: 1600px;
+          }
+          .-world {
+            position: absolute;
+            inset: 0;
+            transform-origin: 50% 50%;
+            transform-style: preserve-3d;
+          }
+          .-back, .-mid, .-front, .-fx { position: absolute; inset: 0; }
+          .-front, .-fx { pointer-events: none; }
+          .title-box {
+            position: absolute;
+            top: 7%;
+            left: 6%;
+            font-size: 38px;
+            font-weight: 800;
+            color: #ffd54a;
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+          }
+          .title-word {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          /* Bàn làm việc phối cảnh 3D */
+          .desk-plane {
+            position: absolute;
+            top: 18%;
+            left: 10%;
+            width: 80%;
+            height: 52%;
+            background: #12324a;
+            border-radius: 16px;
+            border: 2px solid rgba(255,255,255,0.18);
+            box-shadow: 0 20px 40px rgba(6,17,27,0.45);
+            transform: rotateX(16deg);
+            transform-style: preserve-3d;
+          }
+          /* Trang giấy lớn trung tâm */
+          .flip-book {
+            position: absolute;
+            top: 15%;
+            left: 28%;
+            width: 44%;
+            height: 70%;
+            perspective: 1400px;
+          }
+          .page-leaf {
+            position: absolute;
+            inset: 0;
+            background: #f6efe0;
+            border-radius: 8px;
+            box-shadow: 5px 12px 24px rgba(0,0,0,0.3);
+            transform-origin: 0% 50%;
+            transform-style: preserve-3d;
+            padding: 24px 30px;
+            color: #0a1c2b;
+          }
+          .page-header {
+            font-size: 22px;
+            font-weight: 800;
+            color: #12324a;
+            border-bottom: 2px solid #5cc8c0;
+            padding-bottom: 8px;
+            margin-bottom: 16px;
+          }
+          .page-body-line {
+            height: 12px;
+            background: #d6c9b8;
+            border-radius: 4px;
+            margin-bottom: 12px;
+          }
+          /* Đống giấy lộn xộn bên trái */
+          .messy-pile {
+            position: absolute;
+            left: 5%;
+            top: 25%;
+            width: 18%;
+            height: 50%;
+          }
+          .messy-sheet {
+            position: absolute;
+            width: 110px;
+            height: 140px;
+            background: #e6dcce;
+            border-radius: 4px;
+            box-shadow: 2px 4px 10px rgba(0,0,0,0.25);
+            border-top: 1px solid #fff;
+          }
+          /* Ngăn tủ sắp xếp bên phải */
+          .drawer-box {
+            position: absolute;
+            right: 5%;
+            top: 25%;
+            width: 18%;
+            height: 50%;
+            background: #0d283c;
+            border: 2px solid #5cc8c0;
+            border-radius: 10px;
+            padding: 12px;
+          }
+          /* Con dấu kết quả */
+          .diff-stamp {
+            position: absolute;
+            top: 42%;
+            right: 24%;
+            border: 4px solid #e8695a;
+            color: #e8695a;
+            font-size: 26px;
+            font-weight: 900;
+            padding: 10px 24px;
+            border-radius: 8px;
+            transform: rotate(-6deg) scale(1.6);
+            opacity: 0;
+            text-transform: uppercase;
+            box-shadow: 0 8px 20px rgba(232,105,90,0.4);
+            z-index: 20;
+          }
+          .caption-chip {
+            position: absolute;
+            top: 62%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(18, 50, 74, 0.95);
+            border: 1.5px solid #5cc8c0;
+            border-radius: 30px;
+            padding: 12px 32px;
+            font-size: 24px;
+            font-weight: 600;
+            color: #f6efe0;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            white-space: nowrap;
+            opacity: 0;
+            z-index: 30;
+          }
+        </style>
+
+        <div class="-world" id="world">
+          <div class="-back" id="layer-back">
+            <svg viewBox="0 0 1920 1080" width="1920" height="1080" style="position:absolute;inset:0;opacity:0.2;">
+              <line x1="200" y1="0" x2="200" y2="1080" stroke="#fff" stroke-width="1" />
+              <line x1="1720" y1="0" x2="1720" y2="1080" stroke="#fff" stroke-width="1" />
+            </svg>
+          </div>
+
+          <div class="-mid" id="layer-mid">
+            <div class="title-box" id="title-box" data-obj="title-banner" data-kind="text" data-src="static" data-dst="stay"></div>
+
+            <div class="desk-plane" data-obj="desk-plane" data-kind="prop" data-src="static" data-dst="stay">
+              <!-- Đống giấy lộn xộn bên trái -->
+              <div class="messy-pile" id="messy-pile" data-obj="messy-pile" data-kind="prop" data-src="static" data-dst="stay">
+                <div class="messy-sheet" style="transform: rotate(-8deg); top: 10px;"></div>
+                <div class="messy-sheet" style="transform: rotate(5deg); top: 25px; left: 10px; background: #fff5d0;"></div>
+                <div class="messy-sheet" style="transform: rotate(-12deg); top: 40px; left: -5px;"></div>
+                <div class="messy-sheet" style="transform: rotate(7deg); top: 55px; left: 15px;"></div>
+              </div>
+
+              <!-- Trang lật 3D trung tâm -->
+              <div class="flip-book">
+                <div class="page-leaf" id="page-flip" data-obj="flip-page" data-kind="prop" data-src="static" data-dst="stay">
+                  <div class="page-header" id="page-header">TRƯỚC: HỖN LOẠN & THỦ CÔNG</div>
+                  <div class="page-body-line" style="width: 85%;"></div>
+                  <div class="page-body-line" style="width: 70%;"></div>
+                  <div class="page-body-line" style="width: 90%;"></div>
+                  <div class="page-body-line" style="width: 60%;"></div>
+                </div>
+              </div>
+
+              <!-- Khay sắp xếp bên phải -->
+              <div class="drawer-box" id="drawer-box" data-obj="drawer-box" data-kind="prop" data-src="static" data-dst="stay">
+                <div style="font-size: 13px; font-weight: bold; color: #5cc8c0; margin-bottom: 8px;">NGĂN TỰ ĐỘNG</div>
+                <div id="flying-slots"></div>
+              </div>
+
+              <!-- Các tài liệu bay về ngăn -->
+              <div id="flying-items-container"></div>
+            </div>
+
+            <div class="diff-stamp" id="diff-stamp" data-obj="diff-stamp" data-kind="text" data-src="offscreen-top" data-dst="stay">TIẾT KIỆM 40% GIỜ</div>
+            <div class="caption-chip" id="caption-chip" data-obj="caption-chip" data-kind="text" data-src="offscreen-bottom" data-dst="stay"></div>
+          </div>
+
+          <div class="-front" id="layer-front">
+            <!-- Bút & kẹp giấy tiền cảnh thị sai 1.6 -->
+            <svg viewBox="0 0 1920 1080" width="1920" height="1080" style="position:absolute;inset:0;opacity:0.4;">
+              <polygon points="120,850 160,820 320,1050 280,1080" fill="#ffd54a" />
+            </svg>
+          </div>
+          <div class="-fx" id="layer-fx"></div>
+        </div>
+
+        <script>
+          (function() {
+            var vars = window.__hyperframes ? window.__hyperframes.getVariables() : {
+              title: "CHUYỂN ĐỔI MÔ HÌNH VẬN HÀNH",
+              before_label: "HỖN LOẠN & THỦ CÔNG",
+              after_label: "TỰ ĐỘNG & TINH GỌN",
+              steps: "Hợp đồng, Báo giá, Chăm sóc, Tiến độ",
+              diff_label: "TIẾT KIỆM 40% GIỜ",
+              caption: "Từ xử lý thủ công chuyển sang vận hành thông minh"
+            };
+
+            var titleText = vars.title || "CHUYỂN ĐỔI MÔ HÌNH VẬN HÀNH";
+            var beforeLabel = vars.before_label || "HỖN LOẠN & THỦ CÔNG";
+            var afterLabel = vars.after_label || "TỰ ĐỘNG & TINH GỌN";
+            var steps = (vars.steps || "Hợp đồng, Báo giá, Chăm sóc, Tiến độ").split(",").map(function(s){ return s.trim(); });
+            var diffText = vars.diff_label || "TIẾT KIỆM 40% GIỜ";
+            var captionText = vars.caption || "Từ thủ công sang tự động";
+
+            // 1. Tiêu đề
+            var titleBox = document.getElementById("title-box");
+            titleText.split(" ").forEach(function(w) {
+              var s = document.createElement("span");
+              s.className = "title-word";
+              s.textContent = w;
+              titleBox.appendChild(s);
+            });
+
+            document.getElementById("diff-stamp").textContent = diffText;
+            document.getElementById("caption-chip").textContent = captionText;
+            document.getElementById("page-header").textContent = "TRƯỚC: " + beforeLabel;
+
+            // 2. Dựng các vật bay
+            var container = document.getElementById("flying-items-container");
+            var flyingEls = [];
+            steps.forEach(function(st, idx) {
+              var el = document.createElement("div");
+              el.id = "fly-doc-" + idx;
+              el.setAttribute("data-obj", "fly-doc-" + idx);
+              el.setAttribute("data-kind", "prop");
+              el.setAttribute("data-src", "spawn-from:messy-pile");
+              el.setAttribute("data-dst", "stay");
+              el.style.position = "absolute";
+              el.style.left = "8%";
+              el.style.top = (35 + idx * 6) + "%";
+              el.style.width = "90px";
+              el.style.height = "26px";
+              el.style.background = "#5cc8c0";
+              el.style.color = "#0a1c2b";
+              el.style.fontSize = "12px";
+              el.style.fontWeight = "bold";
+              el.style.display = "flex";
+              el.style.alignItems = "center";
+              el.style.justifyContent = "center";
+              el.style.borderRadius = "4px";
+              el.style.boxShadow = "2px 4px 10px rgba(0,0,0,0.3)";
+              el.style.opacity = "0";
+              el.textContent = st;
+              container.appendChild(el);
+              flyingEls.push(el);
+            });
+
+            // 3. GSAP Timeline (9 giây)
+            var tl = gsap.timeline({ paused: true });
+            var world = document.getElementById("world");
+            var pageFlip = document.getElementById("page-flip");
+
+            // 0.0 - 2.5s: Trạng thái trước, máy quay vòng cung nhẹ
+            tl.set(world, { scale: 1.02, x: 38, y: 0, rotation: -4 });
+            tl.to(".title-word", { opacity: 1, y: 0, duration: 0.5, stagger: 0.07, ease: "power3.out" }, 0.1);
+            tl.to(world, { rotation: 2, duration: 2.4, ease: "sine.inOut" }, 0.1);
+            tl.to(".messy-sheet", { y: "+=4", duration: 1.0, repeat: 1, yoyo: true, ease: "sine.inOut" }, 0.4);
+
+            // 2.5 - 4.0s: Lật trang 3D quanh gáy sách
+            tl.to(pageFlip, {
+              rotationY: -170,
+              duration: 1.5,
+              ease: "power2.inOut",
+              onUpdate: function() {
+                var deg = gsap.getProperty(pageFlip, "rotationY");
+                if (deg <= -90) {
+                  document.getElementById("page-header").textContent = "SAU: " + afterLabel;
+                  document.getElementById("page-header").style.color = "#5cc8c0";
+                  pageFlip.style.background = "#ffffff";
+                }
+              }
+            }, 2.5);
+
+            // 4.0 - 7.5s: Giấy bay theo đường cong vào ngăn sắp xếp
+            flyingEls.forEach(function(el, idx) {
+              tl.fromTo(el,
+                { opacity: 0, x: 0, y: 0 },
+                { opacity: 1, duration: 0.2 },
+                4.0 + idx * 0.4
+              );
+              tl.to(el, {
+                left: "83%",
+                top: (32 + idx * 8) + "%",
+                duration: 0.75,
+                ease: "power2.inOut"
+              }, 4.0 + idx * 0.4);
+            });
+
+            // 7.5 - 9.0s: Đẩy máy vào kết quả, con dấu đập xuống
+            tl.to(world, { scale: 1.06, x: 0, y: 0, rotation: 0, duration: 1.2, ease: "sine.inOut" }, 7.5);
+            tl.fromTo("#diff-stamp",
+              { opacity: 0, scale: 1.6, rotation: -12 },
+              { opacity: 1, scale: 1.0, rotation: -6, duration: 0.4, ease: "back.out(1.8)" },
+              7.8
+            );
+
+            // Chip kết luận
+            tl.fromTo("#caption-chip", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.5, ease: "power3.out" }, 8.0);
+
+            // Thoát mờ
+            tl.to("#root", { opacity: 0, duration: 0.25, ease: "power1.in" }, 8.75);
+
+            tl.seek(0);
+            window.__timelines = window.__timelines || {};
+            window.__timelines["book-flip"] = tl;
+            window.__timelines["main"] = tl;
+          })();
+        </script>
+      </div>
+    </template>
+  </body>
+</html>

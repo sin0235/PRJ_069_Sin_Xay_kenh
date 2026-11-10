@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -100 60 100" width="60" height="100" data-anchor="0,0">
+  <g id="char-leaving">
+    <!-- Chan buoc di -->
+    <polygon points="-12,0 -4,0 -2,-45 -10,-45" fill="#0a1c2b" />
+    <polygon points="4,0 14,-8 8,-45 0,-45" fill="#081520" />
+    <!-- Than nguoi xoay lung / nghiem buoc -->
+    <polygon points="-14,-45 10,-45 16,-75 -8,-75" fill="#9fb4c4" />
+    <polygon points="-8,-75 16,-75 4,-75" fill="#889dae" />
+    <!-- Dau buoc quay lung -->
+    <polygon points="-10,-78 12,-78 10,-96 -8,-96" fill="#e6dcce" />
+    <polygon points="-10,-78 0,-78 0,-96 -8,-96" fill="#d6c9b8" />
+  </g>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -85 60 85" width="60" height="85" data-anchor="0,0" data-anchor-hand="0,-35">
+  <g id="char-front">
+    <!-- Than duoi ngoi -->
+    <polygon points="-18,0 18,0 15,-28 -15,-28" fill="#0a1c2b" />
+    <!-- Ao origami voi 2 nếp gap trai phai -->
+    <polygon points="-15,-28 0,-28 0,-58 -22,-52" fill="#5cc8c0" />
+    <polygon points="0,-28 15,-28 22,-52 0,-58" fill="#46ada6" />
+    <!-- Co ao vang -->
+    <polygon points="-6,-58 6,-58 0,-48" fill="#ffd54a" />
+    <!-- Dau hinh da giac origami -->
+    <polygon points="-14,-62 0,-56 14,-62 12,-80 0,-84 -12,-80" fill="#f6efe0" />
+    <polygon points="-14,-62 0,-56 0,-84 -12,-80" fill="#e6dcce" />
+    <!-- Duong nep giay song mui va go ma -->
+    <line x1="0" y1="-84" x2="0" y2="-56" stroke="rgba(255,255,255,0.6)" stroke-width="1" />
+    <line x1="0" y1="-58" x2="0" y2="-28" stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+  </g>
+</svg>

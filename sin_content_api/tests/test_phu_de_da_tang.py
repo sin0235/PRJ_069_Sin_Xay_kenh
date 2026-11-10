@@ -266,8 +266,10 @@ class TestDualModeChuanHoa:
         assert "PlayResX: 1080" in ass_9_16
         assert "PlayResY: 1920" in ass_9_16
         assert ",80,80,360,1" in ass_9_16  # MarginV=360px Safe zone TikTok
-        assert r"\fs54" in ass_9_16  # Cỡ dòng dẫn 54px
-        assert r"\fs70" in ass_9_16  # Cỡ dòng đinh 70px
+        import re as _re
+        sizes = {int(x) for x in _re.findall(r"\\fs(\d+)", ass_9_16)}
+        assert max(sizes) >= 84 and min(sizes) >= 50  # chữ dọc lớn, có phân tầng
+        assert ",2,80,80,360,1" in ass_9_16  # căn giữa
 
     def test_mode_ngang_16_9_kich_thuoc_va_safe_zone(self):
         captions = [
@@ -292,9 +294,12 @@ class TestDualModeChuanHoa:
         )
         assert "PlayResX: 1920" in ass_16_9
         assert "PlayResY: 1080" in ass_16_9
-        assert ",140,140,90,1" in ass_16_9   # MarginV=90px Lower-Third
-        assert r"\fs38" in ass_16_9  # Cỡ dòng dẫn 38px
-        assert r"\fs50" in ass_16_9  # Cỡ dòng đinh 50px
+        assert ",2,140,140,70,1" in ass_16_9   # căn giữa, sát đáy 70px
+        import re as _re
+        sizes = {int(x) for x in _re.findall(r"\\fs(\d+)", ass_16_9)}
+        assert max(sizes) >= 80 and min(sizes) >= 60  # chữ ngang không nhỏ xíu
+        ass_doc = build_karaoke_ass(captions, width=1080, height=1920, settings={"preset": "da_sac_phan_tang"})
+        assert ass_doc != ass_16_9  # dọc khác ngang
 
     def test_render_ffmpeg_ca_hai_mode(self, tmp_path):
         for w, h, name in [(1080, 1920, "doc_9_16"), (1920, 1080, "ngang_16_9")]:
@@ -367,14 +372,14 @@ class TestTichHopE2ELuongDungVaTaoVideo:
         assert tl_doc["width"] == 1080
         assert tl_doc["height"] == 1920
         assert tl_doc["karaoke_settings"]["preset"] == "da_sac_phan_tang"
-        assert tl_doc["karaoke_settings"]["font_size"] == 70
+        assert tl_doc["karaoke_settings"]["font_size"] == 92
 
         # Test Mode Ngang 16:9
         tl_ngang = _tao_timeline("src_id", clip, words, width=1920, height=1080, caption_preset="bento_ba_tang")
         assert tl_ngang["width"] == 1920
         assert tl_ngang["height"] == 1080
         assert tl_ngang["karaoke_settings"]["preset"] == "bento_ba_tang"
-        assert tl_ngang["karaoke_settings"]["font_size"] == 50
+        assert tl_ngang["karaoke_settings"]["font_size"] == 90
 
     def test_runner_luong_tao_video_karaoke_captions_hai_mode(self):
         from src.modules.tao_video_noi_dung.runner import _karaoke_captions
@@ -386,9 +391,42 @@ class TestTichHopE2ELuongDungVaTaoVideo:
         # Mode Dọc: font_size 70px
         caps_doc = _karaoke_captions(words, height=1920, width=1080)
         assert len(caps_doc) > 0
-        assert caps_doc[0].font_size == 70
+        assert caps_doc[0].font_size == 92
 
         # Mode Ngang: font_size 50px
         caps_ngang = _karaoke_captions(words, height=1080, width=1920)
         assert len(caps_ngang) > 0
-        assert caps_ngang[0].font_size == 50
+        assert caps_ngang[0].font_size == 90
+
+
+class TestBonMauVaChayTheoLoi:
+    def _cap(self, text):
+        ws = text.split()
+        return {"text": text, "start_ms": 0, "duration_ms": 300 * len(ws),
+                "words": [{"text": w, "start_ms": i * 300, "end_ms": i * 300 + 280} for i, w in enumerate(ws)]}
+
+    def test_bon_mau_cho_ket_qua_khac_nhau(self):
+        cap = [self._cap("Doanh thu tăng 300% nhờ giữ chân khách quen")]
+        outs = {p: build_karaoke_ass(cap, 1920, 1080, settings={"preset": p}) for p in
+                ("da_sac_phan_tang", "hop_mau_dong_chinh", "bento_ba_tang", "inline_pop_trai")}
+        assert len(set(outs.values())) == 4
+
+    def test_tu_dong_dung_nhieu_mau(self):
+        caps = [self._cap("Doanh thu tăng 300% rồi"), self._cap("Tại sao lại như vậy nhỉ?"),
+                self._cap("Mẹo nhỏ giúp bạn làm nhanh hơn"), self._cap("Hôm nay mình chia sẻ cách làm")]
+        caps = [{**c, "start_ms": i * 5000} for i, c in enumerate(caps)]
+        ass = build_karaoke_ass(caps, 1080, 1920, settings={"preset": "tu_dong"})
+        assert ass.count("Dialogue:") > 20
+
+    def test_khong_co_moc_tu_van_chay_theo_loi(self):
+        ass = build_karaoke_ass([{"text": "Xin chào các bạn nhé", "start_ms": 0, "duration_ms": 2000}],
+                                1920, 1080, settings={"preset": "da_sac_phan_tang"})
+        assert ass.count("Dialogue:") >= 5  # mỗi từ một trạng thái
+
+    def test_mau_cu_tu_doi_sang_mau_chinh_thuc(self):
+        from src.schemas.contracts import KaraokeCaptionSettings
+        assert KaraokeCaptionSettings(preset="bat_nhip").preset == "da_sac_phan_tang"
+
+    def test_chu_khong_lech_trai(self):
+        ass = build_karaoke_ass([self._cap("Câu hỏi hay nhất là gì vậy")], 1080, 1920, settings={"preset": "inline_pop_trai"})
+        assert ",2,80,80,360,1" in ass

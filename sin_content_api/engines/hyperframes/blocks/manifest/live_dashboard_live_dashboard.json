@@ -1,0 +1,103 @@
+{
+  "order": 0,
+  "layout": "LIVE_DASHBOARD",
+  "variant_key": "live_dashboard",
+  "block": "live-dashboard",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "title": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "title"
+        },
+        "HIỆU SUẤT HOẠT ĐỘNG"
+      ]
+    },
+    "labels": {
+      "fn": "join",
+      "args": [
+        {
+          "fn": "default",
+          "args": [
+            {
+              "field": "labels"
+            },
+            []
+          ]
+        },
+        ", "
+      ]
+    },
+    "data": {
+      "fn": "join",
+      "args": [
+        {
+          "fn": "default",
+          "args": [
+            {
+              "field": "series.0.values"
+            },
+            []
+          ]
+        },
+        ", "
+      ]
+    },
+    "data2": {
+      "fn": "join",
+      "args": [
+        {
+          "fn": "default",
+          "args": [
+            {
+              "field": "series.1.values"
+            },
+            []
+          ]
+        },
+        ", "
+      ]
+    },
+    "unit": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "unit"
+        },
+        "%"
+      ]
+    },
+    "to_value": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "to_value"
+        },
+        80
+      ]
+    },
+    "tag": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "tag"
+        },
+        ""
+      ]
+    },
+    "caption": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "caption"
+        },
+        ""
+      ]
+    }
+  }
+}

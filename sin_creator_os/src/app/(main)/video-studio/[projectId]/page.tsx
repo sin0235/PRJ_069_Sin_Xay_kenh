@@ -88,9 +88,11 @@ import {
 import { capNhatHinhHocOverlay } from "@/lib/video_studio/timeline_overlay";
 
 const KARAOKE_PRESETS = [
-  { value: "bat_nhip", label: "Nảy theo từ", accent_color: "champagne", word_pop: true, layout: "center" },
-  { value: "to_sac", label: "Tô sắc", accent_color: "baha_blue", word_pop: false, layout: "center" },
-  { value: "hai_dong", label: "Hai dòng", accent_color: "coral", word_pop: false, layout: "two_line" },
+  { value: "tu_dong", label: "Tự động", accent_color: "champagne", word_pop: true, layout: "center" },
+  { value: "da_sac_phan_tang", label: "Đa sắc phân tầng", accent_color: "champagne", word_pop: true, layout: "center" },
+  { value: "hop_mau_dong_chinh", label: "Hộp màu", accent_color: "coral", word_pop: true, layout: "center" },
+  { value: "bento_ba_tang", label: "Bento 3 tầng", accent_color: "baha_blue", word_pop: true, layout: "center" },
+  { value: "inline_pop_trai", label: "Phóng to nội dòng", accent_color: "champagne", word_pop: true, layout: "left" },
 ] as const;
 
 export default function VideoStudioPage() {
@@ -1254,7 +1256,7 @@ export default function VideoStudioPage() {
                       aria-label="Phong cách karaoke"
                       variant="outline"
                       size="sm"
-                      className="grid w-full grid-cols-3"
+                      className="grid w-full grid-cols-2"
                       onValueChange={(value) => {
                         const preset = KARAOKE_PRESETS.find((item) => item.value === value);
                         if (preset) {
@@ -1287,12 +1289,12 @@ export default function VideoStudioPage() {
                       className="grid w-full grid-cols-3"
                       onValueChange={(value) => {
                         const size = Number(value);
-                        if (size === 42 || size === 56 || size === 70) {
+                        if (size === 64 || size === 84 || size === 100) {
                           setKaraokeSettings((current) => ({ ...current, font_size: size }));
                         }
                       }}
                     >
-                      {[42, 56, 70].map((size) => (
+                      {[64, 84, 100].map((size) => (
                         <ToggleGroupItem key={size} value={String(size)} className="text-[10px]">{size}px</ToggleGroupItem>
                       ))}
                     </ToggleGroup>

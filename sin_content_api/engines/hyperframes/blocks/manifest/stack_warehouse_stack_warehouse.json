@@ -1,0 +1,73 @@
+{
+  "order": 0,
+  "layout": "STACK_WAREHOUSE",
+  "variant_key": "stack_warehouse",
+  "block": "stack-warehouse",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "title": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "title"
+        },
+        "TỒN KHO VÀ ĐIỂM NGHẼN VẬN HÀNH"
+      ]
+    },
+    "items": {
+      "fn": "join",
+      "args": [
+        {
+          "fn": "default",
+          "args": [
+            {
+              "field": "items"
+            },
+            []
+          ]
+        },
+        ", "
+      ]
+    },
+    "target": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "target"
+        },
+        5
+      ]
+    },
+    "tag": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "tag"
+        },
+        "Món cần tìm bị chôn"
+      ]
+    },
+    "value": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "value"
+        },
+        "1.2 TỶ"
+      ]
+    },
+    "caption": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "caption"
+        },
+        ""
+      ]
+    }
+  }
+}

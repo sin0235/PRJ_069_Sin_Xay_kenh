@@ -21,6 +21,12 @@ VALID = {
     "NOTE_TYPING": {"title": "Kế hoạch tuần", "steps": ["Họp giao ban đầu tuần", "Triển khai tính năng mới", "Kiểm thử toàn diện"]},
     "CTA_CLOSE": {"title": "Baha Group", "caption": "Liên hệ ngay để chuyển đổi số", "tag": "Giải pháp DN", "value": "baha.vn"},
     "NOTIFY_STACK": {"title": "Hệ thống", "steps": ["Đơn hàng mới #1024", "Thanh toán thành công", "Đã xuất kho"]},
+    "LIVE_DASHBOARD": {"title": "Bảng điều khiển kinh doanh", "labels": ["T1", "T2", "T3"], "series": [{"name": "dt", "values": [20.0, 50.0, 80.0]}], "to_value": 75, "tag": "Tăng trưởng"},
+    "CASH_RIVER": {"title": "Dòng tiền doanh nghiệp", "sources": [{"label": "Bán lẻ", "value": 100}, {"label": "B2B", "value": 200}], "uses": [{"label": "Vận hành", "value": 80}, {"label": "Mặt bằng", "value": 120}], "tag": "Rò rỉ kho", "value": "50 tr", "caption": "Thất thoát"},
+    "PIPELINE_RAIL": {"title": "Quy trình xử lý đơn", "steps": ["Tiếp nhận", "Duyệt đơn", "Giao hàng"], "block_step": 1, "tag": "Đơn trễ", "value": "15%", "caption": "Điểm nghẽn"},
+    "STACK_WAREHOUSE": {"title": "Kho hàng tồn đọng", "items": [{"label": "Khu A", "value": 80}, {"label": "Khu B", "value": 120}], "target": 100, "tag": "Linh kiện cũ", "value": "300 tr", "caption": "Vượt sức chứa"},
+    "BOOK_FLIP": {"title": "Chuyển đổi sổ sách", "docs": [{"title": "Trước", "label": "Giấy tờ", "value": "Thủ công"}, {"title": "Sau", "label": "Số hóa", "value": "Tự động"}], "steps": ["Hóa đơn", "Chứng từ", "Báo cáo"], "diff_label": "ĐÃ DUYỆT", "caption": "Gọn gàng"},
+    "TEAM_BOARD": {"title": "Giám đốc", "steps": ["Duyệt chi", "Ký hợp đồng", "Báo giá"], "pick": 1, "tag": "Chờ duyệt", "value": "12 việc", "caption": "Tắc nghẽn"},
 }
 
 
@@ -184,7 +190,7 @@ def test_ban_do_native_co_du_loai_canh_khoi():
 
 
 def test_chuyen_canh_luan_phien_va_deu_dinh_thoi():
-    assert hf_project.BOUNDARY_TRANSITIONS == (*hf_transitions.TRANSITION_KINDS, "flash")
+    assert hf_project.BOUNDARY_TRANSITIONS == ("dissolve", "grid", "flash", *hf_transitions.TRANSITION_KINDS)
     iris = hf_project.boundary_transition("iris", "#s03", 10.0)
     assert "circle(0% at 50% 50%)" in iris and iris.count("tl.") == 2 and '9.850' in iris
     assert "xPercent: 100" in hf_project.boundary_transition("whip", "#s05", 20.0)
@@ -200,7 +206,7 @@ def test_ghep_nhieu_canh_dung_du_kieu_chuyen_canh(tmp_path):
         start += 5.0
     hf_project.build_project(tmp_path / "p", shots, None, None, transitions=True, aspect_ratio="16:9")
     index = (tmp_path / "p" / "index.html").read_text(encoding="utf-8")
-    assert "circle(0% at 50% 50%)" in index and "xPercent: 100" in index and 'id="flash"' in index and "tr01" in index
+    assert "circle(0% at 50% 50%)" in index and "xPercent: 100" in index and 'id="flash"' in index and "tr06" in index
     assert "assets/vendor/CustomEase.min.js" in index and (tmp_path / "p" / "assets" / "vendor" / "CustomEase.min.js").is_file()
 
 

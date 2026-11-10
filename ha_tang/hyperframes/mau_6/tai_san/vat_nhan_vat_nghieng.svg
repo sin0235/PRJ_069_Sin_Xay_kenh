@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -85 60 85" width="60" height="85" data-anchor="0,0" data-anchor-hand="18,-35">
+  <g id="char-tilt">
+    <polygon points="-15,0 12,0 18,-28 -10,-28" fill="#0a1c2b" />
+    <polygon points="-10,-28 18,-28 24,-52 -6,-58" fill="#5cc8c0" />
+    <polygon points="-6,-58 4,-58 10,-42" fill="#46ada6" />
+    <!-- Tay gio ve phia truoc (truyen viec) -->
+    <polygon points="12,-42 28,-36 24,-32 10,-38" fill="#f6efe0" />
+    <!-- Dau nghieng -->
+    <polygon points="-10,-60 16,-54 22,-72 8,-84 -8,-76" fill="#f6efe0" />
+    <polygon points="-10,-60 8,-84 -8,-76" fill="#e6dcce" />
+    <line x1="8" y1="-84" x2="16" y2="-54" stroke="rgba(255,255,255,0.6)" stroke-width="1" />
+  </g>
+</svg>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-40 -80 80 80" width="80" height="80" data-anchor="0,0">
+  <g id="money-bag-root">
+    <!-- Day va phan than duoi -->
+    <polygon points="-36,0 36,0 40,-35 -40,-35" fill="#46ada6" />
+    <polygon points="-40,-35 0,-35 0,0 -36,0" fill="#5cc8c0" />
+    <!-- Than giua voi nep gap origami -->
+    <polygon points="-40,-35 0,-35 -15,-55 -32,-55" fill="#5cc8c0" />
+    <polygon points="0,-35 40,-35 32,-55 15,-55" fill="#46ada6" />
+    <polygon points="-15,-55 15,-55 0,-35" fill="#75d6cf" />
+    <!-- Mieng tui buoc day vang -->
+    <polygon points="-18,-55 18,-55 14,-62 -14,-62" fill="#ffd54a" />
+    <polygon points="-24,-62 24,-62 28,-78 0,-70" fill="#5cc8c0" />
+    <polygon points="0,-70 28,-78 -28,-78" fill="#46ada6" />
+    <!-- Nep day buoc ruy bang -->
+    <polygon points="0,-60 8,-50 2,-48" fill="#e6be33" />
+    <line x1="-40" y1="-35" x2="40" y2="-35" stroke="rgba(255,255,255,0.3)" stroke-width="1" />
+  </g>
+</svg>

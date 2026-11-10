@@ -106,6 +106,8 @@ class TuPhuDePhanTang:
     is_uppercase: bool = False
     is_pill: bool = False
     scale_factor: float = 1.0
+    muted: bool = False      # chữ dẫn nhạt (xám dịu) như dòng dẫn trong bản mẫu HTML
+    tracking: int = 0        # giãn cách chữ (px) cho dòng tagline của mẫu Bento
 
 
 @dataclass
@@ -123,6 +125,7 @@ def phan_tich_cum_phu_de(
     duration_ms: int,
     preset: str = "da_sac_phan_tang",
     base_font_size: int = 84,
+    portrait: bool = False,
 ) -> CumPhuDePhanTang:
     """Phân tích một cụm phụ đề thành cấu trúc đa tầng, đa sắc theo preset được chọn."""
     if not words:
@@ -145,103 +148,160 @@ def phan_tich_cum_phu_de(
         parsed_words.append(TuPhuDePhanTang(text=text, start_ms=s_ms, end_ms=e_ms, role=role))
 
     n = len(parsed_words)
+    B = base_font_size
+    per_line = 4 if portrait else 7   # sức chứa một dòng: khung ngang rộng nên nhiều từ hơn khung dọc
 
-    # 1. PRESET: da_sac_phan_tang (Hormozi Viral - 2 hoặc 3 dòng chữ to nhỏ)
+    def chia_dong(total: int) -> list[int]:
+        """Số từ mỗi dòng theo sức chứa khung: 1 dòng nếu đủ chỗ, 2 dòng, tối đa 3 dòng."""
+        if total <= per_line:
+            return [total]
+        if total <= per_line * 2:
+            lead = max(2, round(total * 0.42))
+            return [lead, total - lead]
+        lead = max(2, round(total * 0.3))
+        mid = max(2, round(total * 0.4))
+        return [lead, mid, total - lead - mid]
+
+    sizes = chia_dong(n)
+
+    def diem_ngat(prev_w: str, next_w: str) -> int:
+        """Điểm cho chỗ ngắt dòng: ngắt sau dấu câu tốt, cắt đôi cụm từ khóa (vd "sai lầm") là xấu."""
+        score = 0
+        if prev_w.rstrip().endswith((",", ".", ";", ":", "!", "?", "…")):
+            score += 2
+        if (phan_loai_tu_khoa(f"{prev_w} {next_w}") != "NORMAL_WHITE"
+                and phan_loai_tu_khoa(prev_w) == "NORMAL_WHITE" and phan_loai_tu_khoa(next_w) == "NORMAL_WHITE"):
+            score -= 3
+        return score
+
+    if len(sizes) > 1:
+        # dịch ranh giới dòng tối đa 2 từ để ngắt đúng chỗ, mỗi dòng vẫn giữ tối thiểu 2 từ
+        bounds = [sum(sizes[: i + 1]) for i in range(len(sizes) - 1)]
+        for bi, b in enumerate(bounds):
+            lo = (bounds[bi - 1] if bi else 0) + 2
+            hi = (bounds[bi + 1] if bi + 1 < len(bounds) else n) - 2
+            best, best_score = b, None
+            for shift in (0, -1, 1, -2, 2):
+                cand = b + shift
+                if not lo <= cand <= hi:
+                    continue
+                sc = diem_ngat(parsed_words[cand - 1].text, parsed_words[cand].text)
+                if best_score is None or sc > best_score:
+                    best, best_score = cand, sc
+            bounds[bi] = best
+        edges = [0, *bounds, n]
+        sizes = [edges[i + 1] - edges[i] for i in range(len(edges) - 1)]
+
+    line_of: list[int] = []
+    pos_in_line: list[int] = []
+    for li, cnt in enumerate(sizes):
+        for k in range(cnt):
+            line_of.append(li)
+            pos_in_line.append(k)
+    n_lines = len(sizes)
+    last_line = n_lines - 1
+
+    for i, w in enumerate(parsed_words):
+        w.line_index = line_of[i]
+
+    # Tỉ lệ cỡ chữ giữa các tầng chỉ lệch nhẹ (khoảng 1.0 : 1.3) để không chênh quá mức.
+    DAN, CHINH, KET, NHAN = 0.80, 1.0, 0.80, 0.95
+
+    # 1. da_sac_phan_tang (Hormozi Viral): dẫn -> đinh vàng/san hô -> kết xanh lục
     if preset == "da_sac_phan_tang":
-        if n <= 3:
-            # Câu rất ngắn (1-3 từ): Phóng to đồng đều
-            for w in parsed_words:
-                w.line_index = 0
-                w.font_size = round(base_font_size * 1.15)
-                if w.role != "NORMAL_WHITE":
-                    w.is_uppercase = True
-        elif n <= 6:
-            # 4-6 từ: Chia 2 dòng (Dòng 1 dẫn nhỏ, Dòng 2 đinh lớn IN HOA)
-            mid = 2 if n == 4 else (2 if n == 5 else 3)
-            for i, w in enumerate(parsed_words):
-                if i < mid:
-                    w.line_index = 0
-                    w.font_size = round(base_font_size * 0.72)  # Dòng dẫn nhỏ gọn ~60px
-                else:
-                    w.line_index = 1
-                    w.font_size = round(base_font_size * 1.20)  # Dòng đinh to rực rỡ ~100px
-                    w.is_uppercase = True
-        else:
-            # 7+ từ: Chia 3 dòng Bento (Dẫn nhỏ, Đinh cực đại, Kết vừa)
-            l1_end = max(2, n // 3)
-            l2_end = max(l1_end + 2, (2 * n) // 3)
-            for i, w in enumerate(parsed_words):
-                if i < l1_end:
-                    w.line_index = 0
-                    w.font_size = round(base_font_size * 0.65)
-                elif i < l2_end:
-                    w.line_index = 1
-                    w.font_size = round(base_font_size * 1.25)
-                    w.is_uppercase = True
-                else:
-                    w.line_index = 2
-                    w.font_size = round(base_font_size * 0.85)
-
-    # 2. PRESET: hop_mau_dong_chinh (CapCut Pill Box)
-    elif preset == "hop_mau_dong_chinh":
-        if n <= 3:
-            for w in parsed_words:
-                w.line_index = 0
-                w.font_size = base_font_size
-                w.is_pill = (w.role != "NORMAL_WHITE")
-        else:
-            split_at = n // 2
-            for i, w in enumerate(parsed_words):
-                if i < split_at:
-                    w.line_index = 0
-                    w.font_size = round(base_font_size * 0.75)
-                else:
-                    w.line_index = 1
-                    w.font_size = round(base_font_size * 1.10)
-                    w.is_pill = (w.role in ("PAIN_CORAL", "METRIC_GOLD", "GROWTH_EMERALD"))
-                    w.is_uppercase = True
-
-    # 3. PRESET: bento_ba_tang (Khối chữ Bento 3 tầng)
-    elif preset == "bento_ba_tang":
-        if n <= 4:
-            for i, w in enumerate(parsed_words):
-                w.line_index = 0 if i < 2 else 1
-                w.font_size = round(base_font_size * 0.65) if w.line_index == 0 else round(base_font_size * 1.22)
-                if w.line_index == 1:
-                    w.is_uppercase = True
-        else:
-            l1_cnt = 2
-            l2_cnt = 2 if n <= 6 else 3
-            for i, w in enumerate(parsed_words):
-                if i < l1_cnt:
-                    w.line_index = 0
-                    w.font_size = round(base_font_size * 0.58)
-                    w.role = "BRAND_CYAN"
-                    w.is_uppercase = True
-                elif i < l1_cnt + l2_cnt:
-                    w.line_index = 1
-                    w.font_size = round(base_font_size * 1.25)
-                    w.role = "METRIC_GOLD" if w.role == "NORMAL_WHITE" else w.role
-                    w.is_uppercase = True
-                else:
-                    w.line_index = 2
-                    w.font_size = round(base_font_size * 0.75)
-
-    # 4. PRESET: inline_pop_trai (Căn trái phóng to nội dòng)
-    elif preset == "inline_pop_trai":
-        mid = max(1, n // 2) if n > 3 else n
         for i, w in enumerate(parsed_words):
-            w.line_index = 0 if i < mid else 1
-            if w.role != "NORMAL_WHITE":
-                w.font_size = round(base_font_size * 1.22)
+            li, k, cnt = line_of[i], pos_in_line[i], sizes[line_of[i]]
+            if n_lines == 1:
+                w.font_size = round(B * CHINH)
+                w.is_uppercase = w.role != "NORMAL_WHITE"
+            elif li == 0:
+                w.font_size = round(B * DAN)
+                w.muted = k < 2 and w.role == "NORMAL_WHITE"
+            elif li == 1 or (n_lines == 2 and li == last_line):
+                w.font_size = round(B * CHINH)
+                w.is_uppercase = True
+                if w.role == "NORMAL_WHITE":
+                    w.role = "METRIC_GOLD" if k < (cnt + 1) // 2 else "PAIN_CORAL"
+            else:
+                payoff = k >= cnt - 3 if cnt > 3 else k >= cnt - 2
+                w.font_size = round(B * (NHAN if payoff else KET))
+                w.is_uppercase = payoff
+                if payoff and w.role == "NORMAL_WHITE":
+                    w.role = "GROWTH_EMERALD"
+
+    # 2. hop_mau_dong_chinh (CapCut Pill Box): dòng giữa bọc hộp san hô, dòng cuối nhấn xanh lam
+    elif preset == "hop_mau_dong_chinh":
+        for i, w in enumerate(parsed_words):
+            li, k, cnt = line_of[i], pos_in_line[i], sizes[line_of[i]]
+            if n_lines == 1:
+                w.font_size = round(B * NHAN)
+                w.is_pill = True
+                w.is_uppercase = True
+            elif li == 0:
+                w.font_size = round(B * DAN)
+            elif li == 1 or (n_lines == 2 and li == last_line):
+                w.font_size = round(B * NHAN)
+                w.is_pill = True
                 w.is_uppercase = True
             else:
-                w.font_size = round(base_font_size * 0.75)
+                big = k >= min(2, cnt - 1)
+                w.font_size = round(B * (NHAN if big else KET))
+                w.is_uppercase = big
+                w.muted = not big
+                if big:
+                    w.role = "BRAND_CYAN"
 
-    # Legacy: giữ nguyên đồng cỡ
+    # 3. bento_ba_tang (Bento Stack): tagline xanh lam giãn chữ -> số vàng lớn -> kết câu
+    elif preset == "bento_ba_tang":
+        for i, w in enumerate(parsed_words):
+            li, k, cnt = line_of[i], pos_in_line[i], sizes[line_of[i]]
+            if n_lines == 1:
+                w.font_size = round(B * 1.05)
+                w.is_uppercase = True
+                w.role = "METRIC_GOLD"
+            elif li == 0:
+                w.font_size = round(B * 0.68)
+                w.is_uppercase = True
+                w.role = "BRAND_CYAN"
+                w.tracking = 3
+            elif li == 1 or (n_lines == 2 and li == last_line):
+                w.font_size = round(B * 1.05)
+                w.is_uppercase = True
+                w.role = "METRIC_GOLD" if w.role in ("NORMAL_WHITE", "BRAND_CYAN") else w.role
+            else:
+                hi = 2 <= k < 4 if cnt >= 4 else k == cnt - 1
+                w.font_size = round(B * (NHAN if hi else KET))
+                w.is_uppercase = hi
+                if hi and w.role == "NORMAL_WHITE":
+                    w.role = "GROWTH_EMERALD"
+
+    # 4. inline_pop_trai (Inline Pop, căn trái): từ khóa nhỉnh hơn ngay trong dòng, dòng cuối xanh lục
+    elif preset == "inline_pop_trai":
+        for i, w in enumerate(parsed_words):
+            li, k, cnt = line_of[i], pos_in_line[i], sizes[line_of[i]]
+            kw = w.role != "NORMAL_WHITE"
+            if n_lines > 1 and li == last_line:
+                w.font_size = round(B * NHAN)
+                w.is_uppercase = True
+                w.role = "GROWTH_EMERALD"
+            elif kw:
+                w.font_size = round(B * CHINH)
+                w.is_uppercase = True
+            else:
+                w.font_size = round(B * DAN)
+                w.muted = li == 0
+        # cụm không có từ khóa ở dòng đầu: nhấn 2 từ cuối dòng đầu để vẫn có chữ nhỉnh nội dòng
+        if not any(w.role != "NORMAL_WHITE" for w in parsed_words[: sizes[0]]):
+            for w in parsed_words[max(0, sizes[0] - 2): sizes[0]]:
+                w.font_size = round(B * CHINH)
+                w.is_uppercase = True
+                w.role = "METRIC_GOLD"
+                w.muted = False
+
+    # Dự phòng: giữ đồng cỡ
     else:
         for w in parsed_words:
-            w.font_size = base_font_size
+            w.font_size = B
 
     return CumPhuDePhanTang(
         start_ms=start_ms,
@@ -250,3 +310,18 @@ def phan_tich_cum_phu_de(
         preset=preset,
         layout="left" if preset == "inline_pop_trai" else "center",
     )
+
+
+# Bốn mẫu phụ đề chính thức; "tu_dong" chọn mẫu theo từng cụm lời để video dùng đủ cả bốn.
+PRESET_CHINH_THUC: tuple[str, ...] = ("da_sac_phan_tang", "hop_mau_dong_chinh", "bento_ba_tang", "inline_pop_trai")
+_RE_SO_LIEU = re.compile(r"\d+\s*(?:%|k|triệu|tỷ|đồng|usd|giây|phút|giờ|ngày|tuần|tháng|năm|lần)|\d{2,}", re.IGNORECASE)
+
+
+def chon_preset_tu_dong(text: str, index: int = 0) -> str:
+    """Chọn mẫu cho một cụm lời: số liệu -> bento, câu hỏi/kể chuyện -> inline, còn lại xoay vòng."""
+    lower = text.casefold()
+    if _RE_SO_LIEU.search(lower):
+        return "bento_ba_tang"
+    if "?" in text or any(k in lower for k in ("tại sao", "vì sao", "câu chuyện", "bài học", "sự thật", "lý do")):
+        return "inline_pop_trai"
+    return ("da_sac_phan_tang", "hop_mau_dong_chinh")[index % 2]

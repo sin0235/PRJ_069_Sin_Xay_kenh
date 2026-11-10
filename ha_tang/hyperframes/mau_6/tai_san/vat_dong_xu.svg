@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-32 -64 64 64" width="64" height="64" data-anchor="0,0">
+  <!-- Dong xu origami mat phang gom cac tam giac gap -->
+  <g id="coin-root">
+    <polygon points="0,-64 24,-54 32,-32 0,-32" fill="#ffd54a" />
+    <polygon points="32,-32 24,-10 0,0 0,-32" fill="#e6be33" />
+    <polygon points="0,0 -24,-10 -32,-32 0,-32" fill="#e6be33" />
+    <polygon points="-32,-32 -24,-54 0,-64 0,-32" fill="#ffd54a" />
+    <!-- Nep gap trung tam va vien sang 8% -->
+    <polygon points="-12,-44 12,-44 16,-32 12,-20 -12,-20 -16,-32" fill="#fff5d0" opacity="0.85" />
+    <polygon points="-6,-38 6,-38 6,-26 -6,-26" fill="#e6be33" />
+    <!-- Duong nep gap sac sao -->
+    <line x1="0" y1="-64" x2="0" y2="0" stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+    <line x1="-32" y1="-32" x2="32" y2="-32" stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+  </g>
+</svg>

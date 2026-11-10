@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-45 -55 90 55" width="90" height="55" data-anchor="0,0">
+  <g id="drawer-tray">
+    <polygon points="-40,0 40,0 45,-45 -45,-45" fill="#12324a" />
+    <polygon points="-45,-45 45,-45 38,-52 -38,-52" fill="#1b4666" />
+    <!-- Tay cam ngan tu -->
+    <polygon points="-12,-20 12,-20 10,-26 -10,-26" fill="#ffd54a" />
+    <line x1="-45" y1="-45" x2="45" y2="-45" stroke="rgba(255,255,255,0.4)" stroke-width="1.2" />
+  </g>
+</svg>

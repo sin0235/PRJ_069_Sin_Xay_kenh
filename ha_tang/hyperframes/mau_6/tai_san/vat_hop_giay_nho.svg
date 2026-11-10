@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -60 60 60" width="60" height="60" data-anchor="0,0">
+  <g id="box-small">
+    <!-- Mat truoc -->
+    <polygon points="-25,0 25,0 25,-32 -25,-32" fill="#e6dcce" />
+    <!-- Mat tren -->
+    <polygon points="-25,-32 0,-50 50,-50 25,-32" fill="#f6efe0" />
+    <!-- Mat ben phai -->
+    <polygon points="25,0 25,-32 50,-50 50,-18" fill="#d6c9b8" />
+    <!-- Bang keo dan origami vang -->
+    <polygon points="-5,-32 5,-32 30,-50 20,-50" fill="#ffd54a" opacity="0.9" />
+    <polygon points="-5,0 5,0 5,-32 -5,-32" fill="#e6be33" opacity="0.9" />
+    <!-- Canh giay sang 8% -->
+    <line x1="-25" y1="-32" x2="25" y2="-32" stroke="rgba(255,255,255,0.5)" stroke-width="1.2" />
+    <line x1="25" y1="-32" x2="25" y2="0" stroke="rgba(255,255,255,0.3)" stroke-width="1" />
+  </g>
+</svg>

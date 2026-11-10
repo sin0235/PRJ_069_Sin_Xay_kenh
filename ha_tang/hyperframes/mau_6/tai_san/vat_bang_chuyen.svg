@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-60 -40 120 40" width="120" height="40" data-anchor="0,0">
+  <g id="conveyor-rail">
+    <!-- Chan be -->
+    <polygon points="-50,0 -40,0 -40,-15 -50,-15" fill="#0a1c2b" />
+    <polygon points="40,0 50,0 50,-15 40,-15" fill="#0a1c2b" />
+    <!-- Mat bang chuyen -->
+    <polygon points="-60,-15 60,-15 52,-32 -52,-32" fill="#12324a" />
+    <polygon points="-60,-15 60,-15 60,-22 -60,-22" fill="#184364" />
+    <!-- Vach phan doan bang chuyen co the noi lap lai -->
+    <line x1="-30" y1="-15" x2="-26" y2="-32" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" />
+    <line x1="0" y1="-15" x2="4" y2="-32" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" />
+    <line x1="30" y1="-15" x2="34" y2="-32" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" />
+    <!-- Vien sang canh mep tren -->
+    <line x1="-52" y1="-32" x2="52" y2="-32" stroke="rgba(255,255,255,0.5)" stroke-width="1.2" />
+  </g>
+</svg>

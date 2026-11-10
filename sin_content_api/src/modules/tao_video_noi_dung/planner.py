@@ -31,7 +31,10 @@ FLOW_SHOT_SECONDS = 10        # Flow luôn tạo clip đúng 10 giây (cố đ�
 FLOW_SHOT_MIN_SECONDS = 5     # chỉ co ngắn khi tổng không khớp; phần thừa của clip bị cắt
 UI_SHOT_MIN_SECONDS, UI_SHOT_MAX_SECONDS = 3, 6   # cảnh dựng bằng mã
 # Cảnh vốn chỉ có một hai mốc hình (câu hỏi, con số, thẻ kết) không được kéo dài: sau mốc cuối hình đứng yên.
-UI_LAYOUT_MAX_SECONDS = {"OPEN_QUESTION": 4, "OPEN_NUMBER": 5, "OPEN_DRAIN": 5, "OPEN_HOOK": 5, "END_CARD": 5}
+UI_LAYOUT_MAX_SECONDS = {
+    "OPEN_QUESTION": 4, "OPEN_NUMBER": 5, "OPEN_DRAIN": 5, "OPEN_HOOK": 5, "END_CARD": 5,
+    "LIVE_DASHBOARD": 10, "CASH_RIVER": 10, "PIPELINE_RAIL": 10, "STACK_WAREHOUSE": 10, "BOOK_FLIP": 9, "TEAM_BOARD": 10,
+}
 DIAGRAM_SECONDS_PER_EVENT = 2.5   # shot sơ đồ cần ít nhất một mốc hình mới mỗi chừng này giây
 FLOW_BEAT_MIN_WORDS = 8
 
@@ -452,6 +455,58 @@ def validate_diagram(layout: str, spec: DiagramSpec) -> None:
                 not 3 <= len(spec.steps) <= 5 or
                 any(not step.strip() or len(step) > 40 for step in spec.steps)):
             raise ValueError("DIAGRAM_NOTIFY_STACK_FIELDS")
+    elif layout == "LIVE_DASHBOARD":
+        if (len(spec.title) > 60 or
+                not 3 <= len(spec.labels) <= 5 or
+                any(not l.strip() or len(l) > 10 for l in spec.labels) or
+                not 1 <= len(spec.series) <= 2 or
+                any(len(s.values) != len(spec.labels) for s in spec.series) or
+                (spec.to_value is not None and not (0 <= spec.to_value <= 100)) or
+                (spec.tag and len(spec.tag) > 24) or
+                (spec.caption and len(spec.caption) > 40)):
+            raise ValueError("DIAGRAM_LIVE_DASHBOARD_FIELDS")
+    elif layout == "CASH_RIVER":
+        if (len(spec.title) > 60 or
+                not 2 <= len(spec.sources) <= 4 or
+                not 2 <= len(spec.uses) <= 4 or
+                (spec.tag and len(spec.tag) > 24) or
+                (spec.value and len(spec.value) > 12) or
+                (spec.caption and len(spec.caption) > 40)):
+            raise ValueError("DIAGRAM_CASH_RIVER_FIELDS")
+    elif layout == "PIPELINE_RAIL":
+        if (len(spec.title) > 60 or
+                not 3 <= len(spec.steps) <= 5 or
+                any(not s.strip() or len(s) > 14 for s in spec.steps) or
+                spec.block_step is None or not (1 <= spec.block_step <= len(spec.steps) - 2) or
+                (spec.tag and len(spec.tag) > 24) or
+                (spec.value and len(spec.value) > 12) or
+                (spec.caption and len(spec.caption) > 40)):
+            raise ValueError("DIAGRAM_PIPELINE_RAIL_FIELDS")
+    elif layout == "STACK_WAREHOUSE":
+        if (len(spec.title) > 60 or
+                not 2 <= len(spec.items) <= 5 or
+                spec.target is None or spec.target <= 0 or
+                (spec.tag and len(spec.tag) > 24) or
+                (spec.value and len(spec.value) > 12) or
+                (spec.caption and len(spec.caption) > 40)):
+            raise ValueError("DIAGRAM_STACK_WAREHOUSE_FIELDS")
+    elif layout == "BOOK_FLIP":
+        if (len(spec.title) > 60 or
+                len(spec.docs) != 2 or
+                not 3 <= len(spec.steps) <= 5 or
+                any(not s.strip() or len(s) > 14 for s in spec.steps) or
+                not spec.diff_label or len(spec.diff_label) > 20 or
+                (spec.caption and len(spec.caption) > 40)):
+            raise ValueError("DIAGRAM_BOOK_FLIP_FIELDS")
+    elif layout == "TEAM_BOARD":
+        if (len(spec.title) > 24 or
+                not 3 <= len(spec.steps) <= 5 or
+                any(not s.strip() or len(s) > 26 for s in spec.steps) or
+                spec.pick is None or not (0 <= spec.pick < len(spec.steps)) or
+                (spec.tag and len(spec.tag) > 24) or
+                (spec.value and len(spec.value) > 12) or
+                (spec.caption and len(spec.caption) > 40)):
+            raise ValueError("DIAGRAM_TEAM_BOARD_FIELDS")
     need = diagram_required_events(layout, spec)
     optional = {"doc0"} if layout == "COMPARE_DOCS" else set()
     ignored = {"rail", "count"} if layout == "PROCESS_RAIL" else {"block"} if layout == "COST_SLICE" else set()
@@ -467,7 +522,8 @@ class UiScene(BaseModel):
                     "HUB_SPOKE", "MATRIX_2X2", "RANK_BARS", "KPI_CARDS", "ASSIGN_CARDS", "WAIT_CLOCK", "RADAR_SCAN",
                     "RACE_LANES", "TABLE_AUDIT", "ALERT_STACK", "PYRAMID_LEVELS", "VERSUS_LIST", "DOC_SEARCH",
                     "KINETIC_TITLE", "MARK_PHRASE", "WORD_SWAP", "PILE_UP", "STAT_RING", "CHART_STORY", "AI_RANK", "DRAG_TASKS", "CARD_SHIFT",
-                    "CHAT_THREAD", "NOTE_TYPING", "CTA_CLOSE", "NOTIFY_STACK"]
+                    "CHAT_THREAD", "NOTE_TYPING", "CTA_CLOSE", "NOTIFY_STACK",
+                    "LIVE_DASHBOARD", "CASH_RIVER", "PIPELINE_RAIL", "STACK_WAREHOUSE", "BOOK_FLIP", "TEAM_BOARD"]
     messages: list[UiMessage] = Field(default_factory=list, max_length=60)
     highlight: str | None = Field(default=None, max_length=1000)
     diagram: DiagramSpec | None = None
@@ -981,21 +1037,27 @@ def _richness_problems(storyboard: Storyboard) -> list[str]:
                     f"FLOW_BEATS_THIN: {shot.shot_id} dài {seconds} giây cần ít nhất 3 nhịp hành động, mỗi nhịp tối thiểu {FLOW_BEAT_MIN_WORDS} từ nêu "
                     "ai hoặc vật gì tác động lên gì và kết quả nhìn thấy; hiện có "
                     f"{len(shot.action_beats)} nhịp, {len(thin)} nhịp quá ngắn")
-    stretched = [shot.shot_id for shot in storyboard.shots if shot.shot_kind == "UI_SIM" and shot.duration_seconds > UI_SHOT_MAX_SECONDS]
+    stretched = [
+        shot.shot_id for shot in storyboard.shots
+        if shot.shot_kind == "UI_SIM" and shot.duration_seconds > UI_LAYOUT_MAX_SECONDS.get(
+            getattr(shot.ui_scene, "layout", None) if shot.ui_scene else None,
+            UI_SHOT_MAX_SECONDS,
+        )
+    ]
     if stretched:
         total = sum(shot.duration_seconds for shot in storyboard.shots)
         flow, ui = _suggested_shot_counts(total)
         problems.append(
-            f"UI_SHOT_STRETCHED: {', '.join(stretched)} bị kéo dài quá {UI_SHOT_MAX_SECONDS} giây vì số shot quá ít cho {total} giây (hiện có {len(storyboard.shots)} shot); "
+            f"UI_SHOT_STRETCHED: {', '.join(stretched)} bị kéo dài quá giới hạn vì số shot quá ít cho {total} giây (hiện có {len(storyboard.shots)} shot); "
             f"tạo khoảng {flow + ui} shot gồm khoảng {flow} shot Flow {FLOW_SHOT_SECONDS} giây xen kẽ khoảng {ui} shot UI_SIM mỗi shot "
             f"{UI_SHOT_MIN_SECONDS} đến {UI_SHOT_MAX_SECONDS} giây, mỗi shot một ý riêng, thay vì kéo dài sơ đồ")
     return problems
 
 
 def _suggested_shot_counts(total_seconds: int) -> tuple[int, int]:
-    """Cấu trúc gợi ý: khoảng 60% thời lượng là Flow (clip 10 giây), phần còn lại là sơ đồ khoảng 5 giây."""
-    flow = max(1, round(0.6 * total_seconds / FLOW_SHOT_SECONDS))
-    ui = max(1, math.ceil((total_seconds - flow * FLOW_SHOT_SECONDS) / 5))
+    """Cấu trúc gợi ý: tối đa 2 shot Flow (mỗi clip 10 giây, ≤20% thời lượng cho 100s), phần còn lại là sơ đồ 5 đến 7 giây."""
+    flow = min(2, max(1, round(0.2 * total_seconds / FLOW_SHOT_SECONDS)))
+    ui = max(1, math.ceil((total_seconds - flow * FLOW_SHOT_SECONDS) / 6))
     return flow, ui
 
 
@@ -1136,7 +1198,13 @@ def _repair_block_layout(layout: str, diagram: dict) -> None:
     title = diagram.get("title")
     if not isinstance(title, str):
         return
-    limits = {"KINETIC_TITLE": 40, "MARK_PHRASE": 60, "WORD_SWAP": 24, "PILE_UP": 14, "STAT_RING": 40, "CHART_STORY": 40, "AI_RANK": 60, "DRAG_TASKS": 14, "CARD_SHIFT": 16, "CHAT_THREAD": 24, "NOTE_TYPING": 24, "CTA_CLOSE": 20, "NOTIFY_STACK": 20}
+    limits = {
+        "KINETIC_TITLE": 40, "MARK_PHRASE": 60, "WORD_SWAP": 24, "PILE_UP": 14, "STAT_RING": 40,
+        "CHART_STORY": 40, "AI_RANK": 60, "DRAG_TASKS": 14, "CARD_SHIFT": 16, "CHAT_THREAD": 24,
+        "NOTE_TYPING": 24, "CTA_CLOSE": 20, "NOTIFY_STACK": 20,
+        "LIVE_DASHBOARD": 60, "CASH_RIVER": 60, "PIPELINE_RAIL": 60, "STACK_WAREHOUSE": 60,
+        "BOOK_FLIP": 60, "TEAM_BOARD": 24,
+    }
     if len(title) > limits[layout]:
         diagram["title"] = title = title[:limits[layout]].rstrip().rsplit(" ", 1)[0] or title[:limits[layout]].rstrip()
     tag = diagram.get("tag")
@@ -1207,6 +1275,50 @@ def _repair_block_layout(layout: str, diagram: dict) -> None:
             size = min(len(labels), len(series[0]["values"]), 6)
             diagram["labels"] = [str(label)[:10] for label in labels[:size]]
             diagram["series"] = [{**series[0], "values": series[0]["values"][:size]}]
+    if layout == "LIVE_DASHBOARD":
+        labels, series = diagram.get("labels"), diagram.get("series")
+        if isinstance(labels, list) and isinstance(series, list) and series and isinstance(series[0], dict) and isinstance(series[0].get("values"), list):
+            size = min(max(len(labels), 3), max(len(series[0]["values"]), 3), 5)
+            clean_labels = [str(l)[:10] for l in labels[:size]]
+            while len(clean_labels) < 3:
+                clean_labels.append(f"Mục {len(clean_labels) + 1}")
+            diagram["labels"] = clean_labels
+            clean_series = []
+            for s in series[:2]:
+                if isinstance(s, dict) and isinstance(s.get("values"), list):
+                    vals = [float(v) for v in s["values"][:len(clean_labels)] if isinstance(v, (int, float))]
+                    while len(vals) < len(clean_labels):
+                        vals.append(50.0)
+                    clean_series.append({**s, "name": str(s.get("name", "Dữ liệu"))[:24], "values": vals})
+            diagram["series"] = clean_series or [{"name": "Dữ liệu", "values": [20.0, 50.0, 80.0]}]
+        if isinstance(diagram.get("to_value"), (int, float)) and not isinstance(diagram.get("to_value"), bool):
+            diagram["to_value"] = min(100.0, max(0.0, float(diagram["to_value"])))
+        if isinstance(diagram.get("tag"), str):
+            diagram["tag"] = diagram["tag"][:24].rstrip()
+    if layout in ("CASH_RIVER", "STACK_WAREHOUSE", "PIPELINE_RAIL", "TEAM_BOARD"):
+        if isinstance(diagram.get("tag"), str):
+            diagram["tag"] = diagram["tag"][:24].rstrip()
+        if isinstance(diagram.get("value"), str):
+            diagram["value"] = diagram["value"][:12].rstrip()
+    if layout in ("PIPELINE_RAIL", "BOOK_FLIP") and isinstance(steps, list):
+        valid = [s.strip()[:14].rstrip() for s in steps if isinstance(s, str) and s.strip()][:5]
+        if len(valid) >= 3:
+            diagram["steps"] = valid
+    if layout == "PIPELINE_RAIL" and isinstance(diagram.get("block_step"), int) and not isinstance(diagram.get("block_step"), bool):
+        s_len = len(diagram.get("steps") or [])
+        if s_len >= 3:
+            diagram["block_step"] = min(max(1, diagram["block_step"]), s_len - 2)
+    if layout == "BOOK_FLIP" and isinstance(diagram.get("diff_label"), str):
+        diagram["diff_label"] = diagram["diff_label"][:20].rstrip()
+    if layout == "TEAM_BOARD":
+        if isinstance(steps, list):
+            valid = [s.strip()[:26].rstrip() for s in steps if isinstance(s, str) and s.strip()][:5]
+            if len(valid) >= 3:
+                diagram["steps"] = valid
+        if isinstance(diagram.get("pick"), int) and not isinstance(diagram.get("pick"), bool):
+            s_len = len(diagram.get("steps") or [])
+            if s_len > 0:
+                diagram["pick"] = min(max(0, diagram["pick"]), s_len - 1)
 
 
 def _ui_cap(shot: dict) -> int:

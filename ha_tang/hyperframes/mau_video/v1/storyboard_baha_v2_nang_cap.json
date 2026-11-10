@@ -1,0 +1,644 @@
+{
+  "title": "Khám sức khỏe doanh nghiệp miễn phí cùng BAHA",
+  "narration": "Doanh nghiệp của bạn đang thực sự phát triển, hay chỉ đang ngày càng bận rộn hơn? Nhân viên làm việc cả ngày nhưng hiệu quả vẫn chưa như mong đợi. Chi phí vận hành tăng đều mỗi tháng, trong khi doanh thu lại không tăng tương xứng. Khách hàng quan tâm sản phẩm nhưng không được chăm sóc kịp thời, dẫn đến mất đơn hàng. Bạn liên tục phải kiểm tra, nhắc nhở những việc lặp đi lặp lại. Là người quản lý, bạn phải liên tục kiểm tra tiến độ và xử lý những sự vụ phát sinh. Hơn sáu mươi lăm phần trăm cơ hội kinh doanh trôi qua chỉ vì phản hồi chậm trễ. Bạn có bao giờ tự hỏi: Vấn đề thực sự nằm ở đâu? Nhiều doanh nghiệp không thiếu khách hàng hay cơ hội, mà thiếu một hệ thống vận hành thông minh. Đó là lý do BAHA cùng bạn nhận diện những điểm nghẽn đang làm lãng phí chi phí. Chúng tôi giúp bạn hiểu rõ vấn đề, định vị chính xác rò rỉ và đề xuất giải pháp phù hợp. Khách hàng được tiếp nhận tức thì ngay cả ngoài giờ làm việc, đội ngũ bán hàng được phân loại khách tự động, công việc được theo dõi sát sao. Người quản lý nắm bắt tình hình hoạt động mà không phải liên tục hỏi từng nhân viên. Đó không còn là ý tưởng xa vời, mà là giải pháp hoàn toàn có thể triển khai ngay hôm nay. Khám doanh nghiệp miễn phí, nhận diện đúng vấn đề, đề xuất giải pháp, không bắt buộc triển khai. Đừng để những điểm nghẽn vô hình tiếp tục kìm hãm sự phát triển. Hãy chủ động làm chủ vận hành thông minh và nâng tầm doanh nghiệp của bạn. Đăng ký khám doanh nghiệp miễn phí cùng BAHA ngay hôm nay để tạo ra giá trị thực.",
+  "continuity_anchor": "Phong cách hoạt họa biên tập B2B cao cấp; nền navy #0a1c2b, ánh sáng điện ảnh, ba lớp chiều sâu và đường dẫn mắt. Dùng bảng kính xám xanh, ngà sáng #f6efe0 cho chữ, ngọc lam #5cc8c0 cho giải pháp, san hô #e8695a cho điểm nghẽn và vàng kim #ffd54a cho điểm nhấn. Đạo cụ origami vận hành thực tế như thẻ hồ sơ, băng chuyền, đồng hồ đo, phễu trôi và cột biểu đồ không thương hiệu ngoài BAHA.",
+  "brief": {
+    "pains": [
+      {
+        "id": "pain-1",
+        "text": "Doanh nghiệp bận rộn cả ngày nhưng hiệu quả chưa như mong đợi, chi phí tăng mà doanh thu không tăng tương xứng.",
+        "source": "content"
+      },
+      {
+        "id": "pain-2",
+        "text": "Khách hàng quan tâm sản phẩm nhưng không được chăm sóc kịp thời, dẫn đến mất đơn hàng.",
+        "source": "content"
+      },
+      {
+        "id": "pain-3",
+        "text": "Chủ doanh nghiệp phải liên tục kiểm tra tiến độ, nhắc nhở nhân viên, xử lý việc lặp lại.",
+        "source": "content"
+      }
+    ],
+    "consequences": [
+      {
+        "id": "consequence-1",
+        "text": "Chi phí vận hành tăng cao, lãng phí thời gian và cơ hội kinh doanh.",
+        "source": "content"
+      },
+      {
+        "id": "consequence-2",
+        "text": "Điểm nghẽn vô hình tiếp tục kìm hãm sự bứt phá và phát triển của doanh nghiệp.",
+        "source": "content"
+      }
+    ],
+    "insights": [
+      {
+        "id": "insight-1",
+        "text": "Vấn đề thực sự không phải do thiếu khách hàng, nhân sự hay nỗ lực.",
+        "source": "content"
+      },
+      {
+        "id": "insight-2",
+        "text": "Điều doanh nghiệp thiếu là một hệ thống vận hành đủ thông minh để tận dụng nguồn lực đang có.",
+        "source": "content"
+      }
+    ],
+    "solutions": [
+      {
+        "id": "solution-1",
+        "text": "Chương trình Khám sức khỏe doanh nghiệp hoàn toàn miễn phí cùng BAHA.",
+        "source": "content"
+      },
+      {
+        "id": "solution-2",
+        "text": "Nhìn lại cách vận hành từ tìm kiếm khách hàng, bán hàng, chăm sóc khách đến quản lý công việc để nhận diện điểm nghẽn.",
+        "source": "content"
+      },
+      {
+        "id": "solution-3",
+        "text": "Tư vấn lộ trình giải pháp công nghệ ứng dụng trí tuệ nhân tạo (AI) phù hợp thực tế.",
+        "source": "content"
+      },
+      {
+        "id": "solution-4",
+        "text": "Khách hàng được tiếp nhận 24/7, bán hàng phân loại tự động, tiến độ tự động theo dõi.",
+        "source": "content"
+      }
+    ],
+    "outcomes": [
+      {
+        "id": "outcome-1",
+        "text": "Quản lý nắm bắt tình hình mà không cần liên tục hỏi nhân viên, tiết kiệm chi phí và tăng tốc độ.",
+        "source": "content"
+      },
+      {
+        "id": "outcome-2",
+        "text": "Giải pháp công nghệ thực tế tạo ra giá trị thực, không bắt buộc triển khai.",
+        "source": "content"
+      }
+    ],
+    "cta": {
+      "id": "cta-1",
+      "text": "Đăng ký chương trình khám sức khỏe doanh nghiệp miễn phí cùng BAHA ngay hôm nay.",
+      "source": "content"
+    },
+    "needs_ui_demo": false
+  },
+  "shots": [
+    {
+      "shot_id": "s01",
+      "duration_seconds": 10,
+      "beat": "HOOK",
+      "scene": "Bàn cờ đội ngũ origami: 3 cột kanban, ghế trống người duyệt, thẻ việc dồn ứ.",
+      "narration": "Doanh nghiệp của bạn đang thực sự phát triển, hay chỉ đang ngày càng bận rộn hơn? Nhân viên làm việc cả ngày nhưng hiệu quả vẫn chưa như mong đợi.",
+      "prompt": "TEAM_BOARD: bàn cờ điều hành tác chiến đội ngũ với 3 cột Kanban và thẻ việc dồn ứ.",
+      "negative_prompt": "",
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "message_ids": [
+        "pain-1"
+      ],
+      "shot_kind": "UI_SIM",
+      "action_beats": [],
+      "ui_scene": {
+        "layout": "TEAM_BOARD",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "QUẢN LÝ TIẾN ĐỘ",
+          "steps": [
+            "Tiếp nhận",
+            "Báo giá",
+            "Chăm sóc"
+          ],
+          "pick": 1,
+          "tag": "Tắc nghẽn",
+          "value": "18 việc dồn",
+          "caption": "Hiệu quả chưa như mong đợi"
+        }
+      }
+    },
+    {
+      "shot_id": "s02",
+      "duration_seconds": 5,
+      "beat": "PAIN",
+      "scene": "Dòng sông chi phí và dòng tiền rò rỉ origami: đồng xu trôi vào cống xả xoáy nước.",
+      "narration": "Chi phí vận hành tăng đều mỗi tháng, trong khi doanh thu lại không tăng tương xứng.",
+      "prompt": "CASH_RIVER: dòng sông chi phí rò rỉ, tiền vàng trôi dạt vào cống xả xoáy nước.",
+      "negative_prompt": "",
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "message_ids": [
+        "pain-1"
+      ],
+      "shot_kind": "UI_SIM",
+      "action_beats": [],
+      "ui_scene": {
+        "layout": "CASH_RIVER",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "CHI PHÍ VẬN HÀNH & DÒNG TIỀN",
+          "sources": [
+            {
+              "label": "Doanh thu",
+              "value": 60
+            },
+            {
+              "label": "Vốn",
+              "value": 40
+            }
+          ],
+          "uses": [
+            {
+              "label": "Mặt bằng",
+              "value": 30
+            },
+            {
+              "label": "Nhân sự",
+              "value": 45
+            },
+            {
+              "label": "Vận hành",
+              "value": 25
+            }
+          ],
+          "tag": "Rò rỉ chi phí",
+          "value": "-35%",
+          "caption": "Chi phí tăng đều, doanh thu đứng yên",
+          "unit": "%"
+        }
+      }
+    },
+    {
+      "shot_id": "s03",
+      "duration_seconds": 10,
+      "beat": "PAIN",
+      "scene": "Băng chuyền đường ray cơ khí: trạm tư vấn tắc nghẽn, thẻ hồ sơ khách hàng rơi rụng.",
+      "narration": "Khách hàng quan tâm sản phẩm nhưng không được chăm sóc kịp thời, dẫn đến mất đơn hàng. Bạn liên tục phải kiểm tra, nhắc nhở những việc lặp đi lặp lại.",
+      "prompt": "PIPELINE_RAIL: băng chuyền đường ray bánh răng công nghiệp cơ khí với thẻ khách rơi rụng.",
+      "negative_prompt": "",
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "message_ids": [
+        "pain-2",
+        "pain-3"
+      ],
+      "shot_kind": "UI_SIM",
+      "action_beats": [],
+      "ui_scene": {
+        "layout": "PIPELINE_RAIL",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "QUY TRÌNH CHĂM SÓC KHÁCH HÀNG",
+          "steps": [
+            "Tiếp nhận",
+            "Tư vấn",
+            "Chốt đơn"
+          ],
+          "block_step": 1,
+          "tag": "Khách quan tâm",
+          "value": "Mất đơn",
+          "caption": "Không được chăm sóc kịp thời"
+        }
+      }
+    },
+    {
+      "shot_id": "s04",
+      "duration_seconds": 6,
+      "beat": "PAIN",
+      "scene": "Cuốn sổ sách vận hành thủ công origami 3D lật trang sột soạt, đối chiếu quy trình.",
+      "narration": "Là người quản lý, bạn phải liên tục kiểm tra tiến độ và xử lý những sự vụ phát sinh.",
+      "prompt": "BOOK_FLIP: cuốn sổ sách thủ công lật trang 3D sột soạt sang số hóa tự động.",
+      "negative_prompt": "",
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "message_ids": [
+        "pain-3"
+      ],
+      "shot_kind": "UI_SIM",
+      "action_beats": [],
+      "ui_scene": {
+        "layout": "BOOK_FLIP",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "ÁP LỰC QUẢN TRỊ SỰ VỤ",
+          "docs": [
+            {
+              "title": "SỔ SÁCH",
+              "label": "Thủ công",
+              "value": "100%"
+            },
+            {
+              "title": "TỰ ĐỘNG",
+              "label": "Số hóa",
+              "value": "AI"
+            }
+          ],
+          "steps": [
+            "Tiến độ",
+            "Nhắc nhở",
+            "Xử lý việc"
+          ],
+          "diff_label": "LẶP LẠI MỖI NGÀY",
+          "caption": "Quản lý loay hoay trong sự vụ vụn vặt"
+        }
+      }
+    },
+    {
+      "shot_id": "s05",
+      "duration_seconds": 6,
+      "beat": "AGITATE",
+      "scene": "Đồng hồ đo áp suất / vòng tròn tỉ lệ quét mạnh lên 65% đỏ rực báo động.",
+      "narration": "Hơn sáu mươi lăm phần trăm cơ hội kinh doanh trôi qua chỉ vì phản hồi chậm trễ.",
+      "prompt": "STAT_RING: vòng tròn quét tới 65% thất thoát cơ hội bán hàng.",
+      "negative_prompt": "",
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "message_ids": [
+        "consequence-1"
+      ],
+      "shot_kind": "UI_SIM",
+      "action_beats": [],
+      "ui_scene": {
+        "layout": "STAT_RING",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "TỈ LỆ THẤT THOÁT CƠ HỘI",
+          "to_value": 65,
+          "caption": "Thất thoát do phản hồi chậm"
+        }
+      }
+    },
+    {
+      "shot_id": "s06",
+      "duration_seconds": 4,
+      "beat": "INSIGHT",
+      "scene": "Hai thẻ đối lập: Vận hành cũ bị gạch chéo đỏ, Vận hành thông minh bừng sáng.",
+      "narration": "Bạn có bao giờ tự hỏi: Vấn đề thực sự nằm ở đâu?",
+      "prompt": "BEFORE_AFTER: hai thẻ đối lập so sánh vận hành cũ quá tải vs hệ thống thông minh.",
+      "negative_prompt": "",
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "message_ids": [
+        "insight-1"
+      ],
+      "shot_kind": "UI_SIM",
+      "action_beats": [],
+      "ui_scene": {
+        "layout": "BEFORE_AFTER",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "VẤN ĐỀ NẰM Ở ĐÂU?",
+          "docs": [
+            {
+              "title": "VẬN HÀNH CŨ",
+              "label": "Thủ công",
+              "value": "QUÁ TẢI"
+            },
+            {
+              "title": "HỆ THỐNG MỚI",
+              "label": "Thông minh",
+              "value": "TỐI ƯU"
+            }
+          ],
+          "diff_label": "HỆ THỐNG VẬN HÀNH",
+          "on": {
+            "before": "Bạn có bao giờ",
+            "after": "tự hỏi",
+            "delta": "nằm ở đâu"
+          }
+        }
+      }
+    },
+    {
+      "shot_id": "s07",
+      "duration_seconds": 6,
+      "beat": "INSIGHT",
+      "scene": "Kho hàng vận hành đa tầng origami, kiện hàng khách hàng và nhân lực nâng hạ ngăn nắp.",
+      "narration": "Nhiều doanh nghiệp không thiếu khách hàng hay cơ hội, mà thiếu một hệ thống vận hành thông minh.",
+      "prompt": "STACK_WAREHOUSE: kho hàng origami đa tầng kiện hàng di chuyển nâng hạ tự động.",
+      "negative_prompt": "",
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "message_ids": [
+        "insight-2"
+      ],
+      "shot_kind": "UI_SIM",
+      "action_beats": [],
+      "ui_scene": {
+        "layout": "STACK_WAREHOUSE",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "TẬN DỤNG NGUỒN LỰC SẴN CÓ",
+          "items": [
+            {
+              "label": "Khách hàng",
+              "value": 85
+            },
+            {
+              "label": "Nhân lực",
+              "value": 120
+            }
+          ],
+          "target": 100,
+          "tag": "Nguồn lực",
+          "value": "Tối ưu",
+          "caption": "Thiếu hệ thống vận hành thông minh"
+        }
+      }
+    },
+    {
+      "shot_id": "s08",
+      "duration_seconds": 5,
+      "beat": "SOLUTION",
+      "scene": "Hệ thống chẩn đoán sức khỏe doanh nghiệp BAHA xếp hạng 3 điểm nghẽn chính.",
+      "narration": "Đó là lý do BAHA cùng bạn nhận diện những điểm nghẽn đang làm lãng phí chi phí.",
+      "prompt": "AI_RANK: hệ thống chẩn đoán phân loại sức khỏe doanh nghiệp BAHA.",
+      "negative_prompt": "",
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "message_ids": [
+        "solution-1",
+        "solution-2"
+      ],
+      "shot_kind": "UI_SIM",
+      "action_beats": [],
+      "ui_scene": {
+        "layout": "AI_RANK",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "CHẨN ĐOÁN SỨC KHỎE DOANH NGHIỆP",
+          "caption": "BAHA nhận diện các điểm nghẽn chính:",
+          "steps": [
+            "Bán hàng",
+            "Chăm sóc",
+            "Vận hành"
+          ],
+          "tag": "MIỄN PHÍ 100%",
+          "pick": 0
+        }
+      }
+    },
+    {
+      "shot_id": "s09",
+      "duration_seconds": 6,
+      "beat": "SOLUTION",
+      "scene": "Con trỏ điều phối tự động kéo các nút thắt quy trình vào vị trí tối ưu.",
+      "narration": "Chúng tôi giúp bạn hiểu rõ vấn đề, định vị chính xác rò rỉ và đề xuất giải pháp phù hợp.",
+      "prompt": "DRAG_TASKS: con trỏ điều phối kéo thả thẻ quy trình tối ưu hóa rò rỉ.",
+      "negative_prompt": "",
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "message_ids": [
+        "solution-2",
+        "solution-3"
+      ],
+      "shot_kind": "UI_SIM",
+      "action_beats": [],
+      "ui_scene": {
+        "layout": "DRAG_TASKS",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "RÀ SOÁT",
+          "caption": "Xử lý",
+          "steps": [
+            "Hiểu vấn đề",
+            "Định vị rò rỉ",
+            "Đề xuất giải pháp",
+            "Tối ưu chi phí"
+          ],
+          "tag": "Tối ưu hóa"
+        }
+      }
+    },
+    {
+      "shot_id": "s10",
+      "duration_seconds": 10,
+      "beat": "DEMO",
+      "scene": "Màn hình chat AI 24/7 phản hồi khách hàng tức thì trong 2 giây ngoài giờ làm việc.",
+      "narration": "Khách hàng được tiếp nhận tức thì ngay cả ngoài giờ làm việc, đội ngũ bán hàng được phân loại khách tự động, công việc được theo dõi sát sao.",
+      "prompt": "CHAT_THREAD: hội thoại tin nhắn khách hàng và AI 24/7 phản hồi tự động.",
+      "negative_prompt": "",
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "message_ids": [
+        "solution-4"
+      ],
+      "shot_kind": "UI_SIM",
+      "action_beats": [],
+      "ui_scene": {
+        "layout": "CHAT_THREAD",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "HỖ TRỢ KHÁCH HÀNG AI",
+          "values": [
+            "khách",
+            "ai",
+            "khách",
+            "ai"
+          ],
+          "steps": [
+            "Tư vấn giúp mình ngoài giờ nhé",
+            "BAHA AI hỗ trợ anh ngay lập tức 24/7!",
+            "Bên mình cần phân loại khách tự động",
+            "Đã phân loại và tiếp nhận khách tức thì!"
+          ]
+        }
+      }
+    },
+    {
+      "shot_id": "s11",
+      "duration_seconds": 5,
+      "beat": "DEMO",
+      "scene": "Chồng thông báo tự động nổ liên tiếp trên màn hình quản lý.",
+      "narration": "Người quản lý nắm bắt tình hình hoạt động mà không phải liên tục hỏi từng nhân viên.",
+      "prompt": "NOTIFY_STACK: chồng thông báo đẩy liên tiếp về tiến độ và đơn hàng.",
+      "negative_prompt": "",
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "message_ids": [
+        "outcome-1"
+      ],
+      "shot_kind": "UI_SIM",
+      "action_beats": [],
+      "ui_scene": {
+        "layout": "NOTIFY_STACK",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "TIẾN ĐỘ TỰ ĐỘNG",
+          "steps": [
+            "Khách hàng mới tiếp nhận tức thì",
+            "Đội ngũ bán hàng phân loại tự động",
+            "Báo cáo tiến độ tổng hợp hoàn tất"
+          ]
+        }
+      }
+    },
+    {
+      "shot_id": "s12",
+      "duration_seconds": 5,
+      "beat": "DEMO",
+      "scene": "Bảng điều khiển tác chiến AI với các cột tăng vọt từ 30% lên 95%, kim chỉ dải xanh.",
+      "narration": "Đó không còn là ý tưởng xa vời, mà là giải pháp hoàn toàn có thể triển khai ngay hôm nay.",
+      "prompt": "LIVE_DASHBOARD: bảng điều khiển vận hành tự động hoá ứng dụng AI.",
+      "negative_prompt": "",
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "message_ids": [
+        "solution-4"
+      ],
+      "shot_kind": "UI_SIM",
+      "action_beats": [],
+      "ui_scene": {
+        "layout": "LIVE_DASHBOARD",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "GIẢI PHÁP VẬN HÀNH ỨNG DỤNG AI",
+          "labels": [
+            "Tiếp nhận",
+            "Phân loại",
+            "Báo cáo"
+          ],
+          "series": [
+            {
+              "name": "Thủ công",
+              "values": [
+                30,
+                45,
+                40
+              ]
+            },
+            {
+              "name": "Tự động AI",
+              "values": [
+                90,
+                85,
+                95
+              ]
+            }
+          ],
+          "to_value": 95,
+          "tag": "Tự động hóa",
+          "caption": "Hoàn toàn khả thi với công nghệ hiện nay"
+        }
+      }
+    },
+    {
+      "shot_id": "s13",
+      "duration_seconds": 6,
+      "beat": "SOLUTION",
+      "scene": "Bảng kiểm 3 cam kết của chương trình khám doanh nghiệp được tích xanh.",
+      "narration": "Khám doanh nghiệp miễn phí, nhận diện đúng vấn đề, đề xuất giải pháp, không bắt buộc triển khai.",
+      "prompt": "CHECKLIST: 3 bước khám toàn diện, nhận diện vấn đề, đề xuất giải pháp.",
+      "negative_prompt": "",
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "message_ids": [
+        "solution-1",
+        "outcome-2"
+      ],
+      "shot_kind": "UI_SIM",
+      "action_beats": [],
+      "ui_scene": {
+        "layout": "CHECKLIST",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "CAM KẾT TỪ BAHA GROUP",
+          "steps": [
+            "Khám miễn phí toàn diện",
+            "Nhận diện đúng vấn đề",
+            "Không bắt buộc triển khai"
+          ],
+          "on": {
+            "c0": "Khám doanh nghiệp",
+            "c1": "đúng vấn đề",
+            "c2": "không bắt buộc"
+          }
+        }
+      }
+    },
+    {
+      "shot_id": "s14",
+      "duration_seconds": 10,
+      "beat": "OUTCOME",
+      "scene": "Biểu đồ tăng trưởng doanh thu bứt phá qua các quý phá vỡ trần kìm hãm.",
+      "narration": "Đừng để những điểm nghẽn vô hình tiếp tục kìm hãm sự phát triển. Hãy chủ động làm chủ vận hành thông minh và nâng tầm doanh nghiệp của bạn.",
+      "prompt": "CHART_STORY: biểu đồ cột tăng trưởng nhảy vọt bứt phá doanh thu.",
+      "negative_prompt": "",
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "message_ids": [
+        "consequence-2",
+        "outcome-1"
+      ],
+      "shot_kind": "UI_SIM",
+      "action_beats": [],
+      "ui_scene": {
+        "layout": "CHART_STORY",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "TĂNG TRƯỞNG BỨT PHÁ",
+          "series": [
+            {
+              "name": "Hiệu quả",
+              "values": [
+                35,
+                60,
+                95,
+                140
+              ]
+            }
+          ],
+          "labels": [
+            "Quý 1",
+            "Quý 2",
+            "Quý 3",
+            "Quý 4"
+          ],
+          "unit": "%"
+        }
+      }
+    },
+    {
+      "shot_id": "s15",
+      "duration_seconds": 6,
+      "beat": "CTA",
+      "scene": "Thẻ kêu gọi hành động thương hiệu BAHA Group với nút bấm vàng kim ngọc lam.",
+      "narration": "Đăng ký khám doanh nghiệp miễn phí cùng BAHA ngay hôm nay để tạo ra giá trị thực.",
+      "prompt": "CTA_CLOSE: thẻ kết thương hiệu BAHA Group với lời mời khám doanh nghiệp miễn phí.",
+      "negative_prompt": "",
+      "continues_previous": false,
+      "prompt_contract_version": 4,
+      "message_ids": [
+        "cta-1"
+      ],
+      "shot_kind": "UI_SIM",
+      "action_beats": [],
+      "ui_scene": {
+        "layout": "CTA_CLOSE",
+        "messages": [],
+        "highlight": null,
+        "diagram": {
+          "title": "BAHA Group",
+          "caption": "Đăng ký khám sức khỏe doanh nghiệp",
+          "tag": "Giá trị thực",
+          "value": "baha.vn"
+        }
+      }
+    }
+  ]
+}

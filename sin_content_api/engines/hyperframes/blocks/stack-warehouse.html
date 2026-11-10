@@ -1,0 +1,329 @@
+<!doctype html>
+<!--
+  stack-warehouse: HyperFrames component scene (Kho hàng xếp chồng)
+  Thiết kế theo chuẩn Origami Editorial Motion B2B v1.
+-->
+<html
+  lang="vi"
+  data-composition-id="stack-warehouse"
+  data-composition-duration="10"
+  data-composition-variables='[
+    { "id": "title", "type": "string", "role": "content", "label": "Tiêu đề", "default": "TỒN KHO VÀ ĐIỂM NGHẼN VẬN HÀNH" },
+    { "id": "items", "type": "string", "role": "content", "label": "Chiều cao từng chồng", "default": "4, 6, 8, 5" },
+    { "id": "target", "type": "number", "role": "content", "label": "Vạch sức chứa", "default": 5 },
+    { "id": "tag", "type": "string", "role": "content", "label": "Món cần tìm", "default": "Hàng quan trọng bị chôn" },
+    { "id": "value", "type": "string", "role": "content", "label": "Giá trị tồn", "default": "1.2 TỶ" },
+    { "id": "caption", "type": "string", "role": "content", "label": "Kết luận", "default": "Kho đầy hàng nhưng thiếu món khách cần" }
+  ]'
+>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Stack Warehouse</title>
+  </head>
+  <body>
+    <template>
+      <div id="root" data-composition-id="stack-warehouse" data-duration="10" data-fps="30">
+        <style>
+          #root {
+            position: absolute;
+            inset: 0;
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            background: #0a1c2b;
+            font-family: 'Viet', sans-serif;
+            color: #f6efe0;
+            user-select: none;
+          }
+          .-world {
+            position: absolute;
+            inset: 0;
+            transform-origin: 50% 50%;
+          }
+          .-back, .-mid, .-front, .-fx { position: absolute; inset: 0; }
+          .-front, .-fx { pointer-events: none; }
+          .title-box {
+            position: absolute;
+            top: 7%;
+            left: 6%;
+            font-size: 38px;
+            font-weight: 800;
+            color: #ffd54a;
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+          }
+          .title-word {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          /* Sàn kho tại y 66% theo chuẩn Section 6.4 */
+          .warehouse-floor {
+            position: absolute;
+            bottom: 34%;
+            left: 0;
+            right: 0;
+            height: 12px;
+            background: #12324a;
+            border-top: 2px solid rgba(255,255,255,0.25);
+          }
+          /* Vạch giới hạn sức chứa */
+          .target-line {
+            position: absolute;
+            left: 10%;
+            width: 75%;
+            border-top: 3px dashed #e8695a;
+            z-index: 5;
+          }
+          .target-label {
+            position: absolute;
+            right: 0;
+            top: -24px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #e8695a;
+          }
+          /* Hộp giấy xếp chồng */
+          .box-item {
+            position: absolute;
+            width: 70px;
+            height: 48px;
+            transform-origin: 50% 100%;
+          }
+          .box-highlight {
+            border: 2px solid #ffd54a !important;
+            box-shadow: 0 0 16px rgba(255,213,74,0.6);
+          }
+          /* Xe nâng */
+          .forklift-box {
+            position: absolute;
+            bottom: 35%;
+            right: -180px;
+            width: 140px;
+            height: 95px;
+          }
+          .buried-tag {
+            position: absolute;
+            background: #e8695a;
+            color: #fff;
+            font-size: 15px;
+            font-weight: bold;
+            padding: 5px 14px;
+            border-radius: 12px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+            white-space: nowrap;
+            opacity: 0;
+          }
+          .stat-value-box {
+            position: absolute;
+            top: 20%;
+            right: 14%;
+            font-size: 54px;
+            font-weight: 900;
+            color: #ffd54a;
+            opacity: 0;
+          }
+          .caption-chip {
+            position: absolute;
+            top: 62%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(18, 50, 74, 0.95);
+            border: 1.5px solid #5cc8c0;
+            border-radius: 30px;
+            padding: 12px 32px;
+            font-size: 24px;
+            font-weight: 600;
+            color: #f6efe0;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            white-space: nowrap;
+            opacity: 0;
+          }
+        </style>
+
+        <div class="-world" id="world">
+          <div class="-back" id="layer-back">
+            <svg viewBox="0 0 1920 1080" width="1920" height="1080" style="position:absolute;inset:0;opacity:0.25;">
+              <!-- Kệ kho hậu cảnh -->
+              <rect x="200" y="250" width="12" height="500" fill="#12324a" />
+              <rect x="550" y="250" width="12" height="500" fill="#12324a" />
+              <rect x="900" y="250" width="12" height="500" fill="#12324a" />
+              <line x1="150" y1="420" x2="950" y2="420" stroke="#12324a" stroke-width="8" />
+              <line x1="150" y1="580" x2="950" y2="580" stroke="#12324a" stroke-width="8" />
+            </svg>
+          </div>
+
+          <div class="-mid" id="layer-mid">
+            <div class="title-box" id="title-box" data-obj="title-banner" data-kind="text" data-src="static" data-dst="stay"></div>
+            <div class="warehouse-floor" data-obj="warehouse-floor" data-kind="prop" data-src="static" data-dst="stay"></div>
+
+            <!-- Vạch sức chứa -->
+            <div class="target-line" id="target-line" data-obj="target-line" data-kind="fx" style="bottom: 54%;">
+              <div class="target-label">GIỚI HẠN SỨC CHỨA</div>
+            </div>
+
+            <!-- Các chồng hộp -->
+            <div id="stacks-container"></div>
+
+            <!-- Xe nâng origami -->
+            <div class="forklift-box" id="forklift" data-obj="forklift" data-kind="prop" data-src="offscreen-right" data-dst="stay">
+              <svg viewBox="-55 -75 110 75" width="140" height="95">
+                <circle cx="-30" cy="-10" r="10" fill="#0a1c2b"/><circle cx="-30" cy="-10" r="5" fill="#ffd54a"/>
+                <circle cx="20" cy="-10" r="10" fill="#0a1c2b"/><circle cx="20" cy="-10" r="5" fill="#ffd54a"/>
+                <polygon points="-45,-12 30,-12 25,-42 -20,-42 -45,-30" fill="#ffd54a"/>
+                <polygon points="-20,-42 25,-42 18,-68 -10,-68" fill="#e6be33"/>
+                <polygon points="-8,-45 15,-45 10,-65 -5,-65" fill="#12324a"/>
+                <polygon points="32,-5 38,-5 38,-70 32,-70" fill="#9fb4c4"/>
+                <polygon points="34,-12 55,-12 55,-16 38,-16" fill="#9fb4c4"/>
+              </svg>
+            </div>
+
+            <div class="buried-tag" id="buried-tag" data-obj="buried-tag" data-kind="text" data-src="spawn-from:box-special" data-dst="stay"></div>
+            <div class="stat-value-box" id="stat-value" data-obj="stat-value" data-kind="text" data-src="offscreen-top" data-dst="stay"></div>
+            <div class="caption-chip" id="caption-chip" data-obj="caption-chip" data-kind="text" data-src="offscreen-bottom" data-dst="stay"></div>
+          </div>
+
+          <div class="-front" id="layer-front">
+            <!-- Cột kho tiền cảnh thị sai 1.6 -->
+            <svg viewBox="0 0 1920 1080" width="1920" height="1080" style="position:absolute;inset:0;opacity:0.35;">
+              <polygon points="120,0 160,0 160,1080 120,1080" fill="#12324a" />
+              <polygon points="1750,0 1790,0 1790,1080 1750,1080" fill="#12324a" />
+            </svg>
+          </div>
+          <div class="-fx" id="layer-fx"></div>
+        </div>
+
+        <script>
+          (function() {
+            var vars = window.__hyperframes ? window.__hyperframes.getVariables() : {
+              title: "TỒN KHO VÀ ĐIỂM NGHẼN VẬN HÀNH",
+              items: "4, 6, 8, 5",
+              target: 5,
+              tag: "Hàng quan trọng bị chôn",
+              value: "1.2 TỶ",
+              caption: "Kho đầy hàng nhưng thiếu món khách cần"
+            };
+
+            var titleText = vars.title || "TỒN KHO VÀ ĐIỂM NGHẼN VẬN HÀNH";
+            var heights = (vars.items || "4, 6, 8, 5").split(",").map(function(s){ return parseInt(s.trim()) || 4; });
+            var targetVal = parseInt(vars.target) || 5;
+            var tagText = vars.tag || "Hàng quan trọng bị chôn";
+            var valueText = vars.value || "1.2 TỶ";
+            var captionText = vars.caption || "Kho đầy hàng nhưng thiếu món cần";
+
+            // 1. Tiêu đề
+            var titleBox = document.getElementById("title-box");
+            titleText.split(" ").forEach(function(w) {
+              var s = document.createElement("span");
+              s.className = "title-word";
+              s.textContent = w;
+              titleBox.appendChild(s);
+            });
+
+            document.getElementById("buried-tag").textContent = tagText;
+            document.getElementById("stat-value").textContent = "TỒN: " + valueText;
+            document.getElementById("caption-chip").textContent = captionText;
+
+            // 2. Dựng các chồng hộp
+            var stacksContainer = document.getElementById("stacks-container");
+            var boxSvg = '<svg viewBox="-25 -32 75 50" width="70" height="48"><polygon points="-25,0 25,0 25,-32 -25,-32" fill="#e6dcce"/><polygon points="-25,-32 0,-50 50,-50 25,-32" fill="#f6efe0"/><polygon points="25,0 25,-32 50,-50 50,-18" fill="#d6c9b8"/><polygon points="-5,-32 5,-32 30,-50 20,-50" fill="#ffd54a"/></svg>';
+
+            var allBoxes = [];
+            var stackElements = [];
+            var startX = 280;
+            var stepX = 220;
+
+            heights.forEach(function(stackH, sIdx) {
+              var stackDiv = document.createElement("div");
+              stackDiv.id = "stack-" + sIdx;
+              stackDiv.style.position = "absolute";
+              stackDiv.style.bottom = "35.2%";
+              stackDiv.style.left = (startX + sIdx * stepX) + "px";
+              stackDiv.style.width = "75px";
+              stackDiv.style.height = (stackH * 40) + "px";
+              stackDiv.style.transformOrigin = "50% 100%";
+              stacksContainer.appendChild(stackDiv);
+              stackElements.push(stackDiv);
+
+              for (var b = 0; b < stackH; b++) {
+                var bx = document.createElement("div");
+                bx.className = "box-item";
+                bx.id = "box-" + sIdx + "-" + b;
+                bx.setAttribute("data-obj", "box-" + sIdx + "-" + b);
+                bx.setAttribute("data-kind", "prop");
+                bx.setAttribute("data-src", "offscreen-top");
+                bx.setAttribute("data-dst", "stay");
+                bx.innerHTML = boxSvg;
+                bx.style.bottom = (b * 38) + "px";
+                bx.style.left = "0px";
+                if (sIdx === 2 && b === 2) {
+                  // Món bị chôn
+                  bx.id = "box-special";
+                }
+                stackDiv.appendChild(bx);
+                allBoxes.push({ el: bx, stackIdx: sIdx, boxIdx: b });
+              }
+            });
+
+            // Gắn vị trí buried tag cạnh box-special
+            var buriedTag = document.getElementById("buried-tag");
+            buriedTag.style.left = (startX + 2 * stepX + 85) + "px";
+            buriedTag.style.bottom = "42%";
+
+            // 3. GSAP Timeline
+            var tl = gsap.timeline({ paused: true });
+            var world = document.getElementById("world");
+
+            // 0.0 - 2.0s: Hộp rơi từ ngoài trên xuống xếp chồng
+            tl.set(world, { scale: 1.00, x: 0, y: 0 });
+            tl.to(".title-word", { opacity: 1, y: 0, duration: 0.5, stagger: 0.07, ease: "power3.out" }, 0.1);
+
+            allBoxes.forEach(function(item, idx) {
+              tl.fromTo(item.el,
+                { y: -600, opacity: 0 },
+                { y: 0, opacity: 1, duration: 0.55, ease: "bounce.out" },
+                0.2 + idx * 0.08
+              );
+            });
+
+            // 2.0 - 5.0s: Nâng máy (crane up) lộ tầng cao qua vạch sức chứa (tối đa 10%/giây -> nâng ~20% trong 3s)
+            tl.to(world, { scale: 0.94, y: 150, duration: 3.0, ease: "sine.inOut" }, 2.0);
+
+            // Các chồng hộp lắc nhẹ
+            stackElements.forEach(function(stk, idx) {
+              tl.to(stk, { rotation: (idx % 2 === 0 ? 1.5 : -1.5), duration: 0.6, repeat: 2, yoyo: true, ease: "sine.inOut" }, 2.8 + idx * 0.2);
+            });
+
+            // 5.0 - 7.0s: Chồng chính (chồng 2) nghiêng 4 độ, hộp bị chôn đẩy lệch
+            tl.to(world, { scale: 0.98, y: 80, duration: 1.5, ease: "sine.inOut" }, 5.0);
+            tl.to(stackElements[2], { rotation: 4, duration: 0.8, ease: "power2.out" }, 5.2);
+            var specialBox = document.getElementById("box-special");
+            if (specialBox) {
+              tl.to(specialBox, { x: 12, duration: 0.4, ease: "back.out(2)" }, 5.4);
+            }
+            tl.to(buriedTag, { opacity: 1, y: -6, duration: 0.5, ease: "back.out(1.5)" }, 5.5);
+
+            // 7.0 - 9.0s: Xe nâng vào từ ngoài phải, dừng lại, lắc càng nâng
+            tl.to("#forklift", { right: 420, duration: 1.6, ease: "power1.out" }, 7.0);
+
+            // 8.5 - 9.4s: Con số tồn kho rơi xuống
+            tl.fromTo("#stat-value", { opacity: 0, y: -60 }, { opacity: 1, y: 0, duration: 0.6, ease: "back.out(1.8)" }, 8.5);
+
+            // Chip kết luận
+            tl.fromTo("#caption-chip", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 8.7);
+
+            // 9.4 - 10.0s: Thoát mờ
+            tl.to(world, { y: 76, duration: 0.6, ease: "sine.inOut" }, 9.4);
+            tl.to("#root", { opacity: 0, duration: 0.25, ease: "power1.in" }, 9.75);
+
+            tl.seek(0);
+            window.__timelines = window.__timelines || {};
+            window.__timelines["stack-warehouse"] = tl;
+            window.__timelines["main"] = tl;
+          })();
+        </script>
+      </div>
+    </template>
+  </body>
+</html>

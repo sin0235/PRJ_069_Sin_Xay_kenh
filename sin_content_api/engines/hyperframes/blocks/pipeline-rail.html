@@ -1,0 +1,343 @@
+<!doctype html>
+<!--
+  pipeline-rail: HyperFrames component scene (Đường ống quy trình)
+  Thiết kế theo chuẩn Origami Editorial Motion B2B v1.
+-->
+<html
+  lang="vi"
+  data-composition-id="pipeline-rail"
+  data-composition-duration="10"
+  data-composition-variables='[
+    { "id": "title", "type": "string", "role": "content", "label": "Tiêu đề", "default": "ĐIỂM NGHẼN QUY TRÌNH BÁN HÀNG" },
+    { "id": "steps", "type": "string", "role": "content", "label": "Các trạm", "default": "Tiếp nhận, Phân loại, Báo giá, Chốt đơn, Giao hàng" },
+    { "id": "block_step", "type": "number", "role": "content", "label": "Trạm nghẽn", "default": 2 },
+    { "id": "tag", "type": "string", "role": "content", "label": "Nhãn thẻ", "default": "Khách tiềm năng" },
+    { "id": "value", "type": "string", "role": "content", "label": "Đơn mất", "default": "42" },
+    { "id": "caption", "type": "string", "role": "content", "label": "Kết luận", "default": "Báo giá chậm khiến khách hàng chuyển sang đối thủ" }
+  ]'
+>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Pipeline Rail</title>
+  </head>
+  <body>
+    <template>
+      <div id="root" data-composition-id="pipeline-rail" data-duration="10" data-fps="30">
+        <style>
+          #root {
+            position: absolute;
+            inset: 0;
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            background: #0a1c2b;
+            font-family: 'Viet', sans-serif;
+            color: #f6efe0;
+            user-select: none;
+          }
+          .-world {
+            position: absolute;
+            inset: 0;
+            transform-origin: 50% 50%;
+          }
+          .-back, .-mid, .-front, .-fx { position: absolute; inset: 0; }
+          .-front, .-fx { pointer-events: none; }
+          .title-box {
+            position: absolute;
+            top: 7%;
+            left: 6%;
+            font-size: 38px;
+            font-weight: 800;
+            color: #ffd54a;
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+          }
+          .title-word {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          /* Băng chuyền siêu rộng */
+          .conveyor-track {
+            position: absolute;
+            top: 50%;
+            left: -50%;
+            width: 300%;
+            height: 48px;
+            background: #12324a;
+            border-top: 3px solid rgba(255,255,255,0.25);
+            border-bottom: 4px solid #06111b;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.4);
+          }
+          .track-stripe {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+            background-image: repeating-linear-gradient(90deg, transparent, transparent 40px, rgba(255,255,255,0.08) 40px, rgba(255,255,255,0.08) 42px);
+          }
+          /* Trạm kiểm soát */
+          .station-post {
+            position: absolute;
+            top: 32%;
+            width: 90px;
+            height: 200px;
+            transform-origin: 50% 100%;
+          }
+          .station-lamp {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #5cc8c0;
+            box-shadow: 0 0 16px #5cc8c0;
+          }
+          .station-lamp.jammed {
+            background: #e8695a !important;
+            box-shadow: 0 0 24px #e8695a !important;
+          }
+          .station-label {
+            position: absolute;
+            top: 104px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 15px;
+            font-weight: 700;
+            color: #9fb4c4;
+            white-space: nowrap;
+          }
+          /* Thẻ hồ sơ khách hàng */
+          .lead-card {
+            position: absolute;
+            top: 43.5%;
+            width: 90px;
+            height: 65px;
+            transform-origin: 50% 50%;
+          }
+          /* Chip cảnh báo & số liệu */
+          .jam-tag {
+            position: absolute;
+            top: 36%;
+            left: 64%;
+            background: #e8695a;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 6px 16px;
+            border-radius: 14px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+            white-space: nowrap;
+            opacity: 0;
+          }
+          .counter-box {
+            position: absolute;
+            top: 36%;
+            left: 45%;
+            font-size: 52px;
+            font-weight: 900;
+            color: #ffd54a;
+            text-shadow: 0 8px 18px rgba(0,0,0,0.5);
+            opacity: 0;
+          }
+          .caption-chip {
+            position: absolute;
+            top: 62%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(18, 50, 74, 0.95);
+            border: 1.5px solid #5cc8c0;
+            border-radius: 30px;
+            padding: 12px 32px;
+            font-size: 24px;
+            font-weight: 600;
+            color: #f6efe0;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            white-space: nowrap;
+            opacity: 0;
+          }
+        </style>
+
+        <div class="-world" id="world">
+          <div class="-back" id="layer-back">
+            <svg viewBox="0 0 1920 1080" width="1920" height="1080" style="position:absolute;inset:0;opacity:0.2;">
+              <line x1="0" y1="500" x2="1920" y2="500" stroke="#fff" stroke-width="2" />
+              <line x1="200" y1="200" x2="200" y2="500" stroke="#fff" stroke-width="2" />
+              <line x1="800" y1="200" x2="800" y2="500" stroke="#fff" stroke-width="2" />
+              <line x1="1400" y1="200" x2="1400" y2="500" stroke="#fff" stroke-width="2" />
+            </svg>
+          </div>
+
+          <div class="-mid" id="layer-mid">
+            <div class="title-box" id="title-box" data-obj="title-banner" data-kind="text" data-src="static" data-dst="stay"></div>
+
+            <!-- Băng chuyền -->
+            <div class="conveyor-track" data-obj="conveyor-track" data-kind="prop" data-src="static" data-dst="stay">
+              <div class="track-stripe"></div>
+            </div>
+
+            <!-- Các trạm kiểm soát -->
+            <div id="stations-container"></div>
+
+            <!-- Các thẻ hồ sơ -->
+            <div id="cards-container"></div>
+
+            <div class="jam-tag" id="jam-tag" data-obj="jam-tag" data-kind="text" data-src="offscreen-bottom" data-dst="stay"></div>
+            <div class="counter-box" id="counter-box" data-obj="counter-box" data-kind="text" data-src="offscreen-top" data-dst="stay">0</div>
+            <div class="caption-chip" id="caption-chip" data-obj="caption-chip" data-kind="text" data-src="offscreen-bottom" data-dst="stay"></div>
+          </div>
+
+          <div class="-front" id="layer-front">
+            <!-- Đèn trần thả xuống từ mép trên thị sai 1.6 -->
+            <svg viewBox="0 0 1920 1080" width="1920" height="1080" style="position:absolute;inset:0;opacity:0.4;">
+              <line x1="450" y1="0" x2="450" y2="120" stroke="#9fb4c4" stroke-width="2" />
+              <polygon points="430,120 470,120 480,150 420,150" fill="#12324a" />
+              <line x1="1150" y1="0" x2="1150" y2="120" stroke="#9fb4c4" stroke-width="2" />
+              <polygon points="1130,120 1170,120 1180,150 1120,150" fill="#12324a" />
+            </svg>
+          </div>
+          <div class="-fx" id="layer-fx"></div>
+        </div>
+
+        <script>
+          (function() {
+            var vars = window.__hyperframes ? window.__hyperframes.getVariables() : {
+              title: "ĐIỂM NGHẼN QUY TRÌNH BÁN HÀNG",
+              steps: "Tiếp nhận, Phân loại, Báo giá, Chốt đơn, Giao hàng",
+              block_step: 2,
+              tag: "Khách tiềm năng",
+              value: "42",
+              caption: "Báo giá chậm khiến khách hàng chuyển sang đối thủ"
+            };
+
+            var titleText = vars.title || "ĐIỂM NGHẼN QUY TRÌNH BÁN HÀNG";
+            var steps = (vars.steps || "Tiếp nhận, Phân loại, Báo giá, Chốt đơn, Giao hàng").split(",").map(function(s){ return s.trim(); });
+            var blockStep = parseInt(vars.block_step) || 2;
+            var tagText = vars.tag || "Khách tiềm năng";
+            var valueNum = parseInt(vars.value) || 42;
+            var captionText = vars.caption || "Báo giá chậm khiến mất đơn";
+
+            // 1. Tiêu đề
+            var titleBox = document.getElementById("title-box");
+            titleText.split(" ").forEach(function(w) {
+              var s = document.createElement("span");
+              s.className = "title-word";
+              s.textContent = w;
+              titleBox.appendChild(s);
+            });
+
+            document.getElementById("jam-tag").textContent = "Nghẽn tại: " + (steps[blockStep] || "Báo giá");
+            document.getElementById("caption-chip").textContent = captionText;
+
+            // 2. Dựng các trạm kiểm soát dọc băng chuyền
+            var stationsContainer = document.getElementById("stations-container");
+            var stXList = [250, 650, 1050, 1450, 1850];
+            steps.forEach(function(stName, idx) {
+              var posX = stXList[idx] || (250 + idx * 400);
+              var div = document.createElement("div");
+              div.className = "station-post";
+              div.id = "station-" + idx;
+              div.style.left = posX + "px";
+              var isJammed = (idx === blockStep);
+              div.innerHTML = '<div class="station-lamp ' + (isJammed ? "jammed" : "") + '" id="lamp-' + idx + '"></div>' +
+                '<svg viewBox="-35 -90 70 90" width="70" height="90" style="margin-top:20px;">' +
+                '<polygon points="-8,0 8,0 8,-70 -8,-70" fill="#12324a"/>' +
+                '<polygon points="-30,-70 30,-70 24,-88 -24,-88" fill="' + (isJammed ? "#e8695a" : "#5cc8c0") + '"/>' +
+                '</svg>' +
+                '<div class="station-label">' + stName + '</div>';
+              stationsContainer.appendChild(div);
+            });
+
+            // 3. Dựng 6 thẻ hồ sơ khách hàng
+            var cardsContainer = document.getElementById("cards-container");
+            var cards = [];
+            var cardSvg = '<svg viewBox="-45 -65 90 65" width="90" height="65"><path d="M-40,0 L40,0 Q45,0 45,-5 L45,-55 Q45,-60 40,-60 L-40,-60 Q-45,-60 -45,-55 L-45,-5 Q-45,0 -40,0 Z" fill="#12324a"/><polygon points="25,-60 45,-40 45,-60" fill="#5cc8c0"/><rect x="-35" y="-50" width="30" height="6" rx="2" fill="#ffd54a"/><rect x="-35" y="-38" width="55" height="4" rx="1.5" fill="#f6efe0" opacity="0.8"/><rect x="-35" y="-28" width="45" height="4" rx="1.5" fill="#f6efe0" opacity="0.6"/></svg>';
+
+            for (var i = 1; i <= 6; i++) {
+              var cd = document.createElement("div");
+              cd.className = "lead-card";
+              cd.id = "card-" + i;
+              cd.setAttribute("data-obj", "card-" + i);
+              cd.setAttribute("data-kind", "prop");
+              cd.setAttribute("data-src", "offscreen-left");
+              cd.setAttribute("data-dst", (i === 6) ? "offscreen-bottom" : "stay");
+              cd.innerHTML = cardSvg;
+              cd.style.left = "-120px";
+              cardsContainer.appendChild(cd);
+              cards.push(cd);
+            }
+
+            // 4. GSAP Timeline
+            var tl = gsap.timeline({ paused: true });
+            var world = document.getElementById("world");
+
+            // 0.0 - 1.2s: Mở cảnh, tiêu đề trượt
+            tl.set(world, { scale: 1.00, x: 0, y: 0 });
+            tl.to(".title-word", { opacity: 1, y: 0, duration: 0.5, stagger: 0.08, ease: "power3.out" }, 0.1);
+
+            // Thẻ vào từ ngoài trái
+            cards.forEach(function(c, idx) {
+              tl.fromTo(c, { left: -120 }, { left: 180 + idx * 110, duration: 2.0, ease: "power1.out" }, 0.2 + idx * 0.25);
+            });
+
+            // 1.2 - 4.0s: Camera dolly dọc băng chuyền theo quy định (tối đa 10.7%/s -> 30% trong 2.8s = 576px)
+            tl.to(world, { x: -450, duration: 2.8, ease: "sine.inOut" }, 1.2);
+
+            // 4.0 - 6.0s: Nghẽn tại trạm blockStep (x=1050px)
+            // Các thẻ dừng lại và dồn lại
+            tl.to(world, { scale: 1.07, x: -500, duration: 1.4, ease: "sine.inOut" }, 4.0);
+            tl.to("#lamp-" + blockStep, { opacity: 0.3, repeat: 5, yoyo: true, duration: 0.2 }, 4.0);
+            tl.to("#jam-tag", { opacity: 1, y: -8, duration: 0.5, ease: "back.out(1.4)" }, 4.2);
+
+            cards.forEach(function(c, idx) {
+              tl.to(c, { left: 900 + idx * 28, duration: 0.8, ease: "power2.out" }, 4.0 + idx * 0.1);
+            });
+
+            // 6.0 - 7.0s: Thẻ cuối bị đẩy lệch, rơi nhanh khỏi băng chuyền xuống đáy
+            var fallenCard = cards[5];
+            tl.to(fallenCard, {
+              left: 1080,
+              top: "62%",
+              rotation: 35,
+              duration: 0.45,
+              ease: "power2.in"
+            }, 6.0);
+            tl.to(fallenCard, {
+              top: "105%",
+              opacity: 0,
+              duration: 0.35,
+              ease: "power1.in"
+            }, 6.45);
+
+            // 8.0 - 9.4s: Con số mất đơn đếm lên
+            tl.to("#counter-box", { opacity: 1, duration: 0.4 }, 8.0);
+            var counterObj = { count: 0 };
+            tl.to(counterObj, {
+              count: valueNum,
+              duration: 1.0,
+              ease: "power1.out",
+              onUpdate: function() {
+                document.getElementById("counter-box").textContent = Math.round(counterObj.count) + " ĐƠN MẤT";
+              }
+            }, 8.2);
+
+            // Chip kết luận
+            tl.fromTo("#caption-chip", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 8.5);
+
+            // 9.4 - 10.0s: Thoát mờ
+            tl.to(world, { y: "-3px", duration: 0.6, ease: "sine.inOut" }, 9.4);
+            tl.to("#root", { opacity: 0, duration: 0.25, ease: "power1.in" }, 9.75);
+
+            tl.seek(0);
+            window.__timelines = window.__timelines || {};
+            window.__timelines["pipeline-rail"] = tl;
+            window.__timelines["main"] = tl;
+          })();
+        </script>
+      </div>
+    </template>
+  </body>
+</html>

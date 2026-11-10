@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -120 100 120" width="100" height="120" data-anchor="0,0">
+  <g id="warehouse-rack">
+    <!-- Cot thang dung trai va phai -->
+    <polygon points="-48,0 -40,0 -40,-115 -48,-115" fill="#12324a" />
+    <polygon points="40,0 48,0 48,-115 40,-115" fill="#12324a" />
+    <!-- Tang do 1, 2, 3 -->
+    <polygon points="-48,-35 48,-35 44,-42 -44,-42" fill="#9fb4c4" />
+    <polygon points="-48,-75 48,-75 44,-82 -44,-82" fill="#9fb4c4" />
+    <polygon points="-48,-115 48,-115 44,-122 -44,-122" fill="#9fb4c4" />
+    <!-- Thanh giang cheo chu X origami -->
+    <line x1="-40" y1="-35" x2="40" y2="-75" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" />
+    <line x1="40" y1="-35" x2="-40" y2="-75" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" />
+    <line x1="-40" y1="-75" x2="40" y2="-115" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" />
+    <line x1="40" y1="-75" x2="-40" y2="-115" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" />
+  </g>
+</svg>

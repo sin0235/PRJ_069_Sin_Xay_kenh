@@ -18,7 +18,7 @@ class StyleSnapshot(BaseModel):
     render_engine: Literal["playwright", "hyperframes", "remotion"] | None = None
     remotion_native: bool | None = None
     assembly: Literal["classic", "hyperframes"] | None = None
-    caption_preset: Literal["da_sac_phan_tang", "hop_mau_dong_chinh", "bento_ba_tang", "inline_pop_trai"] | None = None
+    caption_preset: Literal["tu_dong", "da_sac_phan_tang", "hop_mau_dong_chinh", "bento_ba_tang", "inline_pop_trai"] | None = None
 
     @model_serializer(mode="wrap")
     def giu_snapshot_cu(self, handler):
@@ -37,7 +37,7 @@ class CreatePlanRequest(BaseModel):
     target_duration_seconds: int = Field(ge=20, le=180)
     aspect_ratio: Literal["9:16", "16:9"] = "9:16"
     generate_flow_music: bool = False
-    caption_preset: Optional[Literal["da_sac_phan_tang", "hop_mau_dong_chinh", "bento_ba_tang", "inline_pop_trai"]] = None
+    caption_preset: Optional[Literal["tu_dong", "da_sac_phan_tang", "hop_mau_dong_chinh", "bento_ba_tang", "inline_pop_trai"]] = None
 
 
 class UpdateStoryboardRequest(BaseModel):
@@ -90,7 +90,7 @@ class CreateRunRequest(BaseModel):
     voice_clone_consent: bool = False
     voice_profile_id: str | None = Field(default=None, min_length=1, max_length=36)   # giọng đã lưu trong thư viện clone giọng
     include_subtitles: bool = True
-    caption_preset: Optional[Literal["da_sac_phan_tang", "hop_mau_dong_chinh", "bento_ba_tang", "inline_pop_trai"]] = None
+    caption_preset: Optional[Literal["tu_dong", "da_sac_phan_tang", "hop_mau_dong_chinh", "bento_ba_tang", "inline_pop_trai"]] = None
     idempotency_key: str = Field(min_length=8, max_length=128)
 
     @model_validator(mode="after")

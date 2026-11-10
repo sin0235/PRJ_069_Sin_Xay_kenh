@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-45 -65 90 65" width="90" height="65" data-anchor="0,0" data-anchor-handle="0,-60">
+  <g id="profile-card">
+    <!-- Phan than the giay gap -->
+    <path d="M-40,0 L40,0 Q45,0 45,-5 L45,-55 Q45,-60 40,-60 L-40,-60 Q-45,-60 -45,-55 L-45,-5 Q-45,0 -40,0 Z" fill="#12324a" />
+    <!-- Nep giay gap cheo tai goc tren phai -->
+    <polygon points="25,-60 45,-40 45,-60" fill="#5cc8c0" />
+    <polygon points="25,-60 45,-40 25,-40" fill="#46ada6" />
+    <!-- Duong chi tieu the noi bo -->
+    <rect x="-35" y="-50" width="30" height="6" rx="2" fill="#ffd54a" />
+    <rect x="-35" y="-38" width="55" height="4" rx="1.5" fill="#f6efe0" opacity="0.8" />
+    <rect x="-35" y="-28" width="45" height="4" rx="1.5" fill="#f6efe0" opacity="0.6" />
+    <rect x="-35" y="-18" width="35" height="4" rx="1.5" fill="#f6efe0" opacity="0.4" />
+    <!-- Vien canh giay -->
+    <path d="M-45,-55 L-45,-5 Q-45,0 -40,0 L40,0" stroke="rgba(255,255,255,0.2)" stroke-width="1" fill="none" />
+  </g>
+</svg>

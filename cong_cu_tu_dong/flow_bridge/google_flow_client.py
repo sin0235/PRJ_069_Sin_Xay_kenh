@@ -37,6 +37,7 @@ from config import (
     GOOGLE_FLOW_URL,
     MEDIA_ASSETS_DIR,
     POLL_INTERVAL_SEC,
+    browser_display,
     browser_launch_args,
     get_current_browser_profile_dir,
     sync_browser_profile,
@@ -46,6 +47,7 @@ from session_manager import (
     FlowLoginRequired,
     FlowQuotaExceeded,
     FlowSubmissionNotSent,
+    FlowUnusualActivity,
     _login_prompt_visible,
     _quota_visible,
     _visible,
@@ -61,6 +63,45 @@ from src.modules.flow_sessions.context import (
 _FLOW_MUTEX = threading.Lock()
 _FLOW_PROJECT_TIMEOUT_MS = 120_000
 _FLOW_PROJECT_RETRIES = 1
+_FLOW_REQUEST_START_SEC = 90
+_UNUSUAL_COOLDOWN_SEC = int(os.environ.get("FLOW_UNUSUAL_COOLDOWN_SEC", "300"))
+_UNUSUAL_MARKER = "flow_unusual_activity.ts"
+
+
+def _unusual_cooldown_remaining(profile_dir: pathlib.Path) -> int:
+    """Số giây còn phải nghỉ sau lần Google báo 'hoạt động bất thường' gần nhất của hồ sơ này (0 nếu không phải nghỉ)."""
+    try:
+        marked_at = float((profile_dir / _UNUSUAL_MARKER).read_text())
+    except (OSError, ValueError):
+        return 0
+    return max(0, int(marked_at + _UNUSUAL_COOLDOWN_SEC - time.time()))
+
+
+def _mark_unusual_activity(profile_dir: pathlib.Path) -> None:
+    try:
+        (profile_dir / _UNUSUAL_MARKER).write_text(str(time.time()))
+    except OSError:
+        pass
+
+
+def _clear_unusual_activity(profile_dir: pathlib.Path) -> None:
+    try:
+        (profile_dir / _UNUSUAL_MARKER).unlink()
+    except OSError:
+        pass
+
+
+def _flow_unusual_activity_after_prompt(bubble_texts: list[str], prompt_index: int) -> bool:
+    """Flow trả bong bóng lỗi 'hoạt động bất thường' (reCAPTCHA từ chối phiên tự động) ngay sau prompt vừa gửi."""
+    return any(
+        "hoạt động bất thường" in text.lower() or "unusual activity" in text.lower()
+        for text in bubble_texts[prompt_index + 1:]
+    )
+
+
+def _flow_agent_replied_after_prompt(bubble_texts: list[str], prompt_index: int) -> bool:
+    """Agent của Flow đã trả lời (không phải bong bóng lỗi) sau prompt: yêu cầu có thể đã vào hàng đợi phía Google."""
+    return any(text.strip() and not text.strip().lower().startswith("error") for text in bubble_texts[prompt_index + 1:])
 
 
 def _has_successful_generation(media_items: list[dict], media_name: str) -> bool:
@@ -90,6 +131,36 @@ class GoogleFlowClient:
 
     def __init__(self, headless: bool = True):
         self.headless = headless
+
+    @staticmethod
+    def _log_submit_diagnostics(page, flow_requests: list[str], target_dir: pathlib.Path, reason: str = "") -> str:
+        """Ghi lại những gì Flow đang hiển thị khi yêu cầu không được xác nhận; trả về bản tóm tắt ngắn để đưa vào thông báo lỗi."""
+        summary = ""
+        try:
+            alerts = page.locator("[role='alert'], [role='status'], [role='dialog'], .toast").all_text_contents()
+            bubbles = [" ".join(text.split())[:700] for text in page.locator("flow-chat-bubble").all_text_contents()[-3:]]
+            options = [" ".join(text.split())[:80] for text in page.locator("[role='option']").all_text_contents()][-8:]
+            radios = page.locator("[role='radio']").evaluate_all(
+                "els => els.map(e => (e.innerText || '').trim().slice(0, 40) + (e.classList.contains('read-only') ? ' [read-only]' : ' [active]'))"
+            )[-6:]
+            print(f"[FLOW DIAG] radios={radios}", flush=True)
+            page_text = " ".join(page.locator("body").inner_text(timeout=3000).split())[-1500:]
+            shot_path = target_dir / f"flow_submit_diag_{int(time.time())}.png"
+            page.screenshot(path=str(shot_path))
+            print(f"[FLOW DIAG] reason={reason[:120]!r} options={options}", flush=True)
+            print(f"[FLOW DIAG] url={page.url} alerts={[a.strip()[:160] for a in alerts if a.strip()][:5]} "
+                  f"bubbles={bubbles} screenshot={shot_path.name}", flush=True)
+            prompt_box = page.locator("flow-base-prompt-box").first
+            if prompt_box.count():
+                box_html = re.sub(r"\s+", " ", prompt_box.inner_html(timeout=3000))
+                print(f"[FLOW DIAG] prompt_box={box_html[:2500]}", flush=True)
+            print(f"[FLOW DIAG] requests={flow_requests[-12:]}", flush=True)
+            print(f"[FLOW DIAG] page_text={page_text}", flush=True)
+            shown_alerts = [" ".join(a.split())[:120] for a in alerts if a.strip()][:3]
+            summary = f" [Chẩn đoán: thông báo Flow={shown_alerts}; ảnh chụp={shot_path.name}]"
+        except Exception as diag_err:
+            print(f"[FLOW DIAG] Không thu được chẩn đoán ({type(diag_err).__name__}).", flush=True)
+        return summary
 
     @staticmethod
     def _flow_page_state(page) -> str:
@@ -169,11 +240,12 @@ class GoogleFlowClient:
     def _download_current_flow_video(page, target_dir: pathlib.Path) -> pathlib.Path:
         download_button = page.get_by_role("button", name="Tải nội dung nghe nhìn xuống")
         download_button.wait_for(state="visible", timeout=15000)
-        deadline = time.monotonic() + 120
+        ready_timeout = int(os.environ.get("FLOW_VIDEO_READY_TIMEOUT_SEC", "360"))
+        deadline = time.monotonic() + ready_timeout
         while not download_button.is_enabled() and time.monotonic() < deadline:
             page.wait_for_timeout(1000)
         if not download_button.is_enabled():
-            raise RuntimeError("FLOW_VIDEO_NOT_READY: Flow chưa bật nút tải cho video vừa tạo.")
+            raise RuntimeError(f"FLOW_VIDEO_NOT_READY: Flow chưa bật nút tải sau {ready_timeout}s.")
         download_button.click(timeout=10000)
         quality = page.locator("[role='menuitem']:has-text('720p')").first
         quality.wait_for(state="visible", timeout=10000)
@@ -193,7 +265,17 @@ class GoogleFlowClient:
         return GoogleFlowClient._download_current_flow_video(page, target_dir)
 
     @profile_locked(get_current_browser_profile_dir)
-    def create_video(
+    def create_video(self, *args, **kwargs) -> Dict[str, Any]:
+        """Thử lại một lần khi Flow chắc chắn chưa nhận yêu cầu (không có request tạo video), không tốn tín dụng."""
+        try:
+            return self._create_video_once(*args, **kwargs)
+        except FlowSubmissionNotSent as exc:
+            if "FLOW_SUBMIT_NOT_SENT" not in str(exc):
+                raise
+            print("[GOOGLE FLOW] Flow chưa nhận yêu cầu; mở lại trang và gửi lại một lần.", flush=True)
+            return self._create_video_once(*args, **kwargs)
+
+    def _create_video_once(
         self,
         prompt: str,
         aspect_ratio: str = "16:9",
@@ -216,6 +298,13 @@ class GoogleFlowClient:
             profile_dir = sync_browser_profile()
             ensure_profile_free(profile_dir)
 
+            cooldown = _unusual_cooldown_remaining(profile_dir)
+            if cooldown:
+                raise FlowUnusualActivity(
+                    f"FLOW_UNUSUAL_ACTIVITY_COOLDOWN: Google vừa báo 'hoạt động bất thường' với phiên Flow này; "
+                    f"tạm nghỉ thêm {cooldown}s để không làm điểm rủi ro xấu đi, sau đó chạy lại."
+                )
+
             clean_prompt = prompt.strip()
             print(f"[GOOGLE FLOW OMNI] Bắt đầu tạo video 10s: '{clean_prompt[:70]}...'", flush=True)
 
@@ -228,18 +317,23 @@ class GoogleFlowClient:
             generation_submitted = False
             generation_response_received = False
             quota_limited = False
+            flow_requests: list[str] = []
 
-            with sync_playwright() as p:
+            with sync_playwright() as p, browser_display(self.headless) as (headless, display_env):
+                print(f"[GOOGLE FLOW] Chế độ trình duyệt: {'có cửa sổ (Xvfb)' if display_env else 'headless'}", flush=True)
                 context = p.chromium.launch_persistent_context(
                     user_data_dir=str(profile_dir),
                     channel=BROWSER_CHANNEL,
-                    headless=self.headless,
+                    headless=headless,
+                    env=display_env,
+                    ignore_default_args=["--enable-automation"],
                     viewport={"width": 1400, "height": 900},
                     args=browser_launch_args(),
                     downloads_path=str(target_dir),
                     accept_downloads=True
                 )
 
+                page = None
                 try:
                     page = context.pages[0] if context.pages else context.new_page()
 
@@ -287,6 +381,16 @@ class GoogleFlowClient:
                                 print(f"[GOOGLE FLOW NETWORK] Không đọc được trạng thái phản hồi ({type(response_err).__name__}).", flush=True)
 
                     page.on("response", on_response)
+                    generation_request_sent = False
+
+                    def on_request(request):
+                        nonlocal generation_request_sent
+                        if "batchAsyncGenerateVideo" in request.url and generation_submitted:
+                            generation_request_sent = True
+                        if "google" in request.url and request.resource_type in {"xhr", "fetch"}:
+                            flow_requests.append(f"{request.method} {request.url[:140]}")
+
+                    page.on("request", on_request)
 
                     def approve_pending_generation() -> None:
                         active_approval = page.locator(
@@ -387,8 +491,10 @@ class GoogleFlowClient:
                     approve_pending_generation()
 
                     response_deadline = time.monotonic() + timeout_sec
+                    no_request_deadline = time.monotonic() + _FLOW_REQUEST_START_SEC
                     new_video_card = None
                     prompt_bubble_confirmed = False
+                    agent_replied = False
                     while time.monotonic() < response_deadline:
                         page.wait_for_timeout(500)
                         approve_pending_generation()
@@ -400,6 +506,15 @@ class GoogleFlowClient:
                             if not prompt_bubble_confirmed:
                                 print("[GOOGLE FLOW] Đã xác nhận Flow nhận prompt mới của request này.", flush=True)
                                 prompt_bubble_confirmed = True
+                            if _flow_unusual_activity_after_prompt(bubble_texts, prompt_bubble_index):
+                                _mark_unusual_activity(profile_dir)
+                                diag_summary = self._log_submit_diagnostics(page, flow_requests, target_dir, "unusual activity")
+                                raise FlowUnusualActivity(
+                                    "FLOW_UNUSUAL_ACTIVITY: Google từ chối phiên Flow tự động của NAS (báo 'hoạt động bất thường', "
+                                    "thường do reCAPTCHA chấm điểm thấp); chưa có yêu cầu nào được tạo. Không tự thử lại; "
+                                    f"chờ một lúc rồi chạy lại.{diag_summary}"
+                                )
+                            agent_replied = _flow_agent_replied_after_prompt(bubble_texts, prompt_bubble_index)
                             card_selector = "[role='button'][aria-label='Mở video trong trình chỉnh sửa']"
                             for bubble_index in range(prompt_bubble_index + 1, len(bubble_texts)):
                                 cards = flow_bubbles.nth(bubble_index).locator(card_selector)
@@ -417,10 +532,25 @@ class GoogleFlowClient:
                                 print("[GOOGLE FLOW] Đã nhận thẻ video mới từ giao diện Flow.", flush=True)
                         if new_video_card is not None or (generation_response_received and captured_media_name):
                             break
+                        # Agent đã trả lời thì video có thể đang xếp hàng phía Google; chờ đủ hạn thay vì kết luận chưa gửi.
+                        if not generation_request_sent and not agent_replied and time.monotonic() > no_request_deadline:
+                            break
                     if new_video_card is not None:
                         downloaded_file = self._download_flow_video_card(page, new_video_card, target_dir)
                         is_generation_complete = True
                     elif not generation_response_received or not captured_media_name:
+                        diag_summary = self._log_submit_diagnostics(page, flow_requests, target_dir, "submit not confirmed")
+                        if agent_replied:
+                            # Không dùng FlowSubmissionNotSent: yêu cầu có thể đã được Flow xếp hàng, thử lại sẽ tạo video trùng.
+                            raise RuntimeError(
+                                "FLOW_QUEUED_RESULT_NOT_DELIVERED: Flow đã phản hồi prompt nhưng chưa có video mới sau "
+                                f"{timeout_sec}s (có thể đang xếp hàng do nhu cầu cao); kiểm tra thư viện Flow trước khi tạo lại.{diag_summary}"
+                            )
+                        if not generation_request_sent:
+                            raise FlowSubmissionNotSent(
+                                "FLOW_SUBMIT_NOT_SENT: Flow nhận prompt trên giao diện nhưng không gửi yêu cầu tạo video "
+                                f"trong {_FLOW_REQUEST_START_SEC}s; chưa có yêu cầu nào được tạo trên Flow.{diag_summary}"
+                            )
                         raise RuntimeError(
                             "FLOW_SUBMIT_NOT_CONFIRMED: Google Flow không trả media ID cho yêu cầu vừa gửi; "
                             "không có thẻ video mới để tải; không lấy lại video cũ làm kết quả."
@@ -431,6 +561,9 @@ class GoogleFlowClient:
                     start_time = time.time()
 
                     while time.time() - start_time < timeout_sec:
+                        # Bỏ qua chờ polling nếu card đã tải được MP4 hoàn chỉnh.
+                        if downloaded_file and downloaded_file.exists() and downloaded_file.stat().st_size > 100000:
+                            break
                         page.wait_for_timeout(POLL_INTERVAL_SEC * 1000)
 
                         if quota_limited:
@@ -470,6 +603,7 @@ class GoogleFlowClient:
                     raise
                 except Exception as exc:
                     if not generation_submitted:
+                        self._log_submit_diagnostics(page, flow_requests, target_dir, str(exc).splitlines()[0])
                         raise FlowSubmissionNotSent(str(exc)) from exc
                     raise
                 finally:
@@ -478,6 +612,7 @@ class GoogleFlowClient:
                     except Exception:
                         pass
 
+            _clear_unusual_activity(profile_dir)
             data = downloaded_file.read_bytes()
             sha256_hash = hashlib.sha256(data).hexdigest()
             byte_size = len(data)
@@ -511,25 +646,6 @@ class GoogleFlowClient:
 
     @staticmethod
     def _ensure_video_mode(page, aspect_ratio: str = "16:9") -> None:
-        agent_settings = page.locator(
-            "button[aria-label='Settings']:visible, button[aria-label='Cài đặt']:visible"
-        ).last
-        try:
-            agent_settings.wait_for(state="visible", timeout=20000)
-        except PlaywrightTimeoutError:
-            pass
-        if agent_settings.count() and agent_settings.is_visible():
-            try:
-                agent_settings.click(timeout=5000)
-            except PlaywrightTimeoutError:
-                if not page.locator("button.settings-save-button").is_visible():
-                    raise
-            video_section = page.locator("div.settings-section").filter(
-                has=page.locator("button.video-model-picker-button")
-            ).first
-            video_section.locator("[role='radio']").filter(has_text=aspect_ratio).first.click(timeout=5000)
-            page.locator("button.settings-save-button").click(timeout=5000)
-            return
         agent_toggle = page.locator("button.agent-mode-chip")
         if agent_toggle.count():
             agent_toggle.wait_for(state="visible", timeout=_FLOW_PROJECT_TIMEOUT_MS)
@@ -540,7 +656,7 @@ class GoogleFlowClient:
             "button.settings-trigger-button, button[aria-label*='settings']"
         ).first
         try:
-            generation_settings.wait_for(state="visible", timeout=5000)
+            generation_settings.wait_for(state="visible", timeout=_FLOW_PROJECT_TIMEOUT_MS)
         except PlaywrightTimeoutError:
             pass
         if not generation_settings.count():
@@ -591,15 +707,21 @@ class GoogleFlowClient:
         if trigger.count() == 0:
             agent_settings = page.locator(
                 "button.agent-action-button[aria-label='Settings'], "
-                "button.agent-action-button[aria-label='Cài đặt']"
+                "button.agent-action-button:has-text('tune')"
             ).first
-            if aspect_ratio == "16:9" and agent_settings.count() and agent_settings.is_visible():
+            if agent_settings.count() and agent_settings.is_visible():
+                agent_settings.click(timeout=5000)
+                video_settings = page.locator("div.settings-section").filter(
+                    has=page.locator("button.video-model-picker-button")
+                ).first
+                video_settings.wait_for(state="visible", timeout=5000)
+                ratio = video_settings.locator("[role='radio']").filter(has_text=aspect_ratio).first
+                ratio.wait_for(state="visible", timeout=5000)
+                ratio.click(timeout=5000)
+                save = page.locator("button.settings-save-button")
+                save.wait_for(state="visible", timeout=5000)
+                save.click(timeout=5000)
                 return
-            buttons = page.locator("button").evaluate_all(
-                "buttons => buttons.filter(b => b.getClientRects().length).map(b => ({"
-                "label:b.getAttribute('aria-label'), title:b.title, text:b.innerText.slice(0,80), class:b.className})).slice(-20)"
-            )
-            print("[FLOW MODE BUTTONS] " + json.dumps(buttons, ensure_ascii=False), flush=True)
             raise RuntimeError(
                 "FLOW_VIDEO_MODE_SELECTOR_NOT_FOUND: "
                 f"agent={agent_toggle.count()} "
@@ -663,8 +785,10 @@ class GoogleFlowClient:
                 raise RuntimeError("Google Flow không hiển thị chỗ thêm ảnh tham chiếu.")
             add_media.click(timeout=5000)
             page.wait_for_timeout(500)
-            image_item = page.locator("[role='option']").filter(has_text=image_path.stem).last
-            if image_item.count() == 0:
+            stem_items = page.locator("[role='option']").filter(has_text=image_path.stem)
+            # Option xuất hiện ngay khi đang tải lên; lúc đó "Thêm vào câu lệnh" bị disabled nên phải chờ tải xong.
+            image_item = stem_items.filter(has_not_text=re.compile(r"Đang tải lên|Uploading")).last
+            if stem_items.count() == 0:
                 upload_button = page.locator("button.sidebar-upload-btn")
                 upload_button.wait_for(state="visible", timeout=15000)
                 with page.expect_file_chooser(timeout=8000) as chooser_info:

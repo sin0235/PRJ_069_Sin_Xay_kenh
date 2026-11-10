@@ -1,0 +1,377 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="1200" height="700">
+  <rect width="1200" height="700" fill="#0a1c2b" />
+  <text x="30" y="38" fill="#ffd54a" font-family="'Viet', sans-serif" font-size="20" font-weight="bold">BỘ TÀI SẢN ORIGAMI DÙNG CHUNG (T01) - 6 MẪU VIDEO HYPERFRAMES</text>
+  <text x="950" y="38" fill="#9fb4c4" font-family="'Viet', sans-serif" font-size="13">Baha Origami Editorial Motion B2B</text>
+  <line x1="30" y1="48" x2="1170" y2="48" stroke="rgba(255,255,255,0.2)" stroke-width="1" />
+  
+    <g transform="translate(100.0, 200.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="coin-root">
+    <ns0:polygon points="0,-64 24,-54 32,-32 0,-32" fill="#ffd54a" />
+    <ns0:polygon points="32,-32 24,-10 0,0 0,-32" fill="#e6be33" />
+    <ns0:polygon points="0,0 -24,-10 -32,-32 0,-32" fill="#e6be33" />
+    <ns0:polygon points="-32,-32 -24,-54 0,-64 0,-32" fill="#ffd54a" />
+    
+    <ns0:polygon points="-12,-44 12,-44 16,-32 12,-20 -12,-20 -16,-32" fill="#fff5d0" opacity="0.85" />
+    <ns0:polygon points="-6,-38 6,-38 6,-26 -6,-26" fill="#e6be33" />
+    
+    <ns0:line x1="0" y1="-64" x2="0" y2="0" stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+    <ns0:line x1="-32" y1="-32" x2="32" y2="-32" stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">dong_xu</text>
+    </g>
+    <g transform="translate(300.0, 200.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="money-bag-root">
+    
+    <ns0:polygon points="-36,0 36,0 40,-35 -40,-35" fill="#46ada6" />
+    <ns0:polygon points="-40,-35 0,-35 0,0 -36,0" fill="#5cc8c0" />
+    
+    <ns0:polygon points="-40,-35 0,-35 -15,-55 -32,-55" fill="#5cc8c0" />
+    <ns0:polygon points="0,-35 40,-35 32,-55 15,-55" fill="#46ada6" />
+    <ns0:polygon points="-15,-55 15,-55 0,-35" fill="#75d6cf" />
+    
+    <ns0:polygon points="-18,-55 18,-55 14,-62 -14,-62" fill="#ffd54a" />
+    <ns0:polygon points="-24,-62 24,-62 28,-78 0,-70" fill="#5cc8c0" />
+    <ns0:polygon points="0,-70 28,-78 -28,-78" fill="#46ada6" />
+    
+    <ns0:polygon points="0,-60 8,-50 2,-48" fill="#e6be33" />
+    <ns0:line x1="-40" y1="-35" x2="40" y2="-35" stroke="rgba(255,255,255,0.3)" stroke-width="1" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">tui_tien</text>
+    </g>
+    <g transform="translate(500.0, 200.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="box-small">
+    
+    <ns0:polygon points="-25,0 25,0 25,-32 -25,-32" fill="#e6dcce" />
+    
+    <ns0:polygon points="-25,-32 0,-50 50,-50 25,-32" fill="#f6efe0" />
+    
+    <ns0:polygon points="25,0 25,-32 50,-50 50,-18" fill="#d6c9b8" />
+    
+    <ns0:polygon points="-5,-32 5,-32 30,-50 20,-50" fill="#ffd54a" opacity="0.9" />
+    <ns0:polygon points="-5,0 5,0 5,-32 -5,-32" fill="#e6be33" opacity="0.9" />
+    
+    <ns0:line x1="-25" y1="-32" x2="25" y2="-32" stroke="rgba(255,255,255,0.5)" stroke-width="1.2" />
+    <ns0:line x1="25" y1="-32" x2="25" y2="0" stroke="rgba(255,255,255,0.3)" stroke-width="1" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">hop_giay_nho</text>
+    </g>
+    <g transform="translate(700.0, 200.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="box-med">
+    <ns0:polygon points="-35,0 35,0 35,-45 -35,-45" fill="#e6dcce" />
+    <ns0:polygon points="-35,-45 0,-70 70,-70 35,-45" fill="#f6efe0" />
+    <ns0:polygon points="35,0 35,-45 70,-70 70,-25" fill="#d6c9b8" />
+    <ns0:polygon points="-8,-45 8,-45 43,-70 27,-70" fill="#ffd54a" opacity="0.9" />
+    <ns0:polygon points="-8,0 8,0 8,-45 -8,-45" fill="#e6be33" opacity="0.9" />
+    <ns0:line x1="-35" y1="-45" x2="35" y2="-45" stroke="rgba(255,255,255,0.5)" stroke-width="1.2" />
+    <ns0:line x1="35" y1="-45" x2="35" y2="0" stroke="rgba(255,255,255,0.3)" stroke-width="1" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">hop_giay_vua</text>
+    </g>
+    <g transform="translate(900.0, 200.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="box-large">
+    <ns0:polygon points="-45,0 45,0 45,-58 -45,-58" fill="#e6dcce" />
+    <ns0:polygon points="-45,-58 0,-90 90,-90 45,-58" fill="#f6efe0" />
+    <ns0:polygon points="45,0 45,-58 90,-90 90,-32" fill="#d6c9b8" />
+    <ns0:polygon points="-10,-58 10,-58 55,-90 35,-90" fill="#ffd54a" opacity="0.9" />
+    <ns0:polygon points="-10,0 10,0 10,-58 -10,-58" fill="#e6be33" opacity="0.9" />
+    <ns0:line x1="-45" y1="-58" x2="45" y2="-58" stroke="rgba(255,255,255,0.5)" stroke-width="1.2" />
+    <ns0:line x1="45" y1="-58" x2="45" y2="0" stroke="rgba(255,255,255,0.3)" stroke-width="1" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">hop_giay_lon</text>
+    </g>
+    <g transform="translate(1100.0, 200.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="profile-card">
+    
+    <ns0:path d="M-40,0 L40,0 Q45,0 45,-5 L45,-55 Q45,-60 40,-60 L-40,-60 Q-45,-60 -45,-55 L-45,-5 Q-45,0 -40,0 Z" fill="#12324a" />
+    
+    <ns0:polygon points="25,-60 45,-40 45,-60" fill="#5cc8c0" />
+    <ns0:polygon points="25,-60 45,-40 25,-40" fill="#46ada6" />
+    
+    <ns0:rect x="-35" y="-50" width="30" height="6" rx="2" fill="#ffd54a" />
+    <ns0:rect x="-35" y="-38" width="55" height="4" rx="1.5" fill="#f6efe0" opacity="0.8" />
+    <ns0:rect x="-35" y="-28" width="45" height="4" rx="1.5" fill="#f6efe0" opacity="0.6" />
+    <ns0:rect x="-35" y="-18" width="35" height="4" rx="1.5" fill="#f6efe0" opacity="0.4" />
+    
+    <ns0:path d="M-45,-55 L-45,-5 Q-45,0 -40,0 L40,0" stroke="rgba(255,255,255,0.2)" stroke-width="1" fill="none" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">the_ho_so</text>
+    </g>
+    <g transform="translate(100.0, 360.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="kpi-card">
+    <ns0:path d="M-46,0 L46,0 Q50,0 50,-4 L50,-64 Q50,-68 46,-68 L-46,-68 Q-50,-68 -50,-64 L-50,-4 Q-50,0 -46,0 Z" fill="#12324a" />
+    <ns0:rect x="-42" y="-62" width="84" height="20" rx="3" fill="#184261" />
+    <ns0:polygon points="-42,-62 0,-62 -20,-42 -42,-42" fill="#20537a" />
+    <ns0:circle cx="34" cy="-52" r="5" fill="#5cc8c0" />
+    
+    <ns0:rect x="-40" y="-34" width="48" height="18" rx="2" fill="#ffd54a" opacity="0.9" />
+    <ns0:polygon points="18,-30 40,-30 29,-16" fill="#5cc8c0" />
+    <ns0:line x1="-50" y1="-68" x2="50" y2="-68" stroke="rgba(255,255,255,0.3)" stroke-width="1.2" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">the_kpi</text>
+    </g>
+    <g transform="translate(300.0, 360.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="chart-bar">
+    
+    <ns0:polygon points="-28,0 28,0 22,-10 -22,-10" fill="#0a1c2b" />
+    
+    <ns0:polygon points="-18,-10 18,-10 18,-105 -18,-105" fill="#5cc8c0" />
+    <ns0:polygon points="18,-10 28,-18 28,-113 18,-105" fill="#46ada6" />
+    <ns0:polygon points="-18,-105 18,-105 28,-113 -8,-113" fill="#7cedeb" />
+    <ns0:line x1="-18" y1="-105" x2="18" y2="-105" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" />
+    <ns0:line x1="18" y1="-105" x2="18" y2="-10" stroke="rgba(255,255,255,0.3)" stroke-width="1" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">cot_bieu_do</text>
+    </g>
+    <g transform="translate(500.0, 360.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="gauge-meter">
+    
+    <ns0:circle cx="0" cy="-50" r="46" fill="#12324a" />
+    
+    <ns0:path d="M-38,-50 A38 38 0 0 1 -12,-84" stroke="#5cc8c0" stroke-width="8" fill="none" />
+    <ns0:path d="M-12,-84 A38 38 0 0 1 20,-82" stroke="#ffd54a" stroke-width="8" fill="none" />
+    <ns0:path d="M20,-82 A38 38 0 0 1 38,-50" stroke="#e8695a" stroke-width="8" fill="none" />
+    
+    <ns0:circle cx="0" cy="-50" r="8" fill="#f6efe0" />
+    <ns0:polygon id="needle" points="-3,-50 0,-85 3,-50" fill="#e8695a" />
+    <ns0:circle cx="0" cy="-50" r="3" fill="#0a1c2b" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">dong_ho_do</text>
+    </g>
+    <g transform="translate(700.0, 360.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="conveyor-rail">
+    
+    <ns0:polygon points="-50,0 -40,0 -40,-15 -50,-15" fill="#0a1c2b" />
+    <ns0:polygon points="40,0 50,0 50,-15 40,-15" fill="#0a1c2b" />
+    
+    <ns0:polygon points="-60,-15 60,-15 52,-32 -52,-32" fill="#12324a" />
+    <ns0:polygon points="-60,-15 60,-15 60,-22 -60,-22" fill="#184364" />
+    
+    <ns0:line x1="-30" y1="-15" x2="-26" y2="-32" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" />
+    <ns0:line x1="0" y1="-15" x2="4" y2="-32" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" />
+    <ns0:line x1="30" y1="-15" x2="34" y2="-32" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" />
+    
+    <ns0:line x1="-52" y1="-32" x2="52" y2="-32" stroke="rgba(255,255,255,0.5)" stroke-width="1.2" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">bang_chuyen</text>
+    </g>
+    <g transform="translate(900.0, 360.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="check-station">
+    
+    <ns0:polygon points="-8,0 8,0 8,-70 -8,-70" fill="#12324a" />
+    <ns0:polygon points="8,0 14,-5 14,-75 8,-70" fill="#0d283c" />
+    
+    <ns0:polygon points="-30,-70 30,-70 24,-88 -24,-88" fill="#5cc8c0" />
+    <ns0:polygon points="30,-70 24,-88 34,-92 40,-74" fill="#46ada6" />
+    
+    <ns0:circle cx="0" cy="-79" r="5" fill="#ffd54a" />
+    <ns0:line x1="-30" y1="-70" x2="30" y2="-70" stroke="rgba(255,255,255,0.5)" stroke-width="1.2" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">tram_kiem</text>
+    </g>
+    <g transform="translate(1100.0, 360.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="warehouse-rack">
+    
+    <ns0:polygon points="-48,0 -40,0 -40,-115 -48,-115" fill="#12324a" />
+    <ns0:polygon points="40,0 48,0 48,-115 40,-115" fill="#12324a" />
+    
+    <ns0:polygon points="-48,-35 48,-35 44,-42 -44,-42" fill="#9fb4c4" />
+    <ns0:polygon points="-48,-75 48,-75 44,-82 -44,-82" fill="#9fb4c4" />
+    <ns0:polygon points="-48,-115 48,-115 44,-122 -44,-122" fill="#9fb4c4" />
+    
+    <ns0:line x1="-40" y1="-35" x2="40" y2="-75" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" />
+    <ns0:line x1="40" y1="-35" x2="-40" y2="-75" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" />
+    <ns0:line x1="-40" y1="-75" x2="40" y2="-115" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" />
+    <ns0:line x1="40" y1="-75" x2="-40" y2="-115" stroke="rgba(255,255,255,0.2)" stroke-width="1.5" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">ke_kho</text>
+    </g>
+    <g transform="translate(100.0, 520.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="forklift">
+    
+    <ns0:circle cx="-30" cy="-10" r="10" fill="#0a1c2b" />
+    <ns0:circle cx="-30" cy="-10" r="5" fill="#ffd54a" />
+    <ns0:circle cx="20" cy="-10" r="10" fill="#0a1c2b" />
+    <ns0:circle cx="20" cy="-10" r="5" fill="#ffd54a" />
+    
+    <ns0:polygon points="-45,-12 30,-12 25,-42 -20,-42 -45,-30" fill="#ffd54a" />
+    <ns0:polygon points="-20,-42 25,-42 18,-68 -10,-68" fill="#e6be33" />
+    
+    <ns0:polygon points="-8,-45 15,-45 10,-65 -5,-65" fill="#12324a" />
+    
+    <ns0:polygon points="32,-5 38,-5 38,-70 32,-70" fill="#9fb4c4" />
+    <ns0:polygon points="34,-12 55,-12 55,-16 38,-16" fill="#9fb4c4" />
+    <ns0:line x1="-45" y1="-30" x2="25" y2="-42" stroke="rgba(255,255,255,0.4)" stroke-width="1.2" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">xe_nang</text>
+    </g>
+    <g transform="translate(300.0, 520.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="work-desk">
+    
+    <ns0:polygon points="-52,0 -46,0 -46,-45 -52,-45" fill="#12324a" />
+    <ns0:polygon points="46,0 52,0 52,-45 46,-45" fill="#12324a" />
+    
+    <ns0:polygon points="-60,-45 60,-45 48,-62 -48,-62" fill="#e6dcce" />
+    <ns0:polygon points="-60,-45 60,-45 60,-50 -60,-50" fill="#d6c9b8" />
+    
+    <ns0:line x1="-48" y1="-62" x2="48" y2="-62" stroke="rgba(255,255,255,0.6)" stroke-width="1.2" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">ban_lam_viec</text>
+    </g>
+    <g transform="translate(500.0, 520.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="flip-page">
+    
+    <ns0:polygon points="-35,0 35,0 35,-55 -35,-55" fill="#f6efe0" />
+    
+    <ns0:polygon points="20,-55 35,-40 20,-40" fill="#e6dcce" />
+    
+    <ns0:line x1="-28" y1="-45" x2="12" y2="-45" stroke="#12324a" stroke-width="2.5" opacity="0.6" />
+    <ns0:line x1="-28" y1="-35" x2="28" y2="-35" stroke="#12324a" stroke-width="2" opacity="0.4" />
+    <ns0:line x1="-28" y1="-27" x2="24" y2="-27" stroke="#12324a" stroke-width="2" opacity="0.4" />
+    <ns0:line x1="-28" y1="-19" x2="20" y2="-19" stroke="#12324a" stroke-width="2" opacity="0.4" />
+    
+    <ns0:line x1="-35" y1="-55" x2="20" y2="-55" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" />
+    <ns0:line x1="-35" y1="-55" x2="-35" y2="0" stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">trang_giay</text>
+    </g>
+    <g transform="translate(700.0, 520.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="sticky-note">
+    
+    <ns0:polygon points="-22,0 22,0 22,-40 10,-48 -22,-48" fill="#ffd54a" />
+    
+    <ns0:polygon points="10,-48 22,-40 10,-40" fill="#e6be33" />
+    <ns0:line x1="-16" y1="-34" x2="14" y2="-34" stroke="#0a1c2b" stroke-width="2" opacity="0.5" />
+    <ns0:line x1="-16" y1="-24" x2="10" y2="-24" stroke="#0a1c2b" stroke-width="2" opacity="0.5" />
+    <ns0:line x1="-16" y1="-14" x2="4" y2="-14" stroke="#0a1c2b" stroke-width="2" opacity="0.5" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">ghi_chu_dan</text>
+    </g>
+    <g transform="translate(900.0, 520.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="drawer-tray">
+    <ns0:polygon points="-40,0 40,0 45,-45 -45,-45" fill="#12324a" />
+    <ns0:polygon points="-45,-45 45,-45 38,-52 -38,-52" fill="#1b4666" />
+    
+    <ns0:polygon points="-12,-20 12,-20 10,-26 -10,-26" fill="#ffd54a" />
+    <ns0:line x1="-45" y1="-45" x2="45" y2="-45" stroke="rgba(255,255,255,0.4)" stroke-width="1.2" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">ngan_tu</text>
+    </g>
+    <g transform="translate(1100.0, 520.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="chair">
+    
+    <ns0:line x1="-18" y1="0" x2="-14" y2="-28" stroke="#9fb4c4" stroke-width="3" />
+    <ns0:line x1="18" y1="0" x2="14" y2="-28" stroke="#9fb4c4" stroke-width="3" />
+    
+    <ns0:polygon points="-22,-28 22,-28 18,-35 -18,-35" fill="#12324a" />
+    
+    <ns0:polygon points="-18,-35 18,-35 16,-62 -16,-62" fill="#0a1c2b" />
+    <ns0:polygon points="-16,-62 0,-62 0,-35 -18,-35" fill="#132c42" />
+    <ns0:line x1="-16" y1="-62" x2="16" y2="-62" stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">ghe</text>
+    </g>
+    <g transform="translate(100.0, 680.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="char-front">
+    
+    <ns0:polygon points="-18,0 18,0 15,-28 -15,-28" fill="#0a1c2b" />
+    
+    <ns0:polygon points="-15,-28 0,-28 0,-58 -22,-52" fill="#5cc8c0" />
+    <ns0:polygon points="0,-28 15,-28 22,-52 0,-58" fill="#46ada6" />
+    
+    <ns0:polygon points="-6,-58 6,-58 0,-48" fill="#ffd54a" />
+    
+    <ns0:polygon points="-14,-62 0,-56 14,-62 12,-80 0,-84 -12,-80" fill="#f6efe0" />
+    <ns0:polygon points="-14,-62 0,-56 0,-84 -12,-80" fill="#e6dcce" />
+    
+    <ns0:line x1="0" y1="-84" x2="0" y2="-56" stroke="rgba(255,255,255,0.6)" stroke-width="1" />
+    <ns0:line x1="0" y1="-58" x2="0" y2="-28" stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">nhan_thang</text>
+    </g>
+    <g transform="translate(300.0, 680.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="char-tilt">
+    <ns0:polygon points="-15,0 12,0 18,-28 -10,-28" fill="#0a1c2b" />
+    <ns0:polygon points="-10,-28 18,-28 24,-52 -6,-58" fill="#5cc8c0" />
+    <ns0:polygon points="-6,-58 4,-58 10,-42" fill="#46ada6" />
+    
+    <ns0:polygon points="12,-42 28,-36 24,-32 10,-38" fill="#f6efe0" />
+    
+    <ns0:polygon points="-10,-60 16,-54 22,-72 8,-84 -8,-76" fill="#f6efe0" />
+    <ns0:polygon points="-10,-60 8,-84 -8,-76" fill="#e6dcce" />
+    <ns0:line x1="8" y1="-84" x2="16" y2="-54" stroke="rgba(255,255,255,0.6)" stroke-width="1" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">nhan_nghieng</text>
+    </g>
+    <g transform="translate(500.0, 680.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="char-leaving">
+    
+    <ns0:polygon points="-12,0 -4,0 -2,-45 -10,-45" fill="#0a1c2b" />
+    <ns0:polygon points="4,0 14,-8 8,-45 0,-45" fill="#081520" />
+    
+    <ns0:polygon points="-14,-45 10,-45 16,-75 -8,-75" fill="#9fb4c4" />
+    <ns0:polygon points="-8,-75 16,-75 4,-75" fill="#889dae" />
+    
+    <ns0:polygon points="-10,-78 12,-78 10,-96 -8,-96" fill="#e6dcce" />
+    <ns0:polygon points="-10,-78 0,-78 0,-96 -8,-96" fill="#d6c9b8" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">nhan_roi_di</text>
+    </g>
+    <g transform="translate(700.0, 680.0)">
+      <line x1="-80.0" y1="0" x2="80.0" y2="0" stroke="rgba(255,255,255,0.15)" stroke-dasharray="3,3" />
+      <ns0:g xmlns:ns0="http://www.w3.org/2000/svg" id="indicator-light">
+    
+    <ns0:polygon points="-16,0 16,0 12,-12 -12,-12" fill="#12324a" />
+    
+    <ns0:circle cx="-6" cy="-22" r="7" fill="#5cc8c0" />
+    <ns0:circle cx="-6" cy="-22" r="3" fill="#a4eee8" />
+    
+    <ns0:circle cx="6" cy="-22" r="7" fill="#e8695a" />
+    <ns0:circle cx="6" cy="-22" r="3" fill="#f8aba2" />
+    <ns0:line x1="-12" y1="-12" x2="12" y2="-12" stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+  </ns0:g>
+
+      <text x="0" y="16" text-anchor="middle" fill="#f6efe0" font-family="'Viet', sans-serif" font-size="11">den_bao</text>
+    </g>
+</svg>

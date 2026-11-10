@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-30 -120 60 120" width="60" height="120" data-anchor="0,0">
+  <g id="chart-bar">
+    <!-- Be do origami -->
+    <polygon points="-28,0 28,0 22,-10 -22,-10" fill="#0a1c2b" />
+    <!-- Than cot 3D origami -->
+    <polygon points="-18,-10 18,-10 18,-105 -18,-105" fill="#5cc8c0" />
+    <polygon points="18,-10 28,-18 28,-113 18,-105" fill="#46ada6" />
+    <polygon points="-18,-105 18,-105 28,-113 -8,-113" fill="#7cedeb" />
+    <line x1="-18" y1="-105" x2="18" y2="-105" stroke="rgba(255,255,255,0.6)" stroke-width="1.5" />
+    <line x1="18" y1="-105" x2="18" y2="-10" stroke="rgba(255,255,255,0.3)" stroke-width="1" />
+  </g>
+</svg>

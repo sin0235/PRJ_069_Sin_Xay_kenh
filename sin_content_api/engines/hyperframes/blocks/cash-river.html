@@ -1,0 +1,365 @@
+<!doctype html>
+<!--
+  cash-river: HyperFrames component scene (Dòng tiền chảy)
+  Thiết kế theo chuẩn Origami Editorial Motion B2B v1.
+-->
+<html
+  lang="vi"
+  data-composition-id="cash-river"
+  data-composition-duration="10"
+  data-composition-variables='[
+    { "id": "title", "type": "string", "role": "content", "label": "Tiêu đề", "default": "DÒNG TIỀN VÀ THẤT THOÁT VẬN HÀNH" },
+    { "id": "sources", "type": "string", "role": "content", "label": "Nguồn tiền vào", "default": "Doanh thu bán lẻ, Hợp đồng mới" },
+    { "id": "uses", "type": "string", "role": "content", "label": "Dòng tiền ra", "default": "Mặt bằng, Lương nhân sự, Tiếp thị" },
+    { "id": "tag", "type": "string", "role": "content", "label": "Chỗ rò rỉ", "default": "Đơn hàng bị bỏ quên" },
+    { "id": "value", "type": "string", "role": "content", "label": "Số thất thoát", "default": "-35%" },
+    { "id": "caption", "type": "string", "role": "content", "label": "Kết luận", "default": "Khách quan tâm nhưng không chăm sóc kịp thời" },
+    { "id": "unit", "type": "string", "role": "content", "label": "Đơn vị", "default": "%" }
+  ]'
+>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cash River</title>
+  </head>
+  <body>
+    <template>
+      <div id="root" data-composition-id="cash-river" data-duration="10" data-fps="30">
+        <style>
+          #root {
+            position: absolute;
+            inset: 0;
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            background: #0a1c2b;
+            font-family: 'Viet', sans-serif;
+            color: #f6efe0;
+            user-select: none;
+          }
+          .-world {
+            position: absolute;
+            inset: 0;
+            transform-origin: 50% 50%;
+          }
+          .-back, .-mid, .-front, .-fx {
+            position: absolute;
+            inset: 0;
+          }
+          .-front, .-fx { pointer-events: none; }
+          .title-box {
+            position: absolute;
+            top: 7%;
+            left: 6%;
+            font-size: 38px;
+            font-weight: 800;
+            color: #ffd54a;
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+          }
+          .title-word {
+            display: inline-block;
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          /* Con sông giấy origami nhiều lớp */
+          .river-path {
+            fill: none;
+            stroke: #12324a;
+            stroke-width: 110;
+            stroke-linecap: round;
+          }
+          .river-core {
+            fill: none;
+            stroke: #5cc8c0;
+            stroke-width: 80;
+            stroke-linecap: round;
+            opacity: 0.85;
+          }
+          .river-tributary {
+            fill: none;
+            stroke: #5cc8c0;
+            stroke-width: 40;
+            stroke-linecap: round;
+            opacity: 0.7;
+          }
+          /* Cống rò rỉ */
+          .drain-box {
+            position: absolute;
+            left: 58%;
+            top: 48%;
+            width: 120px;
+            height: 120px;
+          }
+          /* Hồ chứa bên phải */
+          .lake-box {
+            position: absolute;
+            right: 5%;
+            top: 30%;
+            width: 320px;
+            height: 340px;
+            background: #12324a;
+            border-radius: 24px;
+            border: 2px solid rgba(255,255,255,0.2);
+            box-shadow: 10px 16px 22px rgba(6,17,27,0.4);
+            overflow: hidden;
+          }
+          .lake-water {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 75%;
+            background: #5cc8c0;
+            opacity: 0.85;
+            transition: height 0.2s ease;
+          }
+          .lake-water-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #fff;
+            opacity: 0.7;
+          }
+          /* Đồng xu trôi */
+          .coin-item {
+            position: absolute;
+            width: 44px;
+            height: 44px;
+            pointer-events: none;
+          }
+          /* Nhãn tag và giá trị */
+          .leak-tag {
+            position: absolute;
+            left: 55%;
+            top: 42%;
+            background: #e8695a;
+            color: #fff;
+            font-size: 16px;
+            font-weight: bold;
+            padding: 6px 16px;
+            border-radius: 14px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.3);
+            white-space: nowrap;
+            opacity: 0;
+            transform: translateY(15px);
+          }
+          .stat-value-box {
+            position: absolute;
+            right: 12%;
+            top: 34%;
+            font-size: 58px;
+            font-weight: 900;
+            color: #ffd54a;
+            text-shadow: 0 8px 18px rgba(0,0,0,0.5);
+            opacity: 0;
+            transform: translateY(-80px);
+          }
+          .caption-chip {
+            position: absolute;
+            top: 62%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(18, 50, 74, 0.95);
+            border: 1.5px solid #5cc8c0;
+            border-radius: 30px;
+            padding: 12px 32px;
+            font-size: 24px;
+            font-weight: 600;
+            color: #f6efe0;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            white-space: nowrap;
+            opacity: 0;
+          }
+        </style>
+
+        <div class="-world" id="world">
+          <!-- Lớp nền (thị sai 0.5) -->
+          <div class="-back" id="layer-back">
+            <svg viewBox="0 0 1920 1080" width="1920" height="1080" style="position:absolute;inset:0;opacity:0.25;">
+              <polygon points="0,550 300,280 600,550" fill="#12324a" />
+              <polygon points="500,550 850,240 1200,550" fill="#0d2639" />
+              <polygon points="1050,550 1450,290 1850,550" fill="#12324a" />
+            </svg>
+          </div>
+
+          <!-- Lớp giữa: Sông, cống, hồ chứa, đồng xu -->
+          <div class="-mid" id="layer-mid">
+            <div class="title-box" id="title-box" data-obj="title-banner" data-kind="text" data-src="static" data-dst="stay"></div>
+
+            <!-- SVG dòng sông giấy uốn lượn -->
+            <svg viewBox="0 0 1920 1080" width="1920" height="1080" style="position:absolute;inset:0;">
+              <!-- Nhánh phụ đổ vào -->
+              <path d="M-50,340 C200,340 320,440 450,470" class="river-tributary" />
+              <path d="M-50,600 C200,600 320,500 450,470" class="river-tributary" />
+              <!-- Sông chính -->
+              <path d="M420,470 C700,470 900,560 1200,560 C1400,560 1500,480 1620,480" class="river-path" />
+              <path d="M420,470 C700,470 900,560 1200,560 C1400,560 1500,480 1620,480" class="river-core" />
+            </svg>
+
+            <!-- Cống rò rỉ (xoáy) -->
+            <div class="drain-box" id="drain-box" data-obj="drain-hole" data-kind="prop" data-src="static" data-dst="stay">
+              <svg viewBox="-30 -30 60 60" width="120" height="120">
+                <circle cx="0" cy="0" r="28" fill="#06111b" stroke="#e8695a" stroke-width="4" />
+                <path id="vortex-spiral" d="M0,0 C10,-15 20,-5 15,10 C10,20 -10,18 -18,5 C-22,-5 -10,-22 5,-22" fill="none" stroke="#e8695a" stroke-width="2.5" opacity="0.8" />
+              </svg>
+            </div>
+
+            <!-- Hồ chứa bên phải -->
+            <div class="lake-box" id="lake-box" data-obj="lake-reservoir" data-kind="prop" data-src="static" data-dst="stay">
+              <div style="padding:14px 18px; font-size:16px; font-weight:700; color:#ffd54a;">QUỸ TIỀN MẶT / DỰ TRỮ</div>
+              <div class="lake-water" id="lake-water" data-obj="lake-water" data-kind="prop" data-src="static" data-dst="stay">
+                <div class="lake-water-line"></div>
+              </div>
+            </div>
+
+            <!-- Thùng chứa các đồng xu trôi -->
+            <div id="coins-container"></div>
+
+            <!-- Nhãn rò rỉ -->
+            <div class="leak-tag" id="leak-tag" data-obj="leak-tag" data-kind="text" data-src="offscreen-bottom" data-dst="stay"></div>
+
+            <!-- Con số lớn rơi xuống hồ -->
+            <div class="stat-value-box" id="stat-value" data-obj="stat-value" data-kind="text" data-src="offscreen-top" data-dst="stay"></div>
+
+            <!-- Chip kết luận -->
+            <div class="caption-chip" id="caption-chip" data-obj="caption-chip" data-kind="text" data-src="offscreen-bottom" data-dst="stay"></div>
+          </div>
+
+          <!-- Lớp tiền cảnh (cỏ giấy và đá nhô thị sai 1.6) -->
+          <div class="-front" id="layer-front">
+            <svg viewBox="0 0 1920 1080" width="1920" height="1080" style="position:absolute;inset:0;opacity:0.6;">
+              <polygon points="100,1080 140,940 180,1080" fill="#12324a" />
+              <polygon points="160,1080 210,910 250,1080" fill="#0d2639" />
+              <polygon points="1720,1080 1780,920 1840,1080" fill="#12324a" />
+            </svg>
+          </div>
+
+          <!-- Lớp hiệu ứng ánh sáng -->
+          <div class="-fx" id="layer-fx"></div>
+        </div>
+
+        <script>
+          (function() {
+            var vars = window.__hyperframes ? window.__hyperframes.getVariables() : {
+              title: "DÒNG TIỀN VÀ THẤT THOÁT VẬN HÀNH",
+              sources: "Doanh thu bán lẻ, Hợp đồng mới",
+              uses: "Mặt bằng, Lương nhân sự, Tiếp thị",
+              tag: "Đơn hàng bị bỏ quên",
+              value: "-35%",
+              caption: "Khách quan tâm nhưng không chăm sóc kịp thời",
+              unit: "%"
+            };
+
+            var titleText = vars.title || "DÒNG TIỀN VÀ THẤT THOÁT VẬN HÀNH";
+            var tagText = vars.tag || "Đơn hàng bị bỏ quên";
+            var valueText = vars.value || "-35%";
+            var captionText = vars.caption || "Khách quan tâm nhưng không chăm sóc kịp thời";
+
+            // 1. Tiêu đề
+            var titleBox = document.getElementById("title-box");
+            titleText.split(" ").forEach(function(w) {
+              var span = document.createElement("span");
+              span.className = "title-word";
+              span.textContent = w;
+              titleBox.appendChild(span);
+            });
+
+            document.getElementById("leak-tag").textContent = tagText;
+            document.getElementById("stat-value").textContent = valueText;
+            document.getElementById("caption-chip").textContent = captionText;
+
+            // 2. Tạo 12 đồng xu giấy origami
+            var coinsContainer = document.getElementById("coins-container");
+            var coins = [];
+            var coinSvg = '<svg viewBox="-32 -64 64 64" width="44" height="44"><polygon points="0,-64 24,-54 32,-32 0,-32" fill="#ffd54a"/><polygon points="32,-32 24,-10 0,0 0,-32" fill="#e6be33"/><polygon points="0,0 -24,-10 -32,-32 0,-32" fill="#e6be33"/><polygon points="-32,-32 -24,-54 0,-64 0,-32" fill="#ffd54a"/><circle cx="0" cy="-32" r="12" fill="#fff5d0" opacity="0.85"/></svg>';
+
+            for (var i = 1; i <= 12; i++) {
+              var c = document.createElement("div");
+              c.className = "coin-item";
+              c.id = "coin-" + i;
+              c.setAttribute("data-obj", "coin-" + i);
+              c.setAttribute("data-kind", "prop");
+              c.setAttribute("data-src", "offscreen-left");
+              c.setAttribute("data-dst", (i % 2 === 0) ? "sink-into:drain-hole" : "stay");
+              c.innerHTML = coinSvg;
+              c.style.left = "-80px";
+              c.style.top = (380 + (i % 3) * 60) + "px";
+              coinsContainer.appendChild(c);
+              coins.push(c);
+            }
+
+            // 3. GSAP Timeline theo Section 6.2
+            var tl = gsap.timeline({ paused: true });
+            var world = document.getElementById("world");
+
+            // 0.0 - 1.0s: Mở cảnh, lùi từ (1.12, +4%, 0) về (1.00, 0, 0)
+            tl.set(world, { scale: 1.12, x: 76, y: 0 });
+            tl.to(world, { scale: 1.00, x: 0, y: 0, duration: 1.0, ease: "sine.inOut" }, 0.0);
+            tl.to(".title-word", { opacity: 1, y: 0, duration: 0.5, stagger: 0.07, ease: "power3.out" }, 0.1);
+
+            // Xu 1 - 6 vào từ ngoài trái
+            coins.slice(0, 6).forEach(function(c, idx) {
+              tl.fromTo(c, { left: -80 }, { left: 450 + idx * 70, duration: 2.2, ease: "power1.out" }, 0.2 + idx * 0.3);
+            });
+
+            // 1.0 - 3.5s: Lia theo dòng (1.00, -10%, 0) trong 2.5s (4%/s)
+            tl.to(world, { x: -192, duration: 2.5, ease: "sine.inOut" }, 1.0);
+
+            // Xu 7 - 12 nối tiếp vào dòng
+            coins.slice(6, 12).forEach(function(c, idx) {
+              tl.fromTo(c, { left: -80 }, { left: 650 + idx * 60, duration: 2.2, ease: "power1.out" }, 1.4 + idx * 0.25);
+            });
+
+            // 3.5 - 6.0s: Xoáy cống mở, camera đẩy vào (1.08, -10%, +5%)
+            tl.to(world, { scale: 1.08, x: -192, y: 54, duration: 1.4, ease: "sine.inOut" }, 3.5);
+            tl.fromTo("#vortex-spiral", { rotation: 0, transformOrigin: "0 0" }, { rotation: 720, duration: 2.5, ease: "linear" }, 3.5);
+            tl.to("#leak-tag", { opacity: 1, y: 0, duration: 0.5, ease: "back.out(1.4)" }, 3.8);
+
+            // Các đồng xu chẵn (2, 4, 6, 8, 10, 12) xoáy chìm vào cống
+            coins.forEach(function(c, idx) {
+              if ((idx + 1) % 2 === 0) {
+                tl.to(c, {
+                  left: 1150,
+                  top: 540,
+                  scale: 0.1,
+                  rotation: 360,
+                  opacity: 0,
+                  duration: 1.2,
+                  ease: "power2.in"
+                }, 4.0 + (idx / 2) * 0.25);
+              } else {
+                // Các đồng xu lẻ trôi vào hồ chứa bên phải
+                tl.to(c, { left: 1680 + (idx % 3) * 30, top: 480 + (idx % 2) * 30, duration: 2.0, ease: "power1.inOut" }, 3.8 + idx * 0.2);
+              }
+            });
+
+            // 6.0 - 8.0s: Mực nước hồ tụt 18%
+            tl.to("#lake-water", { height: "45%", duration: 1.8, ease: "power2.inOut" }, 6.0);
+
+            // 8.0 - 9.4s: Đổi nét sang hồ, camera dịch nhẹ (1.04, +2%, 0)
+            tl.to(world, { scale: 1.04, x: 38, y: 0, duration: 1.4, ease: "sine.inOut" }, 8.0);
+            tl.to("#leak-tag", { opacity: 0.4, duration: 0.5 }, 8.0);
+
+            // Con số rơi từ trên xuống đập vào mặt hồ
+            tl.fromTo("#stat-value", { opacity: 0, y: -80 }, { opacity: 1, y: 0, duration: 0.6, ease: "back.out(1.8)" }, 8.4);
+
+            // Chip kết luận trượt lên
+            tl.fromTo("#caption-chip", { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 0.6, ease: "power3.out" }, 8.6);
+
+            // 9.4 - 10.0s: Giữ khung và thoát mờ 0.25s cuối
+            tl.to(world, { y: "-3px", duration: 0.6, ease: "sine.inOut" }, 9.4);
+            tl.to("#root", { opacity: 0, duration: 0.25, ease: "power1.in" }, 9.75);
+
+            tl.seek(0);
+            window.__timelines = window.__timelines || {};
+            window.__timelines["cash-river"] = tl;
+            window.__timelines["main"] = tl;
+          })();
+        </script>
+      </div>
+    </template>
+  </body>
+</html>

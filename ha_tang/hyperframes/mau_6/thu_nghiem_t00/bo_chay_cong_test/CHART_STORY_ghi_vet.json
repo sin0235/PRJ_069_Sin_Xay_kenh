@@ -1,0 +1,908 @@
+{
+  "layout": "CHART_STORY",
+  "duration": 3.0,
+  "fps": 30,
+  "dataset": "data_01",
+  "frames": [
+    {
+      "frame": 0,
+      "time": 0.0,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 1,
+      "time": 0.033,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 2,
+      "time": 0.067,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 3,
+      "time": 0.1,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 4,
+      "time": 0.133,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 5,
+      "time": 0.167,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 6,
+      "time": 0.2,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 7,
+      "time": 0.233,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 8,
+      "time": 0.267,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 9,
+      "time": 0.3,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 10,
+      "time": 0.333,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 11,
+      "time": 0.367,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 12,
+      "time": 0.4,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 13,
+      "time": 0.433,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 14,
+      "time": 0.467,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 15,
+      "time": 0.5,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 16,
+      "time": 0.533,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 17,
+      "time": 0.567,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 18,
+      "time": 0.6,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 19,
+      "time": 0.633,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 20,
+      "time": 0.667,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 21,
+      "time": 0.7,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 22,
+      "time": 0.733,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 23,
+      "time": 0.767,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 24,
+      "time": 0.8,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 25,
+      "time": 0.833,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 26,
+      "time": 0.867,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 27,
+      "time": 0.9,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 28,
+      "time": 0.933,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 29,
+      "time": 0.967,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 30,
+      "time": 1.0,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 31,
+      "time": 1.033,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 32,
+      "time": 1.067,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 33,
+      "time": 1.1,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 34,
+      "time": 1.133,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 35,
+      "time": 1.167,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 36,
+      "time": 1.2,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 37,
+      "time": 1.233,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 38,
+      "time": 1.267,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 39,
+      "time": 1.3,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 40,
+      "time": 1.333,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 41,
+      "time": 1.367,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 42,
+      "time": 1.4,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 43,
+      "time": 1.433,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 44,
+      "time": 1.467,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 45,
+      "time": 1.5,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 46,
+      "time": 1.533,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 47,
+      "time": 1.567,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 48,
+      "time": 1.6,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 49,
+      "time": 1.633,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 50,
+      "time": 1.667,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 51,
+      "time": 1.7,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 52,
+      "time": 1.733,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 53,
+      "time": 1.767,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 54,
+      "time": 1.8,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 55,
+      "time": 1.833,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 56,
+      "time": 1.867,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 57,
+      "time": 1.9,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 58,
+      "time": 1.933,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 59,
+      "time": 1.967,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 60,
+      "time": 2.0,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 61,
+      "time": 2.033,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 62,
+      "time": 2.067,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 63,
+      "time": 2.1,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 64,
+      "time": 2.133,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 65,
+      "time": 2.167,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 66,
+      "time": 2.2,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 67,
+      "time": 2.233,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 68,
+      "time": 2.267,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 69,
+      "time": 2.3,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 70,
+      "time": 2.333,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 71,
+      "time": 2.367,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 72,
+      "time": 2.4,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 73,
+      "time": 2.433,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 74,
+      "time": 2.467,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 75,
+      "time": 2.5,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 76,
+      "time": 2.533,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 77,
+      "time": 2.567,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 78,
+      "time": 2.6,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 79,
+      "time": 2.633,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 80,
+      "time": 2.667,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 81,
+      "time": 2.7,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 82,
+      "time": 2.733,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 83,
+      "time": 2.767,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 84,
+      "time": 2.8,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 85,
+      "time": 2.833,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 86,
+      "time": 2.867,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 87,
+      "time": 2.9,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 88,
+      "time": 2.933,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    },
+    {
+      "frame": 89,
+      "time": 2.967,
+      "camera": {
+        "scale": 1,
+        "x": 0,
+        "y": 0
+      },
+      "objects": []
+    }
+  ]
+}

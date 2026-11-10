@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-40 -60 80 60" width="80" height="60" data-anchor="0,0">
+  <g id="flip-page">
+    <!-- Mat truoc trang giay -->
+    <polygon points="-35,0 35,0 35,-55 -35,-55" fill="#f6efe0" />
+    <!-- Nep gap goc tren phai -->
+    <polygon points="20,-55 35,-40 20,-40" fill="#e6dcce" />
+    <!-- Cac dong chu mo phong bang line mau muted -->
+    <line x1="-28" y1="-45" x2="12" y2="-45" stroke="#12324a" stroke-width="2.5" opacity="0.6" />
+    <line x1="-28" y1="-35" x2="28" y2="-35" stroke="#12324a" stroke-width="2" opacity="0.4" />
+    <line x1="-28" y1="-27" x2="24" y2="-27" stroke="#12324a" stroke-width="2" opacity="0.4" />
+    <line x1="-28" y1="-19" x2="20" y2="-19" stroke="#12324a" stroke-width="2" opacity="0.4" />
+    <!-- Canh giay sang -->
+    <line x1="-35" y1="-55" x2="20" y2="-55" stroke="rgba(255,255,255,0.7)" stroke-width="1.2" />
+    <line x1="-35" y1="-55" x2="-35" y2="0" stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+  </g>
+</svg>

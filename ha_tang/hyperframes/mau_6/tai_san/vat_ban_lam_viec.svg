@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-60 -65 120 65" width="120" height="65" data-anchor="0,0">
+  <g id="work-desk">
+    <!-- Chan ban -->
+    <polygon points="-52,0 -46,0 -46,-45 -52,-45" fill="#12324a" />
+    <polygon points="46,0 52,0 52,-45 46,-45" fill="#12324a" />
+    <!-- Mat ban origami 3D -->
+    <polygon points="-60,-45 60,-45 48,-62 -48,-62" fill="#e6dcce" />
+    <polygon points="-60,-45 60,-45 60,-50 -60,-50" fill="#d6c9b8" />
+    <!-- Mep ban sang nhe -->
+    <line x1="-48" y1="-62" x2="48" y2="-62" stroke="rgba(255,255,255,0.6)" stroke-width="1.2" />
+  </g>
+</svg>

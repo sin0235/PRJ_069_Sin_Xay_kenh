@@ -1,0 +1,58 @@
+{
+  "order": 0,
+  "layout": "CASH_RIVER",
+  "variant_key": "cash_river",
+  "block": "cash-river",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "title": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "title"
+        },
+        "DÒNG TIỀN VÀ THẤT THOÁT VẬN HÀNH"
+      ]
+    },
+    "tag": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "tag"
+        },
+        "Điểm rò rỉ"
+      ]
+    },
+    "value": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "value"
+        },
+        "-30%"
+      ]
+    },
+    "caption": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "caption"
+        },
+        ""
+      ]
+    },
+    "unit": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "unit"
+        },
+        "%"
+      ]
+    }
+  }
+}

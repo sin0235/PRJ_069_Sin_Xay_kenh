@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-25 -65 50 65" width="50" height="65" data-anchor="0,0">
+  <g id="chair">
+    <!-- Chan ghe -->
+    <line x1="-18" y1="0" x2="-14" y2="-28" stroke="#9fb4c4" stroke-width="3" />
+    <line x1="18" y1="0" x2="14" y2="-28" stroke="#9fb4c4" stroke-width="3" />
+    <!-- Dem ngoi -->
+    <polygon points="-22,-28 22,-28 18,-35 -18,-35" fill="#12324a" />
+    <!-- Tua lung origami -->
+    <polygon points="-18,-35 18,-35 16,-62 -16,-62" fill="#0a1c2b" />
+    <polygon points="-16,-62 0,-62 0,-35 -18,-35" fill="#132c42" />
+    <line x1="-16" y1="-62" x2="16" y2="-62" stroke="rgba(255,255,255,0.4)" stroke-width="1" />
+  </g>
+</svg>

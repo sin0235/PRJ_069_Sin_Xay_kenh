@@ -1,0 +1,82 @@
+{
+  "order": 0,
+  "layout": "TEAM_BOARD",
+  "variant_key": "team_board",
+  "block": "team-board",
+  "max_chars": 999,
+  "portrait_scale": {
+    "base": 1.0
+  },
+  "square": false,
+  "variables": {
+    "title": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "title"
+        },
+        "QUẢN LÝ TIẾN ĐỘ VÀ ĐỘI NGŨ"
+      ]
+    },
+    "role_absent": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "title"
+        },
+        "Người phê duyệt"
+      ]
+    },
+    "steps": {
+      "fn": "join",
+      "args": [
+        {
+          "fn": "default",
+          "args": [
+            {
+              "field": "steps"
+            },
+            []
+          ]
+        },
+        ", "
+      ]
+    },
+    "pick": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "pick"
+        },
+        1
+      ]
+    },
+    "tag": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "tag"
+        },
+        "Tắc nghẽn 3 ngày"
+      ]
+    },
+    "value": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "value"
+        },
+        "18 VIỆC"
+      ]
+    },
+    "caption": {
+      "fn": "default",
+      "args": [
+        {
+          "field": "caption"
+        },
+        ""
+      ]
+    }
+  }
+}

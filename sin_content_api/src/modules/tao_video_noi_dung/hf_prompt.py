@@ -57,6 +57,36 @@ LAYOUT_PROMPTS: dict[str, str] = {
         "các thông báo dồn chồng lên nhau: title là tên ứng dụng hoặc nguồn phát tối đa 20 ký tự, "
         "steps 3 đến 5 thông báo mỗi thông báo tối đa 40 ký tự"
     ),
+    "LIVE_DASHBOARD": (
+        "bảng điều khiển sống với các cột biểu đồ 3D, đường xu hướng và đồng hồ đo: title tối đa 60 ký tự, "
+        "labels 3 đến 5 nhãn tối đa 10 ký tự, series 1 đến 2 chuỗi số liệu, to_value tỉ lệ 0 đến 100, "
+        "tag tối đa 24 ký tự cho điểm nhấn, caption tùy chọn tối đa 40 ký tự"
+    ),
+    "CASH_RIVER": (
+        "dòng tiền chảy dạng sông giấy với chỗ rò rỉ và hồ chứa: title tối đa 60 ký tự, "
+        "tag là tên điểm rò rỉ tối đa 24 ký tự, value là số liệu kết quả tối đa 12 ký tự, "
+        "caption tùy chọn tối đa 40 ký tự"
+    ),
+    "PIPELINE_RAIL": (
+        "băng chuyền quy trình với các trạm kiểm và thẻ hồ sơ bị kẹt: title tối đa 60 ký tự, "
+        "steps 3 đến 5 trạm tối đa 14 ký tự, block_step vị trí nghẽn, tag nhãn thẻ tối đa 24 ký tự, "
+        "value số đơn mất tối đa 12 ký tự, caption tối đa 40 ký tự"
+    ),
+    "STACK_WAREHOUSE": (
+        "kho hàng xếp chồng hộp giấy cao quá vạch sức chứa và xe nâng: title tối đa 60 ký tự, "
+        "items 2 đến 5 chiều cao chồng, target vạch giới hạn, tag món bị che tối đa 24 ký tự, "
+        "value giá trị tồn tối đa 12 ký tự, caption tối đa 40 ký tự"
+    ),
+    "BOOK_FLIP": (
+        "lật trang 3D chuyển đổi từ trước sang sau và phân loại tài liệu: title tối đa 60 ký tự, "
+        "docs đúng 2 trạng thái trước và sau, steps 3 đến 5 mục bay về ngăn tối đa 14 ký tự, "
+        "diff_label con dấu kết quả tối đa 20 ký tự, caption tối đa 40 ký tự"
+    ),
+    "TEAM_BOARD": (
+        "bàn cờ đội ngũ chuyền việc và tắc nghẽn khi người quyết định vắng mặt: title vai trò vắng mặt tối đa 24 ký tự, "
+        "steps 3 đến 5 việc tối đa 26 ký tự, pick vị trí vắng mặt, tag thẻ đỏ tối đa 24 ký tự, "
+        "value số việc dồn tối đa 12 ký tự, caption tối đa 40 ký tự"
+    ),
 }
 
 BLOCK_LAYOUTS: tuple[str, ...] = tuple(LAYOUT_PROMPTS.keys())
@@ -93,7 +123,8 @@ def layout_prompt(layouts: Iterable[str] | None = None) -> str:
     )
     p2 = ""
     if rest:
-        _viet_nums = {1: "Một", 2: "Hai", 3: "Ba", 4: "Bốn", 5: "Năm", 6: "Sáu", 7: "Bảy", 8: "Tám", 9: "Chín", 10: "Mười"}
+        _viet_nums = {1: "Một", 2: "Hai", 3: "Ba", 4: "Bốn", 5: "Năm", 6: "Sáu", 7: "Bảy", 8: "Tám", 9: "Chín", 10: "Mười",
+                      11: "Mười một", 12: "Mười hai", 13: "Mười ba", 14: "Mười bốn", 15: "Mười lăm", 16: "Mười sáu"}
         prefix = f"{_viet_nums.get(len(rest), str(len(rest)))} loại chuyển động dựng sẵn nữa, cùng quy tắc: "
         p2 = prefix + ", ".join(_fmt(k) for k in rest) + ". "
 

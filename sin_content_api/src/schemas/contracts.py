@@ -1116,10 +1116,15 @@ class TimelineOverlay(BaseModel):
 
 class KaraokeCaptionSettings(BaseModel):
     preset: Literal[
-        "bat_nhip", "to_sac", "hai_dong",
-        "da_sac_phan_tang", "hop_mau_dong_chinh", "bento_ba_tang", "inline_pop_trai"
+        "tu_dong", "da_sac_phan_tang", "hop_mau_dong_chinh", "bento_ba_tang", "inline_pop_trai"
     ] = "da_sac_phan_tang"
-    font_size: int = Field(84, description="Cỡ chữ phụ đề karaoke (mặc định 84 cho dọc, 64 cho ngang)")
+    font_size: int = Field(84, description="Cỡ chữ cơ sở phụ đề (px trên khung thật; mặc định 84 dọc, 72 ngang)")
+
+    @field_validator("preset", mode="before")
+    @classmethod
+    def _doi_mau_cu(cls, v):
+        # Ba mẫu cũ đã bỏ; dữ liệu lưu trước đây tự chuyển sang mẫu chính thức.
+        return "da_sac_phan_tang" if v in {"bat_nhip", "to_sac", "hai_dong"} else v
     layout: Literal["center", "left", "two_line"] = "center"
     accent_color: Literal["champagne", "baha_blue", "coral"] = "champagne"
     outline: bool = True
